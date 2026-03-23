@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Users.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Domain.Users.Repository
 {
@@ -16,5 +17,9 @@ namespace Api.Domain.Users.Repository
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<User>?> GetAllAsync() => await _context.Users.ToListAsync();
+
+        public async Task<User?> GetByIdAsync(Guid id) => await _context.Users.FindAsync(id);
     }
 }

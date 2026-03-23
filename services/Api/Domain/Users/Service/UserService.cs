@@ -1,4 +1,5 @@
-﻿using Api.Domain.Users.Dto;
+﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
 
 namespace Api.Domain.Users.Service
@@ -15,13 +16,24 @@ namespace Api.Domain.Users.Service
         public async Task CreateUserAsync(CreateUserDto createUserDto)
         {
             var user = new Domain.User(
-                Guid.NewGuid(), 
-                createUserDto.Email, 
-                createUserDto.Password, 
+                Guid.NewGuid(),
+                createUserDto.Email,
+                createUserDto.Password,
                 createUserDto.Nickname
                 );
             await _repo.CreateAsync(user);
         }
 
+        public async Task<List<User>?> GetAllUsersAsync()
+        {
+            var users = await _repo.GetAllAsync();
+            return users;
+        }
+
+        public async Task<User?> GetUserByIdAsync(Guid id)
+        {
+            var user = await _repo.GetByIdAsync(id);
+            return user;
+        }
     }
 }

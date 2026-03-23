@@ -21,5 +21,22 @@ namespace Api.Domain.Users.Api
             await _service.CreateUserAsync(createUserDto);
             return Ok();
         }
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "Get All Users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var resultUsers = await _service.GetAllUsersAsync();
+            return Ok(resultUsers);
+        }
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "Get User By Id")]
+        public async Task<IActionResult> GetUserById([FromQuery] Guid id)
+        {
+            var user = await _service.GetUserByIdAsync(id);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
     }
 }
