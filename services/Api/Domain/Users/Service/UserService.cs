@@ -53,7 +53,7 @@ namespace Api.Domain.Users.Service
             var user = await _repo.GetByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("User not found");
             user.Nickname = request.Nickname;
-            await _repo.SaveChangesAsync();
+            await _repo.UpdateUserAsync(user);
             var response = new UserPatchResponseDto(
                 Nickname: user.Nickname
             );

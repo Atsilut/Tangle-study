@@ -13,7 +13,6 @@ namespace Api.Domain.Users.Repository
         {
             _context = context;
         }
-        public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 
         public async Task CreateAsync(User user)
         {
@@ -27,5 +26,9 @@ namespace Api.Domain.Users.Repository
         public async Task<User?> GetByEmailAsync(string email) 
             => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
+        public async Task UpdateUserAsync(User user) {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        } 
     }
 }
