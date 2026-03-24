@@ -4,7 +4,7 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Api.Domain.Users.Dto
 {
-    public record CreateUserDto
+    public record UserCreateRequestDto
     {
         [Required]
         [RegularExpression(
