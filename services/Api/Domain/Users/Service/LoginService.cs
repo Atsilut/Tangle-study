@@ -1,5 +1,6 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
+using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 using Api.Global.Security;
 
@@ -19,6 +20,9 @@ namespace Api.Domain.Users.Service
 
         public async Task CreateUserAsync(UserCreateRequestDto request)
         {
+            var foundUser = await _repo.GetByEmailAsync(request.Email);
+            if (foundUser != null) throw new EntityAlreadyExistsException("User", request.Email);
+
             var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var user = new Domain.User(
                 email: request.Email,

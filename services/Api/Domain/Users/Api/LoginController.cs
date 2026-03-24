@@ -1,5 +1,6 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
+using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -19,8 +20,15 @@ namespace Api.Domain.Users.Api
         [SwaggerOperation(Summary = "Sign Up")]
         public async Task<IActionResult> CreateUser([FromBody] Dto.UserCreateRequestDto request)
         {
-            await _service.CreateUserAsync(request);
-            return Ok();
+            try
+            {
+                await _service.CreateUserAsync(request);
+                return Ok();
+            }
+            catch (EntityAlreadyExistsException ex)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpPost("/login")]
