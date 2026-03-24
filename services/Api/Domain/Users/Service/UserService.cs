@@ -30,10 +30,18 @@ namespace Api.Domain.Users.Service
             return users;
         }
 
-        public async Task<User?> GetUserByIdAsync(Guid id)
+        public async Task<UserGetResponseDto?> GetUserByIdAsync(Guid id)
         {
             var user = await _repo.GetByIdAsync(id);
-            return user;
+            if (user == null) return null;
+
+            var userResponse = new UserGetResponseDto(
+                Id : user.Id,
+                Email : user.Email,
+                Nickname : user.Nickname
+            );
+
+            return userResponse;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Api.Domain.Users.Service;
+﻿using Api.Domain.Users.Dto;
+using Api.Domain.Users.Service;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -32,11 +33,11 @@ namespace Api.Domain.Users.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "Get User By Id")]
-        public async Task<IActionResult> GetUserById([FromQuery] Guid id)
+        public async Task<ActionResult<UserGetResponseDto?>> GetUserById([FromQuery] Guid id)
         {
-            var user = await _service.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
-            return Ok(user);
+            var userResponse = await _service.GetUserByIdAsync(id);
+            if (userResponse == null) return NotFound();
+            return Ok(userResponse);
         }
     }
 }
