@@ -56,7 +56,7 @@ namespace Api.Domain.Users.Api
             try
             {
                 await _service.DeleteUserAsync(id);
-                return Ok();
+                return NoContent();
             }
             catch (EntityNotFoundException)
             {

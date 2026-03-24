@@ -23,7 +23,7 @@ namespace Api.Domain.Users.Api
             try
             {
                 await _service.CreateUserAsync(request);
-                return Ok();
+                return NoContent();
             }
             catch (EntityAlreadyExistsException ex)
             {
