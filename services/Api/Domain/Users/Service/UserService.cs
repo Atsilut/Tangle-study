@@ -1,9 +1,11 @@
 ﻿using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
+using Api.Global.Infrastructure;
 
 namespace Api.Domain.Users.Service
 {
+    [Service]
     public class UserService
     {
         private readonly UserRepository _repo;

@@ -21,6 +21,8 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddCustomDependencies();
+
 builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
@@ -50,6 +52,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+DependencyInjection.PrintLogs(logger);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -58,6 +63,10 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Tangle API v1");
         options.RoutePrefix = "api";
     });
+
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
 }
 
 app.UseAuthentication();

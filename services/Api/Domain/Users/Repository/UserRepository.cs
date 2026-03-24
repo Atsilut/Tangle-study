@@ -1,8 +1,10 @@
 ﻿using Api.Domain.Users.Domain;
+using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Domain.Users.Repository
 {
+    [Repository]
     public class UserRepository
     {
         private readonly Global.Db.AppDbContext _context;
