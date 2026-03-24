@@ -15,14 +15,6 @@ namespace Api.Domain.Users.Api
             _service = service;
         }
 
-        [HttpPost]
-        [SwaggerOperation(Summary = "Sign Up")]
-        public async Task<IActionResult> CreateUser([FromBody] Dto.UserCreateRequestDto request)
-        {
-            await _service.CreateUserAsync(request);
-            return Ok();
-        }
-
         [HttpGet]
         [SwaggerOperation(Summary = "Get All Users")]
         public async Task<IActionResult> GetAllUsers()
