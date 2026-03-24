@@ -17,9 +17,9 @@ namespace Api.Domain.Users.Api
 
         [HttpPost]
         [SwaggerOperation(Summary = "Sign Up")]
-        public async Task<IActionResult> CreateUser([FromBody] Dto.CreateUserDto createUserDto)
+        public async Task<IActionResult> CreateUser([FromBody] Dto.UserCreateRequestDto request)
         {
-            await _service.CreateUserAsync(createUserDto);
+            await _service.CreateUserAsync(request);
             return Ok();
         }
 
@@ -35,9 +35,9 @@ namespace Api.Domain.Users.Api
         [SwaggerOperation(Summary = "Get User By Id")]
         public async Task<ActionResult<UserGetResponseDto?>> GetUserById([FromQuery] Guid id)
         {
-            var userResponse = await _service.GetUserByIdAsync(id);
-            if (userResponse == null) return NotFound();
-            return Ok(userResponse);
+            var response = await _service.GetUserByIdAsync(id);
+            if (response == null) return NotFound();
+            return Ok(response);
         }
     }
 }

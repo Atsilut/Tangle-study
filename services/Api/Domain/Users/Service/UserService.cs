@@ -13,13 +13,13 @@ namespace Api.Domain.Users.Service
             _repo = repo;
         }
 
-        public async Task CreateUserAsync(CreateUserDto createUserDto)
+        public async Task CreateUserAsync(UserCreateRequestDto request)
         {
             var user = new Domain.User(
                 Guid.NewGuid(),
-                createUserDto.Email,
-                createUserDto.Password,
-                createUserDto.Nickname
+                request.Email,
+                request.Password,
+                request.Nickname
                 );
             await _repo.CreateAsync(user);
         }
@@ -36,9 +36,9 @@ namespace Api.Domain.Users.Service
             if (user == null) return null;
 
             var userResponse = new UserGetResponseDto(
-                Id : user.Id,
-                Email : user.Email,
-                Nickname : user.Nickname
+                Id: user.Id,
+                Email: user.Email,
+                Nickname: user.Nickname
             );
 
             return userResponse;
