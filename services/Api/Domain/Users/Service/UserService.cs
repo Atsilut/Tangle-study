@@ -15,10 +15,22 @@ namespace Api.Domain.Users.Service
             _repo = repo;
         }
 
-        public async Task<List<User>?> GetAllUsersAsync()
+        public async Task<List<UserGetResponseDto>?> GetAllUsersAsync()
         {
             var users = await _repo.GetAllAsync();
-            return users;
+            if (users == null) return null;
+
+            var list = new List<UserGetResponseDto>();
+            foreach (var user in users)
+            {
+                list.Add(new UserGetResponseDto(
+                    Id: user.Id,
+                    Email: user.Email,
+                    Nickname: user.Nickname
+                ));
+            }
+
+            return list;
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(Guid id)

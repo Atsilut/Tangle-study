@@ -17,10 +17,10 @@ namespace Api.Domain.Users.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "Get All Users")]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<ActionResult<List<UserGetResponseDto>?>> GetAllUsers()
         {
-            var resultUsers = await _service.GetAllUsersAsync();
-            return Ok(resultUsers);
+            var resultList = await _service.GetAllUsersAsync();
+            return Ok(resultList);
         }
 
         [HttpGet("{id:guid}")]
