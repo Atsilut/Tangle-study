@@ -10,7 +10,7 @@ namespace Api.Domain.Users.Domain
         public long Id { get; private set; }
         public string Email { get; private set; }
         public string Password { get; private set; }
-        public string Nickname { get; private set; }
+        public string Nickname { get; set; }
 
         private User() { }
 

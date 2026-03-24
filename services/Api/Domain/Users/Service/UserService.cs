@@ -1,6 +1,7 @@
 ﻿using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
+using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 
 namespace Api.Domain.Users.Service
@@ -45,6 +46,18 @@ namespace Api.Domain.Users.Service
             );
 
             return userResponse;
+        }
+
+        public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
+        {
+            var user = await _repo.GetByIdAsync(request.Id);
+            if (user == null) throw new EntityNotFoundException("User not found");
+            user.Nickname = request.Nickname;
+            await _repo.SaveChangesAsync();
+            var response = new UserPatchResponseDto(
+                Nickname: user.Nickname
+            );
+            return response;
         }
     }
 }

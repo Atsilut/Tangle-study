@@ -30,4 +30,6 @@ namespace Api.Domain.Users.Dto
         [DefaultValue("TangleTangle")]
         public string Nickname { get; init; }
     }
+
+    public record UserPatchRequestDto(long Id, string Nickname);
 }
