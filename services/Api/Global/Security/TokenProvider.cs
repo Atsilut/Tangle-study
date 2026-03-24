@@ -25,7 +25,7 @@ namespace Api.Global.Security
             _tokenExpiryMinutes = TimeSpan.FromMinutes(jwt.ExpiryMinutes);
         }
 
-        public string GenerateToken(Guid userId)
+        public string GenerateToken(long userId)
         {
             var claims = new List<Claim>
             {

@@ -23,9 +23,9 @@ namespace Api.Domain.Users.Api
             return Ok(resultList);
         }
 
-        [HttpGet("{id:guid}")]
+        [HttpGet("{id:long}")]
         [SwaggerOperation(Summary = "Get User By Id")]
-        public async Task<ActionResult<UserGetResponseDto?>> GetUserById([FromQuery] Guid id)
+        public async Task<ActionResult<UserGetResponseDto?>> GetUserById([FromRoute] long id)
         {
             var response = await _service.GetUserByIdAsync(id);
             if (response == null) return NotFound();

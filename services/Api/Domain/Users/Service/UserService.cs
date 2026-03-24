@@ -33,7 +33,7 @@ namespace Api.Domain.Users.Service
             return list;
         }
 
-        public async Task<UserGetResponseDto?> GetUserByIdAsync(Guid id)
+        public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
         {
             var user = await _repo.GetByIdAsync(id);
             if (user == null) return null;

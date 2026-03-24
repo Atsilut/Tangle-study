@@ -22,7 +22,7 @@ namespace Api.Domain.Users.Repository
 
         public async Task<List<User>?> GetAllAsync() => await _context.Users.ToListAsync();
 
-        public async Task<User?> GetByIdAsync(Guid id) => await _context.Users.FindAsync(id);
+        public async Task<User?> GetByIdAsync(long id) => await _context.Users.FindAsync(id);
         public async Task<User?> GetByEmailAsync(string email) 
             => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
     }

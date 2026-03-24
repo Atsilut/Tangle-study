@@ -21,7 +21,6 @@ namespace Api.Domain.Users.Service
         {
             var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var user = new Domain.User(
-                id: Guid.NewGuid(),
                 email: request.Email,
                 password: encodedPassword,
                 nickname: request.Nickname
