@@ -4,4 +4,5 @@
     <Project Path="services/Api/Api.csproj" />
   </Folder>
   <Folder Name="/workers/" />
+  <Project Path="services/Api.Tests/Api.Tests.csproj" Id="c16e227b-3f87-4248-bdb2-091b9d47f7e0" />
 </Solution>
