@@ -1,4 +1,5 @@
-﻿using Api.Domain.Users.Service;
+﻿using Api.Domain.Users.Dto;
+using Api.Domain.Users.Service;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -8,8 +9,8 @@ namespace Api.Domain.Users.Api
     [Route("api")]
     public class LoginController : ControllerBase
     {
-        private readonly UserService _service;
-        public LoginController(UserService service)
+        private readonly LoginService _service;
+        public LoginController(LoginService service)
         {
             _service = service;
         }
@@ -20,6 +21,19 @@ namespace Api.Domain.Users.Api
         {
             await _service.CreateUserAsync(request);
             return Ok();
+        }
+
+        [HttpPost("/login")]
+        [SwaggerOperation(Summary = "Login")]
+        public async Task<ActionResult<LoginResponseDto?>> Login([FromBody] LoginRequestDto request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            {
+                return BadRequest("Email and password are required.");
+            }
+            var response = await _service.LoginUserAsync(request);
+            if (response == null) return Unauthorized();
+            return Ok(response);
         }
     }
 }
