@@ -9,6 +9,10 @@ namespace Api.Domain.Users.Api
     public class LoginController : ControllerBase
     {
         private readonly UserService _service;
+        public LoginController(UserService service)
+        {
+            _service = service;
+        }
 
         [HttpPost("/join")]
         [SwaggerOperation(Summary = "Sign Up")]
