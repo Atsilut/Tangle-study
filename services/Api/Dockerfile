@@ -7,15 +7,18 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
-
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Api/Api.csproj", "Api/"]
-RUN dotnet restore "./Api/Api.csproj"
+
+COPY ["services/Api/Api.csproj", "services/Api/"]
+RUN dotnet restore "./services/Api/Api.csproj"
+
+# copy the whole repo into the container
 COPY . .
-WORKDIR "/src/Api"
+
+WORKDIR "/src/services/Api"
 RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
