@@ -14,11 +14,12 @@ namespace Api.Domain.Users.Service
 
         public async Task CreateUserAsync(UserCreateRequestDto request)
         {
+            var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var user = new Domain.User(
-                Guid.NewGuid(),
-                request.Email,
-                request.Password,
-                request.Nickname
+                id: Guid.NewGuid(),
+                email: request.Email,
+                password: encodedPassword,
+                nickname: request.Nickname
                 );
             await _repo.CreateAsync(user);
         }
