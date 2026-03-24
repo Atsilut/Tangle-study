@@ -9,9 +9,9 @@ namespace Api.Domain.Users.Service
     [Service]
     public class UserService
     {
-        private readonly UserRepository _repo;
+        private readonly IUserRepository _repo;
 
-        public UserService(UserRepository repo)
+        public UserService(IUserRepository repo)
         {
             _repo = repo;
         }

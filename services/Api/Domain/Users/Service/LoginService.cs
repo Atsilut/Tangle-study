@@ -29,7 +29,7 @@ namespace Api.Domain.Users.Service
                 password: encodedPassword,
                 nickname: request.Nickname
                 );
-            await _repo.CreateAsync(user);
+            await _repo.CreateUserAsync(user);
         }
 
         public async Task<LoginResponseDto?> LoginUserAsync(LoginRequestDto request)

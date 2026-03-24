@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Users.Repository
 {
     [Repository]
-    public class UserRepository
+    public class UserRepository : IUserRepository
     {
         private readonly Global.Db.AppDbContext _context;
 
@@ -14,7 +14,7 @@ namespace Api.Domain.Users.Repository
             _context = context;
         }
 
-        public async Task CreateAsync(User user)
+        public async Task CreateUserAsync(User user)
         {
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
