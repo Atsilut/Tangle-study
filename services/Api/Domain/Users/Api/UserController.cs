@@ -48,5 +48,20 @@ namespace Api.Domain.Users.Api
                 return NotFound();
             }
         }
+
+        [HttpDelete]
+        [SwaggerOperation(Summary = "Delete User")]
+        public async Task<IActionResult> DeleteUser([FromRoute] long id)
+        {
+            try
+            {
+                await _service.DeleteUserAsync(id);
+                return Ok();
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+        }
     }
 }

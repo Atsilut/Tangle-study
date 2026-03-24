@@ -59,5 +59,12 @@ namespace Api.Domain.Users.Service
             );
             return response;
         }
+
+        public async Task DeleteUserAsync(long id)
+        {
+            var user = await _repo.GetByIdAsync(id);
+            if (user == null) throw new EntityNotFoundException("User not found");
+            await _repo.DeleteUserAsync(user);
+        }
     }
 }
