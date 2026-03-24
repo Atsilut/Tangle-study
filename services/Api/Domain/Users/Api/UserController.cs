@@ -23,7 +23,7 @@ namespace Api.Domain.Users.Api
             return Ok(resultUsers);
         }
 
-        [HttpGet]
+        [HttpGet("{id:guid}")]
         [SwaggerOperation(Summary = "Get User By Id")]
         public async Task<ActionResult<UserGetResponseDto?>> GetUserById([FromQuery] Guid id)
         {
