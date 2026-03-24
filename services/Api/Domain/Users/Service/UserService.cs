@@ -13,17 +13,6 @@ namespace Api.Domain.Users.Service
             _repo = repo;
         }
 
-        public async Task CreateUserAsync(UserCreateRequestDto request)
-        {
-            var user = new Domain.User(
-                Guid.NewGuid(),
-                request.Email,
-                request.Password,
-                request.Nickname
-                );
-            await _repo.CreateAsync(user);
-        }
-
         public async Task<List<User>?> GetAllUsersAsync()
         {
             var users = await _repo.GetAllAsync();
