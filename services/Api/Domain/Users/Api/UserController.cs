@@ -1,5 +1,6 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
+using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -36,9 +37,16 @@ namespace Api.Domain.Users.Api
         [SwaggerOperation(Summary = "Update User Detail")]
         public async Task<ActionResult<UserPatchResponseDto>?> UpdateUserDetail([FromBody] UserPatchRequestDto request)
         {
-            var response = await _service.UpdateUserDetailAsync(request);
-            if (response == null) return NotFound();
-            return Ok(response);
+            try
+            {
+                var response = await _service.UpdateUserDetailAsync(request);
+                if (response == null) return NotFound();
+                return Ok(response);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
         }
     }
 }
