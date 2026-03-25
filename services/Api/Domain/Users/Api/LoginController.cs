@@ -17,7 +17,7 @@ namespace Api.Domain.Users.Api
             _service = service;
         }
 
-        [HttpPost("/join")]
+        [HttpPost("join")]
         [SwaggerOperation(Summary = "Sign Up")]
         public async Task<IActionResult> CreateUser([FromBody] Dto.UserCreateRequestDto request)
         {
@@ -32,7 +32,7 @@ namespace Api.Domain.Users.Api
             }
         }
 
-        [HttpPost("/login")]
+        [HttpPost("login")]
         [SwaggerOperation(Summary = "Login")]
         public async Task<ActionResult<LoginResponseDto?>> Login([FromBody] LoginRequestDto request)
         {

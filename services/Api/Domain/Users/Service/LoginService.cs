@@ -9,10 +9,10 @@ namespace Api.Domain.Users.Service
     [Service]
     public class LoginService
     {
-        private readonly UserRepository _repo;
+        private readonly IUserRepository _repo;
         private readonly TokenProvider _tokenProvider;
 
-        public LoginService(UserRepository repo, TokenProvider tokenProvider)
+        public LoginService(IUserRepository repo, TokenProvider tokenProvider)
         {
             _repo = repo;
             _tokenProvider = tokenProvider;
