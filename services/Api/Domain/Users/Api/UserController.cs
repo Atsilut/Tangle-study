@@ -49,7 +49,7 @@ namespace Api.Domain.Users.Api
             }
         }
 
-        [HttpDelete]
+        [HttpDelete("{id:long}")]
         [SwaggerOperation(Summary = "Delete User")]
         public async Task<IActionResult> DeleteUser([FromRoute] long id)
         {
