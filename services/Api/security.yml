@@ -1,0 +1,5 @@
+Jwt:
+  Issuer: "Tangle"
+  Audience: "TangleClient"
+  Secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_32+_CHARS"
+  ExpiryMinutes: 15

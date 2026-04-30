@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: tangle
+      POSTGRES_PASSWORD: tangletangle123
+      POSTGRES_DB: tangledb
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: services/Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=tangledb;Username=tangle;Password=tangletangle123;Pooling=true"
+    ports:
+      - "5000:8080"
+    depends_on:
+      - db  
+
+volumes:
+  db-data:
