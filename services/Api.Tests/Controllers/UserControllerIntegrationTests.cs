@@ -26,20 +26,14 @@ public sealed class UserControllerIntegrationTests : IDisposable
         _factory.Dispose();
     }
 
-    public UserCreateRequestDto CreateUserRequest(
-        string? email = null, 
-        string? password = null, 
-        string? nickname = null
-        ) => new()
-        {
-            Email = email ?? $"{Guid.NewGuid()}@test.com",
-            Password = password ?? testUserPassword,
-            Nickname = nickname ?? testUserNickname,
-        };
-
-    private async Task<UserGetResponseDto> CreateAndGetUser(UserCreateRequestDto? req = null)
+    private async Task<UserGetResponseDto> CreateUserForTest()
     {
-        req ??= CreateUserRequest();
+        var req = new UserCreateRequestDto
+        {
+            Email = $"{Guid.NewGuid()}@test.com",
+            Password = testUserPassword,
+            Nickname = testUserNickname,
+        };
         var create = await _client.PostAsJsonAsync("/api/join", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
@@ -48,10 +42,11 @@ public sealed class UserControllerIntegrationTests : IDisposable
         return all!.First(u => u.Email == req.Email);
     }
 
+
     [Fact]
     public async Task GetUserById()
     {
-        var created = await CreateAndGetUser();
+        var created = await CreateUserForTest();
 
         var res = await _client.GetAsync("/api/users/" + created.Id);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -68,7 +63,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task PatchUser_UpdatesNickname()
     {
-        var created = await CreateAndGetUser();
+        var created = await CreateUserForTest();
 
         var newNickname = "new";
         var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
@@ -82,7 +77,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task PatchUser_UpdatesNickname_Return404_WhenMissing()
     {
-        var created = await CreateAndGetUser();
+        var created = await CreateUserForTest();
 
         var newNickname = "new";
         var wrongUserId = created.Id + 123456;
@@ -93,7 +88,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task DeleteUser()
     {
-        var created = await CreateAndGetUser();
+        var created = await CreateUserForTest();
 
         var delete = await _client.DeleteAsync($"/api/users/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
@@ -105,7 +100,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task DeleteUser_Return404_WhenMissing()
     {
-        var created = await CreateAndGetUser();
+        var created = await CreateUserForTest();
 
         var wrongUserId = created.Id + 123456;
         var delete = await _client.DeleteAsync($"/api/users/{wrongUserId}");
