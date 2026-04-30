@@ -1,7 +1,6 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
