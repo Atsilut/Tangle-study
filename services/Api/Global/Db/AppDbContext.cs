@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Users.Domain;
+using Api.Domain.Posts.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Global.Db
@@ -6,22 +7,13 @@ namespace Api.Global.Db
     public class AppDbContext : DbContext
     {
         public DbSet<User> Users { get; set; }
+        public DbSet<Post> Posts { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
         }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<User>(entity =>
-            {
-                entity.HasKey(u => u.Id);
-                entity.Property(u => u.Id)
-                      .ValueGeneratedOnAdd();
-            });
-        }
+        // Rely on EF Core conventions + entity annotations.
     }
 }

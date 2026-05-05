@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Api.Domain.Posts.Domain;
 
 namespace Api.Domain.Users.Domain
 {
@@ -13,6 +14,8 @@ namespace Api.Domain.Users.Domain
         public string Email { get; private set; }
         public string Password { get; private set; }
         public string Nickname { get; set; }
+
+        public ICollection<Post> Posts { get; private set; } = new List<Post>();
 
         private User() { }
 
