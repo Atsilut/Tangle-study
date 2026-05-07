@@ -47,6 +47,18 @@ namespace Api.Domain.Users.Service
             return userResponse;
         }
 
+        public async Task<UserGetResponseDto?> GetUserByNicknameAsync(string nickname)
+        {
+            var user = await _repo.GetUserByNicknameAsync(nickname);
+            if (user == null) return null;
+            var userResponse = new UserGetResponseDto(
+                Id: user.Id,
+                Email: user.Email,
+                Nickname: user.Nickname
+            );
+            return userResponse;
+        }
+
         public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
             var user = await _repo.GetUserByIdAsync(request.Id);

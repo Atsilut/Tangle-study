@@ -8,6 +8,7 @@ namespace Api.Domain.Users.Repository
         public Task<List<User>?> GetAllUsersAsync();
         public Task<User?> GetUserByIdAsync(long id);
         public Task<User?> GetUserByEmailAsync(string email);
+        public Task<User?> GetUserByNicknameAsync(string nickname);
         public Task UpdateUserAsync(User user);
         public Task DeleteUserAsync(User user);
     }
