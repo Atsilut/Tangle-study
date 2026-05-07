@@ -19,5 +19,13 @@ namespace Api.Domain.Posts.Repository
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<Post>?> GetAllPostsAsync() => await _context.Posts.ToListAsync();
+
+        public async Task<Post?> GetPostByIdAsync(long id) => await _context.Posts.FindAsync(id);
+
+        public async Task<List<Post>?> GetPostsByUserIdAsync(long userId) => await _context.Posts
+                .Where(post => post.UserId == userId)
+                .ToListAsync();
     }
 }

@@ -23,5 +23,30 @@ namespace Api.Domain.Posts.Api
             await _service.CreatePostAsync(request);
             return Created();
         }
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "Get All Posts")]
+        public async Task<ActionResult<List<PostGetResponseDto>?>> GetAllPosts()
+        {
+            var resultList = await _service.GetAllPostsAsync();
+            return Ok(resultList);
+        }
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "Get Post By Id")]
+        public async Task<ActionResult<PostGetResponseDto?>> GetPostById([FromQuery] long id)
+        {
+            var result = await _service.GetPostByIdAsync(id);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "Get Posts By User Nickname")]
+        public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
+        {
+            var result = await _service.GetPostByUserNickname(nickname);
+            return Ok(result);
+        }
     }
 }
