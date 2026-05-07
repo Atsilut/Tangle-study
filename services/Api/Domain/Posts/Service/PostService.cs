@@ -86,5 +86,22 @@ namespace Api.Domain.Posts.Service
             }
             return list;
         }
+
+        public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
+        {
+            var user = await _userService.GetUserByIdAsync(GetUserId());
+            var post = await _repo.GetPostByIdAsync(request.Id);
+            if (user == null) throw new EntityNotFoundException("Unauthorized user");
+            if (post == null) throw new EntityNotFoundException("Post not found");
+            if (post.UserId != user.Id) throw new UnauthorizedAccessException();
+            post.Title = request.Title;
+            post.Content = request.Content;
+            await _repo.UpdatePostAsync(post);
+            var response = new PostPatchResponseDto(
+                Title: post.Title,
+                Content: post.Content
+            );
+            return response;
+        }
     }
 }

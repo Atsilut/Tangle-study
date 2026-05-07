@@ -12,8 +12,8 @@ namespace Api.Domain.Posts.Domain
 
         public DateTime CreatedAt { get; private set; } = DateTime.Now;
         public DateTime UpdatedAt { get; private set; } = DateTime.Now;
-        public string Title { get; private set; }
-        public string Content { get; private set; }
+        public string Title { get; set; }
+        public string Content { get; set; }
 
         [ForeignKey(nameof(User))]
         public long UserId { get; private set; }

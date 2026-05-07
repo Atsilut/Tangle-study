@@ -27,5 +27,11 @@ namespace Api.Domain.Posts.Repository
         public async Task<List<Post>?> GetPostsByUserIdAsync(long userId) => await _context.Posts
                 .Where(post => post.UserId == userId)
                 .ToListAsync();
+
+        public async Task UpdatePostAsync(Post post)
+        {
+            _context.Posts.Update(post);
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Service;
+using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -47,6 +48,26 @@ namespace Api.Domain.Posts.Api
         {
             var result = await _service.GetPostsByUserNickname(nickname);
             return Ok(result);
+        }
+
+        [HttpPatch]
+        [SwaggerOperation(Summary = "Edit Post")]
+        public async Task<ActionResult<PostPatchResponseDto>?> UpdatePostDetail([FromBody] PostPatchRequestDto request)
+        {
+            try
+            {
+                var response = await _service.UpdatePostAsync(request);
+                if (response == null) return NotFound();
+                return Ok(response);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
         }
     }
 }

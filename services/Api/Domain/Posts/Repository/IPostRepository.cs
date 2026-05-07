@@ -9,5 +9,6 @@ namespace Api.Domain.Posts.Repository
 
         Task<Post?> GetPostByIdAsync(long id);
         Task<List<Post>?> GetPostsByUserIdAsync(long userId);
+        Task UpdatePostAsync(Post post);
     }
 }
