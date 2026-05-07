@@ -1,5 +1,4 @@
-﻿using Api.Domain.Users.Domain;
-using Api.Domain.Users.Dto;
+﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -18,7 +17,7 @@ namespace Api.Domain.Users.Service
 
         public async Task<List<UserGetResponseDto>?> GetAllUsersAsync()
         {
-            var users = await _repo.GetAllAsync();
+            var users = await _repo.GetAllUsersAsync();
             if (users == null) return null;
 
             var list = new List<UserGetResponseDto>();
@@ -36,7 +35,7 @@ namespace Api.Domain.Users.Service
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
         {
-            var user = await _repo.GetByIdAsync(id);
+            var user = await _repo.GetUserByIdAsync(id);
             if (user == null) return null;
 
             var userResponse = new UserGetResponseDto(
@@ -50,7 +49,7 @@ namespace Api.Domain.Users.Service
 
         public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
-            var user = await _repo.GetByIdAsync(request.Id);
+            var user = await _repo.GetUserByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("User not found");
             user.Nickname = request.Nickname;
             await _repo.UpdateUserAsync(user);
@@ -62,7 +61,7 @@ namespace Api.Domain.Users.Service
 
         public async Task DeleteUserAsync(long id)
         {
-            var user = await _repo.GetByIdAsync(id);
+            var user = await _repo.GetUserByIdAsync(id);
             if (user == null) throw new EntityNotFoundException("User not found");
             await _repo.DeleteUserAsync(user);
         }

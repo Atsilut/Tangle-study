@@ -20,10 +20,10 @@ namespace Api.Domain.Users.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<User>?> GetAllAsync() => await _context.Users.ToListAsync();
+        public async Task<List<User>?> GetAllUsersAsync() => await _context.Users.ToListAsync();
 
-        public async Task<User?> GetByIdAsync(long id) => await _context.Users.FindAsync(id);
-        public async Task<User?> GetByEmailAsync(string email) 
+        public async Task<User?> GetUserByIdAsync(long id) => await _context.Users.FindAsync(id);
+        public async Task<User?> GetUserByEmailAsync(string email) 
             => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
         public async Task UpdateUserAsync(User user) {

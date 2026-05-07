@@ -31,7 +31,7 @@ public sealed class UserServiceUnitTests
         Assert.NotNull(res);
         Assert.Equal("new", res!.Nickname);
 
-        var reloaded = await repo.GetByIdAsync(user.Id);
+        var reloaded = await repo.GetUserByIdAsync(user.Id);
         Assert.NotNull(reloaded);
         Assert.Equal("new", reloaded!.Nickname);
     }
@@ -59,7 +59,7 @@ public sealed class UserServiceUnitTests
         Assert.NotNull(res);
 
         await service.DeleteUserAsync(user.Id);
-        var deleted = await repo.GetByIdAsync(user.Id);
+        var deleted = await repo.GetUserByIdAsync(user.Id);
         Assert.Null(deleted);
     }
 }
