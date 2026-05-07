@@ -14,6 +14,8 @@ namespace Api.Domain.Users.Domain
         public string Email { get; private set; }
         public string Password { get; private set; }
         public string Nickname { get; set; }
+        public DateTime CreatedAt { get; private set; } = DateTime.Now;
+        public DateTime UpdatedAt { get; private set; } = DateTime.Now;
 
         public ICollection<Post> Posts { get; private set; } = new List<Post>();
 

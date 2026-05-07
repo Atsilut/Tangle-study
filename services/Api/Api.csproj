@@ -28,11 +28,4 @@
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
      </Content>
    </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Domain\Posts\Api\" />
-    <Folder Include="Domain\Posts\Dto\" />
-    <Folder Include="Domain\Posts\Service\" />
-    <Folder Include="Domain\Posts\Repository\" />
-  </ItemGroup>
 </Project>
