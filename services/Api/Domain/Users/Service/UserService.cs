@@ -63,6 +63,8 @@ namespace Api.Domain.Users.Service
         {
             var user = await _repo.GetUserByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("User not found");
+            var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
+            if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
             user.Nickname = request.Nickname;
             await _repo.UpdateUserAsync(user);
             var response = new UserPatchResponseDto(
