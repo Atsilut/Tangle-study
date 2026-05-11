@@ -8,9 +8,9 @@ namespace Api.Domain.Users.Repository
         public Task<List<User>?> GetAllUsersAsync();
         public Task<User?> GetUserByIdAsync(long id);
         public Task<User?> GetUserByEmailAsync(string email);
-        Task<bool> ExistsUserByEmailAsync(string email);
+        public Task<bool> ExistsUserByEmailAsync(string email);
         public Task<User?> GetUserByNicknameAsync(string nickname);
-        Task<bool> ExistsUserByNicknameAsync(string nickname);
+        public Task<bool> ExistsUserByNicknameAsync(string nickname);
         public Task UpdateUserAsync(User user);
         public Task DeleteUserAsync(User user);
     }

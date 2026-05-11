@@ -4,12 +4,12 @@ namespace Api.Domain.Posts.Repository
 {
     public interface IPostRepository
     {
-        Task CreatePostAsync(Post post);
-        Task<List<Post>?> GetAllPostsAsync();
+        public Task CreatePostAsync(Post post);
+        public Task<List<Post>?> GetAllPostsAsync();
 
-        Task<Post?> GetPostByIdAsync(long id);
-        Task<List<Post>?> GetPostsByUserIdAsync(long userId);
-        Task UpdatePostAsync(Post post);
-        Task DeletePostAsync(Post post);
+        public Task<Post?> GetPostByIdAsync(long id);
+        public Task<List<Post>?> GetPostsByUserIdAsync(long userId);
+        public Task UpdatePostAsync(Post post);
+        public Task DeletePostAsync(Post post);
     }
 }
