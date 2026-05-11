@@ -69,5 +69,24 @@ namespace Api.Domain.Posts.Api
                 return Unauthorized();
             }
         }
+
+        [HttpDelete("{id:long}")]
+        [SwaggerOperation(Summary = "Delete Post")]
+        public async Task<IActionResult> DeletePost([FromRoute] long id)
+        {
+            try
+            {
+                await _service.DeletePostAsync(id);
+                return NoContent();
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
     }
 }

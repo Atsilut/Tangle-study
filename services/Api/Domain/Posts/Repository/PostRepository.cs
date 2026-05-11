@@ -33,5 +33,11 @@ namespace Api.Domain.Posts.Repository
             _context.Posts.Update(post);
             await _context.SaveChangesAsync();
         }
+
+        public async Task DeletePostAsync(Post post)
+        {
+            _context.Posts.Remove(post);
+            await _context.SaveChangesAsync();
+        }
     }
 }

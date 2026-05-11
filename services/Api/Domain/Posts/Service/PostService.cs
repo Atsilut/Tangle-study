@@ -103,5 +103,16 @@ namespace Api.Domain.Posts.Service
             );
             return response;
         }
+
+        public async Task DeletePostAsync(long id)
+        {
+            var user = await _userService.GetUserByIdAsync(GetUserId());
+            if (user == null) throw new EntityNotFoundException("Authentication failed");
+            var post = await _repo.GetPostByIdAsync(id);
+            if (post == null) throw new EntityNotFoundException("Post not found");
+            if (post.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+
+            await _repo.DeletePostAsync(post);
+        }
     }
 }
