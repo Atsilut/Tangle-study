@@ -14,10 +14,11 @@ namespace Api.Domain.Posts.Service
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly UserService _userService;
 
-        public PostService(IPostRepository repo, IHttpContextAccessor httpContextAccessor)
+        public PostService(IPostRepository repo, IHttpContextAccessor httpContextAccessor, UserService userService)
         {
             _repo = repo;
             _httpContextAccessor = httpContextAccessor;
+            _userService = userService;
         }
 
         private long GetUserId() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
