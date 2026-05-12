@@ -26,8 +26,12 @@ namespace Api.Domain.Posts.Service
 
         public async Task CreatePostAsync(PostCreateRequestDto request)
         {
+            var userId = GetUserId();
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) throw new EntityNotFoundException("User not found");
+
             var post = new Post(
-                userId: GetUserId(),
+                userId: userId,
                 title: request.Title,
                 content: request.Content
             );
