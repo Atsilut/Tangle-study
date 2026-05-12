@@ -42,11 +42,13 @@ namespace Api.Domain.Posts.Service
             var list = new List<PostGetResponseDto>();
             foreach (var post in posts)
             {
+                var user = await _userService.GetUserByIdAsync(post.UserId);
                 list.Add(new PostGetResponseDto(
                         Id: post.Id,
                         Title: post.Title,
                         Content: post.Content,
-                        UserId: post.UserId
+                        UserId: post.UserId,
+                        AuthorNickname: user?.Nickname ?? "Unknown"
                     ));
             }
 
@@ -58,11 +60,13 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetPostByIdAsync(id);
             if (post == null) return null;
 
+            var user = await _userService.GetUserByIdAsync(post.UserId);
             var postResponse = new PostGetResponseDto(
                 Id: post.Id,
                 Title: post.Title,
                 Content: post.Content,
-                UserId: post.UserId
+                UserId: post.UserId,
+                AuthorNickname: user?.Nickname ?? "Unknown"
             );
 
             return postResponse;
@@ -82,8 +86,10 @@ namespace Api.Domain.Posts.Service
                     Id: post.Id,
                     Title: post.Title,
                     Content: post.Content,
-                    UserId: post.UserId
+                    UserId: post.UserId,
+                    AuthorNickname: user.Nickname
                 );
+                list.Add(postResponse);
             }
             return list;
         }

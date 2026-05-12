@@ -42,7 +42,7 @@ namespace Api.Domain.Posts.Api
             return Ok(result);
         }
 
-        [HttpGet]
+        [HttpGet("nickname/{nickname}")]
         [SwaggerOperation(Summary = "Get Posts By User Nickname")]
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
         {
