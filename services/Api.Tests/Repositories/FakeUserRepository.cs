@@ -26,6 +26,15 @@ public sealed class FakeUserRepository : IUserRepository
     public Task<User?> GetUserByEmailAsync(string email)
         => Task.FromResult(_users.Values.FirstOrDefault(u => u.Email == email));
 
+    public Task<bool> ExistsUserByEmailAsync(string email)
+        => Task.FromResult(_users.Values.Any(u => u.Email == email));
+
+    public Task<User?> GetUserByNicknameAsync(string nickname)
+        => Task.FromResult(_users.Values.FirstOrDefault(u => u.Nickname == nickname));
+
+    public Task<bool> ExistsUserByNicknameAsync(string nickname)
+        => Task.FromResult(_users.Values.Any(u => u.Nickname == nickname));
+
     public Task UpdateUserAsync(User user)
     {
         if (user.Id != 0)
