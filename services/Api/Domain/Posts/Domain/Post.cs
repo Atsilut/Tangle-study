@@ -10,8 +10,8 @@ namespace Api.Domain.Posts.Domain
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; private set; } = DateTime.Now;
-        public DateTime UpdatedAt { get; private set; } = DateTime.Now;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
         public string Title { get; set; }
         public string Content { get; set; }
 
