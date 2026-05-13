@@ -17,11 +17,7 @@ public class FakePostRepository : IPostRepository
         {
             idProperty.SetValue(newPost, _currentId++);
         }
-        else
-        {
-            // Fallback if reflection fails, though not ideal
-            // This part might need adjustment based on the actual Post domain model design
-        }
+        else throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.")
         _posts.Add(newPost);
         return Task.CompletedTask;
     }
