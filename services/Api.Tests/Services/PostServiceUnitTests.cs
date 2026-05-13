@@ -165,4 +165,22 @@ public class PostServiceUnitTests
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
         Assert.Equal("Unauthorized user", exception.Message);
     }
+
+    [Fact]
+    public async Task UpdatePostAsync_PostMissing_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+
+        var request = new PostPatchRequestDto
+        {
+            Id = 999, // Non-existent post
+            Title = "Test title",
+            Content = "Test content"
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
+        Assert.Equal("Post not found", exception.Message);
+    }
 }
