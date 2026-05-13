@@ -33,6 +33,11 @@ namespace Api.Domain.Users.Dto
 
     public record UserPatchRequestDto
     {
+        public UserPatchRequestDto(long id, string nickname)
+        {
+            Id = id;
+            Nickname = nickname;
+        }
         [Required]
         public long Id { get; init; }
         [Required]
