@@ -17,7 +17,7 @@ public class FakePostRepository : IPostRepository
         {
             idProperty.SetValue(newPost, _currentId++);
         }
-        else throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.")
+        else throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.");
         _posts.Add(newPost);
         return Task.CompletedTask;
     }
