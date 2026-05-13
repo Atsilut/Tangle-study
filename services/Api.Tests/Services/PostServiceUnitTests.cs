@@ -203,4 +203,29 @@ public class PostServiceUnitTests
         var findPost = await _postRepository.GetPostByIdAsync(post.Id);
         Assert.Null(findPost);
     }
+
+    [Fact]
+    public async Task UpdatePostAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var postOwner = await CreateTestUserAsync("owner@test.com", "owner");
+        var post = await CreateTestPostAsync(postOwner.Id);
+        var requestingUser = await CreateTestUserAsync("hacker@test.com", "hacker");
+
+        // Mock for the malicious/Unauthorized user token
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
+        };
+
+        var request = new PostPatchRequestDto
+        {
+            Id = 1,
+            Title = "Hacked title",
+            Content = "Hacked content"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _postService.UpdatePostAsync(request));
+    }
 }
