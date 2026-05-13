@@ -118,4 +118,27 @@ public class PostServiceUnitTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
     }
+
+    [Fact]
+    public async Task UpdatePostAsync_ValidRequest_UpdatesPost()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+
+        var editedTitle = "Edited title";
+        var editedContent = "Edited content";
+        var updateRequest = new PostPatchRequestDto
+        {
+            Id = post.Id,
+            Title = editedTitle,
+            Content = editedContent
+        };
+        await _postService.UpdatePostAsync(updateRequest);
+
+        var findPost = await _postRepository.GetPostByIdAsync(post.Id);
+        Assert.NotNull(findPost);
+        Assert.Equal(findPost.Title, editedTitle);
+        Assert.Equal(findPost.Content, editedContent);
+    }
 }
