@@ -10,15 +10,14 @@ public class FakePostRepository : IPostRepository
 
     public Task CreatePostAsync(Post post)
     {
-        var newPost = new Post(post.UserId, post.Title, post.Content);
         // Manually set the Id using reflection or a test-only constructor
         var idProperty = typeof(Post).GetProperty("Id");
         if (idProperty != null && idProperty.CanWrite)
         {
-            idProperty.SetValue(newPost, _currentId++);
+            idProperty.SetValue(post, _currentId++);
         }
         else throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.");
-        _posts.Add(newPost);
+        _posts.Add(post);
         return Task.CompletedTask;
     }
 

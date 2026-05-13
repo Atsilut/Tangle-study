@@ -126,6 +126,11 @@ public class PostServiceUnitTests
         var user = await CreateTestUserAsync();
         var post = await CreateTestPostAsync(user.Id);
 
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
         var editedTitle = "Edited title";
         var editedContent = "Edited content";
         var updateRequest = new PostPatchRequestDto
