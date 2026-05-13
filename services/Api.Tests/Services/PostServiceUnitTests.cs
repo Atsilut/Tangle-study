@@ -141,4 +141,28 @@ public class PostServiceUnitTests
         Assert.Equal(findPost.Title, editedTitle);
         Assert.Equal(findPost.Content, editedContent);
     }
+
+    [Fact]
+    public async Task UpdatePostAsync_CorruptedUserData_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+
+        var request = new PostPatchRequestDto
+        {
+            Id = post.Id,
+            Title = "Test title",
+            Content = "Test content"
+        };
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", "999") }))
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
+        Assert.Equal("Unauthorized user", exception.Message);
+    }
 }
