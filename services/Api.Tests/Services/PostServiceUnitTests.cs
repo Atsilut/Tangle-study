@@ -183,4 +183,24 @@ public class PostServiceUnitTests
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
         Assert.Equal("Post not found", exception.Message);
     }
+
+    [Fact]
+    public async Task DeletePostAsync_ValidRequest_DeletesPost()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        // Act
+        await _postService.DeletePostAsync(1);
+
+        // Assert
+        var findPost = await _postRepository.GetPostByIdAsync(post.Id);
+        Assert.Null(findPost);
+    }
 }
