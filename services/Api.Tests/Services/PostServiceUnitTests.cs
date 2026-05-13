@@ -210,7 +210,7 @@ public class PostServiceUnitTests
     }
 
     [Fact]
-    public async Task UpdatePostAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
+    public async Task DeletePostAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
     {
         // Arrange
         var postOwner = await CreateTestUserAsync("owner@test.com", "owner");
@@ -231,6 +231,7 @@ public class PostServiceUnitTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _postService.UpdatePostAsync(request));
+        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _postService.DeletePostAsync(post.Id));
+        Assert.Equal("Unauthorized access", exception.Message);
     }
 }
