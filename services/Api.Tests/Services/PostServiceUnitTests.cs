@@ -5,8 +5,11 @@ using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Domain.Users.Domain;
 using Api.Tests.Fakes;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 using Xunit;
+using Api.Global.Exceptions;
 
 namespace Api.Tests.Services;
 
@@ -27,6 +30,13 @@ public class PostServiceUnitTests
         _postService = new PostService(_postRepository, _httpContextAccessor, _userService);
     }
 
+    private async Task<User> CreateTestUserAsync(string email = "test@test.com", string username = "test")
+    {
+        var user = new User(email, "Password123!", username);
+        await _userRepository.CreateUserAsync(user);
+        return user;
+    }
+
     [Fact]
     public async Task CreatePostAsync_ValidRequest_CreatesPost()
     {
@@ -36,8 +46,7 @@ public class PostServiceUnitTests
             Title = "Test title",
             Content = "Test content"
         };
-        var user = new User("test@test.com", "Password123!", "test");
-        await _userRepository.CreateUserAsync(user);
+        var user = await CreateTestUserAsync();
 
         // Act
         await _postService.CreatePostAsync(request);
