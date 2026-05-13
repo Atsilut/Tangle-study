@@ -36,6 +36,12 @@ public class PostServiceUnitTests
         await _userRepository.CreateUserAsync(user);
         return user;
     }
+    private async Task<Post> CreateTestPostAsync(long userId, string title = "Test title", string content = "Test content")
+    {
+        var post = new Post(userId, title, content);
+        await _postRepository.CreatePostAsync(post);
+        return post;
+    }
 
     [Fact]
     public async Task CreatePostAsync_ValidRequest_CreatesPost()
@@ -56,5 +62,24 @@ public class PostServiceUnitTests
         Assert.NotNull(post);
         Assert.Equal("Test content", post.Content);
         Assert.Equal(user.Id, post.UserId);
+    }
+
+    [Fact]
+    public async Task CreatePostAsync_MissingUser_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var request = new PostCreateRequestDto
+        {
+            Title = "Test title",
+            Content = "Test content"
+        };
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", "999") }))
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.CreatePostAsync(request));
     }
 }
