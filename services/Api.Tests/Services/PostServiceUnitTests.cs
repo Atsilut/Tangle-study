@@ -82,4 +82,26 @@ public class PostServiceUnitTests
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.CreatePostAsync(request));
     }
+
+    [Fact]
+    public async Task GetPostByIdAsync_ExistingPost_ReturnsPost()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync("test1@test.com", "test1");
+        await CreateTestPostAsync(user.Id);
+        // Act
+        var result = await _postService.GetPostByIdAsync(1);
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Test content", result.Content);
+    }
+
+    [Fact]
+    public async Task GetPostByIdAsync_NonExistingPost_ReturnsNull()
+    {
+        // Act
+        var result = await _postService.GetPostByIdAsync(999);
+        // Assert
+        Assert.Null(result);
+    }
 }
