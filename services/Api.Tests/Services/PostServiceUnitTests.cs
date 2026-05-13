@@ -104,4 +104,18 @@ public class PostServiceUnitTests
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task GetAllPostsAsync_ReturnsAllPosts()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync("test2@test.com", "test2");
+        await CreateTestPostAsync(user.Id, "Test title 1", "Test content 1");
+        await CreateTestPostAsync(user.Id, "Test title 2", "Test content 2");
+        // Act
+        var result = await _postService.GetAllPostsAsync();
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+    }
 }
