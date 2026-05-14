@@ -222,4 +222,59 @@ public sealed class PostControllerIntegrationTests : IDisposable
         Assert.Equal(newTitle, dto.Title);
         Assert.Equal(newContent, dto.Content);
     }
+
+    [Fact]
+    public async Task UpdatePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    {
+        var owner = await CreateUserForTest("PostPatchNonOwnerA", testPassword);
+        var other = await CreateUserForTest("PostPatchNonOwnerB", testPassword);
+
+        await LoginAs(owner, testPassword);
+        var title = "owners post";
+        var content = "hands off";
+        var createReq = new PostCreateRequestDto { Title = title, Content = content };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var listRes = await _client.GetAsync("/api/posts");
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var created = allPosts!.Single(p => p.Title == "owners post");
+
+        await LoginAs(other, testPassword);
+        var newTitle = "hijacked title";
+        var newContent = "hijacked body";
+        var patchReq = new PostPatchRequestDto
+        {
+            Id = created.Id,
+            Title = newTitle,
+            Content = newContent,
+        };
+        var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
+        Assert.Equal(HttpStatusCode.Unauthorized, patchRes.StatusCode);
+
+        await LoginAs(owner, testPassword);
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(title, dto.Title);
+        Assert.NotEqual(newTitle, dto.Title);
+        Assert.Equal(content, dto.Content);
+        Assert.NotEqual(newContent, dto.Content);
+    }
+
+    [Fact]
+    public async Task UpdatePost_ReturnsNotFound_WhenPostMissing()
+    {
+        var user = await CreateUserForTest("PostPatchMissing", testPassword);
+        await LoginAs(user, testPassword);
+
+        var patchReq = new PostPatchRequestDto
+        {
+            Id = 999999999999,
+            Title = "n/a",
+            Content = "n/a",
+        };
+        var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
+        Assert.Equal(HttpStatusCode.NotFound, patchRes.StatusCode);
+    }
 }
