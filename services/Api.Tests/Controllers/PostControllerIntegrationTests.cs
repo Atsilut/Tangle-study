@@ -133,4 +133,55 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var res = await _client.GetAsync("/api/posts/999999999999");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
+
+    [Fact]
+    public async Task GetPostsByNickname_ReturnsOk_WithAuthorPosts()
+    {
+        var testMethodName = "GetPostsByNick";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+
+        await LoginAs(user, testPassword);
+
+        var title = "nickname lookup title";
+        var content = "nickname lookup content";
+        var createReq = new PostCreateRequestDto { Title = title, Content = content };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var encodedNickname = Uri.EscapeDataString(user.Nickname);
+        var getRes = await _client.GetAsync($"/api/posts/nickname/{encodedNickname}");
+        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+
+        var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        Assert.NotNull(list);
+        var post = Assert.Single(list);
+        Assert.Equal(title, post.Title);
+        Assert.Equal(content, post.Content);
+        Assert.Equal(user.Id, post.UserId);
+        Assert.Equal(user.Nickname, post.AuthorNickname);
+    }
+
+    [Fact]
+    public async Task GetPostsByNickname_ReturnsOk_Empty_WhenUserHasNoPosts()
+    {
+        var testMethodName = "GetPostsByNickEmpty";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+
+        var encodedNickname = Uri.EscapeDataString(user.Nickname);
+        var getRes = await _client.GetAsync($"/api/posts/nickname/{encodedNickname}");
+        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+
+        var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        Assert.NotNull(list);
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public async Task GetPostsByNickname_ReturnsNoContent_WhenNicknameUnknown()
+    {
+        var getRes = await _client.GetAsync("/api/posts/nickname/DefinitelyNoSuchUserNickname99999");
+        Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
+    }
 }
