@@ -53,6 +53,7 @@ namespace Api.Domain.Posts.Api
         }
 
         [HttpPatch]
+        [Authorize]
         [SwaggerOperation(Summary = "Edit Post")]
         public async Task<ActionResult<PostPatchResponseDto>?> UpdatePostDetail([FromBody] PostPatchRequestDto request)
         {
@@ -73,6 +74,7 @@ namespace Api.Domain.Posts.Api
         }
 
         [HttpDelete("{id:long}")]
+        [Authorize]
         [SwaggerOperation(Summary = "Delete Post")]
         public async Task<IActionResult> DeletePost([FromRoute] long id)
         {
