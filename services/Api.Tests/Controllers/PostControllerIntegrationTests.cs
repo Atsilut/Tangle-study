@@ -184,4 +184,42 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var getRes = await _client.GetAsync("/api/posts/nickname/DefinitelyNoSuchUserNickname99999");
         Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
     }
+    
+    [Fact]
+    public async Task UpdatePost_ReturnsOk_WhenLoggedInAsOwner()
+    {
+        var testMethodName = "PostPatchOwner";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+
+        var createReq = new PostCreateRequestDto { Title = "original", Content = "original body" };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var listRes = await _client.GetAsync("/api/posts");
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var created = allPosts!.Single(p => p.Title == "original");
+
+        var newTitle = "updated title";
+        var newContent = "updated body";
+        var patchReq = new PostPatchRequestDto
+        {
+            Id = created.Id,
+            Title = newTitle,
+            Content = newContent,
+        };
+        var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
+        Assert.Equal(HttpStatusCode.OK, patchRes.StatusCode);
+
+        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
+        Assert.NotNull(patchDto);
+        Assert.Equal(newTitle, patchDto.Title);
+        Assert.Equal(newContent, patchDto.Content);
+
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(newTitle, dto.Title);
+        Assert.Equal(newContent, dto.Content);
+    }
 }
