@@ -299,4 +299,47 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
     }
+
+    [Fact]
+    public async Task DeletePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    {
+        var testMethodName = "PostDelete";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
+        var other = await CreateUserForTest(testMethodName + "Other", testPassword);
+
+        await LoginAs(owner, testPassword);
+        var title = "do not delete me";
+        var content = "still here";
+        var createReq = new PostCreateRequestDto { Title = title, Content = content };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var listRes = await _client.GetAsync("/api/posts");
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var created = allPosts!.Single(p => p.Title == title);
+
+        await LoginAs(other, testPassword);
+        var deleteRes = await _client.DeleteAsync($"/api/posts/{created.Id}");
+        Assert.Equal(HttpStatusCode.Unauthorized, deleteRes.StatusCode);
+
+        await LoginAs(owner, testPassword);
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(title, dto.Title);
+        Assert.NotEqual(newTitle, dto.Title);
+        Assert.Equal(content, dto.Content);
+        Assert.NotEqual(newContent, dto.Content);
+    }
+
+    [Fact]
+    public async Task DeletePost_ReturnsNotFound_WhenPostMissing()
+    {
+        var user = await CreateUserForTest("PostDeleteMissing", testPassword);
+        await LoginAs(user, testPassword);
+
+        var deleteRes = await _client.DeleteAsync("/api/posts/999999999999");
+        Assert.Equal(HttpStatusCode.NotFound, deleteRes.StatusCode);
+    }
 }
