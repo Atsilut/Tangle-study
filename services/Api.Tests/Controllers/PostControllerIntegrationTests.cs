@@ -70,6 +70,17 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
+
+    [Fact]
+    public async Task CreatePost_Returns401_WhenNotAuthenticated()
+    {
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var req = new PostCreateRequestDto { Title = "title", Content = "content" };
+        var res = await _client.PostAsJsonAsync("/api/posts", req);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
     
     [Fact]
     public async Task GetAllPosts_ReturnsPosts()
