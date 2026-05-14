@@ -13,6 +13,8 @@ public sealed class PostControllerIntegrationTests : IDisposable
     private readonly ApiWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
+    private readonly string testPassword = "testpass123!";
+
     public PostControllerIntegrationTests(PostgresTestcontainerFixture postgres)
     {
         _factory = new ApiWebApplicationFactory(postgres.ConnectionString);
@@ -25,8 +27,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
         _factory.Dispose();
     }
 
-    private async Task<UserGetResponseDto> CreateUserForTest(string email, string password, string nickname)
+    private async Task<UserGetResponseDto> CreateUserForTest(string testMethod, string password = "testpass123!", long index = 1)
     {
+        var email = $"{testMethod}@test.com";
+        var nickname = $"{testMethod}User" + index;
         var req = new UserCreateRequestDto
         {
             Email = email,
@@ -60,10 +64,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [Fact]
     public async Task CreatePost_ReturnsCreated()
     {
-        var p = "testpass123!";
-        var user = await CreateUserForTest("postcreates@test.com", p, "postcreator2");
+        var testMethodName = "PostCreate";
+        var user = await CreateUserForTest(testMethodName, testPassword);
 
-        await LoginAs(user, p);
+        await LoginAs(user, testPassword);
 
         var req = new PostCreateRequestDto { Title = "my title", Content = "my content" };
         var res = await _client.PostAsJsonAsync("/api/posts", req);
@@ -95,10 +99,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [Fact]
     public async Task GetPostById_ReturnsOk_WhenPostExists()
     {
-        var password = "testpass123!";
-        var user = await CreateUserForTest("getbyidtest@test.com", password, "GetByIdTest");
+        var testMethodName = "GetPostById";
+        var user = await CreateUserForTest(testMethodName, testPassword);
 
-        await LoginAs(user, password);
+        await LoginAs(user, testPassword);
 
         var title = "test title";
         var content = "test content";
