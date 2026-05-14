@@ -43,6 +43,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
         {
             var tokenProvider = sp.GetRequiredService<TokenProvider>();
             options.TokenValidationParameters = tokenProvider.GetValidationParameters();
+            options.MapInboundClaims = false;
         }));
 
 builder.Services.AddAuthorization();

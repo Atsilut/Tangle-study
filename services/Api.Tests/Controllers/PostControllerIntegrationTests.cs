@@ -60,8 +60,9 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [Fact]
     public async Task CreatePost_ReturnsCreated()
     {
-        var p = "testpass";
-        var user = await CreateUserForTest("postcreate@test.com", p, "postcreator");
+        var p = "testpass123!";
+        var user = await CreateUserForTest("postcreates@test.com", p, "postcreator2");
+
         await LoginAs(user, p);
 
         var req = new PostCreateRequestDto { Title = "my title", Content = "my content" };
