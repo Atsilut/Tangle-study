@@ -277,4 +277,26 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
         Assert.Equal(HttpStatusCode.NotFound, patchRes.StatusCode);
     }
+    
+    [Fact]
+    public async Task DeletePost_ReturnsNoContent_WhenLoggedInAsOwner()
+    {
+        var testMethodName = "PostDeleteOwner";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+
+        var createReq = new PostCreateRequestDto { Title = "to delete", Content = "gone soon" };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var listRes = await _client.GetAsync("/api/posts");
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var created = allPosts!.Single(p => p.Title == "to delete");
+
+        var deleteRes = await _client.DeleteAsync($"/api/posts/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteRes.StatusCode);
+
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
+    }
 }
