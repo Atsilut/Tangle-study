@@ -29,8 +29,8 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
     private async Task<UserGetResponseDto> CreateUserForTest(string testMethod, string password = "testpass123!", long index = 1)
     {
-        var email = $"{testMethod}@test.com";
-        var nickname = $"{testMethod}User" + index;
+        var email = testMethod + index.ToString() + "@test.com";
+        var nickname = $"{testMethod}User" + index.ToString();
         var req = new UserCreateRequestDto
         {
             Email = email,
@@ -299,7 +299,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [Fact]
     public async Task DeletePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
     {
-        var testMethodName = "PostDelete";
+        var testMethodName = "PostDeleteUnauth";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var other = await CreateUserForTest(testMethodName + "Other", testPassword);
 
