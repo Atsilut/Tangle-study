@@ -1,6 +1,7 @@
 ﻿using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Service;
 using Api.Global.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -18,6 +19,7 @@ namespace Api.Domain.Posts.Api
         }
 
         [HttpPost]
+        [Authorize]
         [SwaggerOperation(Summary = "Create Post")]
         public async Task<IActionResult> CreatePost([FromBody] PostCreateRequestDto request)
         {
@@ -33,9 +35,9 @@ namespace Api.Domain.Posts.Api
             return Ok(resultList);
         }
 
-        [HttpGet]
+        [HttpGet("{id:long}")]
         [SwaggerOperation(Summary = "Get Post By Id")]
-        public async Task<ActionResult<PostGetResponseDto?>> GetPostById([FromQuery] long id)
+        public async Task<ActionResult<PostGetResponseDto?>> GetPostById([FromRoute] long id)
         {
             var result = await _service.GetPostByIdAsync(id);
             if (result == null) return NotFound();
