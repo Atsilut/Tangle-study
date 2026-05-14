@@ -164,18 +164,14 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsOk_Empty_WhenUserHasNoPosts()
+    public async Task GetPostsByNickname_ReturnsNoContent_WhenUserHasNoPosts()
     {
         var testMethodName = "GetPostsByNickEmpty";
         var user = await CreateUserForTest(testMethodName, testPassword);
 
         var encodedNickname = Uri.EscapeDataString(user.Nickname);
         var getRes = await _client.GetAsync($"/api/posts/nickname/{encodedNickname}");
-        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
-
-        var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
-        Assert.NotNull(list);
-        Assert.Empty(list);
+        Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
     }
 
     [Fact]
