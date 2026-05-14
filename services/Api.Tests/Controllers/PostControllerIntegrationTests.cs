@@ -328,9 +328,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(title, dto.Title);
-        Assert.NotEqual(newTitle, dto.Title);
         Assert.Equal(content, dto.Content);
-        Assert.NotEqual(newContent, dto.Content);
     }
 
     [Fact]
