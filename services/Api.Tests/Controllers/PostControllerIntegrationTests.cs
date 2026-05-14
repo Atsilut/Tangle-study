@@ -91,4 +91,42 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         Assert.NotNull(list);
     }
+
+    [Fact]
+    public async Task GetPostById_ReturnsOk_WhenPostExists()
+    {
+        var password = "testpass123!";
+        var user = await CreateUserForTest("getbyidtest@test.com", password, "GetByIdTest");
+
+        await LoginAs(user, password);
+
+        var title = "test title";
+        var content = "test content";
+        var createReq = new PostCreateRequestDto { Title = title, Content = content };
+        var createRes = await _client.PostAsJsonAsync("/api/posts", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var listRes = await _client.GetAsync("/api/posts");
+        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var created = allPosts!.Single(post => post.Title == title);
+
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(created.Id, dto.Id);
+        Assert.Equal(title, dto.Title);
+        Assert.Equal(content, dto.Content);
+        Assert.Equal(user.Id, dto.UserId);
+        Assert.Equal(user.Nickname, dto.AuthorNickname);
+    }
+
+    [Fact]
+    public async Task GetPostById_ReturnsNotFound_WhenPostMissing()
+    {
+        var res = await _client.GetAsync("/api/posts/999999999999");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }
