@@ -18,13 +18,22 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.CompletedTask;
     }
 
-    public Task<List<User>?> GetAllAsync() => Task.FromResult<List<User>?>(_users.Values.ToList());
+    public Task<List<User>?> GetAllUsersAsync() => Task.FromResult<List<User>?>(_users.Values.ToList());
 
-    public Task<User?> GetByIdAsync(long id)
+    public Task<User?> GetUserByIdAsync(long id)
         => Task.FromResult(_users.TryGetValue(id, out var user) ? user : null);
 
-    public Task<User?> GetByEmailAsync(string email)
+    public Task<User?> GetUserByEmailAsync(string email)
         => Task.FromResult(_users.Values.FirstOrDefault(u => u.Email == email));
+
+    public Task<bool> ExistsUserByEmailAsync(string email)
+        => Task.FromResult(_users.Values.Any(u => u.Email == email));
+
+    public Task<User?> GetUserByNicknameAsync(string nickname)
+        => Task.FromResult(_users.Values.FirstOrDefault(u => u.Nickname == nickname));
+
+    public Task<bool> ExistsUserByNicknameAsync(string nickname)
+        => Task.FromResult(_users.Values.Any(u => u.Nickname == nickname));
 
     public Task UpdateUserAsync(User user)
     {

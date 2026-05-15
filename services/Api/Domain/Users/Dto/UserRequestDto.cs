@@ -31,5 +31,18 @@ namespace Api.Domain.Users.Dto
         public string Nickname { get; init; }
     }
 
-    public record UserPatchRequestDto(long Id, string Nickname);
+    public record UserPatchRequestDto
+    {
+        public UserPatchRequestDto(long id, string nickname)
+        {
+            Id = id;
+            Nickname = nickname;
+        }
+        [Required]
+        public long Id { get; init; }
+        [Required]
+        [SwaggerSchema(Description = "User nickname")]
+        [DefaultValue("EditedTangle")]
+        public string Nickname { get; init; }
+    }
 }

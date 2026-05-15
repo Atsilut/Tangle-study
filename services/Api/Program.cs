@@ -43,9 +43,11 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
         {
             var tokenProvider = sp.GetRequiredService<TokenProvider>();
             options.TokenValidationParameters = tokenProvider.GetValidationParameters();
+            options.MapInboundClaims = false;
         }));
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

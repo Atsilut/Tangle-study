@@ -1,4 +1,5 @@
-﻿using Api.Domain.Users.Dto;
+﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -20,11 +21,11 @@ namespace Api.Domain.Users.Service
 
         public async Task CreateUserAsync(UserCreateRequestDto request)
         {
-            var foundUser = await _repo.GetByEmailAsync(request.Email);
-            if (foundUser != null) throw new EntityAlreadyExistsException("User", request.Email);
+            var isUserExist = await _repo.ExistsUserByEmailAsync(request.Email);
+            if (isUserExist) throw new EntityAlreadyExistsException("User already exists with email : ", request.Email);
 
             var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
-            var user = new Domain.User(
+            var user = new User(
                 email: request.Email,
                 password: encodedPassword,
                 nickname: request.Nickname
@@ -34,7 +35,7 @@ namespace Api.Domain.Users.Service
 
         public async Task<LoginResponseDto?> LoginUserAsync(LoginRequestDto request)
         {
-            var foundUser = await _repo.GetByEmailAsync(request.Email);
+            var foundUser = await _repo.GetUserByEmailAsync(request.Email);
             if (foundUser == null) return null;
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, foundUser.Password);
             if (!isPasswordValid) return null;

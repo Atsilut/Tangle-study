@@ -18,7 +18,7 @@ namespace Api.Domain.Users.Api
 
         [HttpPost("join")]
         [SwaggerOperation(Summary = "Sign Up")]
-        public async Task<IActionResult> CreateUser([FromBody] Dto.UserCreateRequestDto request)
+        public async Task<IActionResult> CreateUser([FromBody] UserCreateRequestDto request)
         {
             try
             {
