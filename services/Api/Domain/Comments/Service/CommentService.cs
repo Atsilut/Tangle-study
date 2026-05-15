@@ -93,8 +93,9 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
             var comment = await _repo.GetCommentByIdAsync(request.Id);
-            if (user == null) throw new EntityNotFoundException("Unauthorized user");
+            if (user == null) throw new EntityNotFoundException("Authentication failed");
             if (comment == null) throw new EntityNotFoundException("Comment not found");
+            if (comment.UserId != user.Id) throw new EntityNotFoundException("Unauthorized user");
             comment.Content = request.Content;
             await _repo.UpdateCommentAsync(comment);
             var response = new CommentPatchResponseDto
