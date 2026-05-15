@@ -105,6 +105,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task GetAllPosts_ReturnsPosts()
     {
         // Arrange
+        await DeleteAllPostsAsync();
         var testMethodName = "GetAllPosts";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
