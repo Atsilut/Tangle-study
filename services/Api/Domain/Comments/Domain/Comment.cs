@@ -12,7 +12,7 @@ namespace Api.Domain.Comments.Domain
         public long Id { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
-        public string content { get; set; }
+        public string Content { get; set; }
 
         [ForeignKey(nameof(User))]
         public long UserId { get; private set; }
@@ -24,10 +24,11 @@ namespace Api.Domain.Comments.Domain
 
         private Comment() { }
 
-        public Comment(long userId, string content)
+        public Comment(string content, long userId, long postId)
         {
+            Content = content;
             UserId = userId;
-            this.content = content;
+            PostId = postId;
         }
     }
 }
