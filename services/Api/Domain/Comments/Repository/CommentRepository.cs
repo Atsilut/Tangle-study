@@ -1,5 +1,4 @@
 ﻿using Api.Domain.Comments.Domain;
-using Api.Domain.Posts.Domain;
 using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -27,5 +26,11 @@ namespace Api.Domain.Comments.Repository
         public async Task<List<Comment>?> GetCommentsByPostIdAsync(long postId) => await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
 
         public async Task<List<Comment>?> GetCommentsByUserIdAsync(long userId) => await _context.Comments.Where(c => c.UserId == userId).ToListAsync();
+
+        public async Task UpdateCommentAsync(Comment comment)
+        {
+            _context.Comments.Update(comment);
+            await _context.SaveChangesAsync();
+        }
     }
 }

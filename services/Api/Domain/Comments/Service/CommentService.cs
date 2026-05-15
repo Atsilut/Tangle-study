@@ -88,5 +88,22 @@ namespace Api.Domain.Comments.Service
             }).ToList();
             return res;
         }
+
+        public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)
+        {
+            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
+            var comment = await _repo.GetCommentByIdAsync(request.Id);
+            if (user == null) throw new EntityNotFoundException("Unauthorized user");
+            if (comment == null) throw new EntityNotFoundException("Comment not found");
+            comment.Content = request.Content;
+            await _repo.UpdateCommentAsync(comment);
+            var response = new CommentPatchResponseDto
+            {
+                Content = comment.Content,
+                PostId = comment.PostId,
+                UpdatedAt = comment.UpdatedAt
+            };
+            return response;
+        }
     }
 }

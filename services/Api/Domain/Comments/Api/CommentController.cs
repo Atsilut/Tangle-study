@@ -1,5 +1,6 @@
 ﻿using Api.Domain.Comments.Dto;
 using Api.Domain.Comments.Service;
+using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -12,7 +13,7 @@ namespace Api.Domain.Comments.Api
     {
         private readonly CommentService _service;
 
-        public CommentController(CommentService service) 
+        public CommentController(CommentService service)
         {
             _service = service;
         }
@@ -52,4 +53,26 @@ namespace Api.Domain.Comments.Api
             if (result == null || result.Count == 0) return NoContent();
             return Ok(result);
         }
+
+        [HttpPatch]
+        [Authorize]
+        [SwaggerOperation(Summary = "Update Comment")]
+        public async Task<ActionResult<CommentPatchResponseDto>?> UpdateComment([FromBody] CommentPatchRequestDto request)
+        {
+            try
+            {
+                var result = await _service.UpdateCommentAsync(request);
+                if (result == null) return NotFound();
+                return Ok(result);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
+    }
 }

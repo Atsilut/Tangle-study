@@ -19,4 +19,16 @@ namespace Api.Domain.Comments.Dto
         [Required] 
         public DateTime UpdatedAt { get; set; }
     }
+
+    public record CommentPatchResponseDto
+    {
+        [Required]
+        public string Content { get; set; }
+
+        [Required]
+        public long PostId { get; set; }
+
+        [Required]
+        public DateTime UpdatedAt { get; set; }
+    }
 }
