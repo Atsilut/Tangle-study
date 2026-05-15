@@ -27,10 +27,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
         _factory.Dispose();
     }
 
-    private async Task<UserGetResponseDto> CreateUserForTest(string testMethod, string password = "testpass123!", long index = 1)
+    private async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, string password = "testpass123!", long index = 1)
     {
-        var email = testMethod + index.ToString() + "@test.com";
-        var nickname = $"{testMethod}User" + index.ToString();
+        var email = testMethodName + index.ToString() + "@test.com";
+        var nickname = $"{testMethodName}User" + index.ToString();
         var req = new UserCreateRequestDto
         {
             Email = email,
@@ -89,11 +89,32 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [Fact]
     public async Task GetAllPosts_ReturnsPosts()
     {
+        var testMethodName = "GetAllPosts";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        
+        await LoginAs(user, testPassword);
+
+        var title = "test title";
+        var content = "test content";
+        var createReq1 = new PostCreateRequestDto { Title = title + "1", Content = content + " 111" };
+        var createReq2 = new PostCreateRequestDto { Title = title + "2", Content = content + " 222" };
+        var createRes1 = await _client.PostAsJsonAsync("/api/posts", createReq1);
+        Assert.Equal(HttpStatusCode.Created, createRes1.StatusCode);
+        var createRes2 = await _client.PostAsJsonAsync("/api/posts", createReq2);
+        Assert.Equal(HttpStatusCode.Created, createRes2.StatusCode);
+
         var res = await _client.GetAsync("/api/posts");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         
         var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
-        Assert.NotNull(list);
+        Assert.Equal(2, list!.Count);
+    }
+
+    [Fact]
+    public async Task GetAllPosts_ReturnsNoContent_WhenNoPosts()
+    {
+        var res = await _client.GetAsync("/api/posts");
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
     }
 
     [Fact]

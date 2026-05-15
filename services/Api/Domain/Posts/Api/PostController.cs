@@ -31,8 +31,9 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Get All Posts")]
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetAllPosts()
         {
-            var resultList = await _service.GetAllPostsAsync();
-            return Ok(resultList);
+            var result = await _service.GetAllPostsAsync();
+            if (result == null || result.Count == 0) return NoContent();
+            return Ok(result);
         }
 
         [HttpGet("{id:long}")]
@@ -49,8 +50,7 @@ namespace Api.Domain.Posts.Api
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
         {
             var result = await _service.GetPostsByUserNickname(nickname);
-            if (result == null || result.Count == 0)
-                return NoContent();
+            if (result == null || result.Count == 0) return NoContent();
             return Ok(result);
         }
 
