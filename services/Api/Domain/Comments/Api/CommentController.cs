@@ -6,7 +6,8 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace Api.Domain.Comments.Api
 {
-    [Controller]
+    [ApiController]
+    [Route("api/comments")]
     public class CommentController : ControllerBase
     {
         private readonly CommentService _service;
