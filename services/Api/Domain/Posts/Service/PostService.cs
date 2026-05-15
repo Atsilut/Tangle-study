@@ -21,12 +21,12 @@ namespace Api.Domain.Posts.Service
             _userService = userService;
         }
 
-        private long GetUserId() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
+        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
         public async Task CreatePostAsync(PostCreateRequestDto request)
         {
-            var userId = GetUserId();
+            var userId = GetUserIdFromLogin();
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null) throw new EntityNotFoundException("User not found");
 
@@ -100,7 +100,7 @@ namespace Api.Domain.Posts.Service
 
         public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserId());
+            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
             var post = await _repo.GetPostByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("Unauthorized user");
             if (post == null) throw new EntityNotFoundException("Post not found");
@@ -117,7 +117,7 @@ namespace Api.Domain.Posts.Service
 
         public async Task DeletePostAsync(long id)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserId());
+            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
             if (user == null) throw new EntityNotFoundException("Authentication failed");
             var post = await _repo.GetPostByIdAsync(id);
             if (post == null) throw new EntityNotFoundException("Post not found");
