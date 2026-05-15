@@ -42,7 +42,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         var getAll = await _client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        return all!.First(u => u.Email == req.Email);
+        return all!.Single(u => u.Email == req.Email);
     }
     
     private async Task LoginAs(UserGetResponseDto user, string password)
