@@ -99,8 +99,12 @@ public class PostServiceUnitTests
     [Fact]
     public async Task GetPostByIdAsync_NonExistingPost_ReturnsNull()
     {
+        // Arrange
+        const long nonExistingPostId = 999;
+
         // Act
-        var result = await _postService.GetPostByIdAsync(999);
+        var result = await _postService.GetPostByIdAsync(nonExistingPostId);
+
         // Assert
         Assert.Null(result);
     }
@@ -139,8 +143,11 @@ public class PostServiceUnitTests
             Title = editedTitle,
             Content = editedContent
         };
+
+        // Act
         await _postService.UpdatePostAsync(updateRequest);
 
+        // Assert
         var findPost = await _postRepository.GetPostByIdAsync(post.Id);
         Assert.NotNull(findPost);
         Assert.Equal(findPost.Title, editedTitle);
@@ -246,13 +253,6 @@ public class PostServiceUnitTests
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
-        };
-
-        var request = new PostPatchRequestDto
-        {
-            Id = 1,
-            Title = "Hacked title",
-            Content = "Hacked content"
         };
 
         // Act & Assert

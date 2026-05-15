@@ -51,25 +51,32 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     [Fact]
     public async Task CreateUserWithExistEmail()
     {
+        // Arrange
         var created = await CreateAndGetUser();
-
         var duplicateReq = CreateUserRequest(email: created.Email);
+
+        // Act
         var res = await _client.PostAsJsonAsync("/api/join", duplicateReq);
+
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
     [Fact]
     public async Task Login()
     {
+        // Arrange
         var created = await CreateAndGetUser();
-
         var req = new LoginRequestDto
         {
             Email = created.Email,
             Password = testUserPassword
         };
 
+        // Act
         var res = await _client.PostAsJsonAsync("/api/login", req);
+
+        // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
 
         var loginResult = await res.Content.ReadFromJsonAsync<LoginResponseDto>();
@@ -79,29 +86,36 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     [Fact]
     public async Task LoginWithWrongPassword()
     {
+        // Arrange
         var created = await CreateAndGetUser();
-
         var req = new LoginRequestDto
         {
             Email = created.Email,
             Password = "wrongpassword789!"
         };
+
+        // Act
         var res = await _client.PostAsJsonAsync("/api/login", req);
+
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
     [Fact]
     public async Task LoginWithNonexistentEmail()
     {
-        var created = await CreateAndGetUser();
-
+        // Arrange
+        await CreateAndGetUser();
         var req = new LoginRequestDto
         {
             Email = "neversignedupbefore@random.com",
             Password = testUserPassword
         };
 
+        // Act
         var res = await _client.PostAsJsonAsync("/api/login", req);
+
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 }

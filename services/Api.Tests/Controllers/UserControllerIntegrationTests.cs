@@ -46,27 +46,40 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task GetUserById()
     {
+        // Arrange
         var created = await CreateUserForTest();
 
+        // Act
         var res = await _client.GetAsync("/api/users/" + created.Id);
+
+        // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
     [Fact]
     public async Task GetUserById_Returns404_WhenMissing()
     {
-        var res = await _client.GetAsync("/api/users/123456");
+        // Arrange
+        const long missingUserId = 123456;
 
+        // Act
+        var res = await _client.GetAsync("/api/users/" + missingUserId);
+
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
     [Fact]
     public async Task PatchUser_UpdatesNickname()
     {
+        // Arrange
         var created = await CreateUserForTest();
-
         var newNickname = "new";
+
+        // Act
         var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
+
+        // Assert
         Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
 
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
@@ -77,20 +90,28 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task PatchUser_UpdatesNickname_Return404_WhenMissing()
     {
+        // Arrange
         var created = await CreateUserForTest();
-
         var newNickname = "new";
         var wrongUserId = created.Id + 123456;
+
+        // Act
         var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(wrongUserId, newNickname));
+
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
     }
 
     [Fact]
     public async Task DeleteUser()
     {
+        // Arrange
         var created = await CreateUserForTest();
 
+        // Act
         var delete = await _client.DeleteAsync($"/api/users/{created.Id}");
+
+        // Assert
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
         var found = await _client.GetAsync($"/api/users/{created.Id}");
@@ -100,10 +121,14 @@ public sealed class UserControllerIntegrationTests : IDisposable
     [Fact]
     public async Task DeleteUser_Return404_WhenMissing()
     {
+        // Arrange
         var created = await CreateUserForTest();
-
         var wrongUserId = created.Id + 123456;
+
+        // Act
         var delete = await _client.DeleteAsync($"/api/users/{wrongUserId}");
+
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
     }
 }
