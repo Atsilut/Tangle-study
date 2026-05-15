@@ -9,5 +9,6 @@ namespace Api.Domain.Comments.Repository
         public Task<List<Comment>?> GetCommentsByPostIdAsync(long postId);
         public Task<List<Comment>?> GetCommentsByUserIdAsync(long userId);
         public Task UpdateCommentAsync(Comment comment);
+        public Task DeleteCommentAsync(Comment comment);
     }
 }

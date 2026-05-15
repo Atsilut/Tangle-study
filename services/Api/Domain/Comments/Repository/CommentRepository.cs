@@ -32,5 +32,11 @@ namespace Api.Domain.Comments.Repository
             _context.Comments.Update(comment);
             await _context.SaveChangesAsync();
         }
+
+        public async Task DeleteCommentAsync(Comment comment)
+        {
+            _context.Comments.Remove(comment);
+            await _context.SaveChangesAsync();
+        }
     }
 }

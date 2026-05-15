@@ -105,5 +105,15 @@ namespace Api.Domain.Comments.Service
             };
             return response;
         }
+
+        public async Task DeleteCommentAsync(long id)
+        {
+            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
+            var comment = await _repo.GetCommentByIdAsync(id);
+            if (user == null) throw new EntityNotFoundException("Authentication failed");
+            if (comment == null) throw new EntityNotFoundException("Comment not found");
+            if (comment.UserId != user.Id) throw new EntityNotFoundException("Unauthorized user");
+            await _repo.DeleteCommentAsync(comment);
+        }
     }
 }

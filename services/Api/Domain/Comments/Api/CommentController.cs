@@ -74,5 +74,25 @@ namespace Api.Domain.Comments.Api
                 return Unauthorized();
             }
         }
+
+        [HttpDelete("{id:long}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Delete Comment")]
+        public async Task<IActionResult> DeleteComment(long id)
+        {
+            try
+            {
+                await _service.DeleteCommentAsync(id);
+                return NoContent();
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
     }
 }
