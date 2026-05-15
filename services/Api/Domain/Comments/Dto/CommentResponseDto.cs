@@ -1,0 +1,22 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Api.Domain.Comments.Dto
+{
+    public record CommentGetResponseDto
+    {
+        [Required]
+        public string Content { get; set; }
+
+        [Required]
+        public long PostId { get; set; }
+
+        [Required]
+        public long UserId { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; }
+
+        [Required] 
+        public DateTime UpdatedAt { get; set; }
+    }
+}

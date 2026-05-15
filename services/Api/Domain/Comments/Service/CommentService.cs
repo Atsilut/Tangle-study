@@ -11,7 +11,7 @@ namespace Api.Domain.Comments.Service
     [Service]
     public class CommentService
     {
-        private readonly ICommentRepository _repo; 
+        private readonly ICommentRepository _repo;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly PostService _postService;
         private readonly UserService _userService;
@@ -34,15 +34,59 @@ namespace Api.Domain.Comments.Service
             if (post == null) throw new EntityNotFoundException("Post not found");
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null) throw new EntityNotFoundException("User not found");
-            
-            var comment = new Comment
-            (
-                content : request.Content,
-                postId : request.PostId,
-                userId : userId
-            );
+
+            var comment = new Comment(
+                content: request.Content,
+                postId: request.PostId,
+                userId: userId);
 
             await _repo.CreateCommentAsync(comment);
+        }
+
+        public async Task<CommentGetResponseDto?> GetCommentByIdAsync(long id)
+        {
+            var comment = await _repo.GetCommentByIdAsync(id);
+            if (comment == null) return null;
+            var res = new CommentGetResponseDto
+            {
+                Content = comment.Content,
+                UserId = comment.UserId,
+                PostId = comment.PostId,
+                CreatedAt = comment.CreatedAt,
+                UpdatedAt = comment.UpdatedAt
+            };
+
+            return res;
+        }
+
+        public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
+        {
+            var comments = await _repo.GetCommentsByPostIdAsync(postId);
+            if (comments == null || comments.Count == 0) return null;
+            var res = comments.Select(comment => new CommentGetResponseDto
+            {
+                Content = comment.Content,
+                UserId = comment.UserId,
+                PostId = comment.PostId,
+                CreatedAt = comment.CreatedAt,
+                UpdatedAt = comment.UpdatedAt
+            }).ToList();
+            return res;
+        }
+
+        public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
+        {
+            var comments = await _repo.GetCommentsByUserIdAsync(userId);
+            if (comments == null || comments.Count == 0) return null;
+            var res = comments.Select(comment => new CommentGetResponseDto
+            {
+                Content = comment.Content,
+                UserId = comment.UserId,
+                PostId = comment.PostId,
+                CreatedAt = comment.CreatedAt,
+                UpdatedAt = comment.UpdatedAt
+            }).ToList();
+            return res;
         }
     }
 }
