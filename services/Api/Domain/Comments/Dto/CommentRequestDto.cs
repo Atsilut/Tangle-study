@@ -18,15 +18,14 @@ namespace Api.Domain.Comments.Dto
     }
 
     public record CommentPatchRequestDto
-        {
-            [Required]
-            [SwaggerSchema(Description = "Comment Id")]
-            [DefaultValue(1)]
-            public long Id { get; init; }
-            [Required]
-            [SwaggerSchema(Description = "Updated Comment content")]
-            [DefaultValue("This content has been changed.")]
-            public string Content { get; init; }
-        }
+    {
+        [Required]
+        [SwaggerSchema(Description = "Comment Id")]
+        [DefaultValue(1)]
+        public long Id { get; init; }
+        [Required]
+        [SwaggerSchema(Description = "Updated Comment content")]
+        [DefaultValue("This content has been changed.")]
+        public string Content { get; init; }
     }
 }
