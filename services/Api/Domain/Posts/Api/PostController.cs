@@ -23,8 +23,15 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Create Post")]
         public async Task<IActionResult> CreatePost([FromBody] PostCreateRequestDto request)
         {
-            await _service.CreatePostAsync(request);
-            return Created();
+            try
+            {
+                await _service.CreatePostAsync(request);
+                return Created();
+            }
+            catch (EntityNotFoundException)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpGet]
