@@ -129,6 +129,7 @@ public class PostServiceUnitTests
         // Arrange
         var user = await CreateTestUserAsync();
         var post = await CreateTestPostAsync(user.Id);
+        var updatedAtBefore = post.UpdatedAt;
 
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
@@ -152,6 +153,7 @@ public class PostServiceUnitTests
         Assert.NotNull(findPost);
         Assert.Equal(findPost.Title, editedTitle);
         Assert.Equal(findPost.Content, editedContent);
+        Assert.True(findPost.UpdatedAt > updatedAtBefore);
     }
 
     [Fact]
