@@ -23,8 +23,15 @@ namespace Api.Domain.Comments.Api
         [SwaggerOperation(Summary = "Create Comment")]
         public async Task<IActionResult> CreateComment([FromBody] CommentCreateRequestDto request)
         {
-            await _service.CreateCommentAsync(request);
-            return Created();
+            try
+            {
+                await _service.CreateCommentAsync(request);
+                return Created();
+            }
+            catch (EntityNotFoundException)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpGet("{id:long}")]
