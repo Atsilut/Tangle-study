@@ -11,7 +11,7 @@ namespace Api.Domain.Comments.Domain
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public string Content { get; set; }
 
         [ForeignKey(nameof(User))]

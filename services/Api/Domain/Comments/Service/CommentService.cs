@@ -97,6 +97,7 @@ namespace Api.Domain.Comments.Service
             if (comment == null) throw new EntityNotFoundException("Comment not found");
             if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.Content = request.Content;
+            comment.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateCommentAsync(comment);
             var response = new CommentPatchResponseDto
             {
