@@ -101,6 +101,23 @@ public sealed class PostControllerIntegrationTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("", "valid content")]
+    [InlineData("valid title", "")]
+    public async Task CreatePost_Return404_WhenInvalidRequest(string title, string content)
+    {
+        // Arrange
+        var testMethodName = "PostCreateWithInvalidRequest";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var req = new PostCreateRequestDto { Title = title, Content = content };
+        // Act
+        var res = await _client.PostAsJsonAsync("/api/posts", req);
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
     [Fact]
     public async Task GetAllPosts_ReturnsPosts()
     {
