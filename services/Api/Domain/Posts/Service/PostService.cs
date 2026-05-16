@@ -51,6 +51,8 @@ namespace Api.Domain.Posts.Service
                         Id: post.Id,
                         Title: post.Title,
                         Content: post.Content,
+                        CreatedAt: post.CreatedAt,
+                        UpdatedAt: post.UpdatedAt,
                         UserId: post.UserId,
                         AuthorNickname: user?.Nickname ?? "Unknown"
                     ));
@@ -69,6 +71,8 @@ namespace Api.Domain.Posts.Service
                 Id: post.Id,
                 Title: post.Title,
                 Content: post.Content,
+                CreatedAt: post.CreatedAt,
+                UpdatedAt: post.UpdatedAt,
                 UserId: post.UserId,
                 AuthorNickname: user?.Nickname ?? "Unknown"
             );
@@ -90,6 +94,8 @@ namespace Api.Domain.Posts.Service
                     Id: post.Id,
                     Title: post.Title,
                     Content: post.Content,
+                    CreatedAt: post.CreatedAt,
+                    UpdatedAt: post.UpdatedAt,
                     UserId: post.UserId,
                     AuthorNickname: user.Nickname
                 );
@@ -111,7 +117,8 @@ namespace Api.Domain.Posts.Service
             await _repo.UpdatePostAsync(post);
             var response = new PostPatchResponseDto(
                 Title: post.Title,
-                Content: post.Content
+                Content: post.Content,
+                UpdatedAt: post.UpdatedAt
             );
             return response;
         }
