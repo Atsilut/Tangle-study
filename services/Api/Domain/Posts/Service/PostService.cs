@@ -104,7 +104,7 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetPostByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("Unauthorized user");
             if (post == null) throw new EntityNotFoundException("Post not found");
-            if (post.UserId != user.Id) throw new UnauthorizedAccessException();
+            if (post.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             post.Title = request.Title;
             post.Content = request.Content;
             await _repo.UpdatePostAsync(post);
