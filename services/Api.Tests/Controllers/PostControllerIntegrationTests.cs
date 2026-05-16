@@ -280,6 +280,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var listRes = await _client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == "original");
+        var updatedAtBefore = created.UpdatedAt;
 
         var newTitle = "updated title";
         var newContent = "updated body";
@@ -300,12 +301,14 @@ public sealed class PostControllerIntegrationTests : IDisposable
         Assert.NotNull(patchDto);
         Assert.Equal(newTitle, patchDto.Title);
         Assert.Equal(newContent, patchDto.Content);
+        Assert.True(updatedAtBefore < patchDto.UpdatedAt);
 
         var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(newTitle, dto.Title);
         Assert.Equal(newContent, dto.Content);
+        Assert.True(updatedAtBefore < dto.UpdatedAt);
     }
 
     [Fact]
