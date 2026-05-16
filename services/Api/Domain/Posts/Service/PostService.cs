@@ -107,6 +107,7 @@ namespace Api.Domain.Posts.Service
             if (post.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             post.Title = request.Title;
             post.Content = request.Content;
+            post.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdatePostAsync(post);
             var response = new PostPatchResponseDto(
                 Title: post.Title,
