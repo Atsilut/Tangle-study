@@ -1,3 +1,5 @@
+using Api.Global.Db;
+using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
 namespace Api.Tests.Infrastructure;
@@ -21,6 +23,13 @@ public sealed class PostgresTestcontainerFixture : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await _postgres.StartAsync();
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(ConnectionString)
+            .Options;
+
+        await using var db = new AppDbContext(options);
+        await db.Database.EnsureCreatedAsync();
     }
 
     public async ValueTask DisposeAsync()

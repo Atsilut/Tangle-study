@@ -35,11 +35,9 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 services.Remove(descriptor);
             }
 
-            services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_connectionString));
-
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.EnsureCreated();
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(_connectionString, npgsql =>
+                    npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
         });
 
         return base.CreateHost(builder);
