@@ -95,7 +95,7 @@ namespace Api.Domain.Comments.Service
             var comment = await _repo.GetCommentByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("Authentication failed");
             if (comment == null) throw new EntityNotFoundException("Comment not found");
-            if (comment.UserId != user.Id) throw new EntityNotFoundException("Unauthorized user");
+            if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.Content = request.Content;
             await _repo.UpdateCommentAsync(comment);
             var response = new CommentPatchResponseDto
@@ -113,7 +113,7 @@ namespace Api.Domain.Comments.Service
             var comment = await _repo.GetCommentByIdAsync(id);
             if (user == null) throw new EntityNotFoundException("Authentication failed");
             if (comment == null) throw new EntityNotFoundException("Comment not found");
-            if (comment.UserId != user.Id) throw new EntityNotFoundException("Unauthorized user");
+            if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _repo.DeleteCommentAsync(comment);
         }
     }
