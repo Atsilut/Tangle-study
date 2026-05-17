@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Users.Domain;
+using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,9 +8,9 @@ namespace Api.Domain.Users.Repository
     [Repository]
     public class UserRepository : IUserRepository
     {
-        private readonly Global.Db.AppDbContext _context;
+        private readonly AppDbContext _context;
 
-        public UserRepository(Global.Db.AppDbContext context)
+        public UserRepository(AppDbContext context)
         {
             _context = context;
         }
