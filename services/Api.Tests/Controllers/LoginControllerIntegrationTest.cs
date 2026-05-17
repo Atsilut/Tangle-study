@@ -49,7 +49,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     }
 
     [Fact]
-    public async Task CreateUser_Return400_WithExistEmail()
+    public async Task CreateUser_Return400_WhenEmailAlreadyExists()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -63,7 +63,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     }
 
     [Fact]
-    public async Task Login_Return200_ValidRequest()
+    public async Task Login_Return200_WhenCredentialsValid()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -102,7 +102,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     }
 
     [Fact]
-    public async Task Login_Return401_WhenNonexistentEmail()
+    public async Task Login_Return401_WhenEmailNotFound()
     {
         // Arrange
         await CreateAndGetUser();
