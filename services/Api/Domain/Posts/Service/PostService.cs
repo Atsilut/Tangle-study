@@ -104,7 +104,7 @@ namespace Api.Domain.Posts.Service
             return list;
         }
 
-        public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
+        public async Task<PostPatchResponseDto?> UpdatePostAsync(PostPatchRequestDto request)
         {
             var user = await _userService.GetUserByIdAsync(GetUserId());
             var post = await _repo.GetPostByIdAsync(request.Id);
