@@ -75,6 +75,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         // Arrange
         var created = await CreateUserForTest();
         var newNickname = "new";
+        var updatedAtBefore = created.UpdatedAt;
 
         // Act
         var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
@@ -85,6 +86,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
         Assert.NotNull(patched);
         Assert.Equal(newNickname, patched.Nickname);
+        Assert.True(updatedAtBefore < created.UpdatedAt);
     }
 
     [Fact]
