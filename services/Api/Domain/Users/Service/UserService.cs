@@ -26,7 +26,9 @@ namespace Api.Domain.Users.Service
                 list.Add(new UserGetResponseDto(
                     Id: user.Id,
                     Email: user.Email,
-                    Nickname: user.Nickname
+                    Nickname: user.Nickname,
+                    CreatedAt: user.CreatedAt,
+                    UpdatedAt: user.UpdatedAt
                 ));
             }
 
@@ -41,7 +43,9 @@ namespace Api.Domain.Users.Service
             var userResponse = new UserGetResponseDto(
                 Id: user.Id,
                 Email: user.Email,
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                CreatedAt: user.CreatedAt,
+                UpdatedAt: user.UpdatedAt
             );
 
             return userResponse;
@@ -54,7 +58,9 @@ namespace Api.Domain.Users.Service
             var userResponse = new UserGetResponseDto(
                 Id: user.Id,
                 Email: user.Email,
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                CreatedAt: user.CreatedAt,
+                UpdatedAt: user.UpdatedAt
             );
             return userResponse;
         }
