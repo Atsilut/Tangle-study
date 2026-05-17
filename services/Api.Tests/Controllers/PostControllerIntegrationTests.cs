@@ -72,7 +72,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task CreatePost_ReturnsCreated()
+    public async Task CreatePost_Returns201()
     {
         // Arrange
         var testMethodName = "PostCreate";
@@ -105,7 +105,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     [InlineData("", "")]
     [InlineData("", "valid content")]
     [InlineData("valid title", "")]
-    public async Task CreatePost_Return404_WhenInvalidRequest(string title, string content)
+    public async Task CreatePost_Returns400_WhenInvalidRequest(string title, string content)
     {
         // Arrange
         var testMethodName = "PostCreateWithInvalidRequest";
@@ -119,7 +119,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllPosts_ReturnsPosts()
+    public async Task GetAllPosts_Returns200_WithPosts()
     {
         // Arrange
         await DeleteAllPostsAsync();
@@ -148,7 +148,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllPosts_ReturnsNoContent_WhenNoPosts()
+    public async Task GetAllPosts_Returns204_WhenNoPosts()
     {
         // Arrange
         await DeleteAllPostsAsync();
@@ -161,7 +161,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostById_ReturnsOk_WhenPostExists()
+    public async Task GetPostById_Returns200_WhenPostExists()
     {
         // Arrange
         var testMethodName = "GetPostById";
@@ -194,7 +194,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostById_ReturnsNotFound_WhenPostMissing()
+    public async Task GetPostById_Returns404_WhenPostMissing()
     {
         // Arrange
         const long missingPostId = 999999999999;
@@ -207,7 +207,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsOk_WithAuthorPosts()
+    public async Task GetPostsByNickname_Returns200_WithAuthorPosts()
     {
         // Arrange
         var testMethodName = "GetPostsByNick";
@@ -239,7 +239,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsNoContent_WhenUserHasNoPosts()
+    public async Task GetPostsByNickname_Returns204_WhenUserHasNoPosts()
     {
         // Arrange
         var testMethodName = "GetPostsByNickEmpty";
@@ -254,7 +254,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsNoContent_WhenNicknameUnknown()
+    public async Task GetPostsByNickname_Returns204_WhenNicknameUnknown()
     {
         // Arrange
         const string unknownNicknamePath = "DefinitelyNoSuchUserNickname99999";
@@ -267,7 +267,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsOk_WhenLoggedInAsOwner()
+    public async Task UpdatePost_Returns200_WhenLoggedInAsOwner()
     {
         // Arrange
         var testMethodName = "PostPatchOwner";
@@ -312,7 +312,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    public async Task UpdatePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
         var owner = await CreateUserForTest("PostPatchNonOwnerA", testPassword);
@@ -356,7 +356,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsNotFound_WhenPostMissing()
+    public async Task UpdatePost_Returns404_WhenPostMissing()
     {
         // Arrange
         var user = await CreateUserForTest("PostPatchMissing", testPassword);
@@ -376,7 +376,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsNoContent_WhenLoggedInAsOwner()
+    public async Task DeletePost_Returns204_WhenLoggedInAsOwner()
     {
         // Arrange
         var testMethodName = "PostDeleteOwner";
@@ -401,7 +401,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    public async Task DeletePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
         var testMethodName = "PostDeleteUnauth";
@@ -437,7 +437,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsNotFound_WhenPostMissing()
+    public async Task DeletePost_Returns404_WhenPostMissing()
     {
         // Arrange
         var user = await CreateUserForTest("PostDeleteMissing", testPassword);
