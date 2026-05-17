@@ -44,7 +44,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
 
 
     [Fact]
-    public async Task GetUserById()
+    public async Task GetUserById_ReturnsUser_WhenFound()
     {
         // Arrange
         var created = await CreateUserForTest();
@@ -70,7 +70,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchUser_UpdatesNickname()
+    public async Task UpdateUser_UpdatesNickname_ValidRequest()
     {
         // Arrange
         var created = await CreateUserForTest();
@@ -88,7 +88,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchUser_UpdatesNickname_Return404_WhenMissing()
+    public async Task UpdateUser_Return404_WhenMissing()
     {
         // Arrange
         var created = await CreateUserForTest();
@@ -103,7 +103,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteUser()
+    public async Task DeleteUser_DeletesUser_WhenFound()
     {
         // Arrange
         var created = await CreateUserForTest();
