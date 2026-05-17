@@ -72,9 +72,11 @@ namespace Api.Domain.Users.Service
             var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
             if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
             user.Nickname = request.Nickname;
+            user.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateUserAsync(user);
             var response = new UserPatchResponseDto(
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                UpdatedAt: user.UpdatedAt
             );
             return response;
         }

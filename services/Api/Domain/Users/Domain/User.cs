@@ -15,7 +15,7 @@ namespace Api.Domain.Users.Domain
         public string Password { get; private set; }
         public string Nickname { get; set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<Post> Posts { get; private set; } = new List<Post>();
 
