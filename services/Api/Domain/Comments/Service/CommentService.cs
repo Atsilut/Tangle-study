@@ -78,6 +78,8 @@ namespace Api.Domain.Comments.Service
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
         {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) throw new EntityNotFoundException("User not found");
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
             if (comments == null || comments.Count == 0) return null;
             var res = comments.Select(comment => new CommentGetResponseDto
