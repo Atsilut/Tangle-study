@@ -1,7 +1,7 @@
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Repository;
 
-namespace Api.Tests.Fakes;
+namespace Api.Tests.Repositories;
 
 public class FakePostRepository : IPostRepository
 {
