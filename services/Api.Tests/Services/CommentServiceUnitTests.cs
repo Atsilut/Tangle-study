@@ -39,21 +39,30 @@ public class CommentServiceUnitTests
 
     private async Task<User> CreateTestUserAsync(string email = "test@test.com", string username = "test")
     {
-        var user = new User(email, "Password123!", username);
+        var user = new User(
+            email: email,
+            password: "Password123!",
+            nickname: username);
         await _userRepository.CreateUserAsync(user);
         return user;
     }
 
     private async Task<Post> CreateTestPostAsync(long userId, string title = "Test title", string content = "Test content")
     {
-        var post = new Post(userId, title, content);
+        var post = new Post(
+            userId: userId,
+            title: title,
+            content: content);
         await _postRepository.CreatePostAsync(post);
         return post;
     }
 
     private async Task<Comment> CreateTestCommentAsync(long userId, long postId, string content = "Test comment")
     {
-        var comment = new Comment(content, postId, userId);
+        var comment = new Comment(
+            content: content,
+            userId: userId,
+            postId: postId);
         await _commentRepository.CreateCommentAsync(comment);
         return comment;
     }
@@ -63,7 +72,7 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
         var request = new CommentCreateRequestDto
         {
             Content = "Test comment",
@@ -102,7 +111,7 @@ public class CommentServiceUnitTests
     public async Task CreateCommentAsync_MissingUser_ThrowsEntityNotFoundException()
     {
         // Arrange
-        var post = await CreateTestPostAsync(1); // Create an invalid post
+        var post = await CreateTestPostAsync(userId: 1);
         // User has never been created so default login user id of 1 will not exist in the user repository
         var request = new CommentCreateRequestDto
         {
@@ -113,8 +122,6 @@ public class CommentServiceUnitTests
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
         Assert.Equal("Authentication failed", exception.Message);
-        // Assert
-        await Task.CompletedTask;
     }
 
     [Fact]
@@ -122,7 +129,7 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
         var request = new CommentCreateRequestDto
         {
             Content = "Test comment",
@@ -144,8 +151,8 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
-        await CreateTestCommentAsync(user.Id, post.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
 
         // Act
         var result = await _commentService.GetCommentByIdAsync(1);
@@ -173,9 +180,9 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
-        await CreateTestCommentAsync(user.Id, post.Id);
-        await CreateTestCommentAsync(user.Id, post.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
 
         // Act
         var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
@@ -190,7 +197,7 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
 
         // Act
         var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
@@ -204,11 +211,11 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
         const string comment1 = "Test Comment 1";
         const string comment2 = "Test Comment 2";
-        await CreateTestCommentAsync(user.Id, post.Id, comment1);
-        await CreateTestCommentAsync(user.Id, post.Id, comment2);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: comment1);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: comment2);
 
         // Act
         var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
@@ -225,7 +232,7 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
         
         // Act
         var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
@@ -239,8 +246,8 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
-        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
 
         var newContent = "Updated comment";
         var request = new CommentPatchRequestDto
@@ -263,7 +270,7 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
 
         const long nonExistentCommentId = 999;
         var request = new CommentPatchRequestDto
@@ -282,8 +289,8 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
-        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
 
         var request = new CommentPatchRequestDto
         {
@@ -298,17 +305,17 @@ public class CommentServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
-        Assert.Equal("User not found", exception.Message);
+        Assert.Equal("Authentication failed", exception.Message);
     }
 
     [Fact]
     public async Task UpdateCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
     {
         // Arrange
-        var mainOwner = await CreateTestUserAsync("owner@test.com", "Owner");
-        var post = await CreateTestPostAsync(mainOwner.Id);
-        var requestingUser = await CreateTestUserAsync("hacker@test.com", "Hacker");
-        var comment = await CreateTestCommentAsync(mainOwner.Id, post.Id);
+        var mainOwner = await CreateTestUserAsync(email: "owner@test.com", username: "Owner");
+        var post = await CreateTestPostAsync(userId: mainOwner.Id);
+        var requestingUser = await CreateTestUserAsync(email: "hacker@test.com", username: "Hacker");
+        var comment = await CreateTestCommentAsync(userId: mainOwner.Id, postId: post.Id);
 
         // Mock for the malicious/Unauthorized user token
         _httpContextAccessor.HttpContext = new DefaultHttpContext
@@ -331,8 +338,8 @@ public class CommentServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(user.Id);
-        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
 
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
@@ -351,10 +358,10 @@ public class CommentServiceUnitTests
     public async Task DeleteCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
     {
         // Arrange
-        var owner = await CreateTestUserAsync("owner@test.com", "Owner");
-        var post = await CreateTestPostAsync(owner.Id);
-        var comment = await CreateTestCommentAsync(owner.Id, post.Id);
-        var requestingUser = await CreateTestUserAsync("hacker@test.com", "Hacker");
+        var owner = await CreateTestUserAsync(email: "owner@test.com", username: "Owner");
+        var post = await CreateTestPostAsync(userId: owner.Id);
+        var comment = await CreateTestCommentAsync(userId: owner.Id, postId: post.Id);
+        var requestingUser = await CreateTestUserAsync(email: "hacker@test.com", username: "Hacker");
 
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
