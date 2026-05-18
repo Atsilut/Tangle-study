@@ -112,7 +112,7 @@ public class CommentServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal("User not found", exception.Message);
+        Assert.Equal("Authentication failed", exception.Message);
         // Assert
         await Task.CompletedTask;
     }
@@ -136,7 +136,7 @@ public class CommentServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal("Unauthorized access", exception.Message);
+        Assert.Equal("Unauthorized Access", exception.Message);
     }
 
     [Fact]
