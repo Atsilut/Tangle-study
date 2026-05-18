@@ -30,10 +30,10 @@ namespace Api.Domain.Comments.Service
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) throw new EntityNotFoundException("Authentication failed");
             var post = await _postService.GetPostByIdAsync(request.PostId);
             if (post == null) throw new EntityNotFoundException("Post not found");
-            var user = await _userService.GetUserByIdAsync(userId);
-            if (user == null) throw new EntityNotFoundException("User not found");
 
             var comment = new Comment(
                 content: request.Content,
