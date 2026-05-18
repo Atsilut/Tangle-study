@@ -434,4 +434,88 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
+
+    [Fact]
+    public async Task DeleteComment_Returns204_WhenLoggedInAsOwner()
+    {
+        // Arrange
+        var testMethodName = "DeleteCommentOwner";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var created = allComments!.Single(c => c.Content == comment.Content);
+        
+        // Act
+        var res = await _client.DeleteAsync($"/api/comments/{created.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{created.Id}");
+        
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteComment_Returns401_WhenLoggedInAsNonOwner()
+    {
+        // Arrange
+        var testMethodName = "DeleteComment";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
+        var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword, 2);
+        await LoginAs(owner, testPassword);
+        var post = await CreatePostForTest(testMethodName, owner.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var ownerComment = allComments!.Single(c => c.Content == comment.Content);
+        await LoginAs(nonOwner, testPassword);
+        
+        // Act
+        var res = await _client.DeleteAsync($"/api/comments/{ownerComment.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{ownerComment.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+        Assert.Equal(ownerComment.Content, dto.Content);
+    }
+
+    [Fact]
+    public async Task DeleteComment_Returns404_WhenPostMissing()
+    {
+        // Arrange
+        var testMethodName = "DeleteComment_PostMissing";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+
+        // Act
+        var deletePostRes = await _client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while deleting comment
+        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, deletePostRes.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteComment_Returns404_WhenCommentMissing()
+    {
+        // Arrange
+        var testMethodName = "DeleteComment_CommentMissing";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        const long nonExistentCommentId = 9999; // Assuming this comment has been deleted while commenting
+        
+        // Act
+        var res = await _client.DeleteAsync($"/api/comments/{nonExistentCommentId}");
+        
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }
