@@ -81,6 +81,25 @@ public class PostServiceUnitTests
     }
 
     [Fact]
+    public async Task CreatePostAsync_MissingLogin_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var request = new PostCreateRequestDto
+        {
+            Title = "Test title",
+            Content = "Test content"
+        };
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity()) // Simulating no logged-in user
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.CreatePostAsync(request));
+        Assert.Equal("Unauthorized user", exception.Message);
+    }
+
+    [Fact]
     public async Task GetPostByIdAsync_ExistingPost_ReturnsPost()
     {
         // Arrange
