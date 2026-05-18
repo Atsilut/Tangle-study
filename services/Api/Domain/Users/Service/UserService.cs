@@ -20,19 +20,15 @@ namespace Api.Domain.Users.Service
             var users = await _repo.GetAllUsersAsync();
             if (users == null) return null;
 
-            var list = new List<UserGetResponseDto>();
-            foreach (var user in users)
-            {
-                list.Add(new UserGetResponseDto(
-                    Id: user.Id,
-                    Email: user.Email,
-                    Nickname: user.Nickname,
-                    CreatedAt: user.CreatedAt,
-                    UpdatedAt: user.UpdatedAt
-                ));
-            }
+            var res = users.Select(user => new UserGetResponseDto(
+                Id: user.Id,
+                Email: user.Email,
+                Nickname: user.Nickname,
+                CreatedAt: user.CreatedAt,
+                UpdatedAt: user.UpdatedAt
+                )).ToList();
 
-            return list;
+            return res;
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
