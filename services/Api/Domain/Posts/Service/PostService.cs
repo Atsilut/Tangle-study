@@ -41,24 +41,19 @@ namespace Api.Domain.Posts.Service
         public async Task<List<PostGetResponseDto>?> GetAllPostsAsync()
         {
             var posts = await _repo.GetAllPostsAsync();
-            if (posts == null) return null;
+            if (posts == null || posts.Count == 0) return null;
 
-            var list = new List<PostGetResponseDto>();
-            foreach (var post in posts)
-            {
-                var user = await _userService.GetUserByIdAsync(post.UserId);
-                list.Add(new PostGetResponseDto(
-                        Id: post.Id,
-                        Title: post.Title,
-                        Content: post.Content,
-                        CreatedAt: post.CreatedAt,
-                        UpdatedAt: post.UpdatedAt,
-                        UserId: post.UserId,
-                        AuthorNickname: user?.Nickname ?? "Unknown"
-                    ));
-            }
+            var res = posts.Select(post => new PostGetResponseDto(
+                Id: post.Id,
+                Title: post.Title,
+                Content: post.Content,
+                CreatedAt: post.CreatedAt,
+                UpdatedAt: post.UpdatedAt,
+                UserId: post.UserId,
+                AuthorNickname: "Unknown"
+            )).ToList();
 
-            return list;
+            return res;
         }
 
         public async Task<PostGetResponseDto?> GetPostByIdAsync(long id)
