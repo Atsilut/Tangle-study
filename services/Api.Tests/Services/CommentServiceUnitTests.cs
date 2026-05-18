@@ -234,4 +234,95 @@ public class CommentServiceUnitTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public async Task UpdateCommentAsync_ValidRequest_UpdatesComment()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+
+        var newContent = "Updated comment";
+        var request = new CommentPatchRequestDto
+        {
+            Id = comment.Id,
+            Content = newContent
+        };
+
+        // Act
+        await _commentService.UpdateCommentAsync(request);
+        
+        // Assert
+        var findComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
+        Assert.NotNull(findComment);
+        Assert.Equal(newContent, findComment.Content);
+    }
+
+    [Fact]
+    public async Task UpdateCommentAsync_Missingcomment_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+
+        const long nonExistentCommentId = 999;
+        var request = new CommentPatchRequestDto
+        {
+            Id = nonExistentCommentId,
+            Content = "Updated comment"
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
+        Assert.Equal("Comment not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateCommentAsync_CorruptedUserData_ThrowsEntityNotFoundException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+
+        var request = new CommentPatchRequestDto
+        {
+            Id = comment.Id,
+            Content = "Test content"
+        };
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", "999") }))
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
+        Assert.Equal("User not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var mainOwner = await CreateTestUserAsync("owner@test.com", "Owner");
+        var post = await CreateTestPostAsync(mainOwner.Id);
+        var requestingUser = await CreateTestUserAsync("hacker@test.com", "Hacker");
+        var comment = await CreateTestCommentAsync(mainOwner.Id, post.Id);
+
+        // Mock for the malicious/Unauthorized user token
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
+        };
+
+        var request = new CommentPatchRequestDto
+        {
+            Id = comment.Id,
+            Content = "This comment is hacked"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.UpdateCommentAsync(request));
+    }
 }
