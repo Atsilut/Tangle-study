@@ -197,7 +197,7 @@ public class PostServiceUnitTests
     }
 
     [Fact]
-    public async Task UpdatePostAsync_PostMissing_ThrowsEntityNotFoundException()
+    public async Task UpdatePostAsync_MissingPost_ThrowsEntityNotFoundException()
     {
         // Arrange
         var user = await CreateTestUserAsync();
