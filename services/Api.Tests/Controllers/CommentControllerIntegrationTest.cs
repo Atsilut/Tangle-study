@@ -116,7 +116,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     }
 
     [Fact]
-    public async Task CreateComment_Return404_IfPostNotFound()
+    public async Task CreateComment_Return400_IfPostNotFound()
     {
         // Arrange
         var testMethodName = "CreateComment_PostNotFound";
@@ -133,6 +133,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var res = await _client.PostAsJsonAsync("/api/comments", req);
 
         //Assert
-        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 }
