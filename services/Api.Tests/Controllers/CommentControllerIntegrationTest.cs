@@ -313,4 +313,125 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
+
+    [Fact]
+    public async Task UpdateComment_Return200_WhenLoggedInAsOwner()
+    {
+        // Arrange
+        var testMethodName = "UpdatePostOwner";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+
+        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var created = allComments!.Single(c => c.Content == comment.Content);
+
+        var newContent = $"{testMethodName} Updated Content";
+        var req = new CommentPatchRequestDto
+        { 
+            Id = created.Id,
+            Content = newContent 
+        };
+
+        // Act
+        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        var resDto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var getRes = await _client.GetAsync($"/api/comments/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        Assert.NotNull(resDto);
+        Assert.Equal(newContent, resDto.Content);
+
+        Assert.NotNull(dto);
+        Assert.Equal(newContent, dto.Content);
+    }
+
+    [Fact]
+    public async Task UpdateComment_Returns401_WhenLoggedInAsNonOwner()
+    {
+        // Arrange
+        var testMethodName = "UpdateComment";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
+        var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword, 2);
+
+        await LoginAs(owner, testPassword);
+        var post = await CreatePostForTest(testMethodName, owner.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+
+        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var ownerComment = allComments!.Single(c => c.Content == comment.Content);
+
+        await LoginAs(nonOwner, testPassword);
+        var newContent = $"{testMethodName} Hijacked Content";
+        var req = new CommentPatchRequestDto
+        { 
+            Id = ownerComment.Id,
+            Content = newContent 
+        };
+
+        // Act
+        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        var getRes = await _client.GetAsync($"/api/comments/{ownerComment.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+
+        Assert.NotNull(dto);
+        Assert.Equal(comment.Content, dto.Content);
+        Assert.NotEqual(newContent, dto.Content);
+    }
+
+    [Fact]
+    public async Task UpdateComment_Return404_WhenPostMissing()
+    {
+        // Arrange
+        var testMethodName = "UpdateComment_PostMissing";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+
+        var req = new CommentPatchRequestDto
+        { 
+            Id = comment.Id,
+            Content = $"{testMethodName} Updated Content" 
+        };
+
+        // Act
+        await _client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while commenting
+        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateComment_Returns404_WhenCommentMissing()
+    {
+        // Arrange
+        var testMethodName = "UpdateComment_CommentMissing";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        const long nonExistentCommentId = 9999; // Assuming this comment has been deleted while commenting
+        var newContent = $"{testMethodName} Updated Content";
+        var req = new CommentPatchRequestDto
+        {
+            Id = nonExistentCommentId,
+            Content = newContent,
+        };
+        
+        // Act
+        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }
