@@ -325,4 +325,44 @@ public class CommentServiceUnitTests
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.UpdateCommentAsync(request));
     }
+
+    [Fact]
+    public async Task DeleteCommentAsync_ValidRequest_DeletesComment()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        var comment = await CreateTestCommentAsync(user.Id, post.Id);
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        // Act
+        await _commentService.DeleteCommentAsync(comment.Id);
+
+        // Assert
+        var findComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
+        Assert.Null(findComment);
+    }
+
+    [Fact]
+    public async Task DeleteCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
+    {
+        // Arrange
+        var owner = await CreateTestUserAsync("owner@test.com", "Owner");
+        var post = await CreateTestPostAsync(owner.Id);
+        var comment = await CreateTestCommentAsync(owner.Id, post.Id);
+        var requestingUser = await CreateTestUserAsync("hacker@test.com", "Hacker");
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.DeleteCommentAsync(comment.Id));
+        Assert.Equal("Unauthorized access", exception.Message);
+    }
 }
