@@ -172,7 +172,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         Assert.Equal(created.Id, dto.Id);
         Assert.Equal(title, dto.Title);
         Assert.Equal(content, dto.Content);
-        Assert.Equal(user.Id, dto.UserId);
+        Assert.Equal(user.Id, dto.AuthorId);
         Assert.Equal(user.Nickname, dto.AuthorNickname);
     }
 
@@ -217,7 +217,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var post = Assert.Single(list);
         Assert.Equal(title, post.Title);
         Assert.Equal(content, post.Content);
-        Assert.Equal(user.Id, post.UserId);
+        Assert.Equal(user.Id, post.AuthorId);
         Assert.Equal(user.Nickname, post.AuthorNickname);
     }
 

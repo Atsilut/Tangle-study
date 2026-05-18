@@ -51,7 +51,7 @@ namespace Api.Domain.Posts.Service
                         Id: post.Id,
                         Title: post.Title,
                         Content: post.Content,
-                        UserId: post.UserId,
+                        AuthorId: post.UserId,
                         AuthorNickname: user?.Nickname ?? "Unknown"
                     ));
             }
@@ -69,7 +69,7 @@ namespace Api.Domain.Posts.Service
                 Id: post.Id,
                 Title: post.Title,
                 Content: post.Content,
-                UserId: post.UserId,
+                AuthorId: post.UserId,
                 AuthorNickname: user?.Nickname ?? "Unknown"
             );
 
@@ -90,7 +90,7 @@ namespace Api.Domain.Posts.Service
                     Id: post.Id,
                     Title: post.Title,
                     Content: post.Content,
-                    UserId: post.UserId,
+                    AuthorId: post.UserId,
                     AuthorNickname: user.Nickname
                 );
                 list.Add(postResponse);
