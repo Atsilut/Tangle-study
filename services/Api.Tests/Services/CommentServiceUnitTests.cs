@@ -51,6 +51,13 @@ public class CommentServiceUnitTests
         return post;
     }
 
+    private async Task<Comment> CreateTestCommentAsync(long userId, long postId, string content = "Test comment")
+    {
+        var comment = new Comment(content, postId, userId);
+        await _commentRepository.CreateCommentAsync(comment);
+        return comment;
+    }
+
     [Fact]
     public async Task CreateCommentAsync_ValidRequest_CreatesComment()
     {
@@ -131,4 +138,100 @@ public class CommentServiceUnitTests
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
         Assert.Equal("Unauthorized access", exception.Message);
     }
+
+    [Fact]
+    public async Task GetCommentByIdAsync_ExistingComment_ReturnsComment()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        await CreateTestCommentAsync(user.Id, post.Id);
+
+        // Act
+        var result = await _commentService.GetCommentByIdAsync(1);
+        
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Test comment", result.Content);
+    }
+
+    [Fact]
+    public async Task GetCommentByIdAsync_NonExistingComment_ReturnsNull()
+    {
+        // Arrange
+        const long nonExistentCommentId = 999;
+
+        // Act
+        var result = await _commentService.GetCommentByIdAsync(nonExistentCommentId);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCommentsByPostIdAsync_ReturnsOnlyCommentsForThatPost()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        await CreateTestCommentAsync(user.Id, post.Id);
+        await CreateTestCommentAsync(user.Id, post.Id);
+
+        // Act
+        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task GetCommentsByPostIdAsync_NoComments_ReturnsNull()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+
+        // Act
+        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCommentsByUserIdAsync_ReturnsOnlyCommentsForThatUser()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        const string comment1 = "Test Comment 1";
+        const string comment2 = "Test Comment 2";
+        await CreateTestCommentAsync(user.Id, post.Id, comment1);
+        await CreateTestCommentAsync(user.Id, post.Id, comment2);
+
+        // Act
+        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
+        
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+        Assert.Equal(comment1, result[0].Content);
+        Assert.Equal(comment2, result[1].Content);
+    }
+
+    [Fact]
+    public async Task GetCommentsByUserIdAsync_NoComments_ReturnsNull()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(user.Id);
+        
+        // Act
+        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
+
+        // Assert
+        Assert.Null(result);
+    }
+
 }
