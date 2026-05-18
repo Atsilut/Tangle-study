@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Posts.Domain;
+using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,9 +8,9 @@ namespace Api.Domain.Posts.Repository
     [Repository]
     public class PostRepository : IPostRepository
     {
-        private readonly Global.Db.AppDbContext _context;
+        private readonly AppDbContext _context;
 
-        public PostRepository(Global.Db.AppDbContext context)
+        public PostRepository(AppDbContext context)
         {
             _context = context;
         }
