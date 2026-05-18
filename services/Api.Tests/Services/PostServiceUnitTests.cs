@@ -4,12 +4,12 @@ using Api.Domain.Posts.Repository;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Domain.Users.Domain;
-using Api.Tests.Fakes;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 using Xunit;
 using Api.Global.Exceptions;
+using Api.Tests.Repositories;
 
 namespace Api.Tests.Services;
 

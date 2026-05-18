@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
-namespace Api.Tests.Fakes;
+namespace Api.Tests.Repositories;
 
 public class FakeHttpContextAccessor : IHttpContextAccessor
 {

@@ -1,7 +1,7 @@
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Repository;
 
-namespace Api.Tests.Fakes;
+namespace Api.Tests.Repositories;
 
 public sealed class FakeUserRepository : IUserRepository
 {
