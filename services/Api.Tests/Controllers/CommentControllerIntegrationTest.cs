@@ -282,21 +282,15 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
-        var content = testMethodName + "Test";
-
-        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
-        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
-        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var created = allComments!.Single(c => c.Content == content);
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/{created.PostId}");
+        var res = await _client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.NotNull(dto);
-        Assert.Equal(content, dto.Content);
+        Assert.Equal(comment.Content, dto.Content);
         Assert.Equal(user.Id, dto.UserId);
         Assert.Equal(post.Id, dto.PostId);
     }
@@ -324,21 +318,17 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var post = await CreatePostForTest(testMethodName, user.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
-        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
-        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var created = allComments!.Single(c => c.Content == comment.Content);
-
         var newContent = $"{testMethodName} Updated Content";
         var req = new CommentPatchRequestDto
         { 
-            Id = created.Id,
+            Id = comment.Id,
             Content = newContent 
         };
 
         // Act
         var res = await _client.PatchAsJsonAsync($"/api/comments", req);
         var resDto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
-        var getRes = await _client.GetAsync($"/api/comments/{created.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -363,21 +353,17 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var post = await CreatePostForTest(testMethodName, owner.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
-        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
-        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var ownerComment = allComments!.Single(c => c.Content == comment.Content);
-
         await LoginAs(nonOwner, testPassword);
         var newContent = $"{testMethodName} Hijacked Content";
         var req = new CommentPatchRequestDto
         { 
-            Id = ownerComment.Id,
+            Id = comment.Id,
             Content = newContent 
         };
 
         // Act
         var res = await _client.PatchAsJsonAsync($"/api/comments", req);
-        var getRes = await _client.GetAsync($"/api/comments/{ownerComment.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -444,13 +430,10 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
-        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
-        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var created = allComments!.Single(c => c.Content == comment.Content);
         
         // Act
-        var res = await _client.DeleteAsync($"/api/comments/{created.Id}");
-        var getRes = await _client.GetAsync($"/api/comments/{created.Id}");
+        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
@@ -467,20 +450,17 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await LoginAs(owner, testPassword);
         var post = await CreatePostForTest(testMethodName, owner.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
-        var listRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
-        var allComments = await listRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var ownerComment = allComments!.Single(c => c.Content == comment.Content);
         await LoginAs(nonOwner, testPassword);
         
         // Act
-        var res = await _client.DeleteAsync($"/api/comments/{ownerComment.Id}");
-        var getRes = await _client.GetAsync($"/api/comments/{ownerComment.Id}");
+        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
+        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
         Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
-        Assert.Equal(ownerComment.Content, dto.Content);
+        Assert.Equal(comment.Content, dto.Content);
     }
 
     [Fact]
