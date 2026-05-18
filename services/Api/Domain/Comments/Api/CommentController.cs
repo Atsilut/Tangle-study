@@ -47,9 +47,16 @@ namespace Api.Domain.Comments.Api
         [SwaggerOperation(Summary = "Get Comments By Post Id")]
         public async Task<ActionResult<List<CommentGetResponseDto>?>> GetCommentsByPostId(long postId)
         {
-            var result = await _service.GetCommentsByPostIdAsync(postId);
-            if (result == null || result.Count == 0) return NoContent();
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetCommentsByPostIdAsync(postId);
+                if (result == null || result.Count == 0) return NoContent();
+                return Ok(result);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         [HttpGet("user/{userId:long}")]
