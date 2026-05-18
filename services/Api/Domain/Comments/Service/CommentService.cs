@@ -49,6 +49,7 @@ namespace Api.Domain.Comments.Service
             if (comment == null) return null;
             var res = new CommentGetResponseDto
             {
+                Id = comment.Id,
                 Content = comment.Content,
                 UserId = comment.UserId,
                 PostId = comment.PostId,
@@ -67,6 +68,7 @@ namespace Api.Domain.Comments.Service
             if (comments == null || comments.Count == 0) return null;
             var res = comments.Select(comment => new CommentGetResponseDto
             {
+                Id = comment.Id,
                 Content = comment.Content,
                 UserId = comment.UserId,
                 PostId = comment.PostId,
@@ -84,6 +86,7 @@ namespace Api.Domain.Comments.Service
             if (comments == null || comments.Count == 0) return null;
             var res = comments.Select(comment => new CommentGetResponseDto
             {
+                Id = comment.Id,
                 Content = comment.Content,
                 UserId = comment.UserId,
                 PostId = comment.PostId,

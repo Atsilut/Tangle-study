@@ -5,6 +5,9 @@ namespace Api.Domain.Comments.Dto
     public record CommentGetResponseDto
     {
         [Required]
+        public long Id { get; set; }
+
+        [Required]
         public string Content { get; set; }
 
         [Required]
