@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Api.Domain.Posts.Dto
 {
-    public class PostCreateRequestDto
+    public record PostCreateRequestDto
     {
         [Required]
         [SwaggerSchema(Description = "Post Title")]
@@ -17,7 +17,7 @@ namespace Api.Domain.Posts.Dto
         public string Content { get; init; }
     }
 
-    public class PostPatchRequestDto
+    public record PostPatchRequestDto
     {
         [Required]
         [SwaggerSchema(Description = "Post Id")]
