@@ -57,12 +57,17 @@ public sealed class CommentServiceUnitTests
         return post;
     }
 
-    private async Task<Comment> CreateTestCommentAsync(long userId, long postId, string content = "Test comment")
+    private async Task<Comment> CreateTestCommentAsync(
+        long userId,
+        long postId,
+        string content = "Test comment",
+        long? parentId = null)
     {
         var comment = new Comment(
             content: content,
             userId: userId,
-            postId: postId);
+            postId: postId,
+            parentId: parentId);
         await _commentRepository.CreateCommentAsync(comment);
         return comment;
     }
@@ -190,6 +195,53 @@ public sealed class CommentServiceUnitTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
+        Assert.All(result, root => Assert.Empty(root.Replies));
+    }
+
+    [Fact]
+    public async Task CreateCommentAsync_WithParentId_CreatesReply()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Test Root");
+        var request = new CommentCreateRequestDto
+        {
+            Content = "Reply",
+            PostId = post.Id,
+            ParentId = parent.Id
+        };
+
+        // Act
+        await _commentService.CreateCommentAsync(request);
+
+        // Assert
+        var comments = await _commentRepository.GetAllCommentsAsync();
+        Assert.Equal(2, comments.Count);
+        Assert.Equal(parent.Id, comments[1].ParentId);
+    }
+
+    [Fact]
+    public async Task GetCommentsByPostIdAsync_ReturnsNestedTree()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var root = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Root");
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Reply", parentId: root.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Sibling root");
+
+        // Act
+        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+
+        var rootWithReply = result.Single(r => r.Content == "Root");
+        Assert.Single(rootWithReply.Replies);
+        Assert.Equal("Reply", rootWithReply.Replies[0].Content);
+        Assert.Equal(root.Id, rootWithReply.Replies[0].ParentId);
     }
 
     [Fact]
@@ -239,6 +291,36 @@ public sealed class CommentServiceUnitTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCommentsByUserIdAsync_ReturnsFlatList_IncludingSiblingReplies()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var root = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Root");
+        var siblingReply1 = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Reply 1", parentId: root.Id);
+        var siblingReply2 = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Reply 2", parentId: root.Id);
+        var nestedReply = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "Nested", parentId: siblingReply1.Id);
+
+        // Act
+        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Count);
+        Assert.All(result, dto => Assert.Empty(dto.Replies));
+
+        var rootDto = result.Single(c => c.Content == "Root");
+        var reply1Dto = result.Single(c => c.Content == "Reply 1");
+        var reply2Dto = result.Single(c => c.Content == "Reply 2");
+        var nestedDto = result.Single(c => c.Content == "Nested");
+
+        Assert.Null(rootDto.ParentId);
+        Assert.Equal(root.Id, reply1Dto.ParentId);
+        Assert.Equal(root.Id, reply2Dto.ParentId);
+        Assert.Equal(siblingReply1.Id, nestedDto.ParentId);
     }
 
     [Fact]
