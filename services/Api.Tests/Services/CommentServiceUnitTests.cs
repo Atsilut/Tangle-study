@@ -222,6 +222,26 @@ public sealed class CommentServiceUnitTests
     }
 
     [Fact]
+    public async Task CreateCommentAsync_ParentOnDifferentPost_ThrowsArgumentException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post1 = await CreateTestPostAsync(userId: user.Id);
+        var post2 = await CreateTestPostAsync(userId: user.Id);
+        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post1.Id, content: "Root on post 1");
+        var request = new CommentCreateRequestDto
+        {
+            Content = "Reply on wrong post",
+            PostId = post2.Id,
+            ParentId = parent.Id
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _commentService.CreateCommentAsync(request));
+        Assert.Equal("Parent comment must belong to the same post", exception.Message);
+    }
+
+    [Fact]
     public async Task GetCommentsByPostIdAsync_ReturnsNestedTree()
     {
         // Arrange
