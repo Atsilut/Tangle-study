@@ -82,12 +82,11 @@ namespace Api.Domain.Comments.Api
         [HttpPatch]
         [Authorize]
         [SwaggerOperation(Summary = "Update Comment")]
-        public async Task<ActionResult<CommentPatchResponseDto>?> UpdateComment([FromBody] CommentPatchRequestDto request)
+        public async Task<ActionResult<CommentPatchResponseDto>> UpdateComment([FromBody] CommentPatchRequestDto request)
         {
             try
             {
                 var result = await _service.UpdateCommentAsync(request);
-                if (result == null) return NotFound();
                 return Ok(result);
             }
             catch (EntityNotFoundException)
