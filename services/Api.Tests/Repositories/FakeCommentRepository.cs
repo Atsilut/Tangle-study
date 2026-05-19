@@ -37,16 +37,7 @@ namespace Api.Tests.Repositories
         public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
             Task.FromResult(_comments.Where(c => c.UserId == userId).ToList());
 
-        public Task UpdateCommentAsync(Comment comment)
-        {
-            var existingComment = _comments.FirstOrDefault(c => c.Id == comment.Id);
-            if (existingComment != null)
-            {
-                _comments.Remove(existingComment);
-                _comments.Add(comment);
-            }
-            return Task.CompletedTask;
-        }
+        public Task UpdateCommentAsync(Comment comment) => Task.CompletedTask;
 
         public Task DeleteCommentAsync(Comment comment)
         {
