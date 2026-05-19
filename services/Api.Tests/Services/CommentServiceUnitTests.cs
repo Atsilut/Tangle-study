@@ -12,7 +12,7 @@ using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
-public class CommentServiceUnitTests
+public sealed class CommentServiceUnitTests
 {
     private readonly CommentService _commentService;
     private readonly FakeCommentRepository _commentRepository;
