@@ -23,9 +23,9 @@ namespace Api.Domain.Comments.Repository
 
         public async Task<Comment?> GetCommentByIdAsync(long id) => await _context.Comments.FindAsync(id);
 
-        public async Task<List<Comment>?> GetCommentsByPostIdAsync(long postId) => await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
+        public async Task<List<Comment>> GetCommentsByPostIdAsync(long postId) => await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
 
-        public async Task<List<Comment>?> GetCommentsByUserIdAsync(long userId) => await _context.Comments.Where(c => c.UserId == userId).ToListAsync();
+        public async Task<List<Comment>> GetCommentsByUserIdAsync(long userId) => await _context.Comments.Where(c => c.UserId == userId).ToListAsync();
 
         public async Task UpdateCommentAsync(Comment comment)
         {

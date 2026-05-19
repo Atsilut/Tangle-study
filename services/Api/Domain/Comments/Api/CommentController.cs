@@ -54,7 +54,7 @@ namespace Api.Domain.Comments.Api
             try
             {
                 var result = await _service.GetCommentsByPostIdAsync(postId);
-                if (result == null || result.Count == 0) return NoContent();
+                if (result == null) return NoContent();
                 return Ok(result);
             }
             catch (EntityNotFoundException)
@@ -70,7 +70,7 @@ namespace Api.Domain.Comments.Api
             try
             {
                 var result = await _service.GetCommentsByUserIdAsync(userId);
-                if (result == null || result.Count == 0) return NoContent();
+                if (result == null) return NoContent();
                 return Ok(result);
             }
             catch (EntityNotFoundException)

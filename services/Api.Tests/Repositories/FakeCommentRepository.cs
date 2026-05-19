@@ -31,17 +31,11 @@ namespace Api.Tests.Repositories
             return Task.FromResult(_comments.FirstOrDefault(c => c.Id == id));
         }
 
-        public Task<List<Comment>?> GetCommentsByPostIdAsync(long postId)
-        {
-            var postComments = _comments.Where(c => c.PostId == postId).ToList();
-            return Task.FromResult(postComments.Count > 0 ? postComments : null);
-        }
+        public Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
+            Task.FromResult(_comments.Where(c => c.PostId == postId).ToList());
 
-        public Task<List<Comment>?> GetCommentsByUserIdAsync(long userId)
-        {
-            var userComments = _comments.Where(c => c.UserId == userId).ToList();
-            return Task.FromResult(userComments.Count > 0 ? userComments : null);
-        }
+        public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
+            Task.FromResult(_comments.Where(c => c.UserId == userId).ToList());
 
         public Task UpdateCommentAsync(Comment comment)
         {

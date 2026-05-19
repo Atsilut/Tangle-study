@@ -62,7 +62,7 @@ namespace Api.Domain.Comments.Service
             var post = await _postService.GetPostByIdAsync(postId);
             if (post == null) throw new EntityNotFoundException("Post not found");
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
-            if (comments == null || comments.Count == 0) return null;
+            if (comments.Count == 0) return null;
             return BuildCommentTree(comments);
         }
 
@@ -71,7 +71,7 @@ namespace Api.Domain.Comments.Service
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null) throw new EntityNotFoundException("User not found");
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
-            if (comments == null || comments.Count == 0) return null;
+            if (comments.Count == 0) return null;
             return comments.Select(MapToDto).ToList();
         }
 
