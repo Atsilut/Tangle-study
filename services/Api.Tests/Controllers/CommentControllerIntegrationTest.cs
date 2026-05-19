@@ -425,7 +425,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task DeleteComment_Returns204_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "DeleteCommentOwner";
+        var testMethodName = "DeleteComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -444,7 +444,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task DeleteComment_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var testMethodName = "DeleteComment";
+        var testMethodName = "DeleteCommentAuth";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword, 2);
         await LoginAs(owner, testPassword);
