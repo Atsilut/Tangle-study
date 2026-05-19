@@ -7,6 +7,7 @@ namespace Api.Domain.Comments.Dto
     public record CommentCreateRequestDto
     {
         [Required]
+        [StringLength(1000, MinimumLength = 1)]
         [SwaggerSchema(Description = "Comment content")]
         [DefaultValue("Thanks for sharing your post.")]
         public string Content { get; init; }
@@ -27,6 +28,7 @@ namespace Api.Domain.Comments.Dto
         [DefaultValue(1)]
         public long Id { get; init; }
         [Required]
+        [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Updated Comment content")]
         [DefaultValue("This content has been changed.")]
         public string Content { get; init; }
