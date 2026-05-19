@@ -550,7 +550,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
 
         // Act
         var res = await _client.PatchAsJsonAsync($"/api/comments", req);
-        var resDto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var resDto = await res.Content.ReadFromJsonAsync<CommentPatchResponseDto>();
         var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
@@ -558,6 +558,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
 
         Assert.NotNull(resDto);
+        Assert.Equal(post.Id, resDto.PostId);
         Assert.Equal(newContent, resDto.Content);
 
         Assert.NotNull(dto);
