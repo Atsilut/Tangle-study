@@ -261,6 +261,31 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     }
 
     [Fact]
+    public async Task CreateComment_Return400_IfParentOnDifferentPost()
+    {
+        // Arrange
+        await DeleteAllPostsAsync();
+        var testMethodName = "CreateNestedComment_ParentWrongPost";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post1 = await CreatePostForTest(testMethodName, user.Id, index: 1);
+        var post2 = await CreatePostForTest(testMethodName, user.Id, index: 2);
+        var parentOnPost1 = await CreateCommentForTest(testMethodName, post1.Id, index: 1);
+        var req = new CommentCreateRequestDto
+        {
+            PostId = post2.Id,
+            ParentId = parentOnPost1.Id,
+            Content = $"{testMethodName} Cross-post Reply"
+        };
+
+        // Act
+        var res = await _client.PostAsJsonAsync("/api/comments", req);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
     public async Task GetCommentsByPost_ReturnsNestedTree()
     {
         // Arrange
