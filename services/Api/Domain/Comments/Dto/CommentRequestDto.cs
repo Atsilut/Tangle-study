@@ -15,6 +15,9 @@ namespace Api.Domain.Comments.Dto
         [SwaggerSchema(Description = "Post Id")]
         [DefaultValue(1)]
         public long PostId { get; init; }
+
+        [SwaggerSchema(Description = "Parent Comment Id (optional)")]
+        public long? ParentId { get; init; }
     }
 
     public record CommentPatchRequestDto

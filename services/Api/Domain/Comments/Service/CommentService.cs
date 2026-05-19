@@ -35,11 +35,18 @@ namespace Api.Domain.Comments.Service
             var post = await _postService.GetPostByIdAsync(request.PostId);
             if (post == null) throw new EntityNotFoundException("Post not found");
 
+            if (request.ParentId.HasValue)
+            {
+                var parentComment = await _repo.GetCommentByIdAsync(request.ParentId.Value);
+                if (parentComment == null) throw new EntityNotFoundException("Parent comment not found");
+                if (parentComment.PostId != request.PostId) throw new ArgumentException("Parent comment must belong to the same post");
+            }
+
             var comment = new Comment(
                 content: request.Content,
                 postId: request.PostId,
-                userId: userId);
-
+                userId: userId,
+                parentId: request.ParentId);
             await _repo.CreateCommentAsync(comment);
         }
 
@@ -47,17 +54,7 @@ namespace Api.Domain.Comments.Service
         {
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) return null;
-            var res = new CommentGetResponseDto
-            {
-                Id = comment.Id,
-                Content = comment.Content,
-                UserId = comment.UserId,
-                PostId = comment.PostId,
-                CreatedAt = comment.CreatedAt,
-                UpdatedAt = comment.UpdatedAt
-            };
-
-            return res;
+            return MapToDto(comment);
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
@@ -66,16 +63,7 @@ namespace Api.Domain.Comments.Service
             if (post == null) throw new EntityNotFoundException("Post not found");
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments == null || comments.Count == 0) return null;
-            var res = comments.Select(comment => new CommentGetResponseDto
-            {
-                Id = comment.Id,
-                Content = comment.Content,
-                UserId = comment.UserId,
-                PostId = comment.PostId,
-                CreatedAt = comment.CreatedAt,
-                UpdatedAt = comment.UpdatedAt
-            }).ToList();
-            return res;
+            return BuildCommentTree(comments);
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
@@ -84,16 +72,39 @@ namespace Api.Domain.Comments.Service
             if (user == null) throw new EntityNotFoundException("User not found");
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
             if (comments == null || comments.Count == 0) return null;
-            var res = comments.Select(comment => new CommentGetResponseDto
+            return comments.Select(MapToDto).ToList();
+        }
+
+        private CommentGetResponseDto MapToDto(Comment comment) => new()
+        {
+            Id = comment.Id,
+            Content = comment.Content,
+            UserId = comment.UserId,
+            PostId = comment.PostId,
+            ParentId = comment.ParentId,
+            CreatedAt = comment.CreatedAt,
+            UpdatedAt = comment.UpdatedAt
+        };
+
+        private List<CommentGetResponseDto> BuildCommentTree(IReadOnlyList<Comment> comments)
+        {
+            var byId = comments.ToDictionary(c => c.Id, MapToDto);
+            var roots = new List<CommentGetResponseDto>();
+
+            foreach (var comment in comments.OrderBy(c => c.CreatedAt))
             {
-                Id = comment.Id,
-                Content = comment.Content,
-                UserId = comment.UserId,
-                PostId = comment.PostId,
-                CreatedAt = comment.CreatedAt,
-                UpdatedAt = comment.UpdatedAt
-            }).ToList();
-            return res;
+                var dto = byId[comment.Id];
+                if (comment.ParentId is null)
+                {
+                    roots.Add(dto);
+                    continue;
+                }
+
+                if (byId.TryGetValue(comment.ParentId.Value, out var parent))
+                    parent.Replies.Add(dto);
+            }
+
+            return roots;
         }
 
         public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)

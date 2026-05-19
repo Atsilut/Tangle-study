@@ -22,13 +22,18 @@ namespace Api.Domain.Comments.Domain
         public long PostId { get; private set; }
         public Post Post { get; private set; }
 
+        [ForeignKey(nameof(Parent))]
+        public long? ParentId { get; private set; }
+        public Comment? Parent { get; private set; }
+
         private Comment() { }
 
-        public Comment(string content, long userId, long postId)
+        public Comment(string content, long userId, long postId, long? parentId = null)
         {
             Content = content;
             UserId = userId;
             PostId = postId;
+            ParentId = parentId;
         }
     }
 }
