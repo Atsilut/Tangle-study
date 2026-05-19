@@ -359,9 +359,11 @@ public sealed class CommentServiceUnitTests
         };
 
         // Act
-        await _commentService.UpdateCommentAsync(request);
+        var result = await _commentService.UpdateCommentAsync(request);
         
         // Assert
+        Assert.Equal(post.Id, result.PostId);
+        Assert.Equal(newContent, result.Content);
         var findComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
         Assert.NotNull(findComment);
         Assert.Equal(newContent, findComment.Content);
