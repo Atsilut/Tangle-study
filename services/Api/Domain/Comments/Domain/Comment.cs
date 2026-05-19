@@ -11,8 +11,8 @@ namespace Api.Domain.Comments.Domain
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public string Content { get; set; }
+        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public string Content { get; private set; }
 
         [ForeignKey(nameof(User))]
         public long UserId { get; private set; }
@@ -35,5 +35,13 @@ namespace Api.Domain.Comments.Domain
             PostId = postId;
             ParentId = parentId;
         }
+
+        public void UpdateContent(string content)
+        {
+            Content = content;
+            Touch();
+        }
+
+        private void Touch() => UpdatedAt = DateTime.UtcNow;
     }
 }
