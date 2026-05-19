@@ -32,6 +32,10 @@ namespace Api.Domain.Comments.Api
             {
                 return BadRequest();
             }
+            catch (ArgumentException)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpGet("{id:long}")]
