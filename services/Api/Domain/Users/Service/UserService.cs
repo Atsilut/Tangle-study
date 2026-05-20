@@ -88,8 +88,11 @@ namespace Api.Domain.Users.Service
             var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
             if (request.Id != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
-            var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
-            if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
+            if (!string.Equals(request.Nickname, user.Nickname, StringComparison.Ordinal))
+            {
+                var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
+                if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
+            }
             user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
             return new UserPatchResponseDto(

@@ -53,6 +53,10 @@ namespace Api.Domain.Users.Api
             {
                 return Unauthorized();
             }
+            catch (EntityAlreadyExistsException)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpDelete("{id:long}")]
