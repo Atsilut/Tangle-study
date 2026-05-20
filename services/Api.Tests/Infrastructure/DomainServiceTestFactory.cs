@@ -26,7 +26,8 @@ internal static class DomainServiceTestFactory
         var userService = new UserService(
             userRepository,
             new Lazy<PostService>(() => postService),
-            new Lazy<CommentService>(() => commentService));
+            new Lazy<CommentService>(() => commentService),
+            http);
 
         postService = new PostService(
             postRepository,

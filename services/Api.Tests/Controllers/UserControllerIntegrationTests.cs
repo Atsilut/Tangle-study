@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
 
@@ -26,6 +27,21 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
         return all!.First(u => u.Email == req.Email);
+    }
+
+    private async Task LoginAs(UserGetResponseDto user, string password)
+    {
+        var req = new LoginRequestDto
+        {
+            Email = user.Email,
+            Password = password
+        };
+        var login = await Client.PostAsJsonAsync("/api/login", req);
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var loginRes = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
+        Assert.NotNull(loginRes);
+        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
 
@@ -60,6 +76,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
+        await LoginAs(created, testUserPassword);
         const string newNickname = "new";
         var updatedAtBefore = created.UpdatedAt;
 
@@ -80,15 +97,55 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
+        await LoginAs(created, testUserPassword);
         const string newNickname = "new";
-        const long userIdOffset = 123456;
-        var wrongUserId = created.Id + userIdOffset;
+        var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(wrongUserId, newNickname));
+        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateUser_Return401_WhenNotAuthenticated()
+    {
+        // Arrange
+        var created = await CreateUserForTest();
+        Client.DefaultRequestHeaders.Authorization = null;
+
+        // Act
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, "new"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateUser_Return401_WhenUpdatingOtherUser()
+    {
+        // Arrange
+        var owner = await CreateUserForTest();
+        var attackerReq = new UserCreateRequestDto
+        {
+            Email = $"{Guid.NewGuid()}@test.com",
+            Password = testUserPassword,
+            Nickname = "attacker"
+        };
+        var create = await Client.PostAsJsonAsync("/api/join", attackerReq);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var getAll = await Client.GetAsync("/api/users");
+        var users = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
+        var attacker = users!.First(u => u.Email == attackerReq.Email);
+        await LoginAs(attacker, testUserPassword);
+
+        // Act
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(owner.Id, "hacked"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
     }
 
     [Fact]
@@ -96,6 +153,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
+        await LoginAs(created, testUserPassword);
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
@@ -112,13 +170,39 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
-        const long userIdOffset = 123456;
-        var wrongUserId = created.Id + userIdOffset;
+        await LoginAs(created, testUserPassword);
+        var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
         // Act
-        var delete = await Client.DeleteAsync($"/api/users/{wrongUserId}");
+        delete = await Client.DeleteAsync($"/api/users/{created.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUser_Return401_WhenDeletingOtherUser()
+    {
+        // Arrange
+        var owner = await CreateUserForTest();
+        var attackerReq = new UserCreateRequestDto
+        {
+            Email = $"{Guid.NewGuid()}@test.com",
+            Password = testUserPassword,
+            Nickname = "attacker2"
+        };
+        var create = await Client.PostAsJsonAsync("/api/join", attackerReq);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var getAll = await Client.GetAsync("/api/users");
+        var users = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
+        var attacker = users!.First(u => u.Email == attackerReq.Email);
+        await LoginAs(attacker, testUserPassword);
+
+        // Act
+        var delete = await Client.DeleteAsync($"/api/users/{owner.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, delete.StatusCode);
     }
 }

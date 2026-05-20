@@ -2,6 +2,7 @@
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
 using Api.Tests.Infrastructure;
+using Api.Tests.Repositories;
 using Api.Global.Exceptions;
 
 namespace Api.Tests.Service;
@@ -63,6 +64,23 @@ public sealed class UserServiceUnitTests
     }
 
     [Fact]
+    public async Task UpdateUserDetailAsync_ThrowsUnauthorized_WhenUserDoesNotOwnRequest()
+    {
+        // Arrange
+        var graph = DomainServiceTestFactory.Create(new FakeHttpContextAccessor("2"));
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
+        var owner = new User(email: "a@a.com", password: "password", nickname: "owner");
+        var attacker = new User(email: "b@b.com", password: "password", nickname: "attacker");
+        await repo.CreateUserAsync(owner);
+        await repo.CreateUserAsync(attacker);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.UpdateUserDetailAsync(new UserPatchRequestDto(owner.Id, "new")));
+    }
+
+    [Fact]
     public async Task DeleteUserAsync_DeleteUser()
     {
         // Arrange
@@ -89,5 +107,22 @@ public sealed class UserServiceUnitTests
         Assert.NotNull(orphanedPost);
         Assert.Null(orphanedPost.UserId);
         Assert.Equal(user.Id, orphanedPost.DeletedUserId);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_ThrowsUnauthorized_WhenUserDoesNotOwnTarget()
+    {
+        // Arrange
+        var graph = DomainServiceTestFactory.Create(new FakeHttpContextAccessor("2"));
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
+        var owner = new User(email: "a@a.com", password: "password", nickname: "owner");
+        var attacker = new User(email: "b@b.com", password: "password", nickname: "attacker");
+        await repo.CreateUserAsync(owner);
+        await repo.CreateUserAsync(attacker);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.DeleteUserAsync(owner.Id));
     }
 }
