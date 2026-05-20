@@ -31,6 +31,9 @@ namespace Api.Tests.Repositories
             return Task.FromResult(_comments.FirstOrDefault(c => c.Id == id));
         }
 
+        public Task<bool> ExistsCommentByIdAsync(long id) =>
+            Task.FromResult(_comments.Any(c => c.Id == id));
+
         public Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
             Task.FromResult(_comments.Where(c => c.PostId == postId).ToList());
 

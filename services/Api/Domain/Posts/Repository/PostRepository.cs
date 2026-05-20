@@ -25,6 +25,9 @@ namespace Api.Domain.Posts.Repository
 
         public async Task<Post?> GetPostByIdAsync(long id) => await _context.Posts.FindAsync(id);
 
+        public async Task<bool> ExistsPostByIdAsync(long id) =>
+            await _context.Posts.AnyAsync(p => p.Id == id);
+
         public async Task<List<Post>> GetPostsByUserIdAsync(long userId) => await _context.Posts
                 .Where(post => post.UserId == userId)
                 .ToListAsync();

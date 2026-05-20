@@ -24,11 +24,24 @@ namespace Api.Domain.Posts.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
+        public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found")
+        {
+            if (!await _repo.ExistsPostByIdAsync(id))
+                throw new EntityNotFoundException(notFoundMessage);
+        }
+
+        private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found")
+        {
+            var post = await _repo.GetPostByIdAsync(id);
+            if (post == null)
+                throw new EntityNotFoundException(notFoundMessage);
+            return post;
+        }
+
         public async Task CreatePostAsync(PostCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
-            var user = await _userService.GetUserByIdAsync(userId);
-            if (user == null) throw new EntityNotFoundException("User not found");
+            await _userService.EnsureUserExistsAsync(userId);
 
             var post = new Post(
                 userId: userId,
@@ -106,10 +119,8 @@ namespace Api.Domain.Posts.Service
 
         public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            var post = await _repo.GetPostByIdAsync(request.Id);
-            if (user == null) throw new EntityNotFoundException("Unauthorized user");
-            if (post == null) throw new EntityNotFoundException("Post not found");
+            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            var post = await GetPostOrThrowAsync(request.Id);
             if (post.UserId != user.Id) throw new UnauthorizedAccessException();
             post.Update(request.Title, request.Content);
             await _repo.UpdatePostAsync(post);
@@ -123,10 +134,8 @@ namespace Api.Domain.Posts.Service
 
         public async Task DeletePostAsync(long id)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            if (user == null) throw new EntityNotFoundException("Authentication failed");
-            var post = await _repo.GetPostByIdAsync(id);
-            if (post == null) throw new EntityNotFoundException("Post not found");
+            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var post = await GetPostOrThrowAsync(id);
             if (post.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.DeletePostAsync(post);

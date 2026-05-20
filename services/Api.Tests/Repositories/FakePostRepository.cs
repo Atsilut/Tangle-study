@@ -31,6 +31,9 @@ public class FakePostRepository : IPostRepository
         return Task.FromResult(_posts.FirstOrDefault(p => p.Id == id));
     }
 
+    public Task<bool> ExistsPostByIdAsync(long id) =>
+        Task.FromResult(_posts.Any(p => p.Id == id));
+
     public Task<List<Post>> GetPostsByUserIdAsync(long userId) =>
         Task.FromResult(_posts.Where(p => p.UserId == userId).ToList());
 

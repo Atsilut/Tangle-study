@@ -27,18 +27,23 @@ namespace Api.Domain.Comments.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
+        private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found")
+        {
+            var comment = await _repo.GetCommentByIdAsync(id);
+            if (comment == null)
+                throw new EntityNotFoundException(notFoundMessage);
+            return comment;
+        }
+
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
-            var user = await _userService.GetUserByIdAsync(userId);
-            if (user == null) throw new EntityNotFoundException("Authentication failed");
-            var post = await _postService.GetPostByIdAsync(request.PostId);
-            if (post == null) throw new EntityNotFoundException("Post not found");
+            await _userService.EnsureUserExistsAsync(userId, "Authentication failed");
+            await _postService.EnsurePostExistsAsync(request.PostId);
 
             if (request.ParentId.HasValue)
             {
-                var parentComment = await _repo.GetCommentByIdAsync(request.ParentId.Value);
-                if (parentComment == null) throw new EntityNotFoundException("Parent comment not found");
+                var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found");
                 if (parentComment.PostId != request.PostId) throw new ArgumentException("Parent comment must belong to the same post");
             }
 
@@ -59,8 +64,7 @@ namespace Api.Domain.Comments.Service
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
         {
-            var post = await _postService.GetPostByIdAsync(postId);
-            if (post == null) throw new EntityNotFoundException("Post not found");
+            await _postService.EnsurePostExistsAsync(postId);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
             return BuildCommentTree(comments);
@@ -68,8 +72,7 @@ namespace Api.Domain.Comments.Service
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
         {
-            var user = await _userService.GetUserByIdAsync(userId);
-            if (user == null) throw new EntityNotFoundException("User not found");
+            await _userService.EnsureUserExistsAsync(userId);
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
             if (comments.Count == 0) return null;
             return comments.Select(MapToDto).ToList();
@@ -109,10 +112,8 @@ namespace Api.Domain.Comments.Service
 
         public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            if (user == null) throw new EntityNotFoundException("Authentication failed");
-            var comment = await _repo.GetCommentByIdAsync(request.Id);
-            if (comment == null) throw new EntityNotFoundException("Comment not found");
+            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var comment = await GetCommentOrThrowAsync(request.Id);
             if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
             await _repo.UpdateCommentAsync(comment);
@@ -127,10 +128,8 @@ namespace Api.Domain.Comments.Service
 
         public async Task DeleteCommentAsync(long id)
         {
-            var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            if (user == null) throw new EntityNotFoundException("Authentication failed");
-            var comment = await _repo.GetCommentByIdAsync(id);
-            if (comment == null) throw new EntityNotFoundException("Comment not found");
+            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var comment = await GetCommentOrThrowAsync(id);
             if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _repo.DeleteCommentAsync(comment);
         }

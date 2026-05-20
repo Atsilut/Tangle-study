@@ -24,6 +24,9 @@ namespace Api.Domain.Users.Repository
         public async Task<List<User>> GetAllUsersAsync() => await _context.Users.ToListAsync();
 
         public async Task<User?> GetUserByIdAsync(long id) => await _context.Users.FindAsync(id);
+
+        public async Task<bool> ExistsUserByIdAsync(long id) =>
+            await _context.Users.AnyAsync(u => u.Id == id);
         public async Task<User?> GetUserByEmailAsync(string email) 
             => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 

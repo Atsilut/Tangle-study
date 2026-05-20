@@ -23,6 +23,9 @@ public sealed class FakeUserRepository : IUserRepository
     public Task<User?> GetUserByIdAsync(long id)
         => Task.FromResult(_users.TryGetValue(id, out var user) ? user : null);
 
+    public Task<bool> ExistsUserByIdAsync(long id) =>
+        Task.FromResult(_users.ContainsKey(id));
+
     public Task<User?> GetUserByEmailAsync(string email)
         => Task.FromResult(_users.Values.FirstOrDefault(u => u.Email == email));
 

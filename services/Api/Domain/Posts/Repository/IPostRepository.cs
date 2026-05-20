@@ -8,6 +8,7 @@ namespace Api.Domain.Posts.Repository
         public Task<List<Post>> GetAllPostsAsync();
 
         public Task<Post?> GetPostByIdAsync(long id);
+        public Task<bool> ExistsPostByIdAsync(long id);
         public Task<List<Post>> GetPostsByUserIdAsync(long userId);
         public Task UpdatePostAsync(Post post);
         public Task DeletePostAsync(Post post);
