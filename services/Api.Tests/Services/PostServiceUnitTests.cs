@@ -10,7 +10,7 @@ using Api.Global.Exceptions;
 
 namespace Api.Tests.Services;
 
-public class PostServiceUnitTests
+public sealed class PostServiceUnitTests
 {
     private readonly PostService _postService;
     private readonly FakePostRepository _postRepository;
@@ -254,7 +254,7 @@ public class PostServiceUnitTests
 
         var request = new PostPatchRequestDto
         {
-            Id = 1,
+            Id = post.Id,
             Title = "Hacked title",
             Content = "Hacked content"
         };
