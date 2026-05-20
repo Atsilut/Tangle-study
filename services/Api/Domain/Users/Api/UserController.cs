@@ -18,7 +18,7 @@ namespace Api.Domain.Users.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "Get All Users")]
-        public async Task<ActionResult<List<UserGetResponseDto>?>> GetAllUsers()
+        public async Task<ActionResult<List<UserGetResponseDto>>> GetAllUsers()
         {
             var resultList = await _service.GetAllUsersAsync();
             return Ok(resultList);

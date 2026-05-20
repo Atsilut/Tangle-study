@@ -1,7 +1,7 @@
 ﻿using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
-using Api.Tests.Fakes;
+using Api.Tests.Repositories;
 using Api.Global.Exceptions;
 
 namespace Api.Tests.Service;

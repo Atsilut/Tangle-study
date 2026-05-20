@@ -15,10 +15,9 @@ namespace Api.Domain.Users.Service
             _repo = repo;
         }
 
-        public async Task<List<UserGetResponseDto>?> GetAllUsersAsync()
+        public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
             var users = await _repo.GetAllUsersAsync();
-            if (users == null) return null;
 
             var list = new List<UserGetResponseDto>();
             foreach (var user in users)
@@ -26,7 +25,9 @@ namespace Api.Domain.Users.Service
                 list.Add(new UserGetResponseDto(
                     Id: user.Id,
                     Email: user.Email,
-                    Nickname: user.Nickname
+                    Nickname: user.Nickname,
+                    CreatedAt: user.CreatedAt,
+                    UpdatedAt: user.UpdatedAt
                 ));
             }
 
@@ -41,7 +42,9 @@ namespace Api.Domain.Users.Service
             var userResponse = new UserGetResponseDto(
                 Id: user.Id,
                 Email: user.Email,
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                CreatedAt: user.CreatedAt,
+                UpdatedAt: user.UpdatedAt
             );
 
             return userResponse;
@@ -54,7 +57,9 @@ namespace Api.Domain.Users.Service
             var userResponse = new UserGetResponseDto(
                 Id: user.Id,
                 Email: user.Email,
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                CreatedAt: user.CreatedAt,
+                UpdatedAt: user.UpdatedAt
             );
             return userResponse;
         }
@@ -65,10 +70,11 @@ namespace Api.Domain.Users.Service
             if (user == null) throw new EntityNotFoundException("User not found");
             var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
             if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
-            user.Nickname = request.Nickname;
+            user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
             var response = new UserPatchResponseDto(
-                Nickname: user.Nickname
+                Nickname: user.Nickname,
+                UpdatedAt: user.UpdatedAt
             );
             return response;
         }

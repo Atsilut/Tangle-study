@@ -1,7 +1,7 @@
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Repository;
 
-namespace Api.Tests.Fakes;
+namespace Api.Tests.Repositories;
 
 public sealed class FakeUserRepository : IUserRepository
 {
@@ -18,7 +18,7 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.CompletedTask;
     }
 
-    public Task<List<User>?> GetAllUsersAsync() => Task.FromResult<List<User>?>(_users.Values.ToList());
+    public Task<List<User>> GetAllUsersAsync() => Task.FromResult(_users.Values.ToList());
 
     public Task<User?> GetUserByIdAsync(long id)
         => Task.FromResult(_users.TryGetValue(id, out var user) ? user : null);
@@ -35,14 +35,7 @@ public sealed class FakeUserRepository : IUserRepository
     public Task<bool> ExistsUserByNicknameAsync(string nickname)
         => Task.FromResult(_users.Values.Any(u => u.Nickname == nickname));
 
-    public Task UpdateUserAsync(User user)
-    {
-        if (user.Id != 0)
-        {
-            _users[user.Id] = user;
-        }
-        return Task.CompletedTask;
-    }
+    public Task UpdateUserAsync(User user) => Task.CompletedTask;
 
     public Task DeleteUserAsync(User user)
     {
