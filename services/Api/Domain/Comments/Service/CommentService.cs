@@ -110,8 +110,8 @@ namespace Api.Domain.Comments.Service
         public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)
         {
             var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            var comment = await _repo.GetCommentByIdAsync(request.Id);
             if (user == null) throw new EntityNotFoundException("Authentication failed");
+            var comment = await _repo.GetCommentByIdAsync(request.Id);
             if (comment == null) throw new EntityNotFoundException("Comment not found");
             if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
@@ -128,8 +128,8 @@ namespace Api.Domain.Comments.Service
         public async Task DeleteCommentAsync(long id)
         {
             var user = await _userService.GetUserByIdAsync(GetUserIdFromLogin());
-            var comment = await _repo.GetCommentByIdAsync(id);
             if (user == null) throw new EntityNotFoundException("Authentication failed");
+            var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) throw new EntityNotFoundException("Comment not found");
             if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _repo.DeleteCommentAsync(comment);
