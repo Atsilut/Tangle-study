@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Api.Domain.Comments.Dto
 {
@@ -10,13 +10,17 @@ namespace Api.Domain.Comments.Dto
         [Required]
         public string Content { get; set; }
 
-        [Required]
-        public long PostId { get; set; }
+        public long? PostId { get; set; }
 
-        [Required]
-        public long UserId { get; set; }
+        public long? DeletedPostId { get; set; }
+
+        public long? UserId { get; set; }
+
+        public long? DeletedUserId { get; set; }
 
         public long? ParentId { get; set; }
+
+        public long? DeletedParentId { get; set; }
 
         [Required]
         public DateTime CreatedAt { get; set; }
@@ -32,8 +36,9 @@ namespace Api.Domain.Comments.Dto
         [Required]
         public string Content { get; set; }
 
-        [Required]
-        public long PostId { get; set; }
+        public long? PostId { get; set; }
+
+        public long? DeletedPostId { get; set; }
 
         [Required]
         public DateTime UpdatedAt { get; set; }

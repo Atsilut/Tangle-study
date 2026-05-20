@@ -1,4 +1,4 @@
-﻿using Api.Domain.Posts.Domain;
+using Api.Domain.Posts.Domain;
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -15,16 +15,29 @@ namespace Api.Domain.Comments.Domain
         public string Content { get; private set; }
 
         [ForeignKey(nameof(User))]
-        public long UserId { get; private set; }
-        public User User { get; private set; }
+        public long? UserId { get; private set; }
+
+        public long? DeletedUserId { get; private set; }
+
+        public User? User { get; private set; }
 
         [ForeignKey(nameof(Post))]
-        public long PostId { get; private set; }
-        public Post Post { get; private set; }
+        public long? PostId { get; private set; }
+
+        public long? DeletedPostId { get; private set; }
+
+        public Post? Post { get; private set; }
 
         [ForeignKey(nameof(Parent))]
         public long? ParentId { get; private set; }
+
+        public long? DeletedParentId { get; private set; }
+
         public Comment? Parent { get; private set; }
+
+        public long AuthorUserId => UserId ?? DeletedUserId!.Value;
+
+        public long LogicalPostId => PostId ?? DeletedPostId!.Value;
 
         private Comment() { }
 
@@ -39,6 +52,27 @@ namespace Api.Domain.Comments.Domain
         public void UpdateContent(string content)
         {
             Content = content;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void DetachAuthor(long userId)
+        {
+            DeletedUserId = userId;
+            UserId = null;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void DetachPost(long postId)
+        {
+            DeletedPostId = postId;
+            PostId = null;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void DetachParent(long parentId)
+        {
+            DeletedParentId = parentId;
+            ParentId = null;
             UpdatedAt = DateTime.UtcNow;
         }
     }

@@ -1,4 +1,4 @@
-﻿using Api.Domain.Posts.Domain;
+using Api.Domain.Posts.Domain;
 
 namespace Api.Domain.Posts.Repository
 {
@@ -11,6 +11,7 @@ namespace Api.Domain.Posts.Repository
         public Task<bool> ExistsPostByIdAsync(long id);
         public Task<List<Post>> GetPostsByUserIdAsync(long userId);
         public Task UpdatePostAsync(Post post);
+        public Task DetachAuthorFromPostsAsync(long userId);
         public Task DeletePostAsync(Post post);
     }
 }

@@ -1,4 +1,4 @@
-﻿using Api.Domain.Posts.Domain;
+using Api.Domain.Posts.Domain;
 using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +33,14 @@ namespace Api.Domain.Posts.Repository
                 .ToListAsync();
 
         public async Task UpdatePostAsync(Post post) => await _context.SaveChangesAsync();
+
+        public async Task DetachAuthorFromPostsAsync(long userId)
+        {
+            var posts = await _context.Posts.Where(p => p.UserId == userId).ToListAsync();
+            foreach (var post in posts)
+                post.DetachAuthor(userId);
+            await _context.SaveChangesAsync();
+        }
 
         public async Task DeletePostAsync(Post post)
         {

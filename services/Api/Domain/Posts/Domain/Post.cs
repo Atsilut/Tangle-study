@@ -1,4 +1,4 @@
-﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Domain;
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -17,11 +17,15 @@ namespace Api.Domain.Posts.Domain
         public string Content { get; private set; }
 
         [ForeignKey(nameof(User))]
-        public long UserId { get; private set; }
+        public long? UserId { get; private set; }
 
-        public User User { get; private set; }
+        public long? DeletedUserId { get; private set; }
+
+        public User? User { get; private set; }
 
         public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+
+        public long AuthorUserId => UserId ?? DeletedUserId!.Value;
 
         private Post() { }
 
@@ -36,6 +40,13 @@ namespace Api.Domain.Posts.Domain
         {
             Title = title;
             Content = content;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void DetachAuthor(long userId)
+        {
+            DeletedUserId = userId;
+            UserId = null;
             UpdatedAt = DateTime.UtcNow;
         }
     }

@@ -1,4 +1,4 @@
-﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Domain;
 using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -26,11 +26,39 @@ namespace Api.Domain.Comments.Repository
         public async Task<bool> ExistsCommentByIdAsync(long id) =>
             await _context.Comments.AnyAsync(c => c.Id == id);
 
-        public async Task<List<Comment>> GetCommentsByPostIdAsync(long postId) => await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
+        public async Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
+            await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
 
-        public async Task<List<Comment>> GetCommentsByUserIdAsync(long userId) => await _context.Comments.Where(c => c.UserId == userId).ToListAsync();
+        public async Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
+            await _context.Comments
+                .Where(c => c.UserId == userId || c.DeletedUserId == userId)
+                .ToListAsync();
 
         public async Task UpdateCommentAsync(Comment comment) => await _context.SaveChangesAsync();
+
+        public async Task DetachAuthorFromCommentsAsync(long userId)
+        {
+            var comments = await _context.Comments.Where(c => c.UserId == userId).ToListAsync();
+            foreach (var comment in comments)
+                comment.DetachAuthor(userId);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DetachPostFromCommentsAsync(long postId)
+        {
+            var comments = await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
+            foreach (var comment in comments)
+                comment.DetachPost(postId);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DetachParentFromRepliesAsync(long parentCommentId)
+        {
+            var replies = await _context.Comments.Where(c => c.ParentId == parentCommentId).ToListAsync();
+            foreach (var reply in replies)
+                reply.DetachParent(parentCommentId);
+            await _context.SaveChangesAsync();
+        }
 
         public async Task DeleteCommentAsync(Comment comment)
         {

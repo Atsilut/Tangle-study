@@ -1,4 +1,4 @@
-﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Domain;
 
 namespace Api.Domain.Comments.Repository
 {
@@ -10,6 +10,9 @@ namespace Api.Domain.Comments.Repository
         public Task<List<Comment>> GetCommentsByPostIdAsync(long postId);
         public Task<List<Comment>> GetCommentsByUserIdAsync(long userId);
         public Task UpdateCommentAsync(Comment comment);
+        public Task DetachAuthorFromCommentsAsync(long userId);
+        public Task DetachPostFromCommentsAsync(long postId);
+        public Task DetachParentFromRepliesAsync(long parentCommentId);
         public Task DeleteCommentAsync(Comment comment);
     }
 }
