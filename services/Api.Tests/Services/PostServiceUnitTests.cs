@@ -97,7 +97,7 @@ public sealed class PostServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.CreatePostAsync(request));
-        Assert.Equal("Unauthorized user", exception.Message);
+        Assert.Equal("Unauthorized Access", exception.Message);
     }
 
     [Fact]
@@ -236,7 +236,7 @@ public sealed class PostServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
-        Assert.Equal("Unauthorized user", exception.Message);
+        Assert.Equal("Unauthorized Access", exception.Message);
     }
 
     [Fact]
