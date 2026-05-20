@@ -20,6 +20,15 @@ public sealed class FakeUserRepository : IUserRepository
 
     public Task<List<User>> GetAllUsersAsync() => Task.FromResult(_users.Values.ToList());
 
+    public Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids)
+    {
+        var idSet = ids.ToHashSet();
+        IReadOnlyDictionary<long, string> nicknames = _users
+            .Where(kv => idSet.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.Nickname);
+        return Task.FromResult(nicknames);
+    }
+
     public Task<User?> GetUserByIdAsync(long id)
         => Task.FromResult(_users.TryGetValue(id, out var user) ? user : null);
 

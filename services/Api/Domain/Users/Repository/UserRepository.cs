@@ -1,4 +1,4 @@
-﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Domain;
 using Api.Global.Db;
 using Api.Global.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +22,17 @@ namespace Api.Domain.Users.Repository
         }
 
         public async Task<List<User>> GetAllUsersAsync() => await _context.Users.ToListAsync();
+
+        public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+                return new Dictionary<long, string>();
+
+            return await _context.Users
+                .Where(u => idList.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Nickname);
+        }
 
         public async Task<User?> GetUserByIdAsync(long id) => await _context.Users.FindAsync(id);
 

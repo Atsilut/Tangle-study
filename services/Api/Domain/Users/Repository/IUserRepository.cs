@@ -1,4 +1,4 @@
-﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Domain;
 
 namespace Api.Domain.Users.Repository
 {
@@ -6,6 +6,7 @@ namespace Api.Domain.Users.Repository
     {
         public Task CreateUserAsync(User user);
         public Task<List<User>> GetAllUsersAsync();
+        public Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids);
         public Task<User?> GetUserByIdAsync(long id);
         public Task<bool> ExistsUserByIdAsync(long id);
         public Task<User?> GetUserByEmailAsync(string email);

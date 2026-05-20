@@ -56,22 +56,10 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetAllPostsAsync();
             if (posts.Count == 0) return null;
 
-            var list = new List<PostGetResponseDto>();
-            foreach (var post in posts)
-            {
-                var user = await _userService.GetUserByIdAsync(post.UserId);
-                list.Add(new PostGetResponseDto(
-                        Id: post.Id,
-                        Title: post.Title,
-                        Content: post.Content,
-                        CreatedAt: post.CreatedAt,
-                        UpdatedAt: post.UpdatedAt,
-                        AuthorId: post.UserId,
-                        AuthorNickname: user?.Nickname ?? "Unknown"
-                    ));
-            }
-
-            return list;
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.UserId));
+            return posts
+                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.UserId, "Deleted User")))
+                .ToList();
         }
 
         public async Task<PostGetResponseDto?> GetPostByIdAsync(long id)
@@ -80,17 +68,7 @@ namespace Api.Domain.Posts.Service
             if (post == null) return null;
 
             var user = await _userService.GetUserByIdAsync(post.UserId);
-            var postResponse = new PostGetResponseDto(
-                Id: post.Id,
-                Title: post.Title,
-                Content: post.Content,
-                CreatedAt: post.CreatedAt,
-                UpdatedAt: post.UpdatedAt,
-                AuthorId: post.UserId,
-                AuthorNickname: user?.Nickname ?? "Unknown"
-            );
-
-            return postResponse;
+            return MapToDto(post, user?.Nickname ?? "Unknown");
         }
 
         public async Task<List<PostGetResponseDto>?> GetPostsByUserNickname(string nickname)
@@ -100,22 +78,18 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetPostsByUserIdAsync(user.Id);
             if (posts.Count == 0) return null;
 
-            var list = new List<PostGetResponseDto>();
-            foreach (var post in posts)
-            {
-                var postResponse = new PostGetResponseDto(
-                    Id: post.Id,
-                    Title: post.Title,
-                    Content: post.Content,
-                    CreatedAt: post.CreatedAt,
-                     UpdatedAt: post.UpdatedAt,
-                    AuthorId: post.UserId,
-                    AuthorNickname: user.Nickname
-                );
-                list.Add(postResponse);
-            }
-            return list;
+            return posts.Select(post => MapToDto(post, user.Nickname)).ToList();
         }
+
+        private static PostGetResponseDto MapToDto(Post post, string authorNickname) => new(
+            Id: post.Id,
+            Title: post.Title,
+            Content: post.Content,
+            CreatedAt: post.CreatedAt,
+            UpdatedAt: post.UpdatedAt,
+            AuthorId: post.UserId,
+            AuthorNickname: authorNickname
+        );
 
         public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
         {

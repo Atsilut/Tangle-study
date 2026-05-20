@@ -1,4 +1,4 @@
-﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
 using Api.Global.Exceptions;
@@ -41,51 +41,31 @@ namespace Api.Domain.Users.Service
         public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
             var users = await _repo.GetAllUsersAsync();
-
-            var list = new List<UserGetResponseDto>();
-            foreach (var user in users)
-            {
-                list.Add(new UserGetResponseDto(
-                    Id: user.Id,
-                    Email: user.Email,
-                    Nickname: user.Nickname,
-                    CreatedAt: user.CreatedAt,
-                    UpdatedAt: user.UpdatedAt
-                ));
-            }
-
-            return list;
+            return users.Select(MapToDto).ToList();
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
         {
             var user = await _repo.GetUserByIdAsync(id);
-            if (user == null) return null;
-
-            var userResponse = new UserGetResponseDto(
-                Id: user.Id,
-                Email: user.Email,
-                Nickname: user.Nickname,
-                CreatedAt: user.CreatedAt,
-                UpdatedAt: user.UpdatedAt
-            );
-
-            return userResponse;
+            return user == null ? null : MapToDto(user);
         }
 
         public async Task<UserGetResponseDto?> GetUserByNicknameAsync(string nickname)
         {
             var user = await _repo.GetUserByNicknameAsync(nickname);
-            if (user == null) return null;
-            var userResponse = new UserGetResponseDto(
-                Id: user.Id,
-                Email: user.Email,
-                Nickname: user.Nickname,
-                CreatedAt: user.CreatedAt,
-                UpdatedAt: user.UpdatedAt
-            );
-            return userResponse;
+            return user == null ? null : MapToDto(user);
         }
+
+        public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
+            await _repo.GetNicknamesByIdsAsync(userIds);
+
+        private static UserGetResponseDto MapToDto(User user) => new(
+            Id: user.Id,
+            Email: user.Email,
+            Nickname: user.Nickname,
+            CreatedAt: user.CreatedAt,
+            UpdatedAt: user.UpdatedAt
+        );
 
         public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
