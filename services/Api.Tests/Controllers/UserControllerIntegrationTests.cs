@@ -86,7 +86,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
         Assert.NotNull(patched);
         Assert.Equal(newNickname, patched.Nickname);
-        Assert.True(updatedAtBefore < created.UpdatedAt);
+        Assert.True(updatedAtBefore < patched.UpdatedAt);
     }
 
     [Fact]
