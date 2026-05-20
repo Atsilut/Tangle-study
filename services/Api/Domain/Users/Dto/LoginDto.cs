@@ -7,6 +7,7 @@ namespace Api.Domain.Users.Dto
     public record LoginRequestDto
     {
         [Required]
+        [StringLength(100, MinimumLength = 1)]
         [RegularExpression(
             @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
             ErrorMessage = "Email format is invalid."
@@ -16,6 +17,7 @@ namespace Api.Domain.Users.Dto
         public string Email { get; init; }
 
         [Required]
+        [StringLength(100, MinimumLength = 1)]
         [MinLength(8)]
         [RegularExpression(
             @"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+=-]{8,32}$",
