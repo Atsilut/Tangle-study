@@ -6,7 +6,6 @@ using Api.Global.Db;
 using Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace Api.Tests.Controllers;
 
