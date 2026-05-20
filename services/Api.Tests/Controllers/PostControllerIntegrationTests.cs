@@ -2,10 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Dto;
-using Api.Global.Db;
 using Api.Tests.Infrastructure;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests.Controllers;
 
@@ -63,13 +60,6 @@ public sealed class PostControllerIntegrationTests : IDisposable
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
-    private async Task DeleteAllPostsAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Posts.ExecuteDeleteAsync();
-    }
-
     [Fact]
     public async Task CreatePost_Returns201()
     {
@@ -121,7 +111,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task GetAllPosts_Returns200_WithPosts()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetAllPosts";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -150,7 +140,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task GetAllPosts_Returns204_WhenNoPosts()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
 
         // Act
         var res = await _client.GetAsync("/api/posts");

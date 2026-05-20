@@ -1,10 +1,7 @@
 ﻿using Api.Domain.Comments.Dto;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Dto;
-using Api.Global.Db;
 using Api.Tests.Infrastructure;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -117,13 +114,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
-    private async Task DeleteAllPostsAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Posts.ExecuteDeleteAsync();
-    }
-
     [Fact]
     public async Task CreateComment_Returns201()
     {
@@ -211,7 +201,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_ReturnsComments()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -235,7 +225,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task CreateComment_WithParentId_Returns201()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "CreateNestedComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -289,7 +279,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task CreateComment_Return400_IfParentOnDifferentPost()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "CreateNestedComment_ParentWrongPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -314,7 +304,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_ReturnsNestedTree()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost_Nested";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -388,7 +378,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_Returns204_WhenNoComments()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost_NoComments";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -405,7 +395,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByUser_ReturnsComments()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByUser";
         var activeUser = await CreateUserForTest(testMethodName, testPassword);
         var lessUser = await CreateUserForTest(testMethodName + "Lesser", testPassword);
@@ -439,7 +429,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByUser_ReturnsFlatList_IncludingSiblingReplies()
     {
         // Arrange
-        await DeleteAllPostsAsync();
+        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByUser_Flat";
         var author = await CreateUserForTest(testMethodName, testPassword);
         var otherUser = await CreateUserForTest(testMethodName + "Other", testPassword, index: 2);
