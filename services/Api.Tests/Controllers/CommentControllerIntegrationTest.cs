@@ -192,11 +192,11 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var testMethodName = "CreateComment_ContentEmpty";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
-        await CreatePostForTest(testMethodName, user.Id);
+        var post = await CreatePostForTest(testMethodName, user.Id);
 
         var req = new CommentCreateRequestDto
         {
-            PostId = 1,
+            PostId = post.Id,
             Content = invalidContent
         };
 
