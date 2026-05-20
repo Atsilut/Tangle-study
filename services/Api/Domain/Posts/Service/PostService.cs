@@ -1,4 +1,5 @@
-﻿using Api.Domain.Posts.Domain;
+﻿using Api.Domain.Comments.Service;
+using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;
 using Api.Domain.Users.Service;
@@ -11,12 +12,18 @@ namespace Api.Domain.Posts.Service
     public class PostService
     {
         private readonly IPostRepository _repo;
+        private readonly Lazy<CommentService> _commentService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly UserService _userService;
 
-        public PostService(IPostRepository repo, IHttpContextAccessor httpContextAccessor, UserService userService)
+        public PostService(
+            IPostRepository repo,
+            Lazy<CommentService> commentService,
+            IHttpContextAccessor httpContextAccessor,
+            UserService userService)
         {
             _repo = repo;
+            _commentService = commentService;
             _httpContextAccessor = httpContextAccessor;
             _userService = userService;
         }
@@ -56,9 +63,9 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetAllPostsAsync();
             if (posts.Count == 0) return null;
 
-            var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.UserId));
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
             return posts
-                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.UserId, "Deleted User")))
+                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")))
                 .ToList();
         }
 
@@ -67,8 +74,8 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetPostByIdAsync(id);
             if (post == null) return null;
 
-            var user = await _userService.GetUserByIdAsync(post.UserId);
-            return MapToDto(post, user?.Nickname ?? "Unknown");
+            var user = await _userService.GetUserByIdAsync(post.AuthorUserId);
+            return MapToDto(post, user?.Nickname ?? "Deleted User");
         }
 
         public async Task<List<PostGetResponseDto>?> GetPostsByUserNickname(string nickname)
@@ -87,7 +94,7 @@ namespace Api.Domain.Posts.Service
             Content: post.Content,
             CreatedAt: post.CreatedAt,
             UpdatedAt: post.UpdatedAt,
-            AuthorId: post.UserId,
+            AuthorId: post.AuthorUserId,
             AuthorNickname: authorNickname
         );
 
@@ -95,23 +102,26 @@ namespace Api.Domain.Posts.Service
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
             var post = await GetPostOrThrowAsync(request.Id);
-            if (post.UserId != user.Id) throw new UnauthorizedAccessException();
+            if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException();
             post.Update(request.Title, request.Content);
             await _repo.UpdatePostAsync(post);
-            var response = new PostPatchResponseDto(
+            return new PostPatchResponseDto(
                 Title: post.Title,
                 Content: post.Content,
                 UpdatedAt: post.UpdatedAt
             );
-            return response;
         }
+
+        public Task DetachAuthorFromDeletedUserAsync(long userId) =>
+            _repo.DetachAuthorFromPostsAsync(userId);
 
         public async Task DeletePostAsync(long id)
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
             var post = await GetPostOrThrowAsync(id);
-            if (post.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+            if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
+            await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
             await _repo.DeletePostAsync(post);
         }
     }

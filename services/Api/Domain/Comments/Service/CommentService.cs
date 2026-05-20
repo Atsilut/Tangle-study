@@ -44,7 +44,8 @@ namespace Api.Domain.Comments.Service
             if (request.ParentId.HasValue)
             {
                 var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found");
-                if (parentComment.PostId != request.PostId) throw new ArgumentException("Parent comment must belong to the same post");
+                if (parentComment.LogicalPostId != request.PostId)
+                    throw new ArgumentException("Parent comment must belong to the same post");
             }
 
             var comment = new Comment(
@@ -72,19 +73,26 @@ namespace Api.Domain.Comments.Service
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
         {
-            await _userService.EnsureUserExistsAsync(userId);
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
-            if (comments.Count == 0) return null;
+            if (comments.Count == 0)
+            {
+                await _userService.EnsureUserExistsAsync(userId);
+                return null;
+            }
+
             return comments.Select(MapToDto).ToList();
         }
 
-        private CommentGetResponseDto MapToDto(Comment comment) => new()
+        private static CommentGetResponseDto MapToDto(Comment comment) => new()
         {
             Id = comment.Id,
             Content = comment.Content,
             UserId = comment.UserId,
+            DeletedUserId = comment.DeletedUserId,
             PostId = comment.PostId,
+            DeletedPostId = comment.DeletedPostId,
             ParentId = comment.ParentId,
+            DeletedParentId = comment.DeletedParentId,
             CreatedAt = comment.CreatedAt,
             UpdatedAt = comment.UpdatedAt
         };
@@ -105,6 +113,8 @@ namespace Api.Domain.Comments.Service
 
                 if (byId.TryGetValue(comment.ParentId.Value, out var parent))
                     parent.Replies.Add(dto);
+                else if (comment.ParentId is null && comment.DeletedParentId is not null)
+                    roots.Add(dto);
             }
 
             return roots;
@@ -114,23 +124,32 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
             var comment = await GetCommentOrThrowAsync(request.Id);
-            if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+            if (comment.PostId is null && comment.DeletedPostId is not null)
+                throw new EntityNotFoundException("Post is not reachable. Comments are readonly.");
+            if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
             await _repo.UpdateCommentAsync(comment);
-            var response = new CommentPatchResponseDto
+            return new CommentPatchResponseDto
             {
                 Content = comment.Content,
                 PostId = comment.PostId,
+                DeletedPostId = comment.DeletedPostId,
                 UpdatedAt = comment.UpdatedAt
             };
-            return response;
         }
+
+        public Task DetachCommentsFromDeletedPostAsync(long postId) =>
+            _repo.DetachPostFromCommentsAsync(postId);
+
+        public Task DetachAuthorFromDeletedUserAsync(long userId) =>
+            _repo.DetachAuthorFromCommentsAsync(userId);
 
         public async Task DeleteCommentAsync(long id)
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
             var comment = await GetCommentOrThrowAsync(id);
-            if (comment.UserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+            if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+            await _repo.DetachParentFromRepliesAsync(id);
             await _repo.DeleteCommentAsync(comment);
         }
     }

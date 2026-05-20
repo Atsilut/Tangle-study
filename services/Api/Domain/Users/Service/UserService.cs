@@ -1,3 +1,5 @@
+﻿using Api.Domain.Comments.Service;
+using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
@@ -10,10 +12,17 @@ namespace Api.Domain.Users.Service
     public class UserService
     {
         private readonly IUserRepository _repo;
+        private readonly Lazy<PostService> _postService;
+        private readonly Lazy<CommentService> _commentService;
 
-        public UserService(IUserRepository repo)
+        public UserService(
+            IUserRepository repo,
+            Lazy<PostService> postService,
+            Lazy<CommentService> commentService)
         {
             _repo = repo;
+            _postService = postService;
+            _commentService = commentService;
         }
 
         public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found")
@@ -74,16 +83,17 @@ namespace Api.Domain.Users.Service
             if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
             user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
-            var response = new UserPatchResponseDto(
+            return new UserPatchResponseDto(
                 Nickname: user.Nickname,
                 UpdatedAt: user.UpdatedAt
             );
-            return response;
         }
 
         public async Task DeleteUserAsync(long id)
         {
             var user = await GetUserEntityOrThrowAsync(id);
+            await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
+            await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
             await _repo.DeleteUserAsync(user);
         }
     }
