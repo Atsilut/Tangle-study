@@ -370,7 +370,7 @@ public sealed class CommentServiceUnitTests
     }
 
     [Fact]
-    public async Task UpdateCommentAsync_Missingcomment_ThrowsEntityNotFoundException()
+    public async Task UpdateCommentAsync_MissingComment_ThrowsEntityNotFoundException()
     {
         // Arrange
         var user = await CreateTestUserAsync();
