@@ -33,6 +33,8 @@ public static class DependencyInjection
             }
         }
 
+        services.AddTransient(typeof(Lazy<>), typeof(LazyService<>));
+
         return services;
     }
 
