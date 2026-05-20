@@ -23,8 +23,15 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Create Post")]
         public async Task<IActionResult> CreatePost([FromBody] PostCreateRequestDto request)
         {
-            await _service.CreatePostAsync(request);
-            return Created();
+            try
+            {
+                await _service.CreatePostAsync(request);
+                return Created();
+            }
+            catch (EntityNotFoundException)
+            {
+                return BadRequest();
+            }
         }
 
         [HttpGet]
@@ -32,7 +39,7 @@ namespace Api.Domain.Posts.Api
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetAllPosts()
         {
             var result = await _service.GetAllPostsAsync();
-            if (result == null || result.Count == 0) return NoContent();
+            if (result == null) return NoContent();
             return Ok(result);
         }
 
@@ -50,7 +57,7 @@ namespace Api.Domain.Posts.Api
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
         {
             var result = await _service.GetPostsByUserNickname(nickname);
-            if (result == null || result.Count == 0) return NoContent();
+            if (result == null) return NoContent();
             return Ok(result);
         }
 

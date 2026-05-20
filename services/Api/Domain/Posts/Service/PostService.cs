@@ -41,7 +41,7 @@ namespace Api.Domain.Posts.Service
         public async Task<List<PostGetResponseDto>?> GetAllPostsAsync()
         {
             var posts = await _repo.GetAllPostsAsync();
-            if (posts == null) return null;
+            if (posts.Count == 0) return null;
 
             var list = new List<PostGetResponseDto>();
             foreach (var post in posts)
@@ -51,6 +51,8 @@ namespace Api.Domain.Posts.Service
                         Id: post.Id,
                         Title: post.Title,
                         Content: post.Content,
+                        CreatedAt: post.CreatedAt,
+                        UpdatedAt: post.UpdatedAt,
                         AuthorId: post.UserId,
                         AuthorNickname: user?.Nickname ?? "Unknown"
                     ));
@@ -69,6 +71,8 @@ namespace Api.Domain.Posts.Service
                 Id: post.Id,
                 Title: post.Title,
                 Content: post.Content,
+                CreatedAt: post.CreatedAt,
+                UpdatedAt: post.UpdatedAt,
                 AuthorId: post.UserId,
                 AuthorNickname: user?.Nickname ?? "Unknown"
             );
@@ -81,7 +85,7 @@ namespace Api.Domain.Posts.Service
             var user = await _userService.GetUserByNicknameAsync(nickname);
             if (user == null) return null;
             var posts = await _repo.GetPostsByUserIdAsync(user.Id);
-            if (posts == null) return null;
+            if (posts.Count == 0) return null;
 
             var list = new List<PostGetResponseDto>();
             foreach (var post in posts)
@@ -90,6 +94,8 @@ namespace Api.Domain.Posts.Service
                     Id: post.Id,
                     Title: post.Title,
                     Content: post.Content,
+                    CreatedAt: post.CreatedAt,
+                     UpdatedAt: post.UpdatedAt,
                     AuthorId: post.UserId,
                     AuthorNickname: user.Nickname
                 );
@@ -105,12 +111,12 @@ namespace Api.Domain.Posts.Service
             if (user == null) throw new EntityNotFoundException("Unauthorized user");
             if (post == null) throw new EntityNotFoundException("Post not found");
             if (post.UserId != user.Id) throw new UnauthorizedAccessException();
-            post.Title = request.Title;
-            post.Content = request.Content;
+            post.Update(request.Title, request.Content);
             await _repo.UpdatePostAsync(post);
             var response = new PostPatchResponseDto(
                 Title: post.Title,
-                Content: post.Content
+                Content: post.Content,
+                UpdatedAt: post.UpdatedAt
             );
             return response;
         }

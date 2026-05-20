@@ -72,7 +72,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task CreatePost_ReturnsCreated()
+    public async Task CreatePost_Returns201()
     {
         // Arrange
         var testMethodName = "PostCreate";
@@ -101,8 +101,25 @@ public sealed class PostControllerIntegrationTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("", "valid content")]
+    [InlineData("valid title", "")]
+    public async Task CreatePost_Returns400_WhenInvalidRequest(string title, string content)
+    {
+        // Arrange
+        var testMethodName = "PostCreateWithInvalidRequest";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var req = new PostCreateRequestDto { Title = title, Content = content };
+        // Act
+        var res = await _client.PostAsJsonAsync("/api/posts", req);
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
     [Fact]
-    public async Task GetAllPosts_ReturnsPosts()
+    public async Task GetAllPosts_Returns200_WithPosts()
     {
         // Arrange
         await DeleteAllPostsAsync();
@@ -131,7 +148,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllPosts_ReturnsNoContent_WhenNoPosts()
+    public async Task GetAllPosts_Returns204_WhenNoPosts()
     {
         // Arrange
         await DeleteAllPostsAsync();
@@ -144,7 +161,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostById_ReturnsOk_WhenPostExists()
+    public async Task GetPostById_Returns200_WhenPostExists()
     {
         // Arrange
         var testMethodName = "GetPostById";
@@ -163,11 +180,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
-
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(created.Id, dto.Id);
         Assert.Equal(title, dto.Title);
@@ -177,7 +193,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostById_ReturnsNotFound_WhenPostMissing()
+    public async Task GetPostById_Returns404_WhenPostMissing()
     {
         // Arrange
         const long missingPostId = 999999999999;
@@ -190,7 +206,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsOk_WithAuthorPosts()
+    public async Task GetPostsByNickname_Returns200_WithAuthorPosts()
     {
         // Arrange
         var testMethodName = "GetPostsByNick";
@@ -222,7 +238,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsNoContent_WhenUserHasNoPosts()
+    public async Task GetPostsByNickname_Returns204_WhenUserHasNoPosts()
     {
         // Arrange
         var testMethodName = "GetPostsByNickEmpty";
@@ -237,7 +253,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPostsByNickname_ReturnsNoContent_WhenNicknameUnknown()
+    public async Task GetPostsByNickname_Returns204_WhenNicknameUnknown()
     {
         // Arrange
         const string unknownNicknamePath = "DefinitelyNoSuchUserNickname99999";
@@ -250,10 +266,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsOk_WhenLoggedInAsOwner()
+    public async Task UpdatePost_Returns200_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "PostPatchOwner";
+        var testMethodName = "PostPatch";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var createReq = new PostCreateRequestDto { Title = "original", Content = "original body" };
@@ -263,6 +279,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var listRes = await _client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == "original");
+        var updatedAtBefore = created.UpdatedAt;
 
         var newTitle = "updated title";
         var newContent = "updated body";
@@ -275,28 +292,31 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
+        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, patchRes.StatusCode);
 
-        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
         Assert.NotNull(patchDto);
         Assert.Equal(newTitle, patchDto.Title);
         Assert.Equal(newContent, patchDto.Content);
+        Assert.True(updatedAtBefore < patchDto.UpdatedAt);
 
-        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(newTitle, dto.Title);
         Assert.Equal(newContent, dto.Content);
+        Assert.True(updatedAtBefore < dto.UpdatedAt);
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    public async Task UpdatePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var owner = await CreateUserForTest("PostPatchNonOwnerA", testPassword);
-        var other = await CreateUserForTest("PostPatchNonOwnerB", testPassword);
+        var testMethodName = "PostPatchAuth";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
+        var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword);
 
         await LoginAs(owner, testPassword);
         var title = "owners post";
@@ -309,7 +329,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == "owners post");
 
-        await LoginAs(other, testPassword);
+        await LoginAs(nonOwner, testPassword);
         var newTitle = "hijacked title";
         var newContent = "hijacked body";
         var patchReq = new PostPatchRequestDto
@@ -336,7 +356,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdatePost_ReturnsNotFound_WhenPostMissing()
+    public async Task UpdatePost_Returns404_WhenPostMissing()
     {
         // Arrange
         var user = await CreateUserForTest("PostPatchMissing", testPassword);
@@ -356,10 +376,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsNoContent_WhenLoggedInAsOwner()
+    public async Task DeletePost_Returns204_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "PostDeleteOwner";
+        var testMethodName = "PostDelete";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var createReq = new PostCreateRequestDto { Title = "to delete", Content = "gone soon" };
@@ -372,19 +392,18 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var deleteRes = await _client.DeleteAsync($"/api/posts/{created.Id}");
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, deleteRes.StatusCode);
-
-        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsUnauthorized_WhenLoggedInAsNonOwner()
+    public async Task DeletePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var testMethodName = "PostDeleteUnauth";
+        var testMethodName = "PostDeleteAuth";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var other = await CreateUserForTest(testMethodName + "Other", testPassword);
 
@@ -417,7 +436,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePost_ReturnsNotFound_WhenPostMissing()
+    public async Task DeletePost_Returns404_WhenPostMissing()
     {
         // Arrange
         var user = await CreateUserForTest("PostDeleteMissing", testPassword);

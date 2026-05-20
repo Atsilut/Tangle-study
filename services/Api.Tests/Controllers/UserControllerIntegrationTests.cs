@@ -44,7 +44,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
 
 
     [Fact]
-    public async Task GetUserById()
+    public async Task GetUserById_Return200_WhenFound()
     {
         // Arrange
         var created = await CreateUserForTest();
@@ -57,7 +57,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task GetUserById_Returns404_WhenMissing()
+    public async Task GetUserById_Return404_WhenMissing()
     {
         // Arrange
         const long missingUserId = 123456;
@@ -70,11 +70,12 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task PatchUser_UpdatesNickname()
+    public async Task UpdateUser_Return200_WhenValidRequest()
     {
         // Arrange
         var created = await CreateUserForTest();
         var newNickname = "new";
+        var updatedAtBefore = created.UpdatedAt;
 
         // Act
         var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
@@ -85,10 +86,11 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
         Assert.NotNull(patched);
         Assert.Equal(newNickname, patched.Nickname);
+        Assert.True(updatedAtBefore < patched.UpdatedAt);
     }
 
     [Fact]
-    public async Task PatchUser_UpdatesNickname_Return404_WhenMissing()
+    public async Task UpdateUser_Return404_WhenMissing()
     {
         // Arrange
         var created = await CreateUserForTest();
@@ -103,7 +105,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteUser()
+    public async Task DeleteUser_Return204_WhenFound()
     {
         // Arrange
         var created = await CreateUserForTest();
