@@ -180,16 +180,15 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
-
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(created.Id, dto.Id);
         Assert.Equal(title, dto.Title);
         Assert.Equal(content, dto.Content);
-        Assert.Equal(user.Id, dto.UserId);
+        Assert.Equal(user.Id, dto.AuthorId);
         Assert.Equal(user.Nickname, dto.AuthorNickname);
     }
 
@@ -234,7 +233,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var post = Assert.Single(list);
         Assert.Equal(title, post.Title);
         Assert.Equal(content, post.Content);
-        Assert.Equal(user.Id, post.UserId);
+        Assert.Equal(user.Id, post.AuthorId);
         Assert.Equal(user.Nickname, post.AuthorNickname);
     }
 
@@ -270,7 +269,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task UpdatePost_Returns200_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "PostPatchOwner";
+        var testMethodName = "PostPatch";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var createReq = new PostCreateRequestDto { Title = "original", Content = "original body" };
@@ -293,18 +292,18 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var patchRes = await _client.PatchAsJsonAsync("/api/posts", patchReq);
+        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, patchRes.StatusCode);
 
-        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
         Assert.NotNull(patchDto);
         Assert.Equal(newTitle, patchDto.Title);
         Assert.Equal(newContent, patchDto.Content);
         Assert.True(updatedAtBefore < patchDto.UpdatedAt);
 
-        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(newTitle, dto.Title);
         Assert.Equal(newContent, dto.Content);
@@ -315,8 +314,9 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task UpdatePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var owner = await CreateUserForTest("PostPatchNonOwnerA", testPassword);
-        var other = await CreateUserForTest("PostPatchNonOwnerB", testPassword);
+        var testMethodName = "PostPatchAuth";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
+        var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword);
 
         await LoginAs(owner, testPassword);
         var title = "owners post";
@@ -329,7 +329,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == "owners post");
 
-        await LoginAs(other, testPassword);
+        await LoginAs(nonOwner, testPassword);
         var newTitle = "hijacked title";
         var newContent = "hijacked body";
         var patchReq = new PostPatchRequestDto
@@ -379,7 +379,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task DeletePost_Returns204_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "PostDeleteOwner";
+        var testMethodName = "PostDelete";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var createReq = new PostCreateRequestDto { Title = "to delete", Content = "gone soon" };
@@ -392,11 +392,10 @@ public sealed class PostControllerIntegrationTests : IDisposable
 
         // Act
         var deleteRes = await _client.DeleteAsync($"/api/posts/{created.Id}");
+        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, deleteRes.StatusCode);
-
-        var getRes = await _client.GetAsync($"/api/posts/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
     }
 
@@ -404,7 +403,7 @@ public sealed class PostControllerIntegrationTests : IDisposable
     public async Task DeletePost_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var testMethodName = "PostDeleteUnauth";
+        var testMethodName = "PostDeleteAuth";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var other = await CreateUserForTest(testMethodName + "Other", testPassword);
 

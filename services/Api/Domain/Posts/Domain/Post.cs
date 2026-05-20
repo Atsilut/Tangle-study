@@ -11,9 +11,9 @@ namespace Api.Domain.Posts.Domain
         public long Id { get; private set; }
 
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public string Title { get; set; }
-        public string Content { get; set; }
+        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public string Title { get; private set; }
+        public string Content { get; private set; }
 
         [ForeignKey(nameof(User))]
         public long UserId { get; private set; }
@@ -27,6 +27,13 @@ namespace Api.Domain.Posts.Domain
             UserId = userId;
             Title = title;
             Content = content;
+        }
+
+        public void Update(string title, string content)
+        {
+            Title = title;
+            Content = content;
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }
