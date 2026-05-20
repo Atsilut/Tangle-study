@@ -6,25 +6,11 @@ using Api.Tests.Infrastructure;
 namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class UserControllerIntegrationTests : IDisposable
+public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture postgres)
+    : IntegrationTestBase(postgres)
 {
-    private readonly ApiWebApplicationFactory _factory;
-    private readonly HttpClient _client;
-
     private readonly string testUserPassword = "testtest123!";
     private readonly string testUserNickname = "old";
-
-    public UserControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    {
-        _factory = new ApiWebApplicationFactory(postgres.ConnectionString);
-        _client = _factory.CreateClient();
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
-    }
 
     private async Task<UserGetResponseDto> CreateUserForTest()
     {
@@ -34,10 +20,10 @@ public sealed class UserControllerIntegrationTests : IDisposable
             Password = testUserPassword,
             Nickname = testUserNickname,
         };
-        var create = await _client.PostAsJsonAsync("/api/join", req);
+        var create = await Client.PostAsJsonAsync("/api/join", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
-        var getAll = await _client.GetAsync("/api/users");
+        var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
         return all!.First(u => u.Email == req.Email);
     }
@@ -50,7 +36,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var created = await CreateUserForTest();
 
         // Act
-        var res = await _client.GetAsync("/api/users/" + created.Id);
+        var res = await Client.GetAsync("/api/users/" + created.Id);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -63,7 +49,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         const long missingUserId = 123456;
 
         // Act
-        var res = await _client.GetAsync("/api/users/" + missingUserId);
+        var res = await Client.GetAsync("/api/users/" + missingUserId);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -78,7 +64,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
-        var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
+        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
@@ -98,7 +84,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var wrongUserId = created.Id + 123456;
 
         // Act
-        var patch = await _client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(wrongUserId, newNickname));
+        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(wrongUserId, newNickname));
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
@@ -111,12 +97,12 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var created = await CreateUserForTest();
 
         // Act
-        var delete = await _client.DeleteAsync($"/api/users/{created.Id}");
+        var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
-        var found = await _client.GetAsync($"/api/users/{created.Id}");
+        var found = await Client.GetAsync($"/api/users/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, found.StatusCode);
     }
 
@@ -128,7 +114,7 @@ public sealed class UserControllerIntegrationTests : IDisposable
         var wrongUserId = created.Id + 123456;
 
         // Act
-        var delete = await _client.DeleteAsync($"/api/users/{wrongUserId}");
+        var delete = await Client.DeleteAsync($"/api/users/{wrongUserId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);

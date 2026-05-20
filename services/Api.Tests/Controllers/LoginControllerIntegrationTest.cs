@@ -6,25 +6,11 @@ using Api.Tests.Infrastructure;
 namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class LoginControllerIntegrationTest : IDisposable
+public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture postgres)
+    : IntegrationTestBase(postgres)
 {
-    private readonly ApiWebApplicationFactory _factory;
-    private readonly HttpClient _client;
-
     private readonly string testUserPassword = "testtest123!";
     private readonly string testUserNickname = "old";
-
-    public LoginControllerIntegrationTest(PostgresTestcontainerFixture postgres)
-    {
-        _factory = new ApiWebApplicationFactory(postgres.ConnectionString);
-        _client = _factory.CreateClient();
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
-    }
 
     public UserCreateRequestDto CreateUserRequest(
         string? email = null,
@@ -40,10 +26,10 @@ public sealed class LoginControllerIntegrationTest : IDisposable
     private async Task<UserGetResponseDto> CreateAndGetUser(UserCreateRequestDto? req = null)
     {
         req ??= CreateUserRequest();
-        var create = await _client.PostAsJsonAsync("/api/join", req);
+        var create = await Client.PostAsJsonAsync("/api/join", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
-        var getAll = await _client.GetAsync("/api/users");
+        var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
         return all!.First(u => u.Email == req.Email);
     }
@@ -56,7 +42,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
         var duplicateReq = CreateUserRequest(email: created.Email);
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/join", duplicateReq);
+        var res = await Client.PostAsJsonAsync("/api/join", duplicateReq);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -74,7 +60,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -95,7 +81,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
@@ -113,7 +99,7 @@ public sealed class LoginControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);

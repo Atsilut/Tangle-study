@@ -8,24 +8,10 @@ using System.Net.Http.Json;
 namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class CommentControllerIntegrationTest : IDisposable
+public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixture postgres)
+    : IntegrationTestBase(postgres)
 {
-    private readonly ApiWebApplicationFactory _factory;
-    private readonly HttpClient _client;
-
     private readonly string testPassword = "testpass123!";
-
-    public CommentControllerIntegrationTest(PostgresTestcontainerFixture postgres)
-    {
-        _factory = new ApiWebApplicationFactory(postgres.ConnectionString);
-        _client = _factory.CreateClient();
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
-    }
 
     private async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, string password = "testpass123!", long index = 1)
     {
@@ -37,10 +23,10 @@ public sealed class CommentControllerIntegrationTest : IDisposable
             Password = password,
             Nickname = nickname,
         };
-        var create = await _client.PostAsJsonAsync("/api/join", req);
+        var create = await Client.PostAsJsonAsync("/api/join", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
-        var getAll = await _client.GetAsync("/api/users");
+        var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
         return all!.Single(u => u.Email == req.Email);
     }
@@ -52,9 +38,9 @@ public sealed class CommentControllerIntegrationTest : IDisposable
             Title = $"{testMethodName} Post Title " + index.ToString(),
             Content = $"{testMethodName} Post Content " + index.ToString()
         };
-        var create = await _client.PostAsJsonAsync("/api/posts", req);
+        var create = await Client.PostAsJsonAsync("/api/posts", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var getAll = await _client.GetAsync("/api/posts");
+        var getAll = await Client.GetAsync("/api/posts");
         var all = await getAll.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         return all!.Single(p => p.Title == req.Title && p.Content == req.Content && p.AuthorId == userId);
     }
@@ -71,9 +57,9 @@ public sealed class CommentControllerIntegrationTest : IDisposable
             Content = $"{testMethodName} Test " + index.ToString(),
             ParentId = parentId
         };
-        var create = await _client.PostAsJsonAsync("/api/comments", req);
+        var create = await Client.PostAsJsonAsync("/api/comments", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var getAll = await _client.GetAsync($"/api/comments/post/{postId}");
+        var getAll = await Client.GetAsync($"/api/comments/post/{postId}");
         var all = await getAll.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
         var found = FindCommentByContent(all!, req.Content);
         Assert.NotNull(found);
@@ -105,13 +91,13 @@ public sealed class CommentControllerIntegrationTest : IDisposable
             Email = user.Email,
             Password = password
         };
-        var res = await _client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
 
         var loginRes = await res.Content.ReadFromJsonAsync<LoginResponseDto>();
         Assert.NotNull(loginRes);
 
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
+        Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
     [Fact]
@@ -129,7 +115,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         //Assert
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -139,14 +125,14 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task CreateComment_Returns401_IfNotLoggedIn()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Authorization = null;
+        Client.DefaultRequestHeaders.Authorization = null;
         var req = new CommentCreateRequestDto
         {
             PostId = 1,
             Content = "Unauthorized Comment"
         };
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
         //Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -166,7 +152,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -191,7 +177,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -201,7 +187,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_ReturnsComments()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -210,7 +195,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var comment2 = await CreateCommentForTest(testMethodName, post.Id, 2);
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
         
         //Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -225,7 +210,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task CreateComment_WithParentId_Returns201()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "CreateNestedComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -239,11 +223,11 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        var getByPostRes = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var getByPostRes = await Client.GetAsync($"/api/comments/post/{post.Id}");
         var commentTree = await getByPostRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
         Assert.NotNull(commentTree);
         var rootDto = commentTree.Single(c => c.Id == rootComment.Id);
@@ -269,7 +253,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -279,7 +263,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task CreateComment_Return400_IfParentOnDifferentPost()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "CreateNestedComment_ParentWrongPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -294,7 +277,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
@@ -304,7 +287,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_ReturnsNestedTree()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost_Nested";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
@@ -315,7 +297,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await CreateCommentForTest(testMethodName, post.Id, index: 4);
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -350,7 +332,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var reply = await CreateCommentForTest(testMethodName, post.Id, index: 2, parentId: root.Id);
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/{reply.Id}");
+        var res = await Client.GetAsync($"/api/comments/{reply.Id}");
         var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -368,7 +350,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         const long missingPostId = 9999; // Assuming this post has been deleted while commenting
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/post/{missingPostId}");
+        var res = await Client.GetAsync($"/api/comments/post/{missingPostId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -378,14 +360,13 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByPost_Returns204_WhenNoComments()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByPost_NoComments";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
         
         // Act
-        var res = await _client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
@@ -395,7 +376,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByUser_ReturnsComments()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByUser";
         var activeUser = await CreateUserForTest(testMethodName, testPassword);
         var lessUser = await CreateUserForTest(testMethodName + "Lesser", testPassword);
@@ -408,8 +388,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var commentLesser = await CreateCommentForTest(testMethodName, post2.Id, 11);
 
         // Act
-        var resActive = await _client.GetAsync($"/api/comments/user/{activeUser.Id}");
-        var resLesser = await _client.GetAsync($"/api/comments/user/{lessUser.Id}");
+        var resActive = await Client.GetAsync($"/api/comments/user/{activeUser.Id}");
+        var resLesser = await Client.GetAsync($"/api/comments/user/{lessUser.Id}");
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, resActive.StatusCode);
@@ -429,7 +409,6 @@ public sealed class CommentControllerIntegrationTest : IDisposable
     public async Task GetCommentsByUser_ReturnsFlatList_IncludingSiblingReplies()
     {
         // Arrange
-        await _factory.ClearAllEntitiesAsync();
         var testMethodName = "GetCommentsByUser_Flat";
         var author = await CreateUserForTest(testMethodName, testPassword);
         var otherUser = await CreateUserForTest(testMethodName + "Other", testPassword, index: 2);
@@ -447,8 +426,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
 
         // Act
         await LoginAs(author, testPassword);
-        var resAuthor = await _client.GetAsync($"/api/comments/user/{author.Id}");
-        var resOther = await _client.GetAsync($"/api/comments/user/{otherUser.Id}");
+        var resAuthor = await Client.GetAsync($"/api/comments/user/{author.Id}");
+        var resOther = await Client.GetAsync($"/api/comments/user/{otherUser.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, resAuthor.StatusCode);
@@ -490,7 +469,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         const long missingUserId = 9999; // Assuming this user has been deleted while commenting
         // Act
 
-        var res = await _client.GetAsync($"/api/comments/user/{missingUserId}");
+        var res = await Client.GetAsync($"/api/comments/user/{missingUserId}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -505,7 +484,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await LoginAs(user, testPassword);
        
         // Act
-        var res = await _client.GetAsync($"/api/comments/user/{user.Id}");
+        var res = await Client.GetAsync($"/api/comments/user/{user.Id}");
         
         //Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
@@ -522,7 +501,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         // Act
-        var res = await _client.GetAsync($"/api/comments/{comment.Id}");
+        var res = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -540,7 +519,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         const long missingCommentId = 9999; // Assuming this comment has been deleted while commenting
         
         // Act
-        var res = await _client.GetAsync($"/api/comments/{missingCommentId}");
+        var res = await Client.GetAsync($"/api/comments/{missingCommentId}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -564,9 +543,9 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
         var resDto = await res.Content.ReadFromJsonAsync<CommentPatchResponseDto>();
-        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -601,8 +580,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
-        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
+        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -630,8 +609,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
 
         // Act
-        await _client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while commenting
-        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        await Client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while commenting
+        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -654,7 +633,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         };
         
         // Act
-        var res = await _client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
         
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -671,8 +650,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var comment = await CreateCommentForTest(testMethodName, post.Id);
         
         // Act
-        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
-        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
@@ -692,8 +671,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         await LoginAs(nonOwner, testPassword);
         
         // Act
-        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
-        var getRes = await _client.GetAsync($"/api/comments/{comment.Id}");
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
@@ -713,8 +692,8 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         // Act
-        var deletePostRes = await _client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while deleting comment
-        var res = await _client.DeleteAsync($"/api/comments/{comment.Id}");
+        var deletePostRes = await Client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while deleting comment
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, deletePostRes.StatusCode);
@@ -732,7 +711,7 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         const long nonExistentCommentId = 9999; // Assuming this comment has been deleted while commenting
         
         // Act
-        var res = await _client.DeleteAsync($"/api/comments/{nonExistentCommentId}");
+        var res = await Client.DeleteAsync($"/api/comments/{nonExistentCommentId}");
         
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
