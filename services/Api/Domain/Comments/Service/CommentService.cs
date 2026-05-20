@@ -44,8 +44,8 @@ namespace Api.Domain.Comments.Service
 
             var comment = new Comment(
                 content: request.Content,
-                postId: request.PostId,
                 userId: userId,
+                postId: request.PostId,
                 parentId: request.ParentId);
             await _repo.CreateCommentAsync(comment);
         }
