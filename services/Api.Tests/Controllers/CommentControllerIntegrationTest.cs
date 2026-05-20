@@ -182,6 +182,31 @@ public sealed class CommentControllerIntegrationTest : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData(null)]
+    public async Task CreateComment_Return400_IfContentEmpty(string? invalidContent)
+    {
+        // Arrange
+        var testMethodName = "CreateComment_ContentEmpty";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        await CreatePostForTest(testMethodName, user.Id);
+
+        var req = new CommentCreateRequestDto
+        {
+            PostId = 1,
+            Content = invalidContent
+        };
+
+        // Act
+        var res = await _client.PostAsJsonAsync("/api/comments", req);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
     [Fact]
     public async Task GetCommentsByPost_ReturnsComments()
     {
