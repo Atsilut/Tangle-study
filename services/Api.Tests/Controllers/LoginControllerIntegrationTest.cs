@@ -74,10 +74,11 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateAndGetUser();
+        const string wrongPassword = "wrongpassword789!";
         var req = new LoginRequestDto
         {
             Email = created.Email,
-            Password = "wrongpassword789!"
+            Password = wrongPassword
         };
 
         // Act
@@ -92,9 +93,10 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     {
         // Arrange
         await CreateAndGetUser();
+        const string unknownEmail = "neversignedupbefore@random.com";
         var req = new LoginRequestDto
         {
-            Email = "neversignedupbefore@random.com",
+            Email = unknownEmail,
             Password = testUserPassword
         };
 

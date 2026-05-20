@@ -60,7 +60,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
-        var newNickname = "new";
+        const string newNickname = "new";
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
@@ -80,8 +80,9 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
-        var newNickname = "new";
-        var wrongUserId = created.Id + 123456;
+        const string newNickname = "new";
+        const long userIdOffset = 123456;
+        var wrongUserId = created.Id + userIdOffset;
 
         // Act
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(wrongUserId, newNickname));
@@ -111,7 +112,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         var created = await CreateUserForTest();
-        var wrongUserId = created.Id + 123456;
+        const long userIdOffset = 123456;
+        var wrongUserId = created.Id + userIdOffset;
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{wrongUserId}");

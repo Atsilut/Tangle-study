@@ -104,7 +104,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_Returns201()
     {
         // Arrange
-        var testMethodName = "CreateComment";
+        const string testMethodName = "CreateComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -126,10 +126,12 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     {
         // Arrange
         Client.DefaultRequestHeaders.Authorization = null;
+        const long postId = 1;
+        const string content = "Unauthorized Comment";
         var req = new CommentCreateRequestDto
         {
-            PostId = 1,
-            Content = "Unauthorized Comment"
+            PostId = postId,
+            Content = content
         };
         // Act
         var res = await Client.PostAsJsonAsync("/api/comments", req);
@@ -141,7 +143,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_Return400_IfPostNotFound()
     {
         // Arrange
-        var testMethodName = "CreateComment_PostNotFound";
+        const string testMethodName = "CreateComment_PostNotFound";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         const long nonExistentPostId = 9999; // Assuming this post has been deleted while commenting
@@ -165,7 +167,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_Return400_IfContentEmpty(string? invalidContent)
     {
         // Arrange
-        var testMethodName = "CreateComment_ContentEmpty";
+        const string testMethodName = "CreateComment_ContentEmpty";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -187,7 +189,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByPost_ReturnsComments()
     {
         // Arrange
-        var testMethodName = "GetCommentsByPost";
+        const string testMethodName = "GetCommentsByPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -210,7 +212,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_WithParentId_Returns201()
     {
         // Arrange
-        var testMethodName = "CreateNestedComment";
+        const string testMethodName = "CreateNestedComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -240,7 +242,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_Return400_IfParentNotFound()
     {
         // Arrange
-        var testMethodName = "CreateNestedComment_ParentMissing";
+        const string testMethodName = "CreateNestedComment_ParentMissing";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -263,7 +265,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task CreateComment_Return400_IfParentOnDifferentPost()
     {
         // Arrange
-        var testMethodName = "CreateNestedComment_ParentWrongPost";
+        const string testMethodName = "CreateNestedComment_ParentWrongPost";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post1 = await CreatePostForTest(testMethodName, user.Id, index: 1);
@@ -287,7 +289,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByPost_ReturnsNestedTree()
     {
         // Arrange
-        var testMethodName = "GetCommentsByPost_Nested";
+        const string testMethodName = "GetCommentsByPost_Nested";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -324,7 +326,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentById_ReturnsFlatReply_WithParentId()
     {
         // Arrange
-        var testMethodName = "GetCommentById_Nested";
+        const string testMethodName = "GetCommentById_Nested";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -360,7 +362,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByPost_Returns204_WhenNoComments()
     {
         // Arrange
-        var testMethodName = "GetCommentsByPost_NoComments";
+        const string testMethodName = "GetCommentsByPost_NoComments";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -376,7 +378,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByUser_ReturnsComments()
     {
         // Arrange
-        var testMethodName = "GetCommentsByUser";
+        const string testMethodName = "GetCommentsByUser";
         var activeUser = await CreateUserForTest(testMethodName, testPassword);
         var lessUser = await CreateUserForTest(testMethodName + "Lesser", testPassword);
         await LoginAs(activeUser, testPassword);
@@ -409,7 +411,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByUser_ReturnsFlatList_IncludingSiblingReplies()
     {
         // Arrange
-        var testMethodName = "GetCommentsByUser_Flat";
+        const string testMethodName = "GetCommentsByUser_Flat";
         var author = await CreateUserForTest(testMethodName, testPassword);
         var otherUser = await CreateUserForTest(testMethodName + "Other", testPassword, index: 2);
         await LoginAs(author, testPassword);
@@ -479,7 +481,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentsByUser_Return204_WhenNoComments()
     {
         // Arrange
-        var testMethodName = "GetCommentsByUser_NoComments";
+        const string testMethodName = "GetCommentsByUser_NoComments";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
        
@@ -494,7 +496,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task GetCommentById_Returns200_WhenPostExists()
     {
         // Arrange
-        var testMethodName = "GetCommentById";
+        const string testMethodName = "GetCommentById";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -529,13 +531,13 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task UpdateComment_Return200_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "UpdatePostOwner";
+        const string testMethodName = "UpdatePostOwner";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
-        var newContent = $"{testMethodName} Updated Content";
+        string newContent = $"{testMethodName} Updated Content";
         var req = new CommentPatchRequestDto
         { 
             Id = comment.Id,
@@ -563,7 +565,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task UpdateComment_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var testMethodName = "UpdateComment";
+        const string testMethodName = "UpdateComment";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword, 2);
 
@@ -572,7 +574,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         await LoginAs(nonOwner, testPassword);
-        var newContent = $"{testMethodName} Hijacked Content";
+        string newContent = $"{testMethodName} Hijacked Content";
         var req = new CommentPatchRequestDto
         { 
             Id = comment.Id,
@@ -596,7 +598,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task UpdateComment_Return404_WhenPostMissing()
     {
         // Arrange
-        var testMethodName = "UpdateComment_PostMissing";
+        const string testMethodName = "UpdateComment_PostMissing";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -620,12 +622,12 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task UpdateComment_Returns404_WhenCommentMissing()
     {
         // Arrange
-        var testMethodName = "UpdateComment_CommentMissing";
+        const string testMethodName = "UpdateComment_CommentMissing";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
         const long nonExistentCommentId = 9999; // Assuming this comment has been deleted while commenting
-        var newContent = $"{testMethodName} Updated Content";
+        string newContent = $"{testMethodName} Updated Content";
         var req = new CommentPatchRequestDto
         {
             Id = nonExistentCommentId,
@@ -643,7 +645,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task DeleteComment_Returns204_WhenLoggedInAsOwner()
     {
         // Arrange
-        var testMethodName = "DeleteComment";
+        const string testMethodName = "DeleteComment";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -662,7 +664,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task DeleteComment_Returns401_WhenLoggedInAsNonOwner()
     {
         // Arrange
-        var testMethodName = "DeleteCommentAuth";
+        const string testMethodName = "DeleteCommentAuth";
         var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
         var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword, 2);
         await LoginAs(owner, testPassword);
@@ -685,7 +687,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task DeleteComment_Returns404_WhenPostMissing()
     {
         // Arrange
-        var testMethodName = "DeleteComment_PostMissing";
+        const string testMethodName = "DeleteComment_PostMissing";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);
@@ -704,7 +706,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     public async Task DeleteComment_Returns404_WhenCommentMissing()
     {
         // Arrange
-        var testMethodName = "DeleteComment_CommentMissing";
+        const string testMethodName = "DeleteComment_CommentMissing";
         var user = await CreateUserForTest(testMethodName, testPassword);
         await LoginAs(user, testPassword);
         var post = await CreatePostForTest(testMethodName, user.Id);

@@ -44,10 +44,13 @@ public sealed class PostServiceUnitTests
     public async Task CreatePostAsync_ValidRequest_CreatesPost()
     {
         // Arrange
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const long firstPostId = 1;
         var request = new PostCreateRequestDto
         {
-            Title = "Test title",
-            Content = "Test content"
+            Title = testTitle,
+            Content = testContent
         };
         var user = await CreateTestUserAsync();
 
@@ -55,9 +58,9 @@ public sealed class PostServiceUnitTests
         await _postService.CreatePostAsync(request);
 
         // Assert
-        var post = await _postRepository.GetPostByIdAsync(1); // Assuming the fake returns 1 for first
+        var post = await _postRepository.GetPostByIdAsync(firstPostId); // Assuming the fake returns 1 for first
         Assert.NotNull(post);
-        Assert.Equal("Test content", post.Content);
+        Assert.Equal(testContent, post.Content);
         Assert.Equal(user.Id, post.UserId);
     }
 
@@ -65,15 +68,18 @@ public sealed class PostServiceUnitTests
     public async Task CreatePostAsync_MissingUser_ThrowsEntityNotFoundException()
     {
         // Arrange
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const string invalidUserId = "999";
         var request = new PostCreateRequestDto
         {
-            Title = "Test title",
-            Content = "Test content"
+            Title = testTitle,
+            Content = testContent
         };
 
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", "999") }))
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", invalidUserId) }))
         };
 
         // Act & Assert
@@ -84,10 +90,13 @@ public sealed class PostServiceUnitTests
     public async Task CreatePostAsync_MissingLogin_ThrowsEntityNotFoundException()
     {
         // Arrange
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const string unauthorizedAccessMessage = "Unauthorized Access";
         var request = new PostCreateRequestDto
         {
-            Title = "Test title",
-            Content = "Test content"
+            Title = testTitle,
+            Content = testContent
         };
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
@@ -96,20 +105,24 @@ public sealed class PostServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.CreatePostAsync(request));
-        Assert.Equal("Unauthorized Access", exception.Message);
+        Assert.Equal(unauthorizedAccessMessage, exception.Message);
     }
 
     [Fact]
     public async Task GetPostByIdAsync_ExistingPost_ReturnsPost()
     {
         // Arrange
-        var user = await CreateTestUserAsync("test1@test.com", "test1");
+        const string email = "test1@test.com";
+        const string username = "test1";
+        const string testContent = "Test content";
+        const long firstPostId = 1;
+        var user = await CreateTestUserAsync(email, username);
         await CreateTestPostAsync(user.Id);
         // Act
-        var result = await _postService.GetPostByIdAsync(1);
+        var result = await _postService.GetPostByIdAsync(firstPostId);
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Test content", result.Content);
+        Assert.Equal(testContent, result.Content);
     }
 
     [Fact]
@@ -129,9 +142,15 @@ public sealed class PostServiceUnitTests
     public async Task GetAllPostsAsync_ReturnsAllPosts()
     {
         // Arrange
-        var user = await CreateTestUserAsync("test2@test.com", "test2");
-        await CreateTestPostAsync(user.Id, "Test title 1", "Test content 1");
-        await CreateTestPostAsync(user.Id, "Test title 2", "Test content 2");
+        const string email = "test2@test.com";
+        const string username = "test2";
+        const string title1 = "Test title 1";
+        const string content1 = "Test content 1";
+        const string title2 = "Test title 2";
+        const string content2 = "Test content 2";
+        var user = await CreateTestUserAsync(email, username);
+        await CreateTestPostAsync(user.Id, title1, content1);
+        await CreateTestPostAsync(user.Id, title2, content2);
         // Act
         var result = await _postService.GetAllPostsAsync();
         // Assert
@@ -152,8 +171,8 @@ public sealed class PostServiceUnitTests
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
         };
 
-        var editedTitle = "Edited title";
-        var editedContent = "Edited content";
+        const string editedTitle = "Edited title";
+        const string editedContent = "Edited content";
         var updateRequest = new PostPatchRequestDto
         {
             Id = post.Id,
@@ -178,22 +197,26 @@ public sealed class PostServiceUnitTests
         // Arrange
         var user = await CreateTestUserAsync();
         var post = await CreateTestPostAsync(user.Id);
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const string invalidUserId = "999";
+        const string unauthorizedUserMessage = "Unauthorized user";
 
         var request = new PostPatchRequestDto
         {
             Id = post.Id,
-            Title = "Test title",
-            Content = "Test content"
+            Title = testTitle,
+            Content = testContent
         };
 
         _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", "999") }))
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", invalidUserId) }))
         };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
-        Assert.Equal("Unauthorized user", exception.Message);
+        Assert.Equal(unauthorizedUserMessage, exception.Message);
     }
 
     [Fact]
@@ -201,17 +224,21 @@ public sealed class PostServiceUnitTests
     {
         // Arrange
         var user = await CreateTestUserAsync();
+        const long nonExistentPostId = 999;
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const string postNotFoundMessage = "Post not found";
 
         var request = new PostPatchRequestDto
         {
-            Id = 999, // Non-existent post
-            Title = "Test title",
-            Content = "Test content"
+            Id = nonExistentPostId,
+            Title = testTitle,
+            Content = testContent
         };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
-        Assert.Equal("Post not found", exception.Message);
+        Assert.Equal(postNotFoundMessage, exception.Message);
     }
 
     [Fact]
@@ -225,26 +252,35 @@ public sealed class PostServiceUnitTests
         {
             User = new ClaimsPrincipal(new ClaimsIdentity()) // Simulating non logged-in user
         };
+        const string testTitle = "Test title";
+        const string testContent = "Test content";
+        const string unauthorizedAccessMessage = "Unauthorized Access";
 
         var request = new PostPatchRequestDto
         {
             Id = post.Id,
-            Title = "Test title",
-            Content = "Test content"
+            Title = testTitle,
+            Content = testContent
         };
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _postService.UpdatePostAsync(request));
-        Assert.Equal("Unauthorized Access", exception.Message);
+        Assert.Equal(unauthorizedAccessMessage, exception.Message);
     }
 
     [Fact]
     public async Task UpdatePostAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
     {
         // Arrange
-        var postOwner = await CreateTestUserAsync("owner@test.com", "owner");
+        const string ownerEmail = "owner@test.com";
+        const string ownerUsername = "owner";
+        const string hackerEmail = "hacker@test.com";
+        const string hackerUsername = "hacker";
+        const string hackedTitle = "Hacked title";
+        const string hackedContent = "Hacked content";
+        var postOwner = await CreateTestUserAsync(ownerEmail, ownerUsername);
         var post = await CreateTestPostAsync(postOwner.Id);
-        var requestingUser = await CreateTestUserAsync("hacker@test.com", "hacker");
+        var requestingUser = await CreateTestUserAsync(hackerEmail, hackerUsername);
 
         // Mock for the malicious/Unauthorized user token
         _httpContextAccessor.HttpContext = new DefaultHttpContext
@@ -255,8 +291,8 @@ public sealed class PostServiceUnitTests
         var request = new PostPatchRequestDto
         {
             Id = post.Id,
-            Title = "Hacked title",
-            Content = "Hacked content"
+            Title = hackedTitle,
+            Content = hackedContent
         };
 
         // Act & Assert
@@ -275,8 +311,10 @@ public sealed class PostServiceUnitTests
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
         };
 
+        const long firstPostId = 1;
+
         // Act
-        await _postService.DeletePostAsync(1);
+        await _postService.DeletePostAsync(firstPostId);
 
         // Assert
         var findPost = await _postRepository.GetPostByIdAsync(post.Id);
@@ -287,9 +325,14 @@ public sealed class PostServiceUnitTests
     public async Task DeletePostAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
     {
         // Arrange
-        var postOwner = await CreateTestUserAsync("owner@test.com", "owner");
+        const string ownerEmail = "owner@test.com";
+        const string ownerUsername = "owner";
+        const string hackerEmail = "hacker@test.com";
+        const string hackerUsername = "hacker";
+        const string unauthorizedAccessMessage = "Unauthorized access";
+        var postOwner = await CreateTestUserAsync(ownerEmail, ownerUsername);
         var post = await CreateTestPostAsync(postOwner.Id);
-        var requestingUser = await CreateTestUserAsync("hacker@test.com", "hacker");
+        var requestingUser = await CreateTestUserAsync(hackerEmail, hackerUsername);
 
         // Mock for the malicious/Unauthorized user token
         _httpContextAccessor.HttpContext = new DefaultHttpContext
@@ -299,6 +342,6 @@ public sealed class PostServiceUnitTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _postService.DeletePostAsync(post.Id));
-        Assert.Equal("Unauthorized access", exception.Message);
+        Assert.Equal(unauthorizedAccessMessage, exception.Message);
     }
 }

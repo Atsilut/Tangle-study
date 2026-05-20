@@ -14,9 +14,10 @@ public sealed class UserServiceUnitTests
         // Arrange
         var repo = new FakeUserRepository();
         var service = new UserService(repo);
+        const long missingUserId = 12345;
 
         // Act
-        var dto = await service.GetUserByIdAsync(12345);
+        var dto = await service.GetUserByIdAsync(missingUserId);
 
         // Assert
         Assert.Null(dto);
@@ -28,19 +29,23 @@ public sealed class UserServiceUnitTests
         // Arrange
         var repo = new FakeUserRepository();
         var service = new UserService(repo);
-        var user = new User(email: "a@a.com", password: "password", nickname: "old");
+        const string email = "a@a.com";
+        const string password = "password";
+        const string oldNickname = "old";
+        const string newNickname = "new";
+        var user = new User(email: email, password: password, nickname: oldNickname);
         await repo.CreateUserAsync(user);
 
         // Act
-        var res = await service.UpdateUserDetailAsync(new UserPatchRequestDto(user.Id, "new"));
+        var res = await service.UpdateUserDetailAsync(new UserPatchRequestDto(user.Id, newNickname));
 
         // Assert
         Assert.NotNull(res);
-        Assert.Equal("new", res!.Nickname);
+        Assert.Equal(newNickname, res!.Nickname);
 
         var reloaded = await repo.GetUserByIdAsync(user.Id);
         Assert.NotNull(reloaded);
-        Assert.Equal("new", reloaded!.Nickname);
+        Assert.Equal(newNickname, reloaded!.Nickname);
     }
 
     [Fact]
@@ -49,10 +54,12 @@ public sealed class UserServiceUnitTests
         // Arrange
         var repo = new FakeUserRepository();
         var service = new UserService(repo);
+        const long missingUserId = 1;
+        const string newNickname = "new";
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            service.UpdateUserDetailAsync(new UserPatchRequestDto(1, "new")));
+            service.UpdateUserDetailAsync(new UserPatchRequestDto(missingUserId, newNickname)));
     }
 
     [Fact]
@@ -61,7 +68,10 @@ public sealed class UserServiceUnitTests
         // Arrange
         var repo = new FakeUserRepository();
         var service = new UserService(repo);
-        var user = new User(email: "a@a.com", password: "password", nickname: "old");
+        const string email = "a@a.com";
+        const string password = "password";
+        const string nickname = "old";
+        var user = new User(email: email, password: password, nickname: nickname);
         await repo.CreateUserAsync(user);
 
         // Act
