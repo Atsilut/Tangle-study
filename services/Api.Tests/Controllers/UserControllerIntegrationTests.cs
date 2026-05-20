@@ -11,22 +11,23 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     : IntegrationTestBase(postgres)
 {
     private readonly string testUserPassword = "testtest123!";
-    private readonly string testUserNickname = "old";
 
-    private async Task<UserGetResponseDto> CreateUserForTest()
+    private async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, string password = "testtest123!", long index = 1)
     {
+        var email = testMethodName + index.ToString() + "@test.com";
+        var nickname = $"{testMethodName}User" + index.ToString();
         var req = new UserCreateRequestDto
         {
-            Email = $"{Guid.NewGuid()}@test.com",
-            Password = testUserPassword,
-            Nickname = testUserNickname,
+            Email = email,
+            Password = password,
+            Nickname = nickname,
         };
         var create = await Client.PostAsJsonAsync("/api/join", req);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
         var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        return all!.First(u => u.Email == req.Email);
+        return all!.Single(u => u.Email == req.Email);
     }
 
     private async Task LoginAs(UserGetResponseDto user, string password)
@@ -49,7 +50,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task GetUserById_Return200_WhenFound()
     {
         // Arrange
-        var created = await CreateUserForTest();
+        const string testMethodName = "GetUserById";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
 
         // Act
         var res = await Client.GetAsync("/api/users/" + created.Id);
@@ -75,9 +77,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task UpdateUser_Return200_WhenValidRequest()
     {
         // Arrange
-        var created = await CreateUserForTest();
-        await LoginAs(created, testUserPassword);
+        const string testMethodName = "UserPatch";
         const string newNickname = "new";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        await LoginAs(created, testUserPassword);
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
@@ -96,9 +99,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task UpdateUser_Return404_WhenMissing()
     {
         // Arrange
-        var created = await CreateUserForTest();
-        await LoginAs(created, testUserPassword);
+        const string testMethodName = "UserPatchMissing";
         const string newNickname = "new";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        await LoginAs(created, testUserPassword);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
@@ -113,7 +117,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task UpdateUser_Return401_WhenNotAuthenticated()
     {
         // Arrange
-        var created = await CreateUserForTest();
+        const string testMethodName = "UserPatchUnauth";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
         Client.DefaultRequestHeaders.Authorization = null;
 
         // Act
@@ -124,21 +129,47 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
+    public async Task UpdateUser_Return200_WhenSameNickname()
+    {
+        // Arrange
+        const string testMethodName = "UserPatchSameNickname";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        await LoginAs(created, testUserPassword);
+
+        // Act
+        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, created.Nickname));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+
+        var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
+        Assert.NotNull(patched);
+        Assert.Equal(created.Nickname, patched.Nickname);
+    }
+
+    [Fact]
+    public async Task UpdateUser_Return400_WhenNicknameAlreadyExists()
+    {
+        // Arrange
+        const string testMethodName = "UserPatchDuplicateNickname";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        var existingUser = await CreateUserForTest(testMethodName + "Existing", testUserPassword);
+        await LoginAs(created, testUserPassword);
+
+        // Act
+        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, patch.StatusCode);
+    }
+
+    [Fact]
     public async Task UpdateUser_Return401_WhenUpdatingOtherUser()
     {
         // Arrange
-        var owner = await CreateUserForTest();
-        var attackerReq = new UserCreateRequestDto
-        {
-            Email = $"{Guid.NewGuid()}@test.com",
-            Password = testUserPassword,
-            Nickname = "attacker"
-        };
-        var create = await Client.PostAsJsonAsync("/api/join", attackerReq);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var getAll = await Client.GetAsync("/api/users");
-        var users = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        var attacker = users!.First(u => u.Email == attackerReq.Email);
+        const string testMethodName = "UserPatchAuth";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testUserPassword);
+        var attacker = await CreateUserForTest(testMethodName + "Attacker", testUserPassword);
         await LoginAs(attacker, testUserPassword);
 
         // Act
@@ -152,7 +183,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task DeleteUser_Return204_WhenFound()
     {
         // Arrange
-        var created = await CreateUserForTest();
+        const string testMethodName = "UserDelete";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
         await LoginAs(created, testUserPassword);
 
         // Act
@@ -169,7 +201,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task DeleteUser_Return404_WhenMissing()
     {
         // Arrange
-        var created = await CreateUserForTest();
+        const string testMethodName = "UserDeleteMissing";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
         await LoginAs(created, testUserPassword);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
@@ -185,18 +218,9 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task DeleteUser_Return401_WhenDeletingOtherUser()
     {
         // Arrange
-        var owner = await CreateUserForTest();
-        var attackerReq = new UserCreateRequestDto
-        {
-            Email = $"{Guid.NewGuid()}@test.com",
-            Password = testUserPassword,
-            Nickname = "attacker2"
-        };
-        var create = await Client.PostAsJsonAsync("/api/join", attackerReq);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        var getAll = await Client.GetAsync("/api/users");
-        var users = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        var attacker = users!.First(u => u.Email == attackerReq.Email);
+        const string testMethodName = "UserDeleteAuth";
+        var owner = await CreateUserForTest(testMethodName + "Owner", testUserPassword);
+        var attacker = await CreateUserForTest(testMethodName + "Attacker", testUserPassword);
         await LoginAs(attacker, testUserPassword);
 
         // Act

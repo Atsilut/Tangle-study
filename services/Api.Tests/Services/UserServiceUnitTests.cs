@@ -64,6 +64,49 @@ public sealed class UserServiceUnitTests
     }
 
     [Fact]
+    public async Task UpdateUserDetailAsync_UpdatesSameNickname()
+    {
+        // Arrange
+        var graph = DomainServiceTestFactory.Create();
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
+        const string email = "a@a.com";
+        const string password = "password";
+        const string nickname = "old";
+        var user = new User(email: email, password: password, nickname: nickname);
+        await repo.CreateUserAsync(user);
+
+        // Act
+        var res = await service.UpdateUserDetailAsync(new UserPatchRequestDto(user.Id, nickname));
+
+        // Assert
+        Assert.NotNull(res);
+        Assert.Equal(nickname, res!.Nickname);
+
+        var reloaded = await repo.GetUserByIdAsync(user.Id);
+        Assert.NotNull(reloaded);
+        Assert.Equal(nickname, reloaded!.Nickname);
+    }
+
+    [Fact]
+    public async Task UpdateUserDetailAsync_ThrowsEntityAlreadyExists_WhenNicknameAlreadyExists()
+    {
+        // Arrange
+        var graph = DomainServiceTestFactory.Create();
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
+        const string duplicateNickname = "taken";
+        var owner = new User(email: "a@a.com", password: "password", nickname: "owner");
+        var existingUser = new User(email: "b@b.com", password: "password", nickname: duplicateNickname);
+        await repo.CreateUserAsync(owner);
+        await repo.CreateUserAsync(existingUser);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityAlreadyExistsException>(() =>
+            service.UpdateUserDetailAsync(new UserPatchRequestDto(owner.Id, duplicateNickname)));
+    }
+
+    [Fact]
     public async Task UpdateUserDetailAsync_ThrowsUnauthorized_WhenUserDoesNotOwnRequest()
     {
         // Arrange
