@@ -41,6 +41,8 @@ public sealed class PostServiceUnitTests
         return post;
     }
 
+    // --- CREATE ---
+
     [Fact]
     public async Task CreatePostAsync_ValidRequest_CreatesPost()
     {
@@ -109,6 +111,8 @@ public sealed class PostServiceUnitTests
         Assert.Equal(unauthorizedAccessMessage, exception.Message);
     }
 
+    // --- GET ---
+
     [Fact]
     public async Task GetPostByIdAsync_ExistingPost_ReturnsPost()
     {
@@ -158,6 +162,8 @@ public sealed class PostServiceUnitTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
     }
+
+    // --- PATCH ---
 
     [Fact]
     public async Task UpdatePostAsync_ValidRequest_UpdatesPost()
@@ -299,6 +305,8 @@ public sealed class PostServiceUnitTests
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _postService.UpdatePostAsync(request));
     }
+
+    // --- DELETE ---
 
     [Fact]
     public async Task DeletePostAsync_ValidRequest_DeletesPost()

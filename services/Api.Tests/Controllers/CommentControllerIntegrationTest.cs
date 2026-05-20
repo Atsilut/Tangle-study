@@ -100,6 +100,8 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
+    // --- CREATE ---
+
     [Fact]
     public async Task CreateComment_Returns201()
     {
@@ -122,7 +124,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task CreateComment_Returns401_IfNotLoggedIn()
+    public async Task CreateComment_Returns401_WhenNotLoggedIn()
     {
         // Arrange
         Client.DefaultRequestHeaders.Authorization = null;
@@ -140,7 +142,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task CreateComment_Return400_IfPostNotFound()
+    public async Task CreateComment_Returns400_WhenPostNotFound()
     {
         // Arrange
         const string testMethodName = "CreateComment_PostNotFound";
@@ -164,7 +166,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public async Task CreateComment_Return400_IfContentEmpty(string? invalidContent)
+    public async Task CreateComment_Returns400_WhenContentEmpty(string? invalidContent)
     {
         // Arrange
         const string testMethodName = "CreateComment_ContentEmpty";
@@ -183,29 +185,6 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetCommentsByPost_ReturnsComments()
-    {
-        // Arrange
-        const string testMethodName = "GetCommentsByPost";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
-        var post = await CreatePostForTest(testMethodName, user.Id);
-        var comment1 = await CreateCommentForTest(testMethodName, post.Id, 1);
-        var comment2 = await CreateCommentForTest(testMethodName, post.Id, 2);
-
-        // Act
-        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
-        
-        //Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var comments = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        Assert.NotNull(comments);
-        Assert.Equal(2, comments.Count);
-        Assert.Equal(comment1.Content, comments[0].Content);
-        Assert.Equal(comment2.Content, comments[1].Content);
     }
 
     [Fact]
@@ -239,7 +218,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task CreateComment_Return400_IfParentNotFound()
+    public async Task CreateComment_Returns400_WhenParentNotFound()
     {
         // Arrange
         const string testMethodName = "CreateNestedComment_ParentMissing";
@@ -262,7 +241,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task CreateComment_Return400_IfParentOnDifferentPost()
+    public async Task CreateComment_Returns400_WhenParentOnDifferentPost()
     {
         // Arrange
         const string testMethodName = "CreateNestedComment_ParentWrongPost";
@@ -283,6 +262,31 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    // --- GET ---
+
+    [Fact]
+    public async Task GetCommentsByPost_ReturnsComments()
+    {
+        // Arrange
+        const string testMethodName = "GetCommentsByPost";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment1 = await CreateCommentForTest(testMethodName, post.Id, 1);
+        var comment2 = await CreateCommentForTest(testMethodName, post.Id, 2);
+
+        // Act
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
+        
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var comments = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        Assert.NotNull(comments);
+        Assert.Equal(2, comments.Count);
+        Assert.Equal(comment1.Content, comments[0].Content);
+        Assert.Equal(comment2.Content, comments[1].Content);
     }
 
     [Fact]
@@ -323,29 +327,6 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task GetCommentById_ReturnsFlatReply_WithParentId()
-    {
-        // Arrange
-        const string testMethodName = "GetCommentById_Nested";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
-        var post = await CreatePostForTest(testMethodName, user.Id);
-        var root = await CreateCommentForTest(testMethodName, post.Id, index: 1);
-        var reply = await CreateCommentForTest(testMethodName, post.Id, index: 2, parentId: root.Id);
-
-        // Act
-        var res = await Client.GetAsync($"/api/comments/{reply.Id}");
-        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        Assert.NotNull(dto);
-        Assert.Equal(reply.Content, dto.Content);
-        Assert.Equal(root.Id, dto.ParentId);
-        Assert.Empty(dto.Replies);
-    }
-
-    [Fact]
     public async Task GetCommentsByPost_Returns404_WhenPostMissing()
     {
         // Arrange
@@ -372,6 +353,64 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetCommentById_ReturnsFlatReply_WithParentId()
+    {
+        // Arrange
+        const string testMethodName = "GetCommentById_Nested";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var root = await CreateCommentForTest(testMethodName, post.Id, index: 1);
+        var reply = await CreateCommentForTest(testMethodName, post.Id, index: 2, parentId: root.Id);
+
+        // Act
+        var res = await Client.GetAsync($"/api/comments/{reply.Id}");
+        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.NotNull(dto);
+        Assert.Equal(reply.Content, dto.Content);
+        Assert.Equal(root.Id, dto.ParentId);
+        Assert.Empty(dto.Replies);
+    }
+
+    [Fact]
+    public async Task GetCommentById_Returns200_WhenPostExists()
+    {
+        // Arrange
+        const string testMethodName = "GetCommentById";
+        var user = await CreateUserForTest(testMethodName, testPassword);
+        await LoginAs(user, testPassword);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var comment = await CreateCommentForTest(testMethodName, post.Id);
+
+        // Act
+        var res = await Client.GetAsync($"/api/comments/{comment.Id}");
+        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.NotNull(dto);
+        Assert.Equal(comment.Content, dto.Content);
+        Assert.Equal(user.Id, dto.UserId);
+        Assert.Equal(post.Id, dto.PostId);
+    }
+
+    [Fact]
+    public async Task GetCommentById_Returns404_WhenCommentMissing()
+    {
+        // Arrange
+        const long missingCommentId = 9999; // Assuming this comment has been deleted while commenting
+        
+        // Act
+        var res = await Client.GetAsync($"/api/comments/{missingCommentId}");
+        
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
     [Fact]
@@ -465,7 +504,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task GetCommentsByUser_Return404_WhenUserMissing()
+    public async Task GetCommentsByUser_Returns404_WhenUserMissing()
     {
         // Arrange
         const long missingUserId = 9999; // Assuming this user has been deleted while commenting
@@ -478,7 +517,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task GetCommentsByUser_Return204_WhenNoComments()
+    public async Task GetCommentsByUser_Returns204_WhenNoComments()
     {
         // Arrange
         const string testMethodName = "GetCommentsByUser_NoComments";
@@ -492,43 +531,10 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
     }
 
-    [Fact]
-    public async Task GetCommentById_Returns200_WhenPostExists()
-    {
-        // Arrange
-        const string testMethodName = "GetCommentById";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
-        var post = await CreatePostForTest(testMethodName, user.Id);
-        var comment = await CreateCommentForTest(testMethodName, post.Id);
-
-        // Act
-        var res = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        Assert.NotNull(dto);
-        Assert.Equal(comment.Content, dto.Content);
-        Assert.Equal(user.Id, dto.UserId);
-        Assert.Equal(post.Id, dto.PostId);
-    }
+    // --- PATCH ---
 
     [Fact]
-    public async Task GetCommentById_Return404_WhenCommentMissing()
-    {
-        // Arrange
-        const long missingCommentId = 9999; // Assuming this comment has been deleted while commenting
-        
-        // Act
-        var res = await Client.GetAsync($"/api/comments/{missingCommentId}");
-        
-        // Assert
-        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateComment_Return200_WhenLoggedInAsOwner()
+    public async Task UpdateComment_Returns200_WhenLoggedInAsOwner()
     {
         // Arrange
         const string testMethodName = "UpdatePostOwner";
@@ -647,6 +653,8 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
+    // --- DELETE ---
+
     [Fact]
     public async Task DeleteComment_Returns204_WhenLoggedInAsOwner()
     {
@@ -690,7 +698,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task DeleteComment_ReturnsNoContent_WhenPostAlreadyDeleted()
+    public async Task DeleteComment_Returns204_WhenPostAlreadyDeleted()
     {
         // Arrange
         const string testMethodName = "DeleteComment_PostMissing";

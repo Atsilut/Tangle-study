@@ -1,6 +1,5 @@
 ﻿using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
-using Api.Domain.Users.Service;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Api.Global.Exceptions;
@@ -9,6 +8,8 @@ namespace Api.Tests.Service;
 
 public sealed class UserServiceUnitTests
 {
+    // --- GET ---
+
     [Fact]
     public async Task GetUserByIdAsync_ReturnsNull_WhenMissing()
     {
@@ -23,6 +24,8 @@ public sealed class UserServiceUnitTests
         // Assert
         Assert.Null(dto);
     }
+
+    // --- PATCH ---
 
     [Fact]
     public async Task UpdateUserDetailAsync_UpdatesNickname()
@@ -122,6 +125,8 @@ public sealed class UserServiceUnitTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.UpdateUserDetailAsync(new UserPatchRequestDto(owner.Id, "new")));
     }
+
+    // --- DELETE ---
 
     [Fact]
     public async Task DeleteUserAsync_DeleteUser()

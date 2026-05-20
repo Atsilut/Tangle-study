@@ -46,8 +46,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
 
+    // --- GET ---
+
     [Fact]
-    public async Task GetUserById_Return200_WhenFound()
+    public async Task GetUserById_Returns200_WhenFound()
     {
         // Arrange
         const string testMethodName = "GetUserById";
@@ -61,7 +63,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task GetUserById_Return404_WhenMissing()
+    public async Task GetUserById_Returns404_WhenMissing()
     {
         // Arrange
         const long missingUserId = 123456;
@@ -73,8 +75,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
+    // --- PATCH ---
+
     [Fact]
-    public async Task UpdateUser_Return200_WhenValidRequest()
+    public async Task UpdateUser_Returns200_WhenValidRequest()
     {
         // Arrange
         const string testMethodName = "UserPatch";
@@ -96,7 +100,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Return404_WhenMissing()
+    public async Task UpdateUser_Returns404_WhenMissing()
     {
         // Arrange
         const string testMethodName = "UserPatchMissing";
@@ -114,7 +118,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Return401_WhenNotAuthenticated()
+    public async Task UpdateUser_Returns401_WhenNotAuthenticated()
     {
         // Arrange
         const string testMethodName = "UserPatchUnauth";
@@ -129,7 +133,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Return200_WhenSameNickname()
+    public async Task UpdateUser_Returns200_WhenSameNickname()
     {
         // Arrange
         const string testMethodName = "UserPatchSameNickname";
@@ -148,7 +152,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Return400_WhenNicknameAlreadyExists()
+    public async Task UpdateUser_Returns400_WhenNicknameAlreadyExists()
     {
         // Arrange
         const string testMethodName = "UserPatchDuplicateNickname";
@@ -164,7 +168,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Return401_WhenUpdatingOtherUser()
+    public async Task UpdateUser_Returns401_WhenUpdatingOtherUser()
     {
         // Arrange
         const string testMethodName = "UserPatchAuth";
@@ -179,8 +183,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
     }
 
+    // --- DELETE ---
+
     [Fact]
-    public async Task DeleteUser_Return204_WhenFound()
+    public async Task DeleteUser_Returns204_WhenFound()
     {
         // Arrange
         const string testMethodName = "UserDelete";
@@ -198,7 +204,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task DeleteUser_Return404_WhenMissing()
+    public async Task DeleteUser_Returns404_WhenMissing()
     {
         // Arrange
         const string testMethodName = "UserDeleteMissing";
@@ -215,7 +221,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task DeleteUser_Return401_WhenDeletingOtherUser()
+    public async Task DeleteUser_Returns401_WhenDeletingOtherUser()
     {
         // Arrange
         const string testMethodName = "UserDeleteAuth";

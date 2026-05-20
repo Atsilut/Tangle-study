@@ -70,6 +70,8 @@ public sealed class CommentServiceUnitTests
         return comment;
     }
 
+    // --- CREATE ---
+
     [Fact]
     public async Task CreateCommentAsync_ValidRequest_CreatesComment()
     {
@@ -158,6 +160,56 @@ public sealed class CommentServiceUnitTests
     }
 
     [Fact]
+    public async Task CreateCommentAsync_WithParentId_CreatesReply()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        const string rootContent = "Test Root";
+        const string replyContent = "Reply";
+        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: rootContent);
+        var request = new CommentCreateRequestDto
+        {
+            Content = replyContent,
+            PostId = post.Id,
+            ParentId = parent.Id
+        };
+
+        // Act
+        await _commentService.CreateCommentAsync(request);
+
+        // Assert
+        var comments = await _commentRepository.GetAllCommentsAsync();
+        Assert.Equal(2, comments.Count);
+        Assert.Equal(parent.Id, comments[1].ParentId);
+    }
+
+    [Fact]
+    public async Task CreateCommentAsync_ParentOnDifferentPost_ThrowsArgumentException()
+    {
+        // Arrange
+        var user = await CreateTestUserAsync();
+        var post1 = await CreateTestPostAsync(userId: user.Id);
+        var post2 = await CreateTestPostAsync(userId: user.Id);
+        const string rootContent = "Root on post 1";
+        const string replyContent = "Reply on wrong post";
+        const string parentPostMismatchMessage = "Parent comment must belong to the same post";
+        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post1.Id, content: rootContent);
+        var request = new CommentCreateRequestDto
+        {
+            Content = replyContent,
+            PostId = post2.Id,
+            ParentId = parent.Id
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _commentService.CreateCommentAsync(request));
+        Assert.Equal(parentPostMismatchMessage, exception.Message);
+    }
+
+    // --- GET ---
+
+    [Fact]
     public async Task GetCommentByIdAsync_ExistingComment_ReturnsComment()
     {
         // Arrange
@@ -204,54 +256,6 @@ public sealed class CommentServiceUnitTests
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
         Assert.All(result, root => Assert.Empty(root.Replies));
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_WithParentId_CreatesReply()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        const string rootContent = "Test Root";
-        const string replyContent = "Reply";
-        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: rootContent);
-        var request = new CommentCreateRequestDto
-        {
-            Content = replyContent,
-            PostId = post.Id,
-            ParentId = parent.Id
-        };
-
-        // Act
-        await _commentService.CreateCommentAsync(request);
-
-        // Assert
-        var comments = await _commentRepository.GetAllCommentsAsync();
-        Assert.Equal(2, comments.Count);
-        Assert.Equal(parent.Id, comments[1].ParentId);
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_ParentOnDifferentPost_ThrowsArgumentException()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post1 = await CreateTestPostAsync(userId: user.Id);
-        var post2 = await CreateTestPostAsync(userId: user.Id);
-        const string rootContent = "Root on post 1";
-        const string replyContent = "Reply on wrong post";
-        const string parentPostMismatchMessage = "Parent comment must belong to the same post";
-        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post1.Id, content: rootContent);
-        var request = new CommentCreateRequestDto
-        {
-            Content = replyContent,
-            PostId = post2.Id,
-            ParentId = parent.Id
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal(parentPostMismatchMessage, exception.Message);
     }
 
     [Fact]
@@ -364,6 +368,25 @@ public sealed class CommentServiceUnitTests
     }
 
     [Fact]
+    public async Task GetCommentsByUserIdAsync_IncludesCommentsAfterAuthorDetached()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        await _userService.DeleteUserAsync(user.Id);
+
+        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
+
+        Assert.NotNull(result);
+        Assert.Single(result);
+        Assert.Null(result[0].UserId);
+        Assert.Equal(user.Id, result[0].DeletedUserId);
+    }
+
+    // --- PATCH ---
+
+    [Fact]
     public async Task UpdateCommentAsync_ValidRequest_UpdatesComment()
     {
         // Arrange
@@ -468,6 +491,31 @@ public sealed class CommentServiceUnitTests
     }
 
     [Fact]
+    public async Task UpdateCommentAsync_WhenPostDeleted_ThrowsEntityNotFoundException()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        await _postService.DeletePostAsync(post.Id);
+
+        var request = new CommentPatchRequestDto
+        {
+            Id = comment.Id,
+            Content = "should not apply"
+        };
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
+    }
+
+    // --- DELETE ---
+
+    [Fact]
     public async Task DeleteCommentAsync_ValidRequest_DeletesComment()
     {
         // Arrange
@@ -510,29 +558,6 @@ public sealed class CommentServiceUnitTests
         // Act & Assert
         var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.DeleteCommentAsync(comment.Id));
         Assert.Equal(unauthorizedAccessMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task UpdateCommentAsync_WhenPostDeleted_ThrowsEntityNotFoundException()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
-        };
-
-        await _postService.DeletePostAsync(post.Id);
-
-        var request = new CommentPatchRequestDto
-        {
-            Id = comment.Id,
-            Content = "should not apply"
-        };
-
-        await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
     }
 
     [Fact]
@@ -602,22 +627,5 @@ public sealed class CommentServiceUnitTests
         Assert.Null(remainingComment.UserId);
         Assert.Equal(user.Id, remainingComment.DeletedUserId);
         Assert.Equal(post.Id, remainingComment.PostId);
-    }
-
-    [Fact]
-    public async Task GetCommentsByUserIdAsync_IncludesCommentsAfterAuthorDetached()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        await _userService.DeleteUserAsync(user.Id);
-
-        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
-
-        Assert.NotNull(result);
-        Assert.Single(result);
-        Assert.Null(result[0].UserId);
-        Assert.Equal(user.Id, result[0].DeletedUserId);
     }
 }

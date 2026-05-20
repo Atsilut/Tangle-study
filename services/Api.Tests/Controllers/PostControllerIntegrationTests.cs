@@ -46,6 +46,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
+    // --- CREATE ---
+
     [Fact]
     public async Task CreatePost_Returns201()
     {
@@ -96,6 +98,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
+
+    // --- GET ---
 
     [Fact]
     public async Task GetAllPosts_Returns200_WithPosts()
@@ -244,6 +248,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
     }
 
+    // --- PATCH ---
+
     [Fact]
     public async Task UpdatePost_Returns200_WhenLoggedInAsOwner()
     {
@@ -358,6 +364,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, patchRes.StatusCode);
     }
+
+    // --- DELETE ---
 
     [Fact]
     public async Task DeletePost_Returns204_WhenLoggedInAsOwner()

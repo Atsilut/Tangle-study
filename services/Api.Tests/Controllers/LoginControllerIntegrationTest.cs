@@ -34,8 +34,10 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         return all!.First(u => u.Email == req.Email);
     }
 
+    // --- CREATE (POST /api/join) ---
+
     [Fact]
-    public async Task CreateUser_Return400_WhenEmailAlreadyExists()
+    public async Task CreateUser_Returns400_WhenEmailAlreadyExists()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -48,8 +50,10 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
+    // --- LOGIN (POST /api/login) ---
+
     [Fact]
-    public async Task Login_Return200_WhenCredentialsValid()
+    public async Task Login_Returns200_WhenCredentialsValid()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -70,7 +74,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task Login_Return401_WhenWrongPassword()
+    public async Task Login_Returns401_WhenWrongPassword()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -89,7 +93,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task Login_Return401_WhenEmailNotFound()
+    public async Task Login_Returns401_WhenEmailNotFound()
     {
         // Arrange
         await CreateAndGetUser();
