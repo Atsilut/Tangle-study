@@ -18,7 +18,7 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.CompletedTask;
     }
 
-    public Task<List<User>?> GetAllUsersAsync() => Task.FromResult<List<User>?>(_users.Values.ToList());
+    public Task<List<User>> GetAllUsersAsync() => Task.FromResult(_users.Values.ToList());
 
     public Task<User?> GetUserByIdAsync(long id)
         => Task.FromResult(_users.TryGetValue(id, out var user) ? user : null);
