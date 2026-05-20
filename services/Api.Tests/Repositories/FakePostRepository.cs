@@ -1,7 +1,7 @@
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Repository;
 
-namespace Api.Tests.Fakes;
+namespace Api.Tests.Repositories;
 
 public class FakePostRepository : IPostRepository
 {
@@ -31,22 +31,10 @@ public class FakePostRepository : IPostRepository
         return Task.FromResult(_posts.FirstOrDefault(p => p.Id == id));
     }
 
-    public Task<List<Post>?> GetPostsByUserIdAsync(long userId)
-    {
-        var userPosts = _posts.Where(p => p.UserId == userId).ToList();
-        return Task.FromResult(userPosts.Count > 0 ? userPosts : null);
-    }
+    public Task<List<Post>> GetPostsByUserIdAsync(long userId) =>
+        Task.FromResult(_posts.Where(p => p.UserId == userId).ToList());
 
-    public Task UpdatePostAsync(Post post)
-    {
-        var existingPost = _posts.FirstOrDefault(p => p.Id == post.Id);
-        if (existingPost != null)
-        {
-            _posts.Remove(existingPost);
-            _posts.Add(post);
-        }
-        return Task.CompletedTask;
-    }
+    public Task UpdatePostAsync(Post post) => Task.CompletedTask;
 
     public Task DeletePostAsync(Post post)
     {
