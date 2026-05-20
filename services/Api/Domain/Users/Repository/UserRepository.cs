@@ -36,10 +36,7 @@ namespace Api.Domain.Users.Repository
         public async Task<bool> ExistsUserByNicknameAsync(string nickname) =>
             await _context.Users.AnyAsync(u => u.Nickname == nickname);
 
-        public async Task UpdateUserAsync(User user) {
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-        }
+        public async Task UpdateUserAsync(User user) => await _context.SaveChangesAsync();
 
         public async Task DeleteUserAsync(User user)
         {

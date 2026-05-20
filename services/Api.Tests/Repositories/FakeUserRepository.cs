@@ -35,14 +35,7 @@ public sealed class FakeUserRepository : IUserRepository
     public Task<bool> ExistsUserByNicknameAsync(string nickname)
         => Task.FromResult(_users.Values.Any(u => u.Nickname == nickname));
 
-    public Task UpdateUserAsync(User user)
-    {
-        if (user.Id != 0)
-        {
-            _users[user.Id] = user;
-        }
-        return Task.CompletedTask;
-    }
+    public Task UpdateUserAsync(User user) => Task.CompletedTask;
 
     public Task DeleteUserAsync(User user)
     {
