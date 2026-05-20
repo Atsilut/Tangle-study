@@ -1,6 +1,7 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -34,6 +35,7 @@ namespace Api.Domain.Users.Api
         }
 
         [HttpPatch]
+        [Authorize]
         [SwaggerOperation(Summary = "Update User Detail")]
         public async Task<ActionResult<UserPatchResponseDto>?> UpdateUserDetail([FromBody] UserPatchRequestDto request)
         {
@@ -47,9 +49,14 @@ namespace Api.Domain.Users.Api
             {
                 return NotFound();
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
         }
 
         [HttpDelete("{id:long}")]
+        [Authorize]
         [SwaggerOperation(Summary = "Delete User")]
         public async Task<IActionResult> DeleteUser([FromRoute] long id)
         {
@@ -61,6 +68,10 @@ namespace Api.Domain.Users.Api
             catch (EntityNotFoundException)
             {
                 return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
             }
         }
     }

@@ -5,6 +5,7 @@ using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
+using Microsoft.AspNetCore.Http;
 
 namespace Api.Domain.Users.Service
 {
@@ -14,16 +15,22 @@ namespace Api.Domain.Users.Service
         private readonly IUserRepository _repo;
         private readonly Lazy<PostService> _postService;
         private readonly Lazy<CommentService> _commentService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UserService(
             IUserRepository repo,
             Lazy<PostService> postService,
-            Lazy<CommentService> commentService)
+            Lazy<CommentService> commentService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _repo = repo;
             _postService = postService;
             _commentService = commentService;
+            _httpContextAccessor = httpContextAccessor;
         }
+
+        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
+            ?? throw new EntityNotFoundException("Unauthorized access"));
 
         public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found")
         {
@@ -78,7 +85,9 @@ namespace Api.Domain.Users.Service
 
         public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
-            var user = await GetUserEntityOrThrowAsync(request.Id);
+            var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            if (request.Id != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
+
             var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
             if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
             user.UpdateNickname(request.Nickname);
@@ -91,6 +100,9 @@ namespace Api.Domain.Users.Service
 
         public async Task DeleteUserAsync(long id)
         {
+            var userFromLogin = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            if (id != userFromLogin.Id) throw new UnauthorizedAccessException("Unauthorized access");
+
             var user = await GetUserEntityOrThrowAsync(id);
             await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
             await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
