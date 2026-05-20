@@ -39,9 +39,7 @@ namespace Api.Domain.Comments.Domain
         public void UpdateContent(string content)
         {
             Content = content;
-            Touch();
+            UpdatedAt = DateTime.UtcNow;
         }
-
-        private void Touch() => UpdatedAt = DateTime.UtcNow;
     }
 }
