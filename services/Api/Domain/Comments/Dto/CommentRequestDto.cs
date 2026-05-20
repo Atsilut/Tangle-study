@@ -28,7 +28,7 @@ namespace Api.Domain.Comments.Dto
         [DefaultValue(1)]
         public long Id { get; init; }
         [Required]
-        [StringLength(100, MinimumLength = 1)]
+        [StringLength(1000, MinimumLength = 1)]
         [SwaggerSchema(Description = "Updated Comment content")]
         [DefaultValue("This content has been changed.")]
         public string Content { get; init; }
