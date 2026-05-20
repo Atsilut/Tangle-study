@@ -15,20 +15,23 @@ namespace Api.Domain.Users.Service
             _repo = repo;
         }
 
-        public async Task<List<UserGetResponseDto>?> GetAllUsersAsync()
+        public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
             var users = await _repo.GetAllUsersAsync();
-            if (users == null) return null;
 
-            var res = users.Select(user => new UserGetResponseDto(
-                Id: user.Id,
-                Email: user.Email,
-                Nickname: user.Nickname,
-                CreatedAt: user.CreatedAt,
-                UpdatedAt: user.UpdatedAt
-                )).ToList();
+            var list = new List<UserGetResponseDto>();
+            foreach (var user in users)
+            {
+                list.Add(new UserGetResponseDto(
+                    Id: user.Id,
+                    Email: user.Email,
+                    Nickname: user.Nickname,
+                    CreatedAt: user.CreatedAt,
+                    UpdatedAt: user.UpdatedAt
+                ));
+            }
 
-            return res;
+            return list;
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
@@ -67,8 +70,7 @@ namespace Api.Domain.Users.Service
             if (user == null) throw new EntityNotFoundException("User not found");
             var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
             if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
-            user.Nickname = request.Nickname;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
             var response = new UserPatchResponseDto(
                 Nickname: user.Nickname,
