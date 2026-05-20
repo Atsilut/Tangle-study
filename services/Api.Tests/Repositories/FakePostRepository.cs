@@ -34,16 +34,7 @@ public class FakePostRepository : IPostRepository
     public Task<List<Post>> GetPostsByUserIdAsync(long userId) =>
         Task.FromResult(_posts.Where(p => p.UserId == userId).ToList());
 
-    public Task UpdatePostAsync(Post post)
-    {
-        var existingPost = _posts.FirstOrDefault(p => p.Id == post.Id);
-        if (existingPost != null)
-        {
-            _posts.Remove(existingPost);
-            _posts.Add(post);
-        }
-        return Task.CompletedTask;
-    }
+    public Task UpdatePostAsync(Post post) => Task.CompletedTask;
 
     public Task DeletePostAsync(Post post)
     {

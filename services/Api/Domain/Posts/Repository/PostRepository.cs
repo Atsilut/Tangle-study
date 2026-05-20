@@ -29,11 +29,7 @@ namespace Api.Domain.Posts.Repository
                 .Where(post => post.UserId == userId)
                 .ToListAsync();
 
-        public async Task UpdatePostAsync(Post post)
-        {
-            _context.Posts.Update(post);
-            await _context.SaveChangesAsync();
-        }
+        public async Task UpdatePostAsync(Post post) => await _context.SaveChangesAsync();
 
         public async Task DeletePostAsync(Post post)
         {
