@@ -1,0 +1,48 @@
+﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Repository;
+
+namespace Api.Tests.Repositories
+{
+    public class FakeCommentRepository : ICommentRepository
+    {
+        private readonly List<Comment> _comments = new();
+        private long _currentId = 1;
+
+        public Task CreateCommentAsync(Comment comment)
+        {
+            // Manually set the Id using reflection or a test-only constructor
+            var idProperty = typeof(Comment).GetProperty("Id");
+            if (idProperty != null && idProperty.CanWrite)
+            {
+                idProperty.SetValue(comment, _currentId++);
+            }
+            else throw new InvalidOperationException("Could not set the Id property on the Comment entity via reflection.");
+            _comments.Add(comment);
+            return Task.CompletedTask;
+        }
+
+        public Task<List<Comment>> GetAllCommentsAsync()
+        {
+            return Task.FromResult(_comments);
+        }
+
+        public Task<Comment?> GetCommentByIdAsync(long id)
+        {
+            return Task.FromResult(_comments.FirstOrDefault(c => c.Id == id));
+        }
+
+        public Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
+            Task.FromResult(_comments.Where(c => c.PostId == postId).ToList());
+
+        public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
+            Task.FromResult(_comments.Where(c => c.UserId == userId).ToList());
+
+        public Task UpdateCommentAsync(Comment comment) => Task.CompletedTask;
+
+        public Task DeleteCommentAsync(Comment comment)
+        {
+            _comments.Remove(comment);
+            return Task.CompletedTask;
+        }
+    }
+}

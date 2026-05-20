@@ -7,6 +7,7 @@ using Api.Tests.Repositories;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Api.Global.Exceptions;
+using Api.Tests.Repositories;
 
 namespace Api.Tests.Services;
 

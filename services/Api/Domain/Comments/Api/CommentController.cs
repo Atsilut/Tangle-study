@@ -1,0 +1,122 @@
+﻿using Api.Domain.Comments.Dto;
+using Api.Domain.Comments.Service;
+using Api.Global.Exceptions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+
+namespace Api.Domain.Comments.Api
+{
+    [ApiController]
+    [Route("api/comments")]
+    public class CommentController : ControllerBase
+    {
+        private readonly CommentService _service;
+
+        public CommentController(CommentService service)
+        {
+            _service = service;
+        }
+
+        [HttpPost]
+        [Authorize]
+        [SwaggerOperation(Summary = "Create Comment")]
+        public async Task<IActionResult> CreateComment([FromBody] CommentCreateRequestDto request)
+        {
+            try
+            {
+                await _service.CreateCommentAsync(request);
+                return Created();
+            }
+            catch (EntityNotFoundException)
+            {
+                return BadRequest();
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest();
+            }
+        }
+
+        [HttpGet("{id:long}")]
+        [SwaggerOperation(Summary = "Get Comment By Id")]
+        public async Task<ActionResult<CommentGetResponseDto>?> GetCommentById(long id)
+        {
+            var result = await _service.GetCommentByIdAsync(id);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpGet("post/{postId:long}")]
+        [SwaggerOperation(Summary = "Get Comments By Post Id")]
+        public async Task<ActionResult<List<CommentGetResponseDto>?>> GetCommentsByPostId(long postId)
+        {
+            try
+            {
+                var result = await _service.GetCommentsByPostIdAsync(postId);
+                if (result == null) return NoContent();
+                return Ok(result);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpGet("user/{userId:long}")]
+        [SwaggerOperation(Summary = "Get Comments By User Id")]
+        public async Task<ActionResult<List<CommentGetResponseDto>?>> GetCommentsByUserId(long userId)
+        {
+            try
+            {
+                var result = await _service.GetCommentsByUserIdAsync(userId);
+                if (result == null) return NoContent();
+                return Ok(result);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpPatch]
+        [Authorize]
+        [SwaggerOperation(Summary = "Update Comment")]
+        public async Task<ActionResult<CommentPatchResponseDto>> UpdateComment([FromBody] CommentPatchRequestDto request)
+        {
+            try
+            {
+                var result = await _service.UpdateCommentAsync(request);
+                return Ok(result);
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
+
+        [HttpDelete("{id:long}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Delete Comment")]
+        public async Task<IActionResult> DeleteComment(long id)
+        {
+            try
+            {
+                await _service.DeleteCommentAsync(id);
+                return NoContent();
+            }
+            catch (EntityNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
+    }
+}

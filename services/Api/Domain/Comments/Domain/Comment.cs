@@ -1,40 +1,43 @@
-﻿using Api.Domain.Comments.Domain;
+﻿using Api.Domain.Posts.Domain;
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Api.Domain.Posts.Domain
+namespace Api.Domain.Comments.Domain
 {
-    public class Post
+    public class Comment
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; private set; }
-
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
-        public string Title { get; private set; }
         public string Content { get; private set; }
 
         [ForeignKey(nameof(User))]
         public long UserId { get; private set; }
-
         public User User { get; private set; }
 
-        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+        [ForeignKey(nameof(Post))]
+        public long PostId { get; private set; }
+        public Post Post { get; private set; }
 
-        private Post() { }
+        [ForeignKey(nameof(Parent))]
+        public long? ParentId { get; private set; }
+        public Comment? Parent { get; private set; }
 
-        public Post(long userId, string title, string content)
+        private Comment() { }
+
+        public Comment(string content, long userId, long postId, long? parentId = null)
         {
-            UserId = userId;
-            Title = title;
             Content = content;
+            UserId = userId;
+            PostId = postId;
+            ParentId = parentId;
         }
 
-        public void Update(string title, string content)
+        public void UpdateContent(string content)
         {
-            Title = title;
             Content = content;
             UpdatedAt = DateTime.UtcNow;
         }
