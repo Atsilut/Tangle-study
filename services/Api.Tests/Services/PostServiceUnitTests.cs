@@ -1,8 +1,8 @@
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Service;
-using Api.Domain.Users.Service;
 using Api.Domain.Users.Domain;
+using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
@@ -14,17 +14,18 @@ public sealed class PostServiceUnitTests
 {
     private readonly PostService _postService;
     private readonly FakePostRepository _postRepository;
+    private readonly FakeCommentRepository _commentRepository;
     private readonly FakeUserRepository _userRepository;
     private readonly FakeHttpContextAccessor _httpContextAccessor;
-    private readonly UserService _userService;
 
     public PostServiceUnitTests()
     {
-        _postRepository = new FakePostRepository();
-        _userRepository = new FakeUserRepository();
         _httpContextAccessor = new FakeHttpContextAccessor("1");
-        _userService = new UserService(_userRepository);
-        _postService = new PostService(_postRepository, _httpContextAccessor, _userService);
+        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
+        _userRepository = graph.UserRepository;
+        _postRepository = graph.PostRepository;
+        _commentRepository = graph.CommentRepository;
+        _postService = graph.PostService;
     }
 
     private async Task<User> CreateTestUserAsync(string email = "test@test.com", string username = "test")

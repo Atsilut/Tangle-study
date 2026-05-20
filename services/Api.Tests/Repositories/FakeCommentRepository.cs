@@ -1,4 +1,4 @@
-﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Domain;
 using Api.Domain.Comments.Repository;
 
 namespace Api.Tests.Repositories
@@ -38,9 +38,32 @@ namespace Api.Tests.Repositories
             Task.FromResult(_comments.Where(c => c.PostId == postId).ToList());
 
         public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
-            Task.FromResult(_comments.Where(c => c.UserId == userId).ToList());
+            Task.FromResult(_comments
+                .Where(c => c.UserId == userId || c.DeletedUserId == userId)
+                .ToList());
 
         public Task UpdateCommentAsync(Comment comment) => Task.CompletedTask;
+
+        public Task DetachAuthorFromCommentsAsync(long userId)
+        {
+            foreach (var comment in _comments.Where(c => c.UserId == userId))
+                comment.DetachAuthor(userId);
+            return Task.CompletedTask;
+        }
+
+        public Task DetachPostFromCommentsAsync(long postId)
+        {
+            foreach (var comment in _comments.Where(c => c.PostId == postId))
+                comment.DetachPost(postId);
+            return Task.CompletedTask;
+        }
+
+        public Task DetachParentFromRepliesAsync(long parentCommentId)
+        {
+            foreach (var comment in _comments.Where(c => c.ParentId == parentCommentId))
+                comment.DetachParent(parentCommentId);
+            return Task.CompletedTask;
+        }
 
         public Task DeleteCommentAsync(Comment comment)
         {

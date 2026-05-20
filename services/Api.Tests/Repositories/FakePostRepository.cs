@@ -39,6 +39,13 @@ public class FakePostRepository : IPostRepository
 
     public Task UpdatePostAsync(Post post) => Task.CompletedTask;
 
+    public Task DetachAuthorFromPostsAsync(long userId)
+    {
+        foreach (var post in _posts.Where(p => p.UserId == userId))
+            post.DetachAuthor(userId);
+        return Task.CompletedTask;
+    }
+
     public Task DeletePostAsync(Post post)
     {
         _posts.Remove(post);

@@ -595,7 +595,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task UpdateComment_Return404_WhenPostMissing()
+    public async Task UpdateComment_Returns404_WhenPostDeletedButCommentRemains()
     {
         // Arrange
         const string testMethodName = "UpdateComment_PostMissing";
@@ -607,15 +607,21 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         var req = new CommentPatchRequestDto
         { 
             Id = comment.Id,
-            Content = $"{testMethodName} Updated Content" 
+            Content = $"{testMethodName} Updated Content"
         };
 
         // Act
-        await Client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while commenting
+        await Client.DeleteAsync($"/api/posts/{post.Id}");
         var res = await Client.PatchAsJsonAsync($"/api/comments", req);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(comment.Content, dto.Content);
+        Assert.Null(dto.PostId);
+        Assert.Equal(post.Id, dto.DeletedPostId);
     }
 
     [Fact]
@@ -684,7 +690,7 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
     }
 
     [Fact]
-    public async Task DeleteComment_Returns404_WhenPostMissing()
+    public async Task DeleteComment_ReturnsNoContent_WhenPostAlreadyDeleted()
     {
         // Arrange
         const string testMethodName = "DeleteComment_PostMissing";
@@ -694,12 +700,14 @@ public sealed class CommentControllerIntegrationTest(PostgresTestcontainerFixtur
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         // Act
-        var deletePostRes = await Client.DeleteAsync($"/api/posts/{post.Id}"); // Delete the post while deleting comment
+        var deletePostRes = await Client.DeleteAsync($"/api/posts/{post.Id}");
         var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, deletePostRes.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
     }
 
     [Fact]

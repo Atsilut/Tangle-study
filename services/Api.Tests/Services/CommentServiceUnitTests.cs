@@ -6,6 +6,7 @@ using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
+using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
@@ -24,17 +25,14 @@ public sealed class CommentServiceUnitTests
 
     public CommentServiceUnitTests()
     {
-        _commentRepository = new FakeCommentRepository();
-        _postRepository = new FakePostRepository();
-        _userRepository = new FakeUserRepository();
         _httpContextAccessor = new FakeHttpContextAccessor("1");
-        _userService = new UserService(_userRepository);
-        _postService = new PostService(_postRepository, _httpContextAccessor, _userService);
-        _commentService = new CommentService(
-            repo: _commentRepository,
-            httpContextAccessor: _httpContextAccessor,
-            userService: _userService,
-            postService: _postService);
+        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
+        _userService = graph.UserService;
+        _postService = graph.PostService;
+        _commentService = graph.CommentService;
+        _commentRepository = graph.CommentRepository;
+        _postRepository = graph.PostRepository;
+        _userRepository = graph.UserRepository;
     }
 
     private async Task<User> CreateTestUserAsync(string email = "test@test.com", string username = "test")
@@ -512,5 +510,114 @@ public sealed class CommentServiceUnitTests
         // Act & Assert
         var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.DeleteCommentAsync(comment.Id));
         Assert.Equal(unauthorizedAccessMessage, exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateCommentAsync_WhenPostDeleted_ThrowsEntityNotFoundException()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        await _postService.DeletePostAsync(post.Id);
+
+        var request = new CommentPatchRequestDto
+        {
+            Id = comment.Id,
+            Content = "should not apply"
+        };
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
+    }
+
+    [Fact]
+    public async Task DeletePostAsync_DetachesCommentsWithTombstonePostId()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        await _postService.DeletePostAsync(post.Id);
+
+        var remaining = await _commentRepository.GetCommentByIdAsync(comment.Id);
+        Assert.NotNull(remaining);
+        Assert.Null(remaining.PostId);
+        Assert.Equal(post.Id, remaining.DeletedPostId);
+        Assert.Equal(user.Id, remaining.UserId);
+    }
+
+    [Fact]
+    public async Task DeleteCommentAsync_DetachesRepliesWithTombstoneParentId()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "parent");
+        var reply = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "reply", parentId: parent.Id);
+        var sibling = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "sibling");
+
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
+        };
+
+        await _commentService.DeleteCommentAsync(parent.Id);
+
+        var detachedReply = await _commentRepository.GetCommentByIdAsync(reply.Id);
+        var untouchedSibling = await _commentRepository.GetCommentByIdAsync(sibling.Id);
+
+        Assert.Null(await _commentRepository.GetCommentByIdAsync(parent.Id));
+        Assert.NotNull(detachedReply);
+        Assert.Null(detachedReply.ParentId);
+        Assert.Equal(parent.Id, detachedReply.DeletedParentId);
+        Assert.Null(untouchedSibling!.ParentId);
+        Assert.Null(untouchedSibling.DeletedParentId);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_DetachesAuthorOnPostsAndComments()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        await _userService.DeleteUserAsync(user.Id);
+
+        var remainingPost = await _postRepository.GetPostByIdAsync(post.Id);
+        var remainingComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
+
+        Assert.NotNull(remainingPost);
+        Assert.Null(remainingPost.UserId);
+        Assert.Equal(user.Id, remainingPost.DeletedUserId);
+        Assert.NotNull(remainingComment);
+        Assert.Null(remainingComment.UserId);
+        Assert.Equal(user.Id, remainingComment.DeletedUserId);
+        Assert.Equal(post.Id, remainingComment.PostId);
+    }
+
+    [Fact]
+    public async Task GetCommentsByUserIdAsync_IncludesCommentsAfterAuthorDetached()
+    {
+        var user = await CreateTestUserAsync();
+        var post = await CreateTestPostAsync(userId: user.Id);
+        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
+
+        await _userService.DeleteUserAsync(user.Id);
+
+        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
+
+        Assert.NotNull(result);
+        Assert.Single(result);
+        Assert.Null(result[0].UserId);
+        Assert.Equal(user.Id, result[0].DeletedUserId);
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
-using Api.Tests.Repositories;
+using Api.Tests.Infrastructure;
 using Api.Global.Exceptions;
 
 namespace Api.Tests.Service;
@@ -12,8 +12,8 @@ public sealed class UserServiceUnitTests
     public async Task GetUserByIdAsync_ReturnsNull_WhenMissing()
     {
         // Arrange
-        var repo = new FakeUserRepository();
-        var service = new UserService(repo);
+        var graph = DomainServiceTestFactory.Create();
+        var service = graph.UserService;
         const long missingUserId = 12345;
 
         // Act
@@ -27,8 +27,9 @@ public sealed class UserServiceUnitTests
     public async Task UpdateUserDetailAsync_UpdatesNickname()
     {
         // Arrange
-        var repo = new FakeUserRepository();
-        var service = new UserService(repo);
+        var graph = DomainServiceTestFactory.Create();
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
         const string email = "a@a.com";
         const string password = "password";
         const string oldNickname = "old";
@@ -52,8 +53,7 @@ public sealed class UserServiceUnitTests
     public async Task UpdateUserDetailAsync_Throws_WhenUserMissing()
     {
         // Arrange
-        var repo = new FakeUserRepository();
-        var service = new UserService(repo);
+        var service = DomainServiceTestFactory.Create().UserService;
         const long missingUserId = 1;
         const string newNickname = "new";
 
@@ -66,13 +66,18 @@ public sealed class UserServiceUnitTests
     public async Task DeleteUserAsync_DeleteUser()
     {
         // Arrange
-        var repo = new FakeUserRepository();
-        var service = new UserService(repo);
+        var graph = DomainServiceTestFactory.Create();
+        var repo = graph.UserRepository;
+        var postRepo = graph.PostRepository;
+        var service = graph.UserService;
         const string email = "a@a.com";
         const string password = "password";
         const string nickname = "old";
         var user = new User(email: email, password: password, nickname: nickname);
         await repo.CreateUserAsync(user);
+
+        var post = new Api.Domain.Posts.Domain.Post(user.Id, "title", "content");
+        await postRepo.CreatePostAsync(post);
 
         // Act
         await service.DeleteUserAsync(user.Id);
@@ -80,5 +85,9 @@ public sealed class UserServiceUnitTests
         // Assert
         var deleted = await repo.GetUserByIdAsync(user.Id);
         Assert.Null(deleted);
+        var orphanedPost = await postRepo.GetPostByIdAsync(post.Id);
+        Assert.NotNull(orphanedPost);
+        Assert.Null(orphanedPost.UserId);
+        Assert.Equal(user.Id, orphanedPost.DeletedUserId);
     }
 }
