@@ -39,7 +39,7 @@ namespace Api.Domain.Posts.Api
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetAllPosts()
         {
             var result = await _service.GetAllPostsAsync();
-            if (result == null || result.Count == 0) return NoContent();
+            if (result == null) return NoContent();
             return Ok(result);
         }
 
@@ -57,7 +57,7 @@ namespace Api.Domain.Posts.Api
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
         {
             var result = await _service.GetPostsByUserNickname(nickname);
-            if (result == null || result.Count == 0) return NoContent();
+            if (result == null) return NoContent();
             return Ok(result);
         }
 
