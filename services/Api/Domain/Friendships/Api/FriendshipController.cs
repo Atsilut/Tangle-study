@@ -44,25 +44,27 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List my accepted friends")]
-        public async Task<ActionResult<List<FriendshipRequestResponseDto>>> GetMyFriends()
+        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetMyFriends()
         {
             var response = await _service.GetMyFriendsAsync();
+            if (response == null) return NoContent();
             return Ok(response);
         }
 
         [HttpGet("pending")]
         [SwaggerOperation(Summary = "List my pending friend requests (incoming and outgoing)")]
-        public async Task<ActionResult<List<FriendshipRequestResponseDto>>> GetPending()
+        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetPending()
         {
             var response = await _service.GetPendingAsync();
+            if (response == null) return NoContent();
             return Ok(response);
         }
 
         [HttpDelete("{id:long}")]
         [SwaggerOperation(Summary = "Cancel a pending request, remove a friend, or clear a rejected row")]
-        public async Task<IActionResult> CancelRequest([FromRoute] long id)
+        public async Task<IActionResult> DeleteFriendship([FromRoute] long id)
         {
-            await _service.CancelRequestAsync(id);
+            await _service.DeleteFriendshipByIdAsync(id);
             return NoContent();
         }
     }

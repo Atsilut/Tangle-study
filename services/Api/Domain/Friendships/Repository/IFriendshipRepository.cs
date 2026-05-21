@@ -4,12 +4,12 @@ namespace Api.Domain.Friendships.Repository
 {
     public interface IFriendshipRepository
     {
-        Task CreateFriendshipAsync(Friendship friendship);
-        Task<Friendship?> GetFriendshipByIdAsync(long id);
-        Task<Friendship?> GetFriendshipBetweenAsync(long userAId, long userBId);
-        Task<List<Friendship>> GetFriendshipsForUserAsync(long userId, FriendshipStatus? status = null);
-        Task UpdateFriendshipAsync(Friendship friendship);
-        Task DeleteFriendshipAsync(Friendship friendship);
-        Task DeleteAllFriendshipsForUserAsync(long userId);
+        public Task CreateFriendshipAsync(Friendship friendship);
+        public Task<Friendship?> GetFriendshipByIdAsync(long id);
+        public Task<Friendship?> GetFriendshipBetweenAsync(long userAId, long userBId);
+        public Task<List<Friendship>> GetFriendshipsForUserAsync(long userId, FriendshipStatus? status = null);
+        public Task UpdateFriendshipAsync(Friendship friendship);
+        public Task DeleteFriendshipAsync(Friendship friendship);
+        public Task DeleteAllFriendshipsForUserAsync(long userId);
     }
 }

@@ -25,11 +25,11 @@ namespace Api.Domain.Friendships.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized access"));
+            ?? throw new EntityNotFoundException("Unauthorized Access"));
 
         private async Task<Friendship> GetFriendshipOrThrowAsync(long id) => await _repo.GetFriendshipByIdAsync(id) 
             ?? throw new EntityNotFoundException("Friendship not found");
-       
+
         public async Task<FriendshipRequestResponseDto> SendRequestAsync(FriendshipRequestCreateRequestDto request)
         {
             var requesterId = GetUserIdFromLogin();
@@ -72,7 +72,7 @@ namespace Api.Domain.Friendships.Service
             return await MapToDtoAsync(friendship, userId);
         }
 
-        public async Task CancelRequestAsync(long id)
+        public async Task DeleteFriendshipByIdAsync(long id)
         {
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
@@ -82,32 +82,40 @@ namespace Api.Domain.Friendships.Service
             await _repo.DeleteFriendshipAsync(friendship);
         }
 
-        public async Task<List<FriendshipRequestResponseDto>> GetMyFriendsAsync()
+        public async Task<List<FriendshipRequestResponseDto>?> GetMyFriendsAsync()
         {
             var userId = GetUserIdFromLogin();
             var friendships = await _repo.GetFriendshipsForUserAsync(userId, FriendshipStatus.Accepted);
+            if (friendships.Count == 0) return null;
             return await MapManyAsync(friendships, userId);
         }
 
-        public async Task<List<FriendshipRequestResponseDto>> GetPendingAsync()
+        public async Task<List<FriendshipRequestResponseDto>?> GetPendingAsync()
         {
             var userId = GetUserIdFromLogin();
             var friendships = await _repo.GetFriendshipsForUserAsync(userId, FriendshipStatus.Pending);
+            if (friendships.Count == 0) return null;
             return await MapManyAsync(friendships, userId);
         }
 
-        public Task DeleteAllForUserAsync(long userId) => _repo.DeleteAllFriendshipsForUserAsync(userId);
+        public Task DeleteAllFriendshipsForUserAsync(long userId) => _repo.DeleteAllFriendshipsForUserAsync(userId);
 
         private async Task<FriendshipRequestResponseDto> MapToDtoAsync(Friendship friendship, long viewerId)
         {
             var otherId = friendship.OtherPartyId(viewerId);
             var other = await _userService.GetUserByIdAsync(otherId);
+            return MapToDto(friendship, viewerId, other?.Nickname ?? "Deleted User");
+        }
+
+        private static FriendshipRequestResponseDto MapToDto(Friendship friendship, long viewerId, string otherUserNickname)
+        {
+            var otherId = friendship.OtherPartyId(viewerId);
             return new FriendshipRequestResponseDto(
                 Id: friendship.Id,
                 RequesterId: friendship.RequesterId,
                 AddresseeId: friendship.AddresseeId,
                 OtherUserId: otherId,
-                OtherUserNickname: other?.Nickname ?? "Deleted User",
+                OtherUserNickname: otherUserNickname,
                 Status: friendship.Status,
                 IsIncoming: friendship.AddresseeId == viewerId,
                 CreatedAt: friendship.CreatedAt,
@@ -116,25 +124,11 @@ namespace Api.Domain.Friendships.Service
 
         private async Task<List<FriendshipRequestResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
         {
-            if (friendships.Count == 0) return new List<FriendshipRequestResponseDto>();
-
             var otherIds = friendships.Select(f => f.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);
 
             return friendships.Select(f =>
-            {
-                var otherId = f.OtherPartyId(viewerId);
-                return new FriendshipRequestResponseDto(
-                    Id: f.Id,
-                    RequesterId: f.RequesterId,
-                    AddresseeId: f.AddresseeId,
-                    OtherUserId: otherId,
-                    OtherUserNickname: nicknames.GetValueOrDefault(otherId, "Deleted User"),
-                    Status: f.Status,
-                    IsIncoming: f.AddresseeId == viewerId,
-                    CreatedAt: f.CreatedAt,
-                    UpdatedAt: f.UpdatedAt);
-            }).ToList();
+                MapToDto(f, viewerId, nicknames.GetValueOrDefault(f.OtherPartyId(viewerId), "Deleted User"))).ToList();
         }
     }
 }
