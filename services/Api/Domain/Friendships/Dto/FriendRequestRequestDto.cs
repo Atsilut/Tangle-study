@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Api.Domain.Friendships.Dto
 {
-    public record FriendshipRequestCreateRequestDto
+    public record FriendRequestCreateRequestDto
     {
         [Required]
         [SwaggerSchema(Description = "Target user id to send a friend request to")]
