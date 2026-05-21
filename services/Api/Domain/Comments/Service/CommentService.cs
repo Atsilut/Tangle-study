@@ -3,6 +3,7 @@ using Api.Domain.Comments.Dto;
 using Api.Domain.Comments.Repository;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
+using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 
@@ -12,13 +13,20 @@ namespace Api.Domain.Comments.Service
     public class CommentService
     {
         private readonly ICommentRepository _repo;
+        private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly PostService _postService;
         private readonly UserService _userService;
 
-        public CommentService(ICommentRepository repo, IHttpContextAccessor httpContextAccessor, PostService postService, UserService userService)
+        public CommentService(
+            ICommentRepository repo,
+            AppDbContext db,
+            IHttpContextAccessor httpContextAccessor,
+            PostService postService,
+            UserService userService)
         {
             _repo = repo;
+            _db = db;
             _httpContextAccessor = httpContextAccessor;
             _postService = postService;
             _userService = userService;
@@ -149,8 +157,11 @@ namespace Api.Domain.Comments.Service
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
             var comment = await GetCommentOrThrowAsync(id);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
-            await _repo.DetachParentFromRepliesAsync(id);
-            await _repo.DeleteCommentAsync(comment);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _repo.DetachParentFromRepliesAsync(id);
+                await _repo.DeleteCommentAsync(comment);
+            });
         }
     }
 }

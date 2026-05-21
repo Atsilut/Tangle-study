@@ -3,6 +3,7 @@ using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;
 using Api.Domain.Users.Service;
+using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 
@@ -12,17 +13,20 @@ namespace Api.Domain.Posts.Service
     public class PostService
     {
         private readonly IPostRepository _repo;
+        private readonly AppDbContext _db;
         private readonly Lazy<CommentService> _commentService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly UserService _userService;
 
         public PostService(
             IPostRepository repo,
+            AppDbContext db,
             Lazy<CommentService> commentService,
             IHttpContextAccessor httpContextAccessor,
             UserService userService)
         {
             _repo = repo;
+            _db = db;
             _commentService = commentService;
             _httpContextAccessor = httpContextAccessor;
             _userService = userService;
@@ -121,8 +125,11 @@ namespace Api.Domain.Posts.Service
             var post = await GetPostOrThrowAsync(id);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
-            await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
-            await _repo.DeletePostAsync(post);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
+                await _repo.DeletePostAsync(post);
+            });
         }
     }
 }

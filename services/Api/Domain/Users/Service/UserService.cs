@@ -3,6 +3,7 @@ using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
+using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -13,17 +14,20 @@ namespace Api.Domain.Users.Service
     public class UserService
     {
         private readonly IUserRepository _repo;
+        private readonly AppDbContext _db;
         private readonly Lazy<PostService> _postService;
         private readonly Lazy<CommentService> _commentService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UserService(
             IUserRepository repo,
+            AppDbContext db,
             Lazy<PostService> postService,
             Lazy<CommentService> commentService,
             IHttpContextAccessor httpContextAccessor)
         {
             _repo = repo;
+            _db = db;
             _postService = postService;
             _commentService = commentService;
             _httpContextAccessor = httpContextAccessor;
@@ -107,9 +111,12 @@ namespace Api.Domain.Users.Service
             if (id != userFromLogin.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             var user = await GetUserEntityOrThrowAsync(id);
-            await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
-            await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
-            await _repo.DeleteUserAsync(user);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
+                await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
+                await _repo.DeleteUserAsync(user);
+            });
         }
     }
 }
