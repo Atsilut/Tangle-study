@@ -1,27 +1,19 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Api.Global.Exceptions;
 
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {
-    private static readonly Dictionary<Type, Func<Exception, (int StatusCode, string Title)>> Mappings = new()
-    {
-        [typeof(EntityNotFoundException)] = ex => (((EntityNotFoundException)ex).StatusCode, TitleForStatus(((EntityNotFoundException)ex).StatusCode)),
-        [typeof(UnauthorizedAccessException)] = _ => (StatusCodes.Status401Unauthorized, "Unauthorized"),
-        [typeof(EntityAlreadyExistsException)] = _ => (StatusCodes.Status400BadRequest, "Bad Request"),
-        [typeof(ArgumentException)] = _ => (StatusCodes.Status400BadRequest, "Bad Request"),
-    };
-
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (!Mappings.TryGetValue(exception.GetType(), out var map))
+        if (!TryMap(exception, out var statusCode, out var title))
             return false;
-
-        var (statusCode, title) = map(exception);
 
         var problemDetails = new ProblemDetails
         {
@@ -36,11 +28,49 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         return true;
     }
 
+    private static bool TryMap(Exception exception, out int statusCode, out string title)
+    {
+        for (var ex = exception; ex is not null; ex = ex.InnerException)
+        {
+            switch (ex)
+            {
+                case EntityNotFoundException notFound:
+                    statusCode = notFound.StatusCode;
+                    title = TitleForStatus(statusCode);
+                    return true;
+                case EntityAlreadyExistsException alreadyExists:
+                    statusCode = alreadyExists.StatusCode;
+                    title = TitleForStatus(statusCode);
+                    return true;
+                case UnauthorizedAccessException:
+                    statusCode = StatusCodes.Status401Unauthorized;
+                    title = TitleForStatus(statusCode);
+                    return true;
+                case ArgumentException:
+                    statusCode = StatusCodes.Status400BadRequest;
+                    title = TitleForStatus(statusCode);
+                    return true;
+                case DbUpdateException dbUpdate when IsUniqueConstraintViolation(dbUpdate):
+                    statusCode = StatusCodes.Status409Conflict;
+                    title = TitleForStatus(statusCode);
+                    return true;
+            }
+        }
+
+        statusCode = default;
+        title = default!;
+        return false;
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
     private static string TitleForStatus(int statusCode) => statusCode switch
     {
         StatusCodes.Status400BadRequest => "Bad Request",
         StatusCodes.Status401Unauthorized => "Unauthorized",
         StatusCodes.Status404NotFound => "Not Found",
+        StatusCodes.Status409Conflict => "Conflict",
         _ => "Error",
     };
 }

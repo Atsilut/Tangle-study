@@ -37,7 +37,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     // --- CREATE (POST /api/join) ---
 
     [Fact]
-    public async Task CreateUser_Returns400_WhenEmailAlreadyExists()
+    public async Task CreateUser_Returns409_WhenEmailAlreadyExists()
     {
         // Arrange
         var created = await CreateAndGetUser();
@@ -47,7 +47,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         var res = await Client.PostAsJsonAsync("/api/join", duplicateReq);
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
     }
 
     // --- LOGIN (POST /api/login) ---

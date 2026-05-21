@@ -152,7 +152,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Returns400_WhenNicknameAlreadyExists()
+    public async Task UpdateUser_Returns409_WhenNicknameAlreadyExists()
     {
         // Arrange
         const string testMethodName = "UserPatchDuplicateNickname";
@@ -164,7 +164,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, patch.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, patch.StatusCode);
     }
 
     [Fact]

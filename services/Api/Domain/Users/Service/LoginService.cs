@@ -22,7 +22,8 @@ namespace Api.Domain.Users.Service
         public async Task CreateUserAsync(UserCreateRequestDto request)
         {
             var isUserExist = await _repo.ExistsUserByEmailAsync(request.Email);
-            if (isUserExist) throw new EntityAlreadyExistsException("User already exists with email : ", request.Email);
+            if (isUserExist)
+                throw new EntityAlreadyExistsException($"A user with email '{request.Email}' already exists.");
 
             var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var user = new User(

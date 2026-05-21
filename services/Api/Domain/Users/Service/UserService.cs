@@ -95,7 +95,8 @@ namespace Api.Domain.Users.Service
             if (!string.Equals(request.Nickname, user.Nickname, StringComparison.Ordinal))
             {
                 var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
-                if (isNicknameDuplicate) throw new EntityAlreadyExistsException("User already exists with nickname : ", request.Nickname);
+                if (isNicknameDuplicate)
+                    throw new EntityAlreadyExistsException($"A user with nickname '{request.Nickname}' already exists.");
             }
             user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
