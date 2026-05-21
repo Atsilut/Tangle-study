@@ -3,6 +3,7 @@ using Api.Domain.Friendships.Dto;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
+using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
@@ -15,6 +16,7 @@ public sealed class FriendshipServiceUnitTests
 {
     private readonly FakeHttpContextAccessor _http;
     private readonly FriendshipService _friendshipService;
+    private readonly UserService _userService;
     private readonly FakeFriendshipRepository _friendshipRepository;
     private readonly FakeUserRepository _userRepository;
 
@@ -23,6 +25,7 @@ public sealed class FriendshipServiceUnitTests
         _http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(_http);
         _friendshipService = graph.FriendshipService;
+        _userService = graph.UserService;
         _friendshipRepository = graph.FriendshipRepository;
         _userRepository = graph.UserRepository;
     }
@@ -42,8 +45,9 @@ public sealed class FriendshipServiceUnitTests
 
     private async Task SetFriendsListVisibilityAsync(long userId, FriendsListVisibility visibility)
     {
-        var user = (await _userRepository.GetUserByIdAsync(userId))!;
-        user.UpdateFriendsListVisibility(visibility);
+        LoginAs(userId);
+        await _userService.UpdatePrivacySettingsAsync(
+            new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = visibility });
     }
 
     private async Task AcceptFriendshipBetweenAsync(long requesterId, long addresseeId)

@@ -5,9 +5,7 @@ using Api.Domain.Friendships.Domain;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
-using Api.Global.Db;
 using Api.Tests.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests.Controllers;
 
@@ -44,13 +42,12 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body!.AccessToken);
     }
 
-    private async Task SetFriendsListVisibilityAsync(long userId, FriendsListVisibility visibility)
+    private async Task SetFriendsListVisibilityAsync(UserGetResponseDto user, FriendsListVisibility visibility)
     {
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var user = await db.Users.FindAsync(userId);
-        user!.UpdateFriendsListVisibility(visibility);
-        await db.SaveChangesAsync();
+        await LoginAs(user);
+        var res = await Client.PatchAsJsonAsync("/api/users/privacy",
+            new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = visibility });
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
     private async Task AcceptFriendshipAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
@@ -277,7 +274,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var friend = await CreateUserForTest(testMethodName, 2);
         var stranger = await CreateUserForTest(testMethodName, 3);
         await AcceptFriendshipAsync(owner, friend);
-        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Public);
+        await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.Public);
 
         await LoginAs(stranger);
         var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
@@ -295,7 +292,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var friend = await CreateUserForTest(testMethodName, 2);
         var stranger = await CreateUserForTest(testMethodName, 3);
         await AcceptFriendshipAsync(owner, friend);
-        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+        await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.FriendsOnly);
 
         await LoginAs(stranger);
         var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
@@ -312,7 +309,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var other = await CreateUserForTest(testMethodName, 3);
         await AcceptFriendshipAsync(owner, friend);
         await AcceptFriendshipAsync(owner, other);
-        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+        await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.FriendsOnly);
 
         await LoginAs(friend);
         var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
@@ -329,7 +326,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var owner = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
         await AcceptFriendshipAsync(owner, friend);
-        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Private);
+        await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.Private);
 
         await LoginAs(friend);
         var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
