@@ -30,7 +30,7 @@ namespace Api.Domain.Friendships.Service
         private async Task<Friendship> GetFriendshipOrThrowAsync(long id) => await _repo.GetFriendshipByIdAsync(id) 
             ?? throw new EntityNotFoundException("Friendship not found");
        
-        public async Task<FriendshipResponseDto> SendRequestAsync(FriendshipCreateRequestDto request)
+        public async Task<FriendshipRequestResponseDto> SendRequestAsync(FriendshipRequestCreateRequestDto request)
         {
             var requesterId = GetUserIdFromLogin();
             if (requesterId == request.AddresseeId)
@@ -48,7 +48,7 @@ namespace Api.Domain.Friendships.Service
             return await MapToDtoAsync(friendship, requesterId);
         }
 
-        public async Task<FriendshipResponseDto> AcceptRequestAsync(long id)
+        public async Task<FriendshipRequestResponseDto> AcceptRequestAsync(long id)
         {
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
@@ -60,7 +60,7 @@ namespace Api.Domain.Friendships.Service
             return await MapToDtoAsync(friendship, userId);
         }
 
-        public async Task<FriendshipResponseDto> RejectRequestAsync(long id)
+        public async Task<FriendshipRequestResponseDto> RejectRequestAsync(long id)
         {
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
@@ -82,14 +82,14 @@ namespace Api.Domain.Friendships.Service
             await _repo.DeleteFriendshipAsync(friendship);
         }
 
-        public async Task<List<FriendshipResponseDto>> GetMyFriendsAsync()
+        public async Task<List<FriendshipRequestResponseDto>> GetMyFriendsAsync()
         {
             var userId = GetUserIdFromLogin();
             var friendships = await _repo.GetFriendshipsForUserAsync(userId, FriendshipStatus.Accepted);
             return await MapManyAsync(friendships, userId);
         }
 
-        public async Task<List<FriendshipResponseDto>> GetPendingAsync()
+        public async Task<List<FriendshipRequestResponseDto>> GetPendingAsync()
         {
             var userId = GetUserIdFromLogin();
             var friendships = await _repo.GetFriendshipsForUserAsync(userId, FriendshipStatus.Pending);
@@ -98,11 +98,11 @@ namespace Api.Domain.Friendships.Service
 
         public Task DeleteAllForUserAsync(long userId) => _repo.DeleteAllFriendshipsForUserAsync(userId);
 
-        private async Task<FriendshipResponseDto> MapToDtoAsync(Friendship friendship, long viewerId)
+        private async Task<FriendshipRequestResponseDto> MapToDtoAsync(Friendship friendship, long viewerId)
         {
             var otherId = friendship.OtherPartyId(viewerId);
             var other = await _userService.GetUserByIdAsync(otherId);
-            return new FriendshipResponseDto(
+            return new FriendshipRequestResponseDto(
                 Id: friendship.Id,
                 RequesterId: friendship.RequesterId,
                 AddresseeId: friendship.AddresseeId,
@@ -114,9 +114,9 @@ namespace Api.Domain.Friendships.Service
                 UpdatedAt: friendship.UpdatedAt);
         }
 
-        private async Task<List<FriendshipResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
+        private async Task<List<FriendshipRequestResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
         {
-            if (friendships.Count == 0) return new List<FriendshipResponseDto>();
+            if (friendships.Count == 0) return new List<FriendshipRequestResponseDto>();
 
             var otherIds = friendships.Select(f => f.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);
@@ -124,7 +124,7 @@ namespace Api.Domain.Friendships.Service
             return friendships.Select(f =>
             {
                 var otherId = f.OtherPartyId(viewerId);
-                return new FriendshipResponseDto(
+                return new FriendshipRequestResponseDto(
                     Id: f.Id,
                     RequesterId: f.RequesterId,
                     AddresseeId: f.AddresseeId,

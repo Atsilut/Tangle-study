@@ -20,7 +20,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpPost]
         [SwaggerOperation(Summary = "Send a friend request")]
-        public async Task<ActionResult<FriendshipResponseDto>> SendRequest([FromBody] FriendshipCreateRequestDto request)
+        public async Task<ActionResult<FriendshipRequestResponseDto>> SendRequest([FromBody] FriendshipRequestCreateRequestDto request)
         {
             var response = await _service.SendRequestAsync(request);
             return Created($"/api/friendships/{response.Id}", response);
@@ -28,7 +28,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpPost("{id:long}/accept")]
         [SwaggerOperation(Summary = "Accept a pending friend request")]
-        public async Task<ActionResult<FriendshipResponseDto>> Accept([FromRoute] long id)
+        public async Task<ActionResult<FriendshipRequestResponseDto>> Accept([FromRoute] long id)
         {
             var response = await _service.AcceptRequestAsync(id);
             return Ok(response);
@@ -36,7 +36,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpPost("{id:long}/reject")]
         [SwaggerOperation(Summary = "Reject a pending friend request")]
-        public async Task<ActionResult<FriendshipResponseDto>> Reject([FromRoute] long id)
+        public async Task<ActionResult<FriendshipRequestResponseDto>> Reject([FromRoute] long id)
         {
             var response = await _service.RejectRequestAsync(id);
             return Ok(response);
@@ -44,7 +44,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List my accepted friends")]
-        public async Task<ActionResult<List<FriendshipResponseDto>>> GetMyFriends()
+        public async Task<ActionResult<List<FriendshipRequestResponseDto>>> GetMyFriends()
         {
             var response = await _service.GetMyFriendsAsync();
             return Ok(response);
@@ -52,7 +52,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("pending")]
         [SwaggerOperation(Summary = "List my pending friend requests (incoming and outgoing)")]
-        public async Task<ActionResult<List<FriendshipResponseDto>>> GetPending()
+        public async Task<ActionResult<List<FriendshipRequestResponseDto>>> GetPending()
         {
             var response = await _service.GetPendingAsync();
             return Ok(response);

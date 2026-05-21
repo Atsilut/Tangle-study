@@ -2,7 +2,7 @@ using Api.Domain.Friendships.Domain;
 
 namespace Api.Domain.Friendships.Dto
 {
-    public record FriendshipResponseDto(
+    public record FriendshipRequestResponseDto(
         long Id,
         long RequesterId,
         long AddresseeId,
