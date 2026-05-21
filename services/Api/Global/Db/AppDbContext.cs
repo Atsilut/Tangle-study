@@ -2,6 +2,7 @@ using Api.Domain.Users.Domain;
 using Api.Domain.Posts.Domain;
 using Microsoft.EntityFrameworkCore;
 using Api.Domain.Comments.Domain;
+using Api.Domain.Friendships.Domain;
 
 namespace Api.Global.Db
 {
@@ -10,6 +11,7 @@ namespace Api.Global.Db
         public DbSet<User> Users { get; set; }
         public DbSet<Post> Posts { get; set; }
         public DbSet<Comment> Comments { get; set; }
+        public DbSet<Friendship> Friendships { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -44,6 +46,18 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(c => c.ParentId)
                 .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Friendship>()
+                .HasOne(f => f.Requester)
+                .WithMany()
+                .HasForeignKey(f => f.RequesterId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Friendship>()
+                .HasOne(f => f.Addressee)
+                .WithMany()
+                .HasForeignKey(f => f.AddresseeId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }
