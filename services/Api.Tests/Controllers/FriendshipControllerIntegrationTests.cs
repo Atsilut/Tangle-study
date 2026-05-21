@@ -180,8 +180,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
 
         var pending = await Client.GetAsync("/api/friendships/pending");
-        var list = await pending.Content.ReadFromJsonAsync<List<FriendshipRequestResponseDto>>();
-        Assert.Empty(list!);
+        Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
     }
 
     [Fact]

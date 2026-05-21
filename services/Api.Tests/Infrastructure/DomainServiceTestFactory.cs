@@ -53,7 +53,7 @@ internal static class DomainServiceTestFactory
             postService,
             userService);
 
-        var friendshipService = new FriendshipService(
+        friendshipService = new FriendshipService(
             friendshipRepository,
             userService,
             http);

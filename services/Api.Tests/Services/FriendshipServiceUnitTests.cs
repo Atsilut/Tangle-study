@@ -195,7 +195,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act
         LoginAs(b.Id);
-        await _friendshipService.CancelRequestAsync(created.Id);
+        await _friendshipService.DeleteFriendshipAsync(created.Id);
 
         // Assert
         Assert.Null(await _friendshipRepository.GetFriendshipByIdAsync(created.Id));
@@ -214,7 +214,7 @@ public sealed class FriendshipServiceUnitTests
         // Act & Assert
         LoginAs(stranger.Id);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _friendshipService.CancelRequestAsync(created.Id));
+            _friendshipService.DeleteFriendshipAsync(created.Id));
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendshipService.CancelRequestAsync(999));
+            _friendshipService.DeleteFriendshipAsync(999));
     }
 
     // --- QUERIES ---
