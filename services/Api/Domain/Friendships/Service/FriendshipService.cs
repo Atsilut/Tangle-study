@@ -1,6 +1,7 @@
 using Api.Domain.Friendships.Domain;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Friendships.Repository;
+using Api.Domain.Users.Domain;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -98,7 +99,40 @@ namespace Api.Domain.Friendships.Service
             return await MapManyAsync(friendships, userId);
         }
 
+        public async Task<List<FriendshipRequestResponseDto>?> GetUserFriendsAsync(long userId)
+        {
+            var viewerId = GetUserIdFromLogin();
+            await _userService.EnsureUserExistsAsync(userId, "User not found");
+            await EnsureCanViewFriendsListAsync(userId, viewerId);
+
+            var friendships = await _repo.GetFriendshipsForUserAsync(userId, FriendshipStatus.Accepted);
+            if (friendships.Count == 0) return null;
+            return await MapManyAsync(friendships, userId);
+        }
+
         public Task DeleteAllFriendshipsForUserAsync(long userId) => _repo.DeleteAllFriendshipsForUserAsync(userId);
+
+        private async Task EnsureCanViewFriendsListAsync(long targetUserId, long viewerId)
+        {
+            if (targetUserId == viewerId)
+                return;
+
+            var visibility = await _userService.GetFriendsListVisibilityAsync(targetUserId);
+            switch (visibility)
+            {
+                case FriendsListVisibility.Public:
+                    return;
+                case FriendsListVisibility.Private:
+                    throw new UnauthorizedAccessException("This user's friends list is private.");
+                case FriendsListVisibility.FriendsOnly:
+                    var friendship = await _repo.GetFriendshipBetweenAsync(targetUserId, viewerId);
+                    if (friendship?.Status != FriendshipStatus.Accepted)
+                        throw new UnauthorizedAccessException("You must be friends to view this user's friends list.");
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Unknown friends list visibility.");
+            }
+        }
 
         private async Task<FriendshipRequestResponseDto> MapToDtoAsync(Friendship friendship, long viewerId)
         {

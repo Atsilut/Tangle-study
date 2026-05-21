@@ -17,6 +17,7 @@ namespace Api.Domain.Users.Domain
         public string Nickname { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public FriendsListVisibility FriendsListVisibility { get; private set; } = FriendsListVisibility.Private;
 
         public ICollection<Post> Posts { get; private set; } = new List<Post>();
         public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
@@ -34,6 +35,12 @@ namespace Api.Domain.Users.Domain
         {
             Nickname = nickname;
             UpdatedAt = DateTime.UtcNow;
-        } 
+        }
+
+        public void UpdateFriendsListVisibility(FriendsListVisibility visibility)
+        {
+            FriendsListVisibility = visibility;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

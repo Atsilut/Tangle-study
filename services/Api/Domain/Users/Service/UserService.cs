@@ -83,6 +83,7 @@ namespace Api.Domain.Users.Service
             Id: user.Id,
             Email: user.Email,
             Nickname: user.Nickname,
+            FriendsListVisibility: user.FriendsListVisibility,
             CreatedAt: user.CreatedAt,
             UpdatedAt: user.UpdatedAt
         );
@@ -104,6 +105,12 @@ namespace Api.Domain.Users.Service
                 Nickname: user.Nickname,
                 UpdatedAt: user.UpdatedAt
             );
+        }
+
+        public async Task<FriendsListVisibility> GetFriendsListVisibilityAsync(long userId)
+        {
+            var user = await GetUserEntityOrThrowAsync(userId);
+            return user.FriendsListVisibility;
         }
 
         public async Task DeleteUserAsync(long id)

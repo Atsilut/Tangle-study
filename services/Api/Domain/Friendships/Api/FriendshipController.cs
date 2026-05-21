@@ -51,6 +51,15 @@ namespace Api.Domain.Friendships.Api
             return Ok(response);
         }
 
+        [HttpGet("users/{userId:long}")]
+        [SwaggerOperation(Summary = "List another user's accepted friends (subject to their privacy settings)")]
+        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetUserFriends([FromRoute] long userId)
+        {
+            var response = await _service.GetUserFriendsAsync(userId);
+            if (response == null) return NoContent();
+            return Ok(response);
+        }
+
         [HttpGet("pending")]
         [SwaggerOperation(Summary = "List my pending friend requests (incoming and outgoing)")]
         public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetPending()
