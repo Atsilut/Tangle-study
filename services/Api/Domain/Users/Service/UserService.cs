@@ -111,12 +111,11 @@ namespace Api.Domain.Users.Service
             var userFromLogin = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
             if (id != userFromLogin.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
-            var user = await GetUserEntityOrThrowAsync(id);
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
                 await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
-                await _repo.DeleteUserAsync(user);
+                await _repo.DeleteUserAsync(userFromLogin);
             });
         }
     }
