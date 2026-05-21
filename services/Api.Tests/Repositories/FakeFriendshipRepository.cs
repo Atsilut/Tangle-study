@@ -8,7 +8,7 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
     private readonly List<Friendship> _friendships = new();
     private long _nextId = 1;
 
-    public Task CreateFriendshipAsync(Friendship friendship)
+    public Task CreateAsync(Friendship friendship)
     {
         typeof(Friendship)
             .GetProperty(nameof(Friendship.Id))!
@@ -17,32 +17,37 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
         return Task.CompletedTask;
     }
 
-    public Task<Friendship?> GetFriendshipByIdAsync(long id) =>
+    public Task<Friendship?> GetByIdAsync(long id) =>
         Task.FromResult(_friendships.FirstOrDefault(f => f.Id == id));
 
-    public Task<Friendship?> GetFriendshipBetweenAsync(long userAId, long userBId) =>
-        Task.FromResult(_friendships.FirstOrDefault(f =>
-            (f.RequesterId == userAId && f.AddresseeId == userBId) ||
-            (f.RequesterId == userBId && f.AddresseeId == userAId)));
-
-    public Task<List<Friendship>> GetFriendshipsForUserAsync(long userId, FriendshipStatus? status = null)
+    public Task<Friendship?> GetBetweenAsync(long userAId, long userBId)
     {
-        var query = _friendships.Where(f => f.RequesterId == userId || f.AddresseeId == userId);
-        if (status.HasValue) query = query.Where(f => f.Status == status.Value);
-        return Task.FromResult(query.ToList());
+        var userLowId = Math.Min(userAId, userBId);
+        var userHighId = Math.Max(userAId, userBId);
+        return Task.FromResult(_friendships.FirstOrDefault(f =>
+            f.UserLowId == userLowId && f.UserHighId == userHighId));
     }
 
-    public Task UpdateFriendshipAsync(Friendship friendship) => Task.CompletedTask;
+    public Task<bool> ExistsFriendshipBetweenAsync(long userAId, long userBId)
+    {
+        var userLowId = Math.Min(userAId, userBId);
+        var userHighId = Math.Max(userAId, userBId);
+        return Task.FromResult(_friendships.Any(f =>
+            f.UserLowId == userLowId && f.UserHighId == userHighId));
+    }
 
-    public Task DeleteFriendshipAsync(Friendship friendship)
+    public Task<List<Friendship>> GetAllForUserAsync(long userId) =>
+        Task.FromResult(_friendships.Where(f => f.UserLowId == userId || f.UserHighId == userId).ToList());
+
+    public Task DeleteAsync(Friendship friendship)
     {
         _friendships.Remove(friendship);
         return Task.CompletedTask;
     }
 
-    public Task DeleteAllFriendshipsForUserAsync(long userId)
+    public Task DeleteAllForUserAsync(long userId)
     {
-        _friendships.RemoveAll(f => f.RequesterId == userId || f.AddresseeId == userId);
+        _friendships.RemoveAll(f => f.UserLowId == userId || f.UserHighId == userId);
         return Task.CompletedTask;
     }
 }
