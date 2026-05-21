@@ -1,6 +1,7 @@
-﻿using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
+﻿using Api.Domain.Users.Domain;
 using Swashbuckle.AspNetCore.Annotations;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 namespace Api.Domain.Users.Dto
 {
@@ -48,5 +49,13 @@ namespace Api.Domain.Users.Dto
         [SwaggerSchema(Description = "User nickname")]
         [DefaultValue("EditedTangle")]
         public string Nickname { get; init; }
+    }
+
+    public record UserPrivacySettingsUpdateRequestDto
+    {
+        [Required]
+        [SwaggerSchema(Description = "Who can view your friends list")]
+        [DefaultValue(FriendsListVisibility.Private)]
+        public FriendsListVisibility FriendsListVisibility { get; init; }
     }
 }

@@ -113,6 +113,16 @@ namespace Api.Domain.Users.Service
             return user.FriendsListVisibility;
         }
 
+        public async Task<UserPrivacySettingsResponseDto> UpdatePrivacySettingsAsync(UserPrivacySettingsUpdateRequestDto request)
+        {
+            var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            user.UpdateFriendsListVisibility(request.FriendsListVisibility);
+            await _repo.UpdateUserAsync(user);
+            return new UserPrivacySettingsResponseDto(
+                FriendsListVisibility: user.FriendsListVisibility,
+                UpdatedAt: user.UpdatedAt);
+        }
+
         public async Task DeleteUserAsync(long id)
         {
             var userFromLogin = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");

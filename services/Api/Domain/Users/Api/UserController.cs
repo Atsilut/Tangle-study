@@ -42,6 +42,16 @@ namespace Api.Domain.Users.Api
             return Ok(response);
         }
 
+        [HttpPatch("privacy")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Update privacy settings for the logged-in user")]
+        public async Task<ActionResult<UserPrivacySettingsResponseDto>> UpdatePrivacySettings(
+            [FromBody] UserPrivacySettingsUpdateRequestDto request)
+        {
+            var response = await _service.UpdatePrivacySettingsAsync(request);
+            return Ok(response);
+        }
+
         [HttpDelete("{id:long}")]
         [Authorize]
         [SwaggerOperation(Summary = "Delete User")]

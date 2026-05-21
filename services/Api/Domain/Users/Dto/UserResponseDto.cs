@@ -11,4 +11,8 @@ namespace Api.Domain.Users.Dto
         DateTime UpdatedAt);
 
     public record UserPatchResponseDto(string Nickname, DateTime UpdatedAt);
+
+    public record UserPrivacySettingsResponseDto(
+        FriendsListVisibility FriendsListVisibility,
+        DateTime UpdatedAt);
 }
