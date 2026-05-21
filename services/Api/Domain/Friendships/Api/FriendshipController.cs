@@ -20,10 +20,10 @@ namespace Api.Domain.Friendships.Api
 
         [HttpPost]
         [SwaggerOperation(Summary = "Send a friend request")]
-        public async Task<ActionResult<FriendshipRequestResponseDto>> SendRequest([FromBody] FriendshipRequestCreateRequestDto request)
+        public async Task<IActionResult> SendRequest([FromBody] FriendshipRequestCreateRequestDto request)
         {
-            var response = await _service.SendRequestAsync(request);
-            return Created($"/api/friendships/{response.Id}", response);
+            await _service.SendRequestAsync(request);
+            return Created();
         }
 
         [HttpPost("{id:long}/accept")]
