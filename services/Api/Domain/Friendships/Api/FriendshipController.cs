@@ -18,33 +18,9 @@ namespace Api.Domain.Friendships.Api
             _service = service;
         }
 
-        [HttpPost]
-        [SwaggerOperation(Summary = "Send a friend request")]
-        public async Task<IActionResult> SendRequest([FromBody] FriendshipRequestCreateRequestDto request)
-        {
-            await _service.SendRequestAsync(request);
-            return Created();
-        }
-
-        [HttpPost("{id:long}/accept")]
-        [SwaggerOperation(Summary = "Accept a pending friend request")]
-        public async Task<ActionResult<FriendshipRequestResponseDto>> Accept([FromRoute] long id)
-        {
-            var response = await _service.AcceptRequestAsync(id);
-            return Ok(response);
-        }
-
-        [HttpPost("{id:long}/reject")]
-        [SwaggerOperation(Summary = "Reject a pending friend request")]
-        public async Task<ActionResult<FriendshipRequestResponseDto>> Reject([FromRoute] long id)
-        {
-            var response = await _service.RejectRequestAsync(id);
-            return Ok(response);
-        }
-
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List my accepted friends")]
-        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetMyFriends()
+        public async Task<ActionResult<List<FriendshipResponseDto>?>> GetMyFriends()
         {
             var response = await _service.GetMyFriendsAsync();
             if (response == null) return NoContent();
@@ -53,24 +29,15 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("users/{userId:long}")]
         [SwaggerOperation(Summary = "List another user's accepted friends (subject to their privacy settings)")]
-        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetUserFriends([FromRoute] long userId)
+        public async Task<ActionResult<List<FriendshipResponseDto>?>> GetUserFriends([FromRoute] long userId)
         {
             var response = await _service.GetUserFriendsAsync(userId);
             if (response == null) return NoContent();
             return Ok(response);
         }
 
-        [HttpGet("pending")]
-        [SwaggerOperation(Summary = "List my pending friend requests (incoming and outgoing)")]
-        public async Task<ActionResult<List<FriendshipRequestResponseDto>?>> GetPending()
-        {
-            var response = await _service.GetPendingAsync();
-            if (response == null) return NoContent();
-            return Ok(response);
-        }
-
         [HttpDelete("{id:long}")]
-        [SwaggerOperation(Summary = "Cancel a pending request, remove a friend, or clear a rejected row")]
+        [SwaggerOperation(Summary = "Remove a friend")]
         public async Task<IActionResult> DeleteFriendship([FromRoute] long id)
         {
             await _service.DeleteFriendshipByIdAsync(id);
