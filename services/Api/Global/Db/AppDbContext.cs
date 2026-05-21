@@ -12,6 +12,7 @@ namespace Api.Global.Db
         public DbSet<Post> Posts { get; set; }
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Friendship> Friendships { get; set; }
+        public DbSet<FriendRequest> FriendRequests { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -49,15 +50,32 @@ namespace Api.Global.Db
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Friendship>()
-                .HasOne(f => f.Requester)
+                .HasOne(f => f.UserLow)
                 .WithMany()
-                .HasForeignKey(f => f.RequesterId)
+                .HasForeignKey(f => f.UserLowId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Friendship>()
-                .HasOne(f => f.Addressee)
+                .HasOne(f => f.UserHigh)
                 .WithMany()
-                .HasForeignKey(f => f.AddresseeId)
+                .HasForeignKey(f => f.UserHighId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Friendship>()
+                .ToTable(t => t.HasCheckConstraint(
+                    "CK_Friendships_UserLowLtUserHigh",
+                    "\"UserLowId\" < \"UserHighId\""));
+
+            modelBuilder.Entity<FriendRequest>()
+                .HasOne(r => r.Requester)
+                .WithMany()
+                .HasForeignKey(r => r.RequesterId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<FriendRequest>()
+                .HasOne(r => r.Addressee)
+                .WithMany()
+                .HasForeignKey(r => r.AddresseeId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }
