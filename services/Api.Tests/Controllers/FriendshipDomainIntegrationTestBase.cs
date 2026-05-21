@@ -11,18 +11,18 @@ namespace Api.Tests.Controllers;
 public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerFixture postgres)
     : IntegrationTestBase(postgres)
 {
-    protected const string Password = "testtest123!";
+    protected readonly string TestPassword = "testtest123!";
     protected const string RequestsBase = "/api/friendships/requests";
     protected const string FriendshipsBase = "/api/friendships";
 
     protected async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, long index = 1)
     {
-        var email = $"{testMethodName}{index}@test.com";
-        var nickname = $"{testMethodName}User{index}";
+        var email = testMethodName + index.ToString() + "@test.com";
+        var nickname = $"{testMethodName}User" + index.ToString();
         var req = new UserCreateRequestDto
         {
             Email = email,
-            Password = Password,
+            Password = TestPassword,
             Nickname = nickname,
         };
         var create = await Client.PostAsJsonAsync("/api/join", req);
@@ -35,11 +35,13 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
 
     protected async Task LoginAs(UserGetResponseDto user)
     {
-        var req = new LoginRequestDto { Email = user.Email, Password = Password };
+        var req = new LoginRequestDto { Email = user.Email, Password = TestPassword };
         var login = await Client.PostAsJsonAsync("/api/login", req);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
         var body = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
-        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body!.AccessToken);
+        Assert.NotNull(body);
+        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body.AccessToken);
     }
 
     protected async Task SetFriendsListVisibilityAsync(UserGetResponseDto user, FriendsListVisibility visibility)
@@ -62,7 +64,8 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         var res = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
-        return list!.Single(p => p.OtherUserId == otherUserId && (isIncoming == null || p.IsIncoming == isIncoming));
+        Assert.NotNull(list);
+        return list.Single(p => p.OtherUserId == otherUserId && (isIncoming == null || p.IsIncoming == isIncoming));
     }
 
     protected async Task<long> SendFriendRequestAndGetOutgoingIdAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
@@ -87,6 +90,7 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         var res = await Client.GetAsync($"{FriendshipsBase}/me");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
-        return list!.Single(f => f.OtherUserId == otherUserId);
+        Assert.NotNull(list);
+        return list.Single(f => f.OtherUserId == otherUserId);
     }
 }

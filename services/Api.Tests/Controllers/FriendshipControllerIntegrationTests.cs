@@ -10,9 +10,12 @@ namespace Api.Tests.Controllers;
 public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFixture postgres)
     : FriendshipDomainIntegrationTestBase(postgres)
 {
+    // --- GET ---
+
     [Fact]
     public async Task GetMyFriends_ReturnsAccepted()
     {
+        // Arrange
         const string testMethodName = "FriendList";
         var me = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
@@ -26,16 +29,22 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
 
         await LoginAs(me);
+
+        // Act
         var res = await Client.GetAsync($"{FriendshipsBase}/me");
+
+        // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.Equal(friend.Id, only.OtherUserId);
     }
 
     [Fact]
     public async Task GetUserFriends_Returns200_WhenVisibilityIsPublic()
     {
+        // Arrange
         const string testMethodName = "FriendUserListPublic";
         var owner = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
@@ -44,16 +53,21 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.Public);
 
         await LoginAs(stranger);
+
+        // Act
         var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
-        Assert.Equal(friend.Id, Assert.Single(list!).OtherUserId);
+        Assert.NotNull(list);
+        Assert.Equal(friend.Id, Assert.Single(list).OtherUserId);
     }
 
     [Fact]
     public async Task GetUserFriends_Returns401_WhenVisibilityIsFriendsOnlyAndViewerIsStranger()
     {
+        // Arrange
         const string testMethodName = "FriendUserListFriendsOnly";
         var owner = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
@@ -62,14 +76,18 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.FriendsOnly);
 
         await LoginAs(stranger);
+
+        // Act
         var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
     [Fact]
     public async Task GetUserFriends_Returns200_WhenVisibilityIsFriendsOnlyAndViewerIsFriend()
     {
+        // Arrange
         const string testMethodName = "FriendUserListFriendViewer";
         var owner = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
@@ -79,16 +97,21 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.FriendsOnly);
 
         await LoginAs(friend);
+
+        // Act
         var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
-        Assert.Equal(2, list!.Count);
+        Assert.NotNull(list);
+        Assert.Equal(2, list.Count);
     }
 
     [Fact]
     public async Task GetUserFriends_Returns401_WhenVisibilityIsPrivate()
     {
+        // Arrange
         const string testMethodName = "FriendUserListPrivate";
         var owner = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
@@ -96,14 +119,20 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await SetFriendsListVisibilityAsync(owner, FriendsListVisibility.Private);
 
         await LoginAs(friend);
+
+        // Act
         var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
+
+    // --- DELETE ---
 
     [Fact]
     public async Task Remove_Returns204_AndDeletesFriendship()
     {
+        // Arrange
         const string testMethodName = "FriendRemove";
         var a = await CreateUserForTest(testMethodName, 1);
         var b = await CreateUserForTest(testMethodName, 2);
@@ -111,7 +140,10 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(a);
         var friendshipId = (await GetAcceptedFriendAsync(b.Id)).Id;
 
+        // Act
         var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}");
+
+        // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
 
         var friends = await Client.GetAsync($"{FriendshipsBase}/me");
@@ -121,6 +153,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
     [Fact]
     public async Task Remove_Returns401_WhenStranger()
     {
+        // Arrange
         const string testMethodName = "FriendRemoveStranger";
         var a = await CreateUserForTest(testMethodName, 1);
         var b = await CreateUserForTest(testMethodName, 2);
@@ -130,7 +163,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var friendshipId = (await GetAcceptedFriendAsync(b.Id)).Id;
 
         await LoginAs(stranger);
+
+        // Act
         var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}");
+
+        // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 }
