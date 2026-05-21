@@ -35,10 +35,10 @@ namespace Api.Domain.Posts.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
-        public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found")
+        public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found", int statusCode = StatusCodes.Status404NotFound)
         {
             if (!await _repo.ExistsPostByIdAsync(id))
-                throw new EntityNotFoundException(notFoundMessage);
+                throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
         private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found")
@@ -52,7 +52,7 @@ namespace Api.Domain.Posts.Service
         public async Task CreatePostAsync(PostCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
-            await _userService.EnsureUserExistsAsync(userId);
+            await _userService.EnsureUserExistsAsync(userId, statusCode: StatusCodes.Status400BadRequest);
 
             var post = new Post(
                 userId: userId,

@@ -1,6 +1,5 @@
 ﻿using Api.Domain.Users.Dto;
 using Api.Domain.Users.Service;
-using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -39,24 +38,9 @@ namespace Api.Domain.Users.Api
         [SwaggerOperation(Summary = "Update User Detail")]
         public async Task<ActionResult<UserPatchResponseDto>?> UpdateUserDetail([FromBody] UserPatchRequestDto request)
         {
-            try
-            {
-                var response = await _service.UpdateUserDetailAsync(request);
-                if (response == null) return NotFound();
-                return Ok(response);
-            }
-            catch (EntityNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
-            catch (EntityAlreadyExistsException)
-            {
-                return BadRequest();
-            }
+            var response = await _service.UpdateUserDetailAsync(request);
+            if (response == null) return NotFound();
+            return Ok(response);
         }
 
         [HttpDelete("{id:long}")]
@@ -64,19 +48,8 @@ namespace Api.Domain.Users.Api
         [SwaggerOperation(Summary = "Delete User")]
         public async Task<IActionResult> DeleteUser([FromRoute] long id)
         {
-            try
-            {
-                await _service.DeleteUserAsync(id);
-                return NoContent();
-            }
-            catch (EntityNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
+            await _service.DeleteUserAsync(id);
+            return NoContent();
         }
     }
 }

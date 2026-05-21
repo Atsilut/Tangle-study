@@ -36,10 +36,10 @@ namespace Api.Domain.Users.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized access"));
 
-        public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found")
+        public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found", int statusCode = StatusCodes.Status404NotFound)
         {
             if (!await _repo.ExistsUserByIdAsync(id))
-                throw new EntityNotFoundException(notFoundMessage);
+                throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
         public async Task<UserGetResponseDto> GetUserByIdOrThrowAsync(long id, string notFoundMessage = "User not found")

@@ -1,6 +1,5 @@
 ﻿using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Service;
-using Api.Global.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -23,15 +22,8 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Create Post")]
         public async Task<IActionResult> CreatePost([FromBody] PostCreateRequestDto request)
         {
-            try
-            {
-                await _service.CreatePostAsync(request);
-                return Created();
-            }
-            catch (EntityNotFoundException)
-            {
-                return BadRequest();
-            }
+            await _service.CreatePostAsync(request);
+            return Created();
         }
 
         [HttpGet]
@@ -66,20 +58,9 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Edit Post")]
         public async Task<ActionResult<PostPatchResponseDto>?> UpdatePostDetail([FromBody] PostPatchRequestDto request)
         {
-            try
-            {
-                var response = await _service.UpdatePostAsync(request);
-                if (response == null) return NotFound();
-                return Ok(response);
-            }
-            catch (EntityNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
+            var response = await _service.UpdatePostAsync(request);
+            if (response == null) return NotFound();
+            return Ok(response);
         }
 
         [HttpDelete("{id:long}")]
@@ -87,19 +68,8 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Delete Post")]
         public async Task<IActionResult> DeletePost([FromRoute] long id)
         {
-            try
-            {
-                await _service.DeletePostAsync(id);
-                return NoContent();
-            }
-            catch (EntityNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
+            await _service.DeletePostAsync(id);
+            return NoContent();
         }
     }
 }

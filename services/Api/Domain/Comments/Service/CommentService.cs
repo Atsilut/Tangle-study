@@ -35,23 +35,23 @@ namespace Api.Domain.Comments.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
-        private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found")
+        private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found", int statusCode = StatusCodes.Status404NotFound)
         {
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null)
-                throw new EntityNotFoundException(notFoundMessage);
+                throw new EntityNotFoundException(notFoundMessage, statusCode);
             return comment;
         }
 
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
-            await _userService.EnsureUserExistsAsync(userId, "Authentication failed");
-            await _postService.EnsurePostExistsAsync(request.PostId);
+            await _userService.EnsureUserExistsAsync(userId, "Authentication failed", StatusCodes.Status400BadRequest);
+            await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
 
             if (request.ParentId.HasValue)
             {
-                var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found");
+                var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found", StatusCodes.Status400BadRequest);
                 if (parentComment.LogicalPostId != request.PostId)
                     throw new ArgumentException("Parent comment must belong to the same post");
             }
