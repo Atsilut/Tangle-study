@@ -32,6 +32,14 @@ namespace Api.Domain.Friendships.Repository
                 f.UserLowId == userLowId && f.UserHighId == userHighId);
         }
 
+        public async Task<bool> ExistsFriendshipBetweenAsync(long userAId, long userBId)
+        {
+            var userLowId = Math.Min(userAId, userBId);
+            var userHighId = Math.Max(userAId, userBId);
+            return await _context.Friendships.AnyAsync(f =>
+                f.UserLowId == userLowId && f.UserHighId == userHighId);
+        }
+
         public async Task<List<Friendship>> GetAllForUserAsync(long userId) =>
             await _context.Friendships
                 .Where(f => f.UserLowId == userId || f.UserHighId == userId)

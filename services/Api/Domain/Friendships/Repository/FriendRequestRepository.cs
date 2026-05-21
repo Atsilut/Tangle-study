@@ -29,6 +29,11 @@ namespace Api.Domain.Friendships.Repository
                 (r.RequesterId == userAId && r.AddresseeId == userBId) ||
                 (r.RequesterId == userBId && r.AddresseeId == userAId));
 
+        public async Task<bool> ExistsFriendRequestBetweenAsync(long userAId, long userBId) =>
+            await _context.FriendRequests.AnyAsync(r =>
+                (r.RequesterId == userAId && r.AddresseeId == userBId) ||
+                (r.RequesterId == userBId && r.AddresseeId == userAId));
+
         public async Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
         {
             var query = _context.FriendRequests
