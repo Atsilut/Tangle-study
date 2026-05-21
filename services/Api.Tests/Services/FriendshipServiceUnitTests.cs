@@ -58,7 +58,7 @@ public sealed class FriendshipServiceUnitTests
         await _friendshipService.AcceptRequestAsync(created.Id);
     }
 
-    // --- SEND ---
+    // --- CREATE ---
 
     [Fact]
     public async Task SendRequest_CreatesPendingFriendship()
@@ -118,137 +118,7 @@ public sealed class FriendshipServiceUnitTests
             _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = a.Id }));
     }
 
-    // --- ACCEPT ---
-
-    [Fact]
-    public async Task Accept_TransitionsPendingToAccepted_WhenCalledByAddressee()
-    {
-        // Arrange
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act
-        LoginAs(addressee.Id);
-        var accepted = await _friendshipService.AcceptRequestAsync(created.Id);
-
-        // Assert
-        Assert.Equal(FriendshipStatus.Accepted, accepted.Status);
-        Assert.True(accepted.IsIncoming);
-    }
-
-    [Fact]
-    public async Task Accept_ThrowsUnauthorized_WhenCalledByRequester()
-    {
-        // Arrange
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _friendshipService.AcceptRequestAsync(created.Id));
-    }
-
-    [Fact]
-    public async Task Accept_ThrowsArgument_WhenAlreadyAccepted()
-    {
-        // Arrange
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
-        LoginAs(addressee.Id);
-        await _friendshipService.AcceptRequestAsync(created.Id);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            _friendshipService.AcceptRequestAsync(created.Id));
-    }
-
-    // --- REJECT ---
-
-    [Fact]
-    public async Task Reject_TransitionsPendingToRejected_WhenCalledByAddressee()
-    {
-        // Arrange
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act
-        LoginAs(addressee.Id);
-        var rejected = await _friendshipService.RejectRequestAsync(created.Id);
-
-        // Assert
-        Assert.Equal(FriendshipStatus.Rejected, rejected.Status);
-    }
-
-    [Fact]
-    public async Task Reject_ThrowsUnauthorized_WhenCalledByRequester()
-    {
-        // Arrange
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _friendshipService.RejectRequestAsync(created.Id));
-    }
-
-    // --- REMOVE ---
-
-    [Fact]
-    public async Task Remove_DeletesFriendship_WhenCalledByEitherParty()
-    {
-        // Arrange
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        LoginAs(a.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
-
-        // Act
-        LoginAs(b.Id);
-        await _friendshipService.DeleteFriendshipByIdAsync(created.Id);
-
-        // Assert
-        Assert.Null(await _friendshipRepository.GetFriendshipByIdAsync(created.Id));
-    }
-
-    [Fact]
-    public async Task Remove_ThrowsUnauthorized_WhenUserNotPartOfFriendship()
-    {
-        // Arrange
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        var stranger = await CreateUserAsync("stranger");
-        LoginAs(a.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
-
-        // Act & Assert
-        LoginAs(stranger.Id);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _friendshipService.DeleteFriendshipByIdAsync(created.Id));
-    }
-
-    [Fact]
-    public async Task Remove_ThrowsNotFound_WhenMissing()
-    {
-        // Arrange
-        var user = await CreateUserAsync("user");
-        LoginAs(user.Id);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendshipService.DeleteFriendshipByIdAsync(999));
-    }
-
-    // --- QUERIES ---
+    // --- GET ---
 
     [Fact]
     public async Task GetMyFriends_ReturnsOnlyAccepted()
@@ -353,5 +223,133 @@ public sealed class FriendshipServiceUnitTests
         LoginAs(friend.Id);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendshipService.GetUserFriendsAsync(owner.Id));
+    }
+
+    // --- PATCH ---
+
+    [Fact]
+    public async Task Accept_TransitionsPendingToAccepted_WhenCalledByAddressee()
+    {
+        // Arrange
+        var requester = await CreateUserAsync("requester");
+        var addressee = await CreateUserAsync("addressee");
+        LoginAs(requester.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act
+        LoginAs(addressee.Id);
+        var accepted = await _friendshipService.AcceptRequestAsync(created.Id);
+
+        // Assert
+        Assert.Equal(FriendshipStatus.Accepted, accepted.Status);
+        Assert.True(accepted.IsIncoming);
+    }
+
+    [Fact]
+    public async Task Accept_ThrowsUnauthorized_WhenCalledByRequester()
+    {
+        // Arrange
+        var requester = await CreateUserAsync("requester");
+        var addressee = await CreateUserAsync("addressee");
+        LoginAs(requester.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _friendshipService.AcceptRequestAsync(created.Id));
+    }
+
+    [Fact]
+    public async Task Accept_ThrowsArgument_WhenAlreadyAccepted()
+    {
+        // Arrange
+        var requester = await CreateUserAsync("requester");
+        var addressee = await CreateUserAsync("addressee");
+        LoginAs(requester.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        LoginAs(addressee.Id);
+        await _friendshipService.AcceptRequestAsync(created.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _friendshipService.AcceptRequestAsync(created.Id));
+    }
+
+    [Fact]
+    public async Task Reject_TransitionsPendingToRejected_WhenCalledByAddressee()
+    {
+        // Arrange
+        var requester = await CreateUserAsync("requester");
+        var addressee = await CreateUserAsync("addressee");
+        LoginAs(requester.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act
+        LoginAs(addressee.Id);
+        var rejected = await _friendshipService.RejectRequestAsync(created.Id);
+
+        // Assert
+        Assert.Equal(FriendshipStatus.Rejected, rejected.Status);
+    }
+
+    [Fact]
+    public async Task Reject_ThrowsUnauthorized_WhenCalledByRequester()
+    {
+        // Arrange
+        var requester = await CreateUserAsync("requester");
+        var addressee = await CreateUserAsync("addressee");
+        LoginAs(requester.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _friendshipService.RejectRequestAsync(created.Id));
+    }
+
+    // --- DELETE ---
+
+    [Fact]
+    public async Task Remove_DeletesFriendship_WhenCalledByEitherParty()
+    {
+        // Arrange
+        var a = await CreateUserAsync("userA");
+        var b = await CreateUserAsync("userB");
+        LoginAs(a.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+
+        // Act
+        LoginAs(b.Id);
+        await _friendshipService.DeleteFriendshipByIdAsync(created.Id);
+
+        // Assert
+        Assert.Null(await _friendshipRepository.GetFriendshipByIdAsync(created.Id));
+    }
+
+    [Fact]
+    public async Task Remove_ThrowsUnauthorized_WhenUserNotPartOfFriendship()
+    {
+        // Arrange
+        var a = await CreateUserAsync("userA");
+        var b = await CreateUserAsync("userB");
+        var stranger = await CreateUserAsync("stranger");
+        LoginAs(a.Id);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+
+        // Act & Assert
+        LoginAs(stranger.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _friendshipService.DeleteFriendshipByIdAsync(created.Id));
+    }
+
+    [Fact]
+    public async Task Remove_ThrowsNotFound_WhenMissing()
+    {
+        // Arrange
+        var user = await CreateUserAsync("user");
+        LoginAs(user.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            _friendshipService.DeleteFriendshipByIdAsync(999));
     }
 }

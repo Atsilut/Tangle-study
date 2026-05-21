@@ -82,7 +82,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
     }
 
-    // --- SEND ---
+    // --- CREATE ---
 
     [Fact]
     public async Task SendRequest_Returns201_AndPendingFriendship()
@@ -152,85 +152,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
     }
 
-    // --- ACCEPT / REJECT ---
-
-    [Fact]
-    public async Task Accept_Returns200_AndTransitionsToAccepted()
-    {
-        const string testMethodName = "FriendAccept";
-        var requester = await CreateUserForTest(testMethodName, 1);
-        var addressee = await CreateUserForTest(testMethodName, 2);
-        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
-
-        await LoginAs(addressee);
-        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/accept", content: null);
-
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var body = await res.Content.ReadFromJsonAsync<FriendshipRequestResponseDto>();
-        Assert.Equal(FriendshipStatus.Accepted, body!.Status);
-    }
-
-    [Fact]
-    public async Task Accept_Returns401_WhenCalledByRequester()
-    {
-        const string testMethodName = "FriendAcceptUnauth";
-        var requester = await CreateUserForTest(testMethodName, 1);
-        var addressee = await CreateUserForTest(testMethodName, 2);
-        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
-
-        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/accept", content: null);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
-    }
-
-    [Fact]
-    public async Task Reject_Returns200()
-    {
-        const string testMethodName = "FriendReject";
-        var requester = await CreateUserForTest(testMethodName, 1);
-        var addressee = await CreateUserForTest(testMethodName, 2);
-        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
-
-        await LoginAs(addressee);
-        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/reject", content: null);
-
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var body = await res.Content.ReadFromJsonAsync<FriendshipRequestResponseDto>();
-        Assert.Equal(FriendshipStatus.Rejected, body!.Status);
-    }
-
-    // --- REMOVE ---
-
-    [Fact]
-    public async Task Remove_Returns204_AndDeletesFriendship()
-    {
-        const string testMethodName = "FriendRemove";
-        var a = await CreateUserForTest(testMethodName, 1);
-        var b = await CreateUserForTest(testMethodName, 2);
-        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(a, b);
-
-        var res = await Client.DeleteAsync($"/api/friendships/{friendshipId}");
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
-
-        var pending = await Client.GetAsync("/api/friendships/pending");
-        Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
-    }
-
-    [Fact]
-    public async Task Remove_Returns401_WhenStranger()
-    {
-        const string testMethodName = "FriendRemoveStranger";
-        var a = await CreateUserForTest(testMethodName, 1);
-        var b = await CreateUserForTest(testMethodName, 2);
-        var stranger = await CreateUserForTest(testMethodName, 3);
-        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(a, b);
-
-        await LoginAs(stranger);
-        var res = await Client.DeleteAsync($"/api/friendships/{friendshipId}");
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
-    }
-
-    // --- LIST ---
+    // --- GET ---
 
     [Fact]
     public async Task GetMyFriends_ReturnsAccepted()
@@ -342,6 +264,84 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(friend);
         var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
 
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    // --- PATCH ---
+
+    [Fact]
+    public async Task Accept_Returns200_AndTransitionsToAccepted()
+    {
+        const string testMethodName = "FriendAccept";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+
+        await LoginAs(addressee);
+        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/accept", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<FriendshipRequestResponseDto>();
+        Assert.Equal(FriendshipStatus.Accepted, body!.Status);
+    }
+
+    [Fact]
+    public async Task Accept_Returns401_WhenCalledByRequester()
+    {
+        const string testMethodName = "FriendAcceptUnauth";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+
+        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/accept", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reject_Returns200()
+    {
+        const string testMethodName = "FriendReject";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+
+        await LoginAs(addressee);
+        var res = await Client.PostAsync($"/api/friendships/{friendshipId}/reject", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<FriendshipRequestResponseDto>();
+        Assert.Equal(FriendshipStatus.Rejected, body!.Status);
+    }
+
+    // --- DELETE ---
+
+    [Fact]
+    public async Task Remove_Returns204_AndDeletesFriendship()
+    {
+        const string testMethodName = "FriendRemove";
+        var a = await CreateUserForTest(testMethodName, 1);
+        var b = await CreateUserForTest(testMethodName, 2);
+        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(a, b);
+
+        var res = await Client.DeleteAsync($"/api/friendships/{friendshipId}");
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+
+        var pending = await Client.GetAsync("/api/friendships/pending");
+        Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
+    }
+
+    [Fact]
+    public async Task Remove_Returns401_WhenStranger()
+    {
+        const string testMethodName = "FriendRemoveStranger";
+        var a = await CreateUserForTest(testMethodName, 1);
+        var b = await CreateUserForTest(testMethodName, 2);
+        var stranger = await CreateUserForTest(testMethodName, 3);
+        var friendshipId = await SendFriendRequestAndGetOutgoingIdAsync(a, b);
+
+        await LoginAs(stranger);
+        var res = await Client.DeleteAsync($"/api/friendships/{friendshipId}");
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 }
