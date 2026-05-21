@@ -53,7 +53,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
     private async Task SendFriendRequestAsync(long addresseeId)
     {
         var res = await Client.PostAsJsonAsync("/api/friendships",
-            new FriendshipRequestCreateRequestDto { AddresseeId = addresseeId });
+            new FriendRequestCreateRequestDto { AddresseeId = addresseeId });
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
 
@@ -92,7 +92,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(requester);
 
-        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
 
@@ -108,7 +108,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var addressee = await CreateUserForTest(testMethodName, 1);
         Client.DefaultRequestHeaders.Authorization = null;
 
-        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -120,7 +120,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var requester = await CreateUserForTest(testMethodName, 1);
         await LoginAs(requester);
 
-        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = 999999 });
+        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = 999999 });
 
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
@@ -132,7 +132,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var requester = await CreateUserForTest(testMethodName, 1);
         await LoginAs(requester);
 
-        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = requester.Id });
+        var res = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
 
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
@@ -144,10 +144,10 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var a = await CreateUserForTest(testMethodName, 1);
         var b = await CreateUserForTest(testMethodName, 2);
         await LoginAs(a);
-        var first = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+        var first = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = b.Id });
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        var dup = await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+        var dup = await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = b.Id });
 
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
     }
@@ -186,9 +186,9 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var incoming = await CreateUserForTest(testMethodName, 3);
 
         await LoginAs(me);
-        await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = outgoing.Id });
+        await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = outgoing.Id });
         await LoginAs(incoming);
-        await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = me.Id });
+        await Client.PostAsJsonAsync("/api/friendships", new FriendRequestCreateRequestDto { AddresseeId = me.Id });
 
         await LoginAs(me);
         var res = await Client.GetAsync("/api/friendships/pending");

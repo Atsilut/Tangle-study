@@ -53,7 +53,7 @@ public sealed class FriendshipServiceUnitTests
     private async Task AcceptFriendshipBetweenAsync(long requesterId, long addresseeId)
     {
         LoginAs(requesterId);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addresseeId });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addresseeId });
         LoginAs(addresseeId);
         await _friendshipService.AcceptRequestAsync(created.Id);
     }
@@ -69,7 +69,7 @@ public sealed class FriendshipServiceUnitTests
         LoginAs(requester.Id);
 
         // Act
-        var dto = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var dto = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Assert
         Assert.Equal(FriendshipStatus.Pending, dto.Status);
@@ -88,7 +88,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = user.Id }));
+            _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = user.Id }));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = 999 }));
+            _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = 999 }));
     }
 
     [Fact]
@@ -110,12 +110,12 @@ public sealed class FriendshipServiceUnitTests
         var a = await CreateUserAsync("userA");
         var b = await CreateUserAsync("userB");
         LoginAs(a.Id);
-        await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+        await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = b.Id });
 
         // Act & Assert
         LoginAs(b.Id);
         await Assert.ThrowsAsync<EntityAlreadyExistsException>(() =>
-            _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = a.Id }));
+            _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = a.Id }));
     }
 
     // --- GET ---
@@ -128,8 +128,8 @@ public sealed class FriendshipServiceUnitTests
         var friend = await CreateUserAsync("friend");
         var pending = await CreateUserAsync("pending");
         LoginAs(me.Id);
-        var accepted = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = friend.Id });
-        await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = pending.Id });
+        var accepted = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = friend.Id });
+        await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = pending.Id });
         LoginAs(friend.Id);
         await _friendshipService.AcceptRequestAsync(accepted.Id);
 
@@ -151,9 +151,9 @@ public sealed class FriendshipServiceUnitTests
         var outgoing = await CreateUserAsync("outgoing");
         var incoming = await CreateUserAsync("incoming");
         LoginAs(me.Id);
-        await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = outgoing.Id });
+        await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = outgoing.Id });
         LoginAs(incoming.Id);
-        await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = me.Id });
+        await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = me.Id });
 
         // Act
         LoginAs(me.Id);
@@ -234,7 +234,7 @@ public sealed class FriendshipServiceUnitTests
         var requester = await CreateUserAsync("requester");
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Act
         LoginAs(addressee.Id);
@@ -252,7 +252,7 @@ public sealed class FriendshipServiceUnitTests
         var requester = await CreateUserAsync("requester");
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -266,7 +266,7 @@ public sealed class FriendshipServiceUnitTests
         var requester = await CreateUserAsync("requester");
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
         LoginAs(addressee.Id);
         await _friendshipService.AcceptRequestAsync(created.Id);
 
@@ -282,7 +282,7 @@ public sealed class FriendshipServiceUnitTests
         var requester = await CreateUserAsync("requester");
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Act
         LoginAs(addressee.Id);
@@ -299,7 +299,7 @@ public sealed class FriendshipServiceUnitTests
         var requester = await CreateUserAsync("requester");
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -315,7 +315,7 @@ public sealed class FriendshipServiceUnitTests
         var a = await CreateUserAsync("userA");
         var b = await CreateUserAsync("userB");
         LoginAs(a.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = b.Id });
 
         // Act
         LoginAs(b.Id);
@@ -333,7 +333,7 @@ public sealed class FriendshipServiceUnitTests
         var b = await CreateUserAsync("userB");
         var stranger = await CreateUserAsync("stranger");
         LoginAs(a.Id);
-        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = b.Id });
+        var created = await _friendshipService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = b.Id });
 
         // Act & Assert
         LoginAs(stranger.Id);
