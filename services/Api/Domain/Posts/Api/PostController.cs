@@ -56,10 +56,9 @@ namespace Api.Domain.Posts.Api
         [HttpPatch]
         [Authorize]
         [SwaggerOperation(Summary = "Edit Post")]
-        public async Task<ActionResult<PostPatchResponseDto>?> UpdatePostDetail([FromBody] PostPatchRequestDto request)
+        public async Task<ActionResult<PostPatchResponseDto>> UpdatePostDetail([FromBody] PostPatchRequestDto request)
         {
             var response = await _service.UpdatePostAsync(request);
-            if (response == null) return NotFound();
             return Ok(response);
         }
 

@@ -36,10 +36,9 @@ namespace Api.Domain.Users.Api
         [HttpPatch]
         [Authorize]
         [SwaggerOperation(Summary = "Update User Detail")]
-        public async Task<ActionResult<UserPatchResponseDto>?> UpdateUserDetail([FromBody] UserPatchRequestDto request)
+        public async Task<ActionResult<UserPatchResponseDto>> UpdateUserDetail([FromBody] UserPatchRequestDto request)
         {
             var response = await _service.UpdateUserDetailAsync(request);
-            if (response == null) return NotFound();
             return Ok(response);
         }
 

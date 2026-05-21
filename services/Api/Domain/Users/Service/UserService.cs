@@ -87,7 +87,7 @@ namespace Api.Domain.Users.Service
             UpdatedAt: user.UpdatedAt
         );
 
-        public async Task<UserPatchResponseDto?> UpdateUserDetailAsync(UserPatchRequestDto request)
+        public async Task<UserPatchResponseDto> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
             var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
             if (request.Id != user.Id) throw new UnauthorizedAccessException("Unauthorized access");

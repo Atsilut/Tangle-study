@@ -102,7 +102,7 @@ namespace Api.Domain.Posts.Service
             AuthorNickname: authorNickname
         );
 
-        public async Task<PostPatchResponseDto>? UpdatePostAsync(PostPatchRequestDto request)
+        public async Task<PostPatchResponseDto> UpdatePostAsync(PostPatchRequestDto request)
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
             var post = await GetPostOrThrowAsync(request.Id);
