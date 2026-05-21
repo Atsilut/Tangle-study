@@ -27,13 +27,9 @@ namespace Api.Domain.Friendships.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized access"));
 
-        private async Task<Friendship> GetFriendshipOrThrowAsync(long id)
-        {
-            var friendship = await _repo.GetFriendshipByIdAsync(id);
-            if (friendship == null) throw new EntityNotFoundException("Friendship not found");
-            return friendship;
-        }
-
+        private async Task<Friendship> GetFriendshipOrThrowAsync(long id) => await _repo.GetFriendshipByIdAsync(id) 
+            ?? throw new EntityNotFoundException("Friendship not found");
+       
         public async Task<FriendshipResponseDto> SendRequestAsync(FriendshipCreateRequestDto request)
         {
             var requesterId = GetUserIdFromLogin();
@@ -76,7 +72,7 @@ namespace Api.Domain.Friendships.Service
             return await MapToDtoAsync(friendship, userId);
         }
 
-        public async Task RemoveAsync(long id)
+        public async Task CancelRequestAsync(long id)
         {
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
