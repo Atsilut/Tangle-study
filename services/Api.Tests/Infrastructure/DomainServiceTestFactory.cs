@@ -31,6 +31,7 @@ internal static class DomainServiceTestFactory
 
         PostService postService = null!;
         CommentService commentService = null!;
+        FriendshipService friendshipService = null!;
 
         var userService = new UserService(
             userRepository,
