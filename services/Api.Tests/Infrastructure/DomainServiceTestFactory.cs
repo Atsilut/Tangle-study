@@ -15,15 +15,18 @@ internal static class DomainServiceTestFactory
         PostService PostService,
         CommentService CommentService,
         FriendshipService FriendshipService,
+        FriendRequestService FriendRequestService,
         FakeUserRepository UserRepository,
         FakePostRepository PostRepository,
         FakeCommentRepository CommentRepository,
-        FakeFriendshipRepository FriendshipRepository) Create(FakeHttpContextAccessor? httpContextAccessor = null)
+        FakeFriendshipRepository FriendshipRepository,
+        FakeFriendRequestRepository FriendRequestRepository) Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var userRepository = new FakeUserRepository();
         var postRepository = new FakePostRepository();
         var commentRepository = new FakeCommentRepository();
         var friendshipRepository = new FakeFriendshipRepository();
+        var friendRequestRepository = new FakeFriendRequestRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -59,6 +62,13 @@ internal static class DomainServiceTestFactory
             userService,
             http);
 
-        return (userService, postService, commentService, friendshipService, userRepository, postRepository, commentRepository, friendshipRepository);
+        var friendRequestService = new FriendRequestService(
+            friendRequestRepository,
+            friendshipService,
+            userService,
+            db,
+            http);
+
+        return (userService, postService, commentService, friendshipService, friendRequestService, userRepository, postRepository, commentRepository, friendshipRepository, friendRequestRepository);
     }
 }
