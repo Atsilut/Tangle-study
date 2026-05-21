@@ -11,7 +11,7 @@ namespace Api.Domain.Friendships.Service
     [Service]
     public class FriendRequestService
     {
-        private readonly IFriendRequestRepository _requestRepo;
+        private readonly IFriendRequestRepository _repo;
         private readonly FriendshipService _friendshipService;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
@@ -24,7 +24,7 @@ namespace Api.Domain.Friendships.Service
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            _requestRepo = requestRepo;
+            _repo = requestRepo;
             _friendshipService = friendshipService;
             _userService = userService;
             _db = db;
@@ -47,12 +47,12 @@ namespace Api.Domain.Friendships.Service
             await EnsureFriendRequestDoesNotExistBetweenAsync(requesterId, request.AddresseeId);
 
             var friendRequest = new FriendRequest(requesterId, request.AddresseeId);
-            await _requestRepo.CreateAsync(friendRequest);
+            await _repo.CreateAsync(friendRequest);
         }
 
         private async Task EnsureFriendRequestDoesNotExistBetweenAsync(long userAId, long userBId, string? message = null)
         {
-            if (await _requestRepo.ExistsFriendRequestBetweenAsync(userAId, userBId))
+            if (await _repo.ExistsFriendRequestBetweenAsync(userAId, userBId))
                 throw new EntityAlreadyExistsException(message ?? $"A request between users {userAId} and {userBId} already exists.");
         }
 
@@ -65,14 +65,14 @@ namespace Api.Domain.Friendships.Service
 
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                await _requestRepo.DeleteAllBetweenAsync(request.RequesterId, request.AddresseeId);
+                await _repo.DeleteAllBetweenAsync(request.RequesterId, request.AddresseeId);
                 await _friendshipService.CreateBetweenUsersAsync(request.RequesterId, request.AddresseeId);
             });
         }
 
         private async Task<FriendRequest> GetPendingRequestOrThrowAsync(long id)
         {
-            var request = await _requestRepo.GetByIdAsync(id)
+            var request = await _repo.GetByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
             if (!request.IsPending)
                 throw new ArgumentException("Invalid Friend Request.");
@@ -86,13 +86,13 @@ namespace Api.Domain.Friendships.Service
             if (request.AddresseeId != userId)
                 throw new UnauthorizedAccessException("Only the addressee can reject a friend request.");
 
-            await _requestRepo.DeleteAsync(request);
+            await _repo.DeleteAsync(request);
         }
 
         public async Task<List<FriendRequestResponseDto>?> GetPendingAsync()
         {
             var userId = GetUserIdFromLogin();
-            var requests = await _requestRepo.GetForUserAsync(userId, isPending: true);
+            var requests = await _repo.GetForUserAsync(userId, isPending: true);
             if (requests.Count == 0) return null;
             return await MapRequestsAsync(requests, userId);
         }
@@ -121,14 +121,14 @@ namespace Api.Domain.Friendships.Service
         public async Task DeleteRequestByIdAsync(long id)
         {
             var userId = GetUserIdFromLogin();
-            var request = await _requestRepo.GetByIdAsync(id)
+            var request = await _repo.GetByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
             if (!request.IsUserInvolved(userId))
                 throw new UnauthorizedAccessException("Unauthorized access");
 
-            await _requestRepo.DeleteAsync(request);
+            await _repo.DeleteAsync(request);
         }
 
-        public Task DeleteAllRequestsForUserAsync(long userId) => _requestRepo.DeleteAllForUserAsync(userId);
+        public Task DeleteAllRequestsForUserAsync(long userId) => _repo.DeleteAllForUserAsync(userId);
     }
 }
