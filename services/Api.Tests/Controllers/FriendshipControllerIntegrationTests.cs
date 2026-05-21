@@ -3,8 +3,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Api.Domain.Friendships.Domain;
 using Api.Domain.Friendships.Dto;
+using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
+using Api.Global.Db;
 using Api.Tests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests.Controllers;
 
@@ -39,6 +42,25 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         var body = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
         Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body!.AccessToken);
+    }
+
+    private async Task SetFriendsListVisibilityAsync(long userId, FriendsListVisibility visibility)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await db.Users.FindAsync(userId);
+        user!.UpdateFriendsListVisibility(visibility);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task AcceptFriendshipAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
+    {
+        await LoginAs(requester);
+        var created = await (await Client.PostAsJsonAsync("/api/friendships", new FriendshipRequestCreateRequestDto { AddresseeId = addressee.Id }))
+            .Content.ReadFromJsonAsync<FriendshipRequestResponseDto>();
+        await LoginAs(addressee);
+        var accept = await Client.PostAsync($"/api/friendships/{created!.Id}/accept", content: null);
+        Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
     }
 
     // --- SEND ---
@@ -245,5 +267,73 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         Assert.Equal(2, list!.Count);
         Assert.Contains(list, p => p.OtherUserId == outgoing.Id && !p.IsIncoming);
         Assert.Contains(list, p => p.OtherUserId == incoming.Id && p.IsIncoming);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_Returns200_WhenVisibilityIsPublic()
+    {
+        const string testMethodName = "FriendUserListPublic";
+        var owner = await CreateUserForTest(testMethodName, 1);
+        var friend = await CreateUserForTest(testMethodName, 2);
+        var stranger = await CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Public);
+
+        await LoginAs(stranger);
+        var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipRequestResponseDto>>();
+        Assert.Equal(friend.Id, Assert.Single(list!).OtherUserId);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_Returns401_WhenVisibilityIsFriendsOnlyAndViewerIsStranger()
+    {
+        const string testMethodName = "FriendUserListFriendsOnly";
+        var owner = await CreateUserForTest(testMethodName, 1);
+        var friend = await CreateUserForTest(testMethodName, 2);
+        var stranger = await CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+
+        await LoginAs(stranger);
+        var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_Returns200_WhenVisibilityIsFriendsOnlyAndViewerIsFriend()
+    {
+        const string testMethodName = "FriendUserListFriendViewer";
+        var owner = await CreateUserForTest(testMethodName, 1);
+        var friend = await CreateUserForTest(testMethodName, 2);
+        var other = await CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        await AcceptFriendshipAsync(owner, other);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+
+        await LoginAs(friend);
+        var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipRequestResponseDto>>();
+        Assert.Equal(2, list!.Count);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_Returns401_WhenVisibilityIsPrivate()
+    {
+        const string testMethodName = "FriendUserListPrivate";
+        var owner = await CreateUserForTest(testMethodName, 1);
+        var friend = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(owner, friend);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Private);
+
+        await LoginAs(friend);
+        var res = await Client.GetAsync($"/api/friendships/users/{owner.Id}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 }

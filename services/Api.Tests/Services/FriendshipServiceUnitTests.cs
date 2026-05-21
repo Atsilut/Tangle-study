@@ -2,6 +2,7 @@ using Api.Domain.Friendships.Domain;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Users.Domain;
+using Api.Domain.Users.Dto;
 using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
@@ -38,6 +39,20 @@ public sealed class FriendshipServiceUnitTests
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
         };
+
+    private async Task SetFriendsListVisibilityAsync(long userId, FriendsListVisibility visibility)
+    {
+        var user = (await _userRepository.GetUserByIdAsync(userId))!;
+        user.UpdateFriendsListVisibility(visibility);
+    }
+
+    private async Task AcceptFriendshipBetweenAsync(long requesterId, long addresseeId)
+    {
+        LoginAs(requesterId);
+        var created = await _friendshipService.SendRequestAsync(new FriendshipRequestCreateRequestDto { AddresseeId = addresseeId });
+        LoginAs(addresseeId);
+        await _friendshipService.AcceptRequestAsync(created.Id);
+    }
 
     // --- SEND ---
 
@@ -195,7 +210,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act
         LoginAs(b.Id);
-        await _friendshipService.DeleteFriendshipAsync(created.Id);
+        await _friendshipService.DeleteFriendshipByIdAsync(created.Id);
 
         // Assert
         Assert.Null(await _friendshipRepository.GetFriendshipByIdAsync(created.Id));
@@ -214,7 +229,7 @@ public sealed class FriendshipServiceUnitTests
         // Act & Assert
         LoginAs(stranger.Id);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _friendshipService.DeleteFriendshipAsync(created.Id));
+            _friendshipService.DeleteFriendshipByIdAsync(created.Id));
     }
 
     [Fact]
@@ -226,7 +241,7 @@ public sealed class FriendshipServiceUnitTests
 
         // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendshipService.DeleteFriendshipAsync(999));
+            _friendshipService.DeleteFriendshipByIdAsync(999));
     }
 
     // --- QUERIES ---
@@ -274,5 +289,65 @@ public sealed class FriendshipServiceUnitTests
         Assert.Equal(2, pendings.Count);
         Assert.Contains(pendings, p => p.OtherUserId == outgoing.Id && !p.IsIncoming);
         Assert.Contains(pendings, p => p.OtherUserId == incoming.Id && p.IsIncoming);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_ReturnsFriends_WhenVisibilityIsPublic()
+    {
+        var owner = await CreateUserAsync("owner");
+        var friend = await CreateUserAsync("friend");
+        var stranger = await CreateUserAsync("stranger");
+        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Public);
+
+        LoginAs(stranger.Id);
+        var friends = await _friendshipService.GetUserFriendsAsync(owner.Id);
+
+        var single = Assert.Single(friends);
+        Assert.Equal(friend.Id, single.OtherUserId);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_ThrowsUnauthorized_WhenVisibilityIsFriendsOnlyAndViewerIsStranger()
+    {
+        var owner = await CreateUserAsync("owner");
+        var friend = await CreateUserAsync("friend");
+        var stranger = await CreateUserAsync("stranger");
+        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+
+        LoginAs(stranger.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _friendshipService.GetUserFriendsAsync(owner.Id));
+    }
+
+    [Fact]
+    public async Task GetUserFriends_ReturnsFriends_WhenVisibilityIsFriendsOnlyAndViewerIsFriend()
+    {
+        var owner = await CreateUserAsync("owner");
+        var friend = await CreateUserAsync("friend");
+        var other = await CreateUserAsync("other");
+        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        await AcceptFriendshipBetweenAsync(owner.Id, other.Id);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
+
+        LoginAs(friend.Id);
+        var friends = await _friendshipService.GetUserFriendsAsync(owner.Id);
+
+        Assert.Equal(2, friends.Count);
+        Assert.Contains(friends, f => f.OtherUserId == other.Id);
+    }
+
+    [Fact]
+    public async Task GetUserFriends_ThrowsUnauthorized_WhenVisibilityIsPrivateAndViewerIsFriend()
+    {
+        var owner = await CreateUserAsync("owner");
+        var friend = await CreateUserAsync("friend");
+        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Private);
+
+        LoginAs(friend.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _friendshipService.GetUserFriendsAsync(owner.Id));
     }
 }
