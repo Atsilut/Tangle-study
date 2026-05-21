@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
 
@@ -180,6 +181,37 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(owner.Id, "hacked"));
 
         // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatePrivacy_Returns200_AndUpdatesFriendsListVisibility()
+    {
+        const string testMethodName = "UserPrivacy";
+        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        await LoginAs(created, testUserPassword);
+
+        var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
+            new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Public });
+
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        var body = await patch.Content.ReadFromJsonAsync<UserPrivacySettingsResponseDto>();
+        Assert.NotNull(body);
+        Assert.Equal(FriendsListVisibility.Public, body.FriendsListVisibility);
+
+        var get = await Client.GetAsync($"/api/users/{created.Id}");
+        var user = await get.Content.ReadFromJsonAsync<UserGetResponseDto>();
+        Assert.Equal(FriendsListVisibility.Public, user!.FriendsListVisibility);
+    }
+
+    [Fact]
+    public async Task UpdatePrivacy_Returns401_WhenNotAuthenticated()
+    {
+        Client.DefaultRequestHeaders.Authorization = null;
+
+        var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
+            new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Private });
+
         Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
     }
 
