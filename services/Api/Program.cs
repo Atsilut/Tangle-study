@@ -68,8 +68,14 @@ if (app.Environment.IsDevelopment())
 
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureDeleted();
-    db.Database.EnsureCreated();
+    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    if (configuration.GetValue<bool>("Database:ResetOnStartup"))
+    {
+        logger.LogWarning("Database:ResetOnStartup is enabled; dropping the database.");
+        db.Database.EnsureDeleted();
+    }
+
+    db.Database.Migrate();
 }
 
 app.UseAuthentication();
