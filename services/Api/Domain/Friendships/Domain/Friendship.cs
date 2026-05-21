@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Api.Domain.Friendships.Domain
 {
-    [Index(nameof(RequesterId), nameof(AddresseeId), IsUnique = true)]
+    [Index(nameof(UserLowId), nameof(UserHighId), IsUnique = true)]
     public class Friendship
     {
         [Key]
@@ -15,49 +15,30 @@ namespace Api.Domain.Friendships.Domain
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
-        [ForeignKey(nameof(Requester))]
-        public long RequesterId { get; private set; }
-        public User? Requester { get; private set; }
+        [ForeignKey(nameof(UserLow))]
+        public long UserLowId { get; private set; }
+        public User? UserLow { get; private set; }
 
-        [ForeignKey(nameof(Addressee))]
-        public long AddresseeId { get; private set; }
-        public User? Addressee { get; private set; }
-
-        public FriendshipStatus Status { get; private set; }
+        [ForeignKey(nameof(UserHigh))]
+        public long UserHighId { get; private set; }
+        public User? UserHigh { get; private set; }
 
         private Friendship() { }
 
-        public Friendship(long requesterId, long addresseeId)
+        public Friendship(long userAId, long userBId)
         {
-            if (requesterId == addresseeId)
+            if (userAId == userBId)
                 throw new ArgumentException("Cannot create a friendship with yourself.");
-            RequesterId = requesterId;
-            AddresseeId = addresseeId;
-            Status = FriendshipStatus.Pending;
+            UserLowId = Math.Min(userAId, userBId);
+            UserHighId = Math.Max(userAId, userBId);
         }
 
-        public void Accept()
-        {
-            if (Status != FriendshipStatus.Pending)
-                throw new ArgumentException($"Cannot accept a friendship in {Status} state.");
-            Status = FriendshipStatus.Accepted;
-            UpdatedAt = DateTime.UtcNow;
-        }
-
-        public void Reject()
-        {
-            if (Status != FriendshipStatus.Pending)
-                throw new ArgumentException($"Cannot reject a friendship in {Status} state.");
-            Status = FriendshipStatus.Rejected;
-            UpdatedAt = DateTime.UtcNow;
-        }
-
-        public bool Involves(long userId) => RequesterId == userId || AddresseeId == userId;
+        public bool Involves(long userId) => UserLowId == userId || UserHighId == userId;
 
         public long OtherPartyId(long userId)
         {
-            if (RequesterId == userId) return AddresseeId;
-            if (AddresseeId == userId) return RequesterId;
+            if (UserLowId == userId) return UserHighId;
+            if (UserHighId == userId) return UserLowId;
             throw new ArgumentException($"User {userId} is not part of this friendship.");
         }
     }
