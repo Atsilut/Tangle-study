@@ -41,7 +41,7 @@ namespace Api.Domain.Friendships.Service
 
             var existing = await _repo.GetFriendshipBetweenAsync(requesterId, request.AddresseeId);
             if (existing is not null)
-                throw new EntityAlreadyExistsException($"A friendship between users {requesterId} and {request.AddresseeId} already exists.");
+                throw new EntityAlreadyExistsException($"A request between users {requesterId} and {request.AddresseeId} already exists.");
 
             var friendship = new Friendship(requesterId, request.AddresseeId);
             await _repo.CreateFriendshipAsync(friendship);
