@@ -121,8 +121,6 @@ namespace Api.Domain.Comments.Service
 
                 if (byId.TryGetValue(comment.ParentId.Value, out var parent))
                     parent.Replies.Add(dto);
-                else if (comment.ParentId is null && comment.DeletedParentId is not null)
-                    roots.Add(dto);
             }
 
             return roots;
