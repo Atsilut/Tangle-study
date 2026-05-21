@@ -48,7 +48,7 @@ namespace Api.Domain.Posts.Api
         [SwaggerOperation(Summary = "Get Posts By User Nickname")]
         public async Task<ActionResult<List<PostGetResponseDto>?>> GetPostsByNickname(string nickname)
         {
-            var result = await _service.GetPostsByUserNickname(nickname);
+            var result = await _service.GetPostsByUserNicknameAsync(nickname);
             if (result == null) return NoContent();
             return Ok(result);
         }

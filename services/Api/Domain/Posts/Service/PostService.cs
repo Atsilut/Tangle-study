@@ -82,7 +82,7 @@ namespace Api.Domain.Posts.Service
             return MapToDto(post, user?.Nickname ?? "Deleted User");
         }
 
-        public async Task<List<PostGetResponseDto>?> GetPostsByUserNickname(string nickname)
+        public async Task<List<PostGetResponseDto>?> GetPostsByUserNicknameAsync(string nickname)
         {
             var user = await _userService.GetUserByNicknameAsync(nickname);
             if (user == null) return null;
