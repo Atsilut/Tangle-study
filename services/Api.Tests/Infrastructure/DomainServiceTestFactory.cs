@@ -1,4 +1,5 @@
 using Api.Domain.Comments.Service;
+using Api.Domain.Friendships.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
@@ -13,13 +14,16 @@ internal static class DomainServiceTestFactory
         UserService UserService,
         PostService PostService,
         CommentService CommentService,
+        FriendshipService FriendshipService,
         FakeUserRepository UserRepository,
         FakePostRepository PostRepository,
-        FakeCommentRepository CommentRepository) Create(FakeHttpContextAccessor? httpContextAccessor = null)
+        FakeCommentRepository CommentRepository,
+        FakeFriendshipRepository FriendshipRepository) Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var userRepository = new FakeUserRepository();
         var postRepository = new FakePostRepository();
         var commentRepository = new FakeCommentRepository();
+        var friendshipRepository = new FakeFriendshipRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -49,6 +53,11 @@ internal static class DomainServiceTestFactory
             postService,
             userService);
 
-        return (userService, postService, commentService, userRepository, postRepository, commentRepository);
+        var friendshipService = new FriendshipService(
+            friendshipRepository,
+            userService,
+            http);
+
+        return (userService, postService, commentService, friendshipService, userRepository, postRepository, commentRepository, friendshipRepository);
     }
 }
