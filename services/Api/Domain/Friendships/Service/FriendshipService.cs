@@ -77,7 +77,7 @@ namespace Api.Domain.Friendships.Service
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
             if (!friendship.Involves(userId))
-                throw new UnauthorizedAccessException("You are not part of this friendship.");
+                throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.DeleteFriendshipAsync(friendship);
         }
