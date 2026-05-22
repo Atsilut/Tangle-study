@@ -19,11 +19,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         const string testMethodName = "FriendList";
         var me = await CreateUserForTest(testMethodName, 1);
         var friend = await CreateUserForTest(testMethodName, 2);
-        var pendingUser = await CreateUserForTest(testMethodName, 3);
+        var pending = await CreateUserForTest(testMethodName, 3);
 
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(me, friend);
         await LoginAs(me);
-        await SendFriendRequestAsync(pendingUser.Id);
+        await SendFriendRequestAsync(pending.Id);
 
         await LoginAs(friend);
         await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);

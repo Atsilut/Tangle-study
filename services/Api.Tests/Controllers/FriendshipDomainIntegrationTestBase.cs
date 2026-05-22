@@ -11,18 +11,18 @@ namespace Api.Tests.Controllers;
 public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerFixture postgres)
     : IntegrationTestBase(postgres)
 {
-    protected readonly string TestPassword = "testtest123!";
+    private readonly string testPassword = "testtest123!";
     protected const string RequestsBase = "/api/friendships/requests";
     protected const string FriendshipsBase = "/api/friendships";
 
-    protected async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, long index = 1)
+    protected async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, long index = 1, string password = "testtest123!")
     {
         var email = testMethodName + index.ToString() + "@test.com";
         var nickname = $"{testMethodName}User" + index.ToString();
         var req = new UserCreateRequestDto
         {
             Email = email,
-            Password = TestPassword,
+            Password = password,
             Nickname = nickname,
         };
         var create = await Client.PostAsJsonAsync("/api/join", req);
@@ -33,9 +33,9 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         return all!.Single(u => u.Email == req.Email);
     }
 
-    protected async Task LoginAs(UserGetResponseDto user)
+    protected async Task LoginAs(UserGetResponseDto user, string password = "testtest123!")
     {
-        var req = new LoginRequestDto { Email = user.Email, Password = TestPassword };
+        var req = new LoginRequestDto { Email = user.Email, Password = password };
         var login = await Client.PostAsJsonAsync("/api/login", req);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
 
@@ -46,7 +46,7 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
 
     protected async Task SetFriendsListVisibilityAsync(UserGetResponseDto user, FriendsListVisibility visibility)
     {
-        await LoginAs(user);
+        await LoginAs(user, testPassword);
         var res = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = visibility });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -70,16 +70,16 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
 
     protected async Task<long> SendFriendRequestAndGetOutgoingIdAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
     {
-        await LoginAs(requester);
+        await LoginAs(requester, testPassword);
         await SendFriendRequestAsync(addressee.Id);
         return (await GetPendingRequestAsync(addressee.Id, isIncoming: false)).Id;
     }
 
     protected async Task AcceptFriendshipAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
     {
-        await LoginAs(requester);
+        await LoginAs(requester, testPassword);
         await SendFriendRequestAsync(addressee.Id);
-        await LoginAs(addressee);
+        await LoginAs(addressee, testPassword);
         var id = (await GetPendingRequestAsync(requester.Id, isIncoming: true)).Id;
         var accept = await Client.PostAsync($"{RequestsBase}/{id}/accept", content: null);
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
