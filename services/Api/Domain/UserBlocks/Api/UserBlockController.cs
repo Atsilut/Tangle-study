@@ -25,5 +25,22 @@ namespace Api.Domain.UserBlocks.Api
             await _service.BlockUserAsync(request);
             return Ok();
         }
+
+        [HttpGet("me")]
+        [SwaggerOperation(Summary = "List users I have blocked")]
+        public async Task<ActionResult<List<UserBlockResponseDto>?>> GetMyBlocks()
+        {
+            var response = await _service.GetMyBlocksAsync();
+            if (response == null) return NoContent();
+            return Ok(response);
+        }
+
+        [HttpDelete("{id:long}")]
+        [SwaggerOperation(Summary = "Unblock a user")]
+        public async Task<IActionResult> DeleteBlock([FromRoute] long id)
+        {
+            await _service.DeleteBlockByIdAsync(id);
+            return NoContent();
+        }
     }
 }
