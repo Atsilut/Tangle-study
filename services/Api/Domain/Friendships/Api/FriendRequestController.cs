@@ -22,8 +22,13 @@ namespace Api.Domain.Friendships.Api
         [SwaggerOperation(Summary = "Send a friend request")]
         public async Task<IActionResult> SendRequest([FromBody] FriendRequestCreateRequestDto request)
         {
-            await _service.SendRequestAsync(request);
-            return Created();
+            var outcome = await _service.SendRequestAsync(request);
+            return outcome switch
+            {
+                SendFriendRequestOutcome.FriendRequestCreated => Created(),
+                SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest => Ok(),
+                _ => throw new InvalidOperationException($"Unexpected send friend request outcome: {outcome}"),
+            };
         }
 
         [HttpPost("{id:long}/accept")]

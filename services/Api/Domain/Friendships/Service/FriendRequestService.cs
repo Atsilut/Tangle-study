@@ -34,27 +34,51 @@ namespace Api.Domain.Friendships.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
-        public async Task SendRequestAsync(FriendRequestCreateRequestDto request)
+        public async Task<SendFriendRequestOutcome> SendRequestAsync(FriendRequestCreateRequestDto request)
         {
             var requesterId = GetUserIdFromLogin();
-            if (requesterId == request.AddresseeId)
+            await ValidateSendRequestPartiesAsync(requesterId, request.AddresseeId);
+
+            var existingRequest = await _repo.GetBetweenAsync(requesterId, request.AddresseeId);
+            if (existingRequest is not null)
+                return await HandleExistingRequestBetweenAsync(requesterId, request.AddresseeId, existingRequest);
+
+            await CreateOutgoingFriendRequestAsync(requesterId, request.AddresseeId);
+            return SendFriendRequestOutcome.FriendRequestCreated;
+        }
+
+        private async Task ValidateSendRequestPartiesAsync(long requesterId, long addresseeId)
+        {
+            if (requesterId == addresseeId)
                 throw new ArgumentException("Cannot send a friend request to yourself.");
 
             await _userService.EnsureUserExistsAsync(requesterId, "Authentication failed", StatusCodes.Status400BadRequest);
-            await _userService.EnsureUserExistsAsync(request.AddresseeId, "Addressee not found", StatusCodes.Status400BadRequest);
+            await _userService.EnsureUserExistsAsync(addresseeId, "Addressee not found", StatusCodes.Status400BadRequest);
+            await _friendshipService.EnsureFriendshipDoesNotExistBetweenAsync(requesterId, addresseeId);
+        }
 
-            await _friendshipService.EnsureFriendshipDoesNotExistBetweenAsync(requesterId, request.AddresseeId);
-            await EnsureFriendRequestDoesNotExistBetweenAsync(requesterId, request.AddresseeId);
+        private async Task<SendFriendRequestOutcome> HandleExistingRequestBetweenAsync(
+            long requesterId, long addresseeId, FriendRequest existingRequest)
+        {
+            if (existingRequest.RequesterId == requesterId)
+                throw new EntityAlreadyExistsException($"A request between users {requesterId} and {addresseeId} already exists.");
 
-            var friendRequest = new FriendRequest(requesterId, request.AddresseeId);
+            await CreateFriendshipFromRequestAsync(requesterId, addresseeId);
+            return SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest;
+        }
+
+        private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
+        {
+            var friendRequest = new FriendRequest(requesterId, addresseeId);
             await _repo.CreateAsync(friendRequest);
         }
 
-        private async Task EnsureFriendRequestDoesNotExistBetweenAsync(long userAId, long userBId, string? message = null)
+        private Task CreateFriendshipFromRequestAsync(long requesterId, long addresseeId) => 
+            _db.ExecuteInTransactionAsync(async () =>
         {
-            if (await _repo.ExistsFriendRequestBetweenAsync(userAId, userBId))
-                throw new EntityAlreadyExistsException(message ?? $"A request between users {userAId} and {userBId} already exists.");
-        }
+            await _repo.DeleteAllBetweenAsync(requesterId, addresseeId);
+            await _friendshipService.CreateBetweenUsersAsync(requesterId, addresseeId);
+        });
 
         public async Task AcceptRequestAsync(long id)
         {
@@ -63,11 +87,7 @@ namespace Api.Domain.Friendships.Service
             if (request.AddresseeId != userId)
                 throw new UnauthorizedAccessException("Only the addressee can accept a friend request.");
 
-            await _db.ExecuteInTransactionAsync(async () =>
-            {
-                await _repo.DeleteAllBetweenAsync(request.RequesterId, request.AddresseeId);
-                await _friendshipService.CreateBetweenUsersAsync(request.RequesterId, request.AddresseeId);
-            });
+            await CreateFriendshipFromRequestAsync(request.RequesterId, request.AddresseeId);
         }
 
         private async Task<FriendRequest> GetPendingRequestOrThrowAsync(long id)
