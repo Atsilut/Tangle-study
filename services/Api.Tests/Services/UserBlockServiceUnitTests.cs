@@ -89,22 +89,19 @@ public sealed class UserBlockServiceUnitTests
     }
 
     [Fact]
-    public async Task BlockUser_IsIdempotent_WhenAlreadyBlocked()
+    public async Task BlockUser_ThrowsEntityAlreadyExists_WhenAlreadyBlocked()
     {
         // Arrange
         var blocker = await CreateTestUserAsync("blocker");
         var blocked = await CreateTestUserAsync("blocked");
         LoginAs(blocker.Id);
         var request = new UserBlockCreateRequestDto { BlockedUserId = blocked.Id };
-
-        // Act
-        await _userBlockService.BlockUserAsync(request);
         await _userBlockService.BlockUserAsync(request);
 
-        // Assert
-        var blocks = await _userBlockRepository.GetAllForBlockerAsync(blocker.Id);
-        Assert.Single(blocks);
-        Assert.True(await _userBlockRepository.ExistsAsync(blocker.Id, blocked.Id));
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityAlreadyExistsException>(() =>
+            _userBlockService.BlockUserAsync(request));
+        Assert.Single(await _userBlockRepository.GetAllForBlockerAsync(blocker.Id));
     }
 
     // --- GET ---

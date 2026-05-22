@@ -64,6 +64,24 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
     }
 
     [Fact]
+    public async Task BlockUser_Returns409_WhenAlreadyBlocked()
+    {
+        // Arrange
+        const string testMethodName = "BlockCreateDuplicate";
+        var blocker = await CreateUserForTest(testMethodName, 1);
+        var blocked = await CreateUserForTest(testMethodName, 2);
+        await LoginAs(blocker);
+        await BlockUserAsync(blocked.Id);
+
+        // Act
+        var res = await Client.PostAsJsonAsync(BlocksBase,
+            new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+    }
+
+    [Fact]
     public async Task BlockUser_Returns400_WhenBlockedUserMissing()
     {
         // Arrange
