@@ -24,18 +24,18 @@ namespace Api.Domain.Friendships.Repository
         public async Task<Friendship?> GetByIdAsync(long id) =>
             await _context.Friendships.FindAsync(id);
 
-        public async Task<Friendship?> GetBetweenAsync(long userAId, long userBId)
+        public async Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
         {
-            var userLowId = Math.Min(userAId, userBId);
-            var userHighId = Math.Max(userAId, userBId);
+            var userLowId = Math.Min(userId, otherUserId);
+            var userHighId = Math.Max(userId, otherUserId);
             return await _context.Friendships.FirstOrDefaultAsync(f =>
                 f.UserLowId == userLowId && f.UserHighId == userHighId);
         }
 
-        public async Task<bool> ExistsFriendshipBetweenAsync(long userAId, long userBId)
+        public async Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId)
         {
-            var userLowId = Math.Min(userAId, userBId);
-            var userHighId = Math.Max(userAId, userBId);
+            var userLowId = Math.Min(userId, otherUserId);
+            var userHighId = Math.Max(userId, otherUserId);
             return await _context.Friendships.AnyAsync(f =>
                 f.UserLowId == userLowId && f.UserHighId == userHighId);
         }

@@ -24,15 +24,10 @@ namespace Api.Domain.Friendships.Repository
         public async Task<FriendRequest?> GetByIdAsync(long id) =>
             await _context.FriendRequests.FindAsync(id);
 
-        public async Task<FriendRequest?> GetBetweenAsync(long userAId, long userBId) =>
+        public async Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
             await _context.FriendRequests.FirstOrDefaultAsync(r =>
-                (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-                (r.RequesterId == userBId && r.AddresseeId == userAId));
-
-        public async Task<bool> ExistsFriendRequestBetweenAsync(long userAId, long userBId) =>
-            await _context.FriendRequests.AnyAsync(r =>
-                (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-                (r.RequesterId == userBId && r.AddresseeId == userAId));
+                (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
+                (r.RequesterId == otherUserId && r.AddresseeId == userId));
 
         public async Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
         {
@@ -51,22 +46,12 @@ namespace Api.Domain.Friendships.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAllBetweenAsync(long userAId, long userBId)
+        public async Task DeleteAllForUserPairAsync(long userId, long otherUserId)
         {
             var requests = await _context.FriendRequests
                 .Where(r =>
-                    (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-                    (r.RequesterId == userBId && r.AddresseeId == userAId))
-                .ToListAsync();
-            if (requests.Count == 0) return;
-            _context.FriendRequests.RemoveRange(requests);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task DeleteAllForUserAsync(long userId)
-        {
-            var requests = await _context.FriendRequests
-                .Where(r => r.RequesterId == userId || r.AddresseeId == userId)
+                    (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
+                    (r.RequesterId == otherUserId && r.AddresseeId == userId))
                 .ToListAsync();
             if (requests.Count == 0) return;
             _context.FriendRequests.RemoveRange(requests);

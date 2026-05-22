@@ -31,16 +31,16 @@ namespace Api.Domain.Friendships.Service
         private async Task<Friendship> GetFriendshipOrThrowAsync(long id) =>
             await _repo.GetByIdAsync(id) ?? throw new EntityNotFoundException("Friendship not found");
 
-        public async Task EnsureFriendshipDoesNotExistBetweenAsync(long userAId, long userBId, string? message = null)
+        public async Task EnsureFriendshipDoesNotExistForUserPairAsync(long userId, long otherUserId, string? message = null)
         {
-            if (await _repo.ExistsFriendshipBetweenAsync(userAId, userBId))
-                throw new EntityAlreadyExistsException(message ?? $"Users {userAId} and {userBId} are already friends.");
+            if (await _repo.ExistsFriendshipForUserPairAsync(userId, otherUserId))
+                throw new EntityAlreadyExistsException(message ?? $"Users {userId} and {otherUserId} are already friends.");
         }
 
-        public async Task CreateBetweenUsersAsync(long userAId, long userBId)
+        public async Task CreateFriendshipForUserPairAsync(long userId, long otherUserId)
         {
-            await EnsureFriendshipDoesNotExistBetweenAsync(userAId, userBId);
-            var friendship = new Friendship(userAId, userBId);
+            await EnsureFriendshipDoesNotExistForUserPairAsync(userId, otherUserId);
+            var friendship = new Friendship(userId, otherUserId);
             await _repo.CreateAsync(friendship);
         }
 
@@ -95,7 +95,7 @@ namespace Api.Domain.Friendships.Service
                 case FriendsListVisibility.Private:
                     throw new UnauthorizedAccessException("This user's friends list is private.");
                 case FriendsListVisibility.FriendsOnly:
-                    if (await _repo.GetBetweenAsync(targetUserId, viewerId) is null)
+                    if (await _repo.GetForUserPairAsync(targetUserId, viewerId) is null)
                         throw new UnauthorizedAccessException("You must be friends to view this user's friends list.");
                     return;
                 default:

@@ -20,18 +20,18 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
     public Task<Friendship?> GetByIdAsync(long id) =>
         Task.FromResult(_friendships.FirstOrDefault(f => f.Id == id));
 
-    public Task<Friendship?> GetBetweenAsync(long userAId, long userBId)
+    public Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
     {
-        var userLowId = Math.Min(userAId, userBId);
-        var userHighId = Math.Max(userAId, userBId);
+        var userLowId = Math.Min(userId, otherUserId);
+        var userHighId = Math.Max(userId, otherUserId);
         return Task.FromResult(_friendships.FirstOrDefault(f =>
             f.UserLowId == userLowId && f.UserHighId == userHighId));
     }
 
-    public Task<bool> ExistsFriendshipBetweenAsync(long userAId, long userBId)
+    public Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId)
     {
-        var userLowId = Math.Min(userAId, userBId);
-        var userHighId = Math.Max(userAId, userBId);
+        var userLowId = Math.Min(userId, otherUserId);
+        var userHighId = Math.Max(userId, otherUserId);
         return Task.FromResult(_friendships.Any(f =>
             f.UserLowId == userLowId && f.UserHighId == userHighId));
     }

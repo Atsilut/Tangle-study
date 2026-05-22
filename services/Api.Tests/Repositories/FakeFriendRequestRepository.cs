@@ -20,15 +20,10 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
     public Task<FriendRequest?> GetByIdAsync(long id) =>
         Task.FromResult(_requests.FirstOrDefault(r => r.Id == id));
 
-    public Task<FriendRequest?> GetBetweenAsync(long userAId, long userBId) =>
+    public Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
         Task.FromResult(_requests.FirstOrDefault(r =>
-            (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-            (r.RequesterId == userBId && r.AddresseeId == userAId)));
-
-    public Task<bool> ExistsFriendRequestBetweenAsync(long userAId, long userBId) =>
-        Task.FromResult(_requests.Any(r =>
-            (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-            (r.RequesterId == userBId && r.AddresseeId == userAId)));
+            (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
+            (r.RequesterId == otherUserId && r.AddresseeId == userId)));
 
     public Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
     {
@@ -46,17 +41,11 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
         return Task.CompletedTask;
     }
 
-    public Task DeleteAllBetweenAsync(long userAId, long userBId)
+    public Task DeleteAllForUserPairAsync(long userId, long otherUserId)
     {
         _requests.RemoveAll(r =>
-            (r.RequesterId == userAId && r.AddresseeId == userBId) ||
-            (r.RequesterId == userBId && r.AddresseeId == userAId));
-        return Task.CompletedTask;
-    }
-
-    public Task DeleteAllForUserAsync(long userId)
-    {
-        _requests.RemoveAll(r => r.RequesterId == userId || r.AddresseeId == userId);
+            (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
+            (r.RequesterId == otherUserId && r.AddresseeId == userId));
         return Task.CompletedTask;
     }
 }
