@@ -199,7 +199,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     }
 
     [Fact]
-    public async Task Accept_Returns400_WhenAddresseeBlockedRequester()
+    public async Task Accept_Returns404_WhenAddresseeBlockedRequester()
     {
         // Arrange
         const string testMethodName = "FriendAcceptBlocked";
@@ -216,10 +216,38 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
         await LoginAs(addressee);
         var friends = await Client.GetAsync($"{FriendshipsBase}/me");
         Assert.Equal(HttpStatusCode.NoContent, friends.StatusCode);
+    }
+
+    [Fact]
+    public async Task Accept_Returns404_WhenRequesterBlockedAddresseeThenUnblocked()
+    {
+        // Arrange
+        const string testMethodName = "FriendAcceptAfterUnblock";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+
+        await LoginAs(requester);
+        await Client.PostAsJsonAsync("/api/users/blocks",
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+        var blocks = await Client.GetAsync("/api/users/blocks/me");
+        var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockResponseDto>>();
+        var blockId = Assert.Single(blockList!).Id;
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"/api/users/blocks/{blockId}")).StatusCode);
+
+        // Act
+        await LoginAs(addressee);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        await LoginAs(addressee);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
     }
 
     [Fact]

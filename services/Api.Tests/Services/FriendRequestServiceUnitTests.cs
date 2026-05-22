@@ -255,7 +255,7 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task SendRequest_ReturnsCreatedWithoutReactivate_WhenAddresseeBlockedRequester()
+    public async Task SendRequest_ReturnsCreatedWithNewIgnoredRequest_WhenAddresseeBlockedRequesterAfterPendingRemoved()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -272,7 +272,8 @@ public sealed class FriendRequestServiceUnitTests
 
         // Assert
         Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
-        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
+        var stored = await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id);
         Assert.NotNull(stored);
         Assert.False(stored.IsPending);
         Assert.True(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
@@ -395,7 +396,7 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task Accept_ThrowsArgument_WhenAddresseeBlockedRequester()
+    public async Task Accept_ThrowsNotFound_WhenAddresseeBlockedRequester()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -407,13 +408,14 @@ public sealed class FriendRequestServiceUnitTests
         LoginAs(addressee.Id);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             _friendRequestService.AcceptRequestAsync(requestId));
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
         Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
 
     [Fact]
-    public async Task Accept_ThrowsArgument_WhenRequesterBlockedAddressee()
+    public async Task Accept_ThrowsNotFound_WhenRequesterBlockedAddressee()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -425,7 +427,28 @@ public sealed class FriendRequestServiceUnitTests
         LoginAs(addressee.Id);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            _friendRequestService.AcceptRequestAsync(requestId));
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
+    public async Task Accept_ThrowsNotFound_WhenRequesterBlockedAddresseeThenUnblocked()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(requester.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+        var blockId = Assert.Single((await _userBlockService.GetMyBlocksAsync())!).Id;
+        await _userBlockService.DeleteBlockByIdAsync(blockId);
+        LoginAs(addressee.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             _friendRequestService.AcceptRequestAsync(requestId));
         Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }

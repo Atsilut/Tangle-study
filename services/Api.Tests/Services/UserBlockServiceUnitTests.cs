@@ -1,3 +1,7 @@
+using Api.Domain.Friendships.Dto;
+using Api.Domain.Friendships.Service;
+using Api.Domain.Friendships.Dto;
+using Api.Domain.Friendships.Repository;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Domain;
@@ -12,7 +16,9 @@ namespace Api.Tests.Services;
 public sealed class UserBlockServiceUnitTests
 {
     private readonly UserBlockService _userBlockService;
+    private readonly FriendRequestService _friendRequestService;
     private readonly FakeUserBlockRepository _userBlockRepository;
+    private readonly FakeFriendRequestRepository _friendRequestRepository;
     private readonly FakeUserRepository _userRepository;
     private readonly FakeHttpContextAccessor _httpContextAccessor;
 
@@ -21,7 +27,9 @@ public sealed class UserBlockServiceUnitTests
         _httpContextAccessor = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
         _userBlockService = graph.UserBlockService;
+        _friendRequestService = graph.FriendRequestService;
         _userBlockRepository = graph.UserBlockRepository;
+        _friendRequestRepository = graph.FriendRequestRepository;
         _userRepository = graph.UserRepository;
     }
 
@@ -86,6 +94,24 @@ public sealed class UserBlockServiceUnitTests
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             _userBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = missingUserId }));
         Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BlockUser_DeletesPendingOutgoingFriendRequest()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        LoginAs(requester.Id);
+        await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+
+        // Assert
+        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
 
     [Fact]
