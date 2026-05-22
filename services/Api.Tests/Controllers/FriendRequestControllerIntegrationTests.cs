@@ -281,10 +281,10 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     }
 
     [Fact]
-    public async Task BlockUser_Returns200_AndBlocksOutgoingFriendRequest()
+    public async Task SendRequest_Returns400_WhenRequesterBlockedAddressee()
     {
         // Arrange
-        const string testMethodName = "UserBlockOutgoing";
+        const string testMethodName = "FriendSendBlocked";
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(requester);
@@ -299,10 +299,10 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     }
 
     [Fact]
-    public async Task BlockUser_IgnoresIncomingRequest_AndBlocksResendReactivation()
+    public async Task SendRequest_Returns201_WhenAddresseeBlockedRequester()
     {
         // Arrange
-        const string testMethodName = "UserBlockResend";
+        const string testMethodName = "FriendSendBlockedByAddressee";
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
@@ -335,10 +335,10 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     }
 
     [Fact]
-    public async Task BlockUser_BlocksAddresseeFromSendingRequest()
+    public async Task SendRequest_Returns400_WhenAddresseeBlockedRequester()
     {
         // Arrange
-        const string testMethodName = "UserBlockReciprocal";
+        const string testMethodName = "FriendSendBlockedIncoming";
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(addressee);
