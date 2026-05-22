@@ -136,6 +136,28 @@ public sealed class UserBlockServiceUnitTests
     }
 
     [Fact]
+    public async Task BlockUser_DeletesIgnoredFriendRequest_WhenRequesterBlocksAddressee()
+    {
+        // Arrange — pending A→B, B ignores, then A blocks B
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        LoginAs(requester.Id);
+        await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var requestId = (await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id))!.Id;
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+
+        // Act
+        LoginAs(requester.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+
+        // Assert
+        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
     public async Task BlockUser_ThrowsEntityAlreadyExists_WhenAlreadyBlocked()
     {
         // Arrange
