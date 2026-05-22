@@ -113,15 +113,7 @@ namespace Api.Domain.Friendships.Service
         {
             if (existingRequest.RequesterId == requesterId)
             {
-                if (!existingRequest.IsPending)
-                {
-                    if (!await IsAddresseeBlockingRequesterAsync(addresseeId, requesterId))
-                    {
-                        existingRequest.Unignore();
-                        await _repo.UpdateAsync(existingRequest);
-                    }
-                }
-                else
+                if (existingRequest.IsPending)
                 {
                     _logger.LogInformation(
                         "Friend request for user pair {RequesterId}, {AddresseeId} already exists and is pending.",
