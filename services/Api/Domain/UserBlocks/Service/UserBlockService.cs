@@ -43,7 +43,7 @@ namespace Api.Domain.UserBlocks.Service
                 throw new EntityAlreadyExistsException($"User {request.BlockedUserId} is already blocked.");
 
             await _repo.CreateAsync(new UserBlock(blockerId, request.BlockedUserId));
-            await _friendRequestService.Value.IgnorePendingRequestForUserPairAsync(blockerId, request.BlockedUserId);
+            await _friendRequestService.Value.RejectPendingRequestForUserPairAsync(blockerId, request.BlockedUserId);
         }
 
         public async Task<List<UserBlockResponseDto>?> GetMyBlocksAsync()

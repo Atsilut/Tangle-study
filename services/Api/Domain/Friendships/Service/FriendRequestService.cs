@@ -140,12 +140,11 @@ namespace Api.Domain.Friendships.Service
             return SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest;
         }
 
-        public async Task IgnorePendingRequestForUserPairAsync(long userId, long otherUserId)
+        public async Task RejectPendingRequestForUserPairAsync(long userId, long otherUserId)
         {
             var friendRequest = await _repo.GetForUserPairAsync(userId, otherUserId);
             if (friendRequest is null || !friendRequest.IsPending) return;
-            friendRequest.Ignore();
-            await _repo.UpdateAsync(friendRequest);
+            await _repo.DeleteAsync(friendRequest);
         }
 
         private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
