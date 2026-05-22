@@ -217,6 +217,35 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
+    public async Task SendRequest_ReturnsCreatedWithoutReactivate_WhenResendingAfterAddresseeIgnoredThenBlocked()
+    {
+        // Arrange — pending A→B, B ignores, B blocks A, A resends (same outcome as ignore-only resend)
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+        LoginAs(requester.Id);
+
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
+        Assert.True(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
+        var pending = await _friendRequestService.GetPendingAsync();
+        var dto = Assert.Single(pending);
+        Assert.True(dto.IsPending);
+        Assert.Equal(addressee.Id, dto.OtherUserId);
+    }
+
+    [Fact]
     public async Task SendRequest_ThrowsArgument_WhenRequesterBlockedAddressee()
     {
         // Arrange
