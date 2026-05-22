@@ -140,11 +140,18 @@ namespace Api.Domain.Friendships.Service
             return SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest;
         }
 
-        public async Task RejectPendingRequestForUserPairAsync(long userId, long otherUserId)
+        public async Task HandlePendingFriendRequestOnBlockAsync(long blockerId, long blockedUserId)
         {
-            var friendRequest = await _repo.GetForUserPairAsync(userId, otherUserId);
+            var friendRequest = await _repo.GetForUserPairAsync(blockerId, blockedUserId);
             if (friendRequest is null || !friendRequest.IsPending) return;
-            await _repo.DeleteAsync(friendRequest);
+
+            if (friendRequest.RequesterId == blockerId)
+                await _repo.DeleteAsync(friendRequest);
+            else
+            {
+                friendRequest.Ignore();
+                await _repo.UpdateAsync(friendRequest);
+            }
         }
 
         private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
@@ -168,7 +175,8 @@ namespace Api.Domain.Friendships.Service
         public async Task IgnoreRequestAsync(long id)
         {
             var userId = GetUserIdFromLogin();
-            var request = await GetIncomingRequestForAddresseeOrThrowAsync(id, userId, requirePending: true);
+            var request = await GetIncomingRequestForAddresseeOrThrowAsync(id, userId, requirePending: false);
+            if (!request.IsPending) return;
             request.Ignore();
             await _repo.UpdateAsync(request);
         }
