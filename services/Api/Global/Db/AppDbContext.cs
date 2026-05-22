@@ -55,13 +55,13 @@ namespace Api.Global.Db
                 .HasOne(f => f.UserLow)
                 .WithMany()
                 .HasForeignKey(f => f.UserLowId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Friendship>()
                 .HasOne(f => f.UserHigh)
                 .WithMany()
                 .HasForeignKey(f => f.UserHighId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Friendship>()
                 .ToTable(t => t.HasCheckConstraint(
@@ -72,25 +72,25 @@ namespace Api.Global.Db
                 .HasOne(r => r.Requester)
                 .WithMany()
                 .HasForeignKey(r => r.RequesterId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<FriendRequest>()
                 .HasOne(r => r.Addressee)
                 .WithMany()
                 .HasForeignKey(r => r.AddresseeId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<UserBlock>()
                 .HasOne(b => b.Blocker)
                 .WithMany()
                 .HasForeignKey(b => b.BlockerId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<UserBlock>()
                 .HasOne(b => b.BlockedUser)
                 .WithMany()
                 .HasForeignKey(b => b.BlockedUserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
