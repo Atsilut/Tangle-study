@@ -13,17 +13,17 @@ namespace Api.Tests.Services;
 
 public sealed class FriendshipServiceUnitTests
 {
-    private readonly FakeHttpContextAccessor _http;
     private readonly FriendshipService _friendshipService;
     private readonly FriendRequestService _friendRequestService;
     private readonly UserService _userService;
     private readonly FakeFriendshipRepository _friendshipRepository;
     private readonly FakeUserRepository _userRepository;
+    private readonly FakeHttpContextAccessor _httpContextAccessor;
 
     public FriendshipServiceUnitTests()
     {
-        _http = new FakeHttpContextAccessor("1");
-        var graph = DomainServiceTestFactory.Create(_http);
+        _httpContextAccessor = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
         _friendshipService = graph.FriendshipService;
         _friendRequestService = graph.FriendRequestService;
         _userService = graph.UserService;
@@ -31,15 +31,18 @@ public sealed class FriendshipServiceUnitTests
         _userRepository = graph.UserRepository;
     }
 
-    private async Task<User> CreateUserAsync(string nickname)
+    private async Task<User> CreateTestUserAsync(string nickname)
     {
-        var user = new User($"{nickname}@test.com", "password", nickname);
+        var user = new User(
+            email: $"{nickname}@test.com",
+            password: "password",
+            nickname: nickname);
         await _userRepository.CreateUserAsync(user);
         return user;
     }
 
     private void LoginAs(long userId) =>
-        _http.HttpContext = new DefaultHttpContext
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
         };
@@ -51,7 +54,7 @@ public sealed class FriendshipServiceUnitTests
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = visibility });
     }
 
-    private async Task AcceptFriendshipBetweenAsync(long requesterId, long addresseeId)
+    private async Task AcceptFriendshipAsync(long requesterId, long addresseeId)
     {
         LoginAs(requesterId);
         await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addresseeId });
@@ -61,22 +64,27 @@ public sealed class FriendshipServiceUnitTests
         await _friendRequestService.AcceptRequestAsync(requestId);
     }
 
+    // --- GET ---
+
     [Fact]
     public async Task GetMyFriends_ReturnsOnlyAccepted()
     {
-        var me = await CreateUserAsync("me");
-        var friend = await CreateUserAsync("friend");
-        var pending = await CreateUserAsync("pending");
+        // Arrange
+        var me = await CreateTestUserAsync("me");
+        var friend = await CreateTestUserAsync("friend");
+        var pendingUser = await CreateTestUserAsync("pending");
         LoginAs(me.Id);
         await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = friend.Id });
-        await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = pending.Id });
+        await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = pendingUser.Id });
         LoginAs(friend.Id);
         var incoming = await _friendRequestService.GetPendingAsync();
         await _friendRequestService.AcceptRequestAsync(incoming!.Single(p => p.OtherUserId == me.Id).Id);
-
         LoginAs(me.Id);
+
+        // Act
         var friends = await _friendshipService.GetMyFriendsAsync();
 
+        // Assert
         var single = Assert.Single(friends);
         Assert.Equal(friend.Id, single.OtherUserId);
     }
@@ -84,15 +92,18 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task GetUserFriends_ReturnsFriends_WhenVisibilityIsPublic()
     {
-        var owner = await CreateUserAsync("owner");
-        var friend = await CreateUserAsync("friend");
-        var stranger = await CreateUserAsync("stranger");
-        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        // Arrange
+        var owner = await CreateTestUserAsync("owner");
+        var friend = await CreateTestUserAsync("friend");
+        var stranger = await CreateTestUserAsync("stranger");
+        await AcceptFriendshipAsync(owner.Id, friend.Id);
         await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Public);
-
         LoginAs(stranger.Id);
+
+        // Act
         var friends = await _friendshipService.GetUserFriendsAsync(owner.Id);
 
+        // Assert
         var single = Assert.Single(friends);
         Assert.Equal(friend.Id, single.OtherUserId);
     }
@@ -100,13 +111,15 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task GetUserFriends_ThrowsUnauthorized_WhenVisibilityIsFriendsOnlyAndViewerIsStranger()
     {
-        var owner = await CreateUserAsync("owner");
-        var friend = await CreateUserAsync("friend");
-        var stranger = await CreateUserAsync("stranger");
-        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        // Arrange
+        var owner = await CreateTestUserAsync("owner");
+        var friend = await CreateTestUserAsync("friend");
+        var stranger = await CreateTestUserAsync("stranger");
+        await AcceptFriendshipAsync(owner.Id, friend.Id);
         await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
-
         LoginAs(stranger.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendshipService.GetUserFriendsAsync(owner.Id));
     }
@@ -114,16 +127,19 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task GetUserFriends_ReturnsFriends_WhenVisibilityIsFriendsOnlyAndViewerIsFriend()
     {
-        var owner = await CreateUserAsync("owner");
-        var friend = await CreateUserAsync("friend");
-        var other = await CreateUserAsync("other");
-        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
-        await AcceptFriendshipBetweenAsync(owner.Id, other.Id);
+        // Arrange
+        var owner = await CreateTestUserAsync("owner");
+        var friend = await CreateTestUserAsync("friend");
+        var other = await CreateTestUserAsync("other");
+        await AcceptFriendshipAsync(owner.Id, friend.Id);
+        await AcceptFriendshipAsync(owner.Id, other.Id);
         await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.FriendsOnly);
-
         LoginAs(friend.Id);
+
+        // Act
         var friends = await _friendshipService.GetUserFriendsAsync(owner.Id);
 
+        // Assert
         Assert.Equal(2, friends!.Count);
         Assert.Contains(friends, f => f.OtherUserId == other.Id);
     }
@@ -131,43 +147,51 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task GetUserFriends_ThrowsUnauthorized_WhenVisibilityIsPrivateAndViewerIsFriend()
     {
-        var owner = await CreateUserAsync("owner");
-        var friend = await CreateUserAsync("friend");
-        await AcceptFriendshipBetweenAsync(owner.Id, friend.Id);
+        // Arrange
+        var owner = await CreateTestUserAsync("owner");
+        var friend = await CreateTestUserAsync("friend");
+        await AcceptFriendshipAsync(owner.Id, friend.Id);
         await SetFriendsListVisibilityAsync(owner.Id, FriendsListVisibility.Private);
-
         LoginAs(friend.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendshipService.GetUserFriendsAsync(owner.Id));
     }
 
+    // --- DELETE ---
+
     [Fact]
     public async Task DeleteFriendship_RemovesFriendship_WhenCalledByEitherParty()
     {
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        await AcceptFriendshipBetweenAsync(a.Id, b.Id);
+        // Arrange
+        var a = await CreateTestUserAsync("userA");
+        var b = await CreateTestUserAsync("userB");
+        await AcceptFriendshipAsync(a.Id, b.Id);
         LoginAs(a.Id);
-        var friends = await _friendshipService.GetMyFriendsAsync();
-        var friendshipId = Assert.Single(friends!).Id;
-
+        var friendshipId = Assert.Single((await _friendshipService.GetMyFriendsAsync())!).Id;
         LoginAs(b.Id);
+
+        // Act
         await _friendshipService.DeleteFriendshipByIdAsync(friendshipId);
 
+        // Assert
         Assert.Null(await _friendshipRepository.GetByIdAsync(friendshipId));
     }
 
     [Fact]
     public async Task DeleteFriendship_ThrowsUnauthorized_WhenUserNotPartOfFriendship()
     {
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        var stranger = await CreateUserAsync("stranger");
-        await AcceptFriendshipBetweenAsync(a.Id, b.Id);
+        // Arrange
+        var a = await CreateTestUserAsync("userA");
+        var b = await CreateTestUserAsync("userB");
+        var stranger = await CreateTestUserAsync("stranger");
+        await AcceptFriendshipAsync(a.Id, b.Id);
         LoginAs(a.Id);
         var friendshipId = Assert.Single((await _friendshipService.GetMyFriendsAsync())!).Id;
-
         LoginAs(stranger.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendshipService.DeleteFriendshipByIdAsync(friendshipId));
     }
@@ -175,10 +199,13 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task DeleteFriendship_ThrowsNotFound_WhenMissing()
     {
-        var user = await CreateUserAsync("user");
+        // Arrange
+        const long missingFriendshipId = 999;
+        var user = await CreateTestUserAsync("user");
         LoginAs(user.Id);
 
+        // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendshipService.DeleteFriendshipByIdAsync(999));
+            _friendshipService.DeleteFriendshipByIdAsync(missingFriendshipId));
     }
 }

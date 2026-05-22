@@ -1,5 +1,7 @@
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Friendships.Service;
+using Api.Domain.UserBlocks.Dto;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Domain;
 using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
@@ -11,38 +13,45 @@ namespace Api.Tests.Services;
 
 public sealed class FriendRequestServiceUnitTests
 {
-    private readonly FakeHttpContextAccessor _http;
     private readonly FriendRequestService _friendRequestService;
     private readonly FriendshipService _friendshipService;
+    private readonly UserBlockService _userBlockService;
     private readonly FakeUserRepository _userRepository;
     private readonly FakeFriendRequestRepository _friendRequestRepository;
     private readonly FakeFriendshipRepository _friendshipRepository;
+    private readonly FakeUserBlockRepository _userBlockRepository;
+    private readonly FakeHttpContextAccessor _httpContextAccessor;
 
     public FriendRequestServiceUnitTests()
     {
-        _http = new FakeHttpContextAccessor("1");
-        var graph = DomainServiceTestFactory.Create(_http);
+        _httpContextAccessor = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
         _friendRequestService = graph.FriendRequestService;
         _friendshipService = graph.FriendshipService;
+        _userBlockService = graph.UserBlockService;
         _userRepository = graph.UserRepository;
         _friendRequestRepository = graph.FriendRequestRepository;
         _friendshipRepository = graph.FriendshipRepository;
+        _userBlockRepository = graph.UserBlockRepository;
     }
 
-    private async Task<User> CreateUserAsync(string nickname)
+    private async Task<User> CreateTestUserAsync(string nickname)
     {
-        var user = new User($"{nickname}@test.com", "password", nickname);
+        var user = new User(
+            email: $"{nickname}@test.com",
+            password: "password",
+            nickname: nickname);
         await _userRepository.CreateUserAsync(user);
         return user;
     }
 
     private void LoginAs(long userId) =>
-        _http.HttpContext = new DefaultHttpContext
+        _httpContextAccessor.HttpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
         };
 
-    private async Task<long> SendRequestAndGetIdAsync(long requesterId, long addresseeId)
+    private async Task<long> SendFriendRequestAndGetIdAsync(long requesterId, long addresseeId)
     {
         LoginAs(requesterId);
         await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addresseeId });
@@ -50,17 +59,22 @@ public sealed class FriendRequestServiceUnitTests
         return pending!.Single(p => p.OtherUserId == addresseeId).Id;
     }
 
+    // --- CREATE ---
+
     [Fact]
     public async Task SendRequest_CreatesPendingFriendRequest()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
         LoginAs(requester.Id);
 
+        // Act
         var outcome = await _friendRequestService.SendRequestAsync(
             new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
-        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
 
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
         var pending = await _friendRequestService.GetPendingAsync();
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
@@ -68,15 +82,17 @@ public sealed class FriendRequestServiceUnitTests
         Assert.Equal(addressee.Id, dto.AddresseeId);
         Assert.Equal(addressee.Id, dto.OtherUserId);
         Assert.False(dto.IsIncoming);
-        Assert.Null(await _friendshipRepository.GetBetweenAsync(requester.Id, addressee.Id));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
 
     [Fact]
     public async Task SendRequest_ThrowsArgument_WhenAddresseeIsSelf()
     {
-        var user = await CreateUserAsync("solo");
+        // Arrange
+        var user = await CreateTestUserAsync("solo");
         LoginAs(user.Id);
 
+        // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
             _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = user.Id }));
     }
@@ -84,74 +100,265 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task SendRequest_ThrowsNotFound_WhenAddresseeMissing()
     {
-        var requester = await CreateUserAsync("lonely");
+        // Arrange
+        const long missingAddresseeId = 999;
+        var requester = await CreateTestUserAsync("lonely");
         LoginAs(requester.Id);
 
+        // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = 999 }));
+            _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = missingAddresseeId }));
     }
 
     [Fact]
     public async Task SendRequest_CreatesFriendshipAndRemovesReversePending_WhenAddresseeSendsBack()
     {
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        var originalRequestId = await SendRequestAndGetIdAsync(a.Id, b.Id);
-
+        // Arrange
+        var a = await CreateTestUserAsync("userA");
+        var b = await CreateTestUserAsync("userB");
+        var originalRequestId = await SendFriendRequestAndGetIdAsync(a.Id, b.Id);
         LoginAs(b.Id);
+
+        // Act
         var outcome = await _friendRequestService.SendRequestAsync(
             new FriendRequestCreateRequestDto { AddresseeId = a.Id });
 
+        // Assert
         Assert.Equal(SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest, outcome);
-        Assert.NotNull(await _friendshipRepository.GetBetweenAsync(a.Id, b.Id));
+        Assert.NotNull(await _friendshipRepository.GetForUserPairAsync(a.Id, b.Id));
         Assert.Null(await _friendRequestRepository.GetByIdAsync(originalRequestId));
-        Assert.Null(await _friendRequestRepository.GetBetweenAsync(a.Id, b.Id));
+        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(a.Id, b.Id));
         Assert.Null(await _friendRequestService.GetPendingAsync());
     }
 
     [Fact]
-    public async Task SendRequest_ThrowsAlreadyExists_WhenDuplicateOutgoingRequest()
+    public async Task SendRequest_CreatesFriendship_WhenAddresseeSendsAfterIgnoringIncoming()
     {
-        var a = await CreateUserAsync("userA");
-        var b = await CreateUserAsync("userB");
-        await SendRequestAndGetIdAsync(a.Id, b.Id);
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+        LoginAs(addressee.Id);
 
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest, outcome);
+        Assert.NotNull(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
+    public async Task SendRequest_ReturnsCreated_WhenDuplicateOutgoingRequest()
+    {
+        // Arrange
+        var a = await CreateTestUserAsync("userA");
+        var b = await CreateTestUserAsync("userB");
+        await SendFriendRequestAndGetIdAsync(a.Id, b.Id);
         LoginAs(a.Id);
-        await Assert.ThrowsAsync<EntityAlreadyExistsException>(() =>
-            _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = b.Id }));
+
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = b.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
+    }
+
+    [Fact]
+    public async Task SendRequest_StoresAtMostOneRowPerUserPair()
+    {
+        // Arrange
+        var a = await CreateTestUserAsync("userA");
+        var b = await CreateTestUserAsync("userB");
+        LoginAs(a.Id);
+        await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = b.Id });
+
+        // Act
+        var forA = await _friendRequestRepository.GetForUserAsync(a.Id);
+        var forB = await _friendRequestRepository.GetForUserAsync(b.Id);
+
+        // Assert
+        Assert.Single(forA);
+        Assert.Single(forB);
+        Assert.Equal(forA[0].Id, forB[0].Id);
+    }
+
+    [Fact]
+    public async Task SendRequest_ReturnsCreated_WhenResendingAfterAddresseeIgnored()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+        LoginAs(requester.Id);
+
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.True(stored.IsPending);
+    }
+
+    [Fact]
+    public async Task SendRequest_ThrowsArgument_WhenRequesterBlockedAddressee()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        LoginAs(requester.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+        LoginAs(requester.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _friendRequestService.SendRequestAsync(
+                new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }));
+    }
+
+    [Fact]
+    public async Task SendRequest_CreatesNonPendingRequest_WhenAddresseeBlockedRequester()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        LoginAs(addressee.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+        LoginAs(requester.Id);
+
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
+        var stored = await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
+        var pending = await _friendRequestService.GetPendingAsync();
+        var dto = Assert.Single(pending);
+        Assert.True(dto.IsPending);
+        Assert.Equal(addressee.Id, dto.OtherUserId);
+    }
+
+    [Fact]
+    public async Task SendRequest_ReturnsCreatedWithoutReactivate_WhenAddresseeBlockedRequester()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+        LoginAs(requester.Id);
+
+        // Act
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Assert
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
+        Assert.True(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
+    }
+
+    // --- GET ---
+
+    [Fact]
+    public async Task GetPending_StillShowsOutgoingAsPending_WhenAddresseeIgnored()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+        LoginAs(requester.Id);
+
+        // Act
+        var pending = await _friendRequestService.GetPendingAsync();
+
+        // Assert
+        var dto = Assert.Single(pending);
+        Assert.True(dto.IsPending);
+        Assert.False(dto.IsIncoming);
+        Assert.Equal(addressee.Id, dto.OtherUserId);
     }
 
     [Fact]
     public async Task GetPending_ReturnsBothIncomingAndOutgoing()
     {
-        var me = await CreateUserAsync("me");
-        var outgoing = await CreateUserAsync("outgoing");
-        var incoming = await CreateUserAsync("incoming");
+        // Arrange
+        var me = await CreateTestUserAsync("me");
+        var outgoing = await CreateTestUserAsync("outgoing");
+        var incoming = await CreateTestUserAsync("incoming");
         LoginAs(me.Id);
         await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = outgoing.Id });
         LoginAs(incoming.Id);
         await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = me.Id });
-
         LoginAs(me.Id);
+
+        // Act
         var pendings = await _friendRequestService.GetPendingAsync();
 
+        // Assert
         Assert.Equal(2, pendings!.Count);
         Assert.Contains(pendings, p => p.OtherUserId == outgoing.Id && !p.IsIncoming);
         Assert.Contains(pendings, p => p.OtherUserId == incoming.Id && p.IsIncoming);
     }
 
+    // --- UPDATE ---
+
+    [Fact]
+    public async Task IgnoreRequest_IgnoresRequestWithoutUserBlock()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+
+        // Act
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+
+        // Assert
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
+        Assert.False(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
+    }
+
     [Fact]
     public async Task Accept_CreatesFriendshipAndRemovesRequest_WhenCalledByAddressee()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        var requestId = await SendRequestAndGetIdAsync(requester.Id, addressee.Id);
-
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
         LoginAs(addressee.Id);
+
+        // Act
         await _friendRequestService.AcceptRequestAsync(requestId);
 
-        Assert.NotNull(await _friendshipRepository.GetBetweenAsync(requester.Id, addressee.Id));
-        Assert.Null(await _friendRequestRepository.GetBetweenAsync(requester.Id, addressee.Id));
+        // Assert
+        Assert.NotNull(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
         LoginAs(requester.Id);
         var friends = await _friendshipService.GetMyFriendsAsync();
         Assert.Equal(addressee.Id, Assert.Single(friends!).OtherUserId);
@@ -160,11 +367,13 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task Accept_ThrowsUnauthorized_WhenCalledByRequester()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        var requestId = await SendRequestAndGetIdAsync(requester.Id, addressee.Id);
-
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
         LoginAs(requester.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendRequestService.AcceptRequestAsync(requestId));
     }
@@ -172,39 +381,135 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task Accept_ThrowsArgument_WhenRequestAlreadyAccepted()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        var requestId = await SendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
         LoginAs(addressee.Id);
         await _friendRequestService.AcceptRequestAsync(requestId);
+        LoginAs(addressee.Id);
 
+        // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             _friendRequestService.AcceptRequestAsync(requestId));
     }
 
     [Fact]
+    public async Task Accept_ThrowsArgument_WhenAddresseeBlockedRequester()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+        LoginAs(addressee.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _friendRequestService.AcceptRequestAsync(requestId));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
+    public async Task Accept_ThrowsArgument_WhenRequesterBlockedAddressee()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(requester.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+        LoginAs(addressee.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _friendRequestService.AcceptRequestAsync(requestId));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    // --- DELETE ---
+
+    [Fact]
     public async Task Reject_RemovesRequest_WhenCalledByAddressee()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        var requestId = await SendRequestAndGetIdAsync(requester.Id, addressee.Id);
-
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
         LoginAs(addressee.Id);
+
+        // Act
         await _friendRequestService.RejectRequestAsync(requestId);
 
+        // Assert
         Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
-        Assert.Null(await _friendshipRepository.GetBetweenAsync(requester.Id, addressee.Id));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
 
     [Fact]
     public async Task Reject_ThrowsUnauthorized_WhenCalledByRequester()
     {
-        var requester = await CreateUserAsync("requester");
-        var addressee = await CreateUserAsync("addressee");
-        var requestId = await SendRequestAndGetIdAsync(requester.Id, addressee.Id);
-
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
         LoginAs(requester.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _friendRequestService.RejectRequestAsync(requestId));
+    }
+
+    [Fact]
+    public async Task DeleteRequestById_RemovesPending_WhenCalledByRequester()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(requester.Id);
+
+        // Act
+        await _friendRequestService.DeleteRequestByIdAsync(requestId);
+
+        // Assert
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
+        Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
+    public async Task DeleteRequestById_RemovesPending_WhenCalledByAddressee()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+
+        // Act
+        await _friendRequestService.DeleteRequestByIdAsync(requestId);
+
+        // Assert
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
+    }
+
+    [Fact]
+    public async Task DeleteRequestById_ThrowsArgument_WhenRequestNotPending()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+        LoginAs(addressee.Id);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _friendRequestService.DeleteRequestByIdAsync(requestId));
+        Assert.NotNull(await _friendRequestRepository.GetByIdAsync(requestId));
     }
 }
