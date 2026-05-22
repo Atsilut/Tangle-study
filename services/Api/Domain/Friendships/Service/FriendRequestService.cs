@@ -70,6 +70,13 @@ namespace Api.Domain.Friendships.Service
         private Task<bool> IsAddresseeBlockingRequesterAsync(long addresseeId, long requesterId) =>
             _userBlockService.IsBlockedByAsync(addresseeId, requesterId);
 
+        private async Task EnsureNoBlockExistsBetweenUsersAsync(long userId, long otherUserId)
+        {
+            if (await _userBlockService.IsBlockedByAsync(userId, otherUserId)
+                || await _userBlockService.IsBlockedByAsync(otherUserId, userId))
+                throw new ArgumentException("Cannot form a friendship while a block exists between you and this user.");
+        }
+
         private async Task<SendFriendRequestOutcome> HandleExistingFriendRequestAsync(
             long requesterId, long addresseeId, FriendRequest existingRequest)
         {
@@ -118,12 +125,15 @@ namespace Api.Domain.Friendships.Service
             await _repo.CreateAsync(friendRequest);
         }
 
-        private Task CreateFriendshipFromRequestAsync(long requesterId, long addresseeId) =>
-            _db.ExecuteInTransactionAsync(async () =>
+        private async Task CreateFriendshipFromRequestAsync(long requesterId, long addresseeId)
+        {
+            await EnsureNoBlockExistsBetweenUsersAsync(requesterId, addresseeId);
+            await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.DeleteAllForUserPairAsync(requesterId, addresseeId);
                 await _friendshipService.CreateFriendshipForUserPairAsync(requesterId, addresseeId);
             });
+        }
 
         public async Task IgnoreRequestAsync(long id)
         {
