@@ -57,7 +57,9 @@ public sealed class FriendRequestServiceUnitTests
         var addressee = await CreateUserAsync("addressee");
         LoginAs(requester.Id);
 
-        await _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
 
         var pending = await _friendRequestService.GetPendingAsync();
         var dto = Assert.Single(pending);
@@ -90,15 +92,33 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task SendRequest_ThrowsAlreadyExists_WhenRequestExistsInReverseDirection()
+    public async Task SendRequest_CreatesFriendshipAndRemovesReversePending_WhenAddresseeSendsBack()
+    {
+        var a = await CreateUserAsync("userA");
+        var b = await CreateUserAsync("userB");
+        var originalRequestId = await SendRequestAndGetIdAsync(a.Id, b.Id);
+
+        LoginAs(b.Id);
+        var outcome = await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = a.Id });
+
+        Assert.Equal(SendFriendRequestOutcome.FriendshipCreatedFromReciprocalRequest, outcome);
+        Assert.NotNull(await _friendshipRepository.GetBetweenAsync(a.Id, b.Id));
+        Assert.Null(await _friendRequestRepository.GetByIdAsync(originalRequestId));
+        Assert.Null(await _friendRequestRepository.GetBetweenAsync(a.Id, b.Id));
+        Assert.Null(await _friendRequestService.GetPendingAsync());
+    }
+
+    [Fact]
+    public async Task SendRequest_ThrowsAlreadyExists_WhenDuplicateOutgoingRequest()
     {
         var a = await CreateUserAsync("userA");
         var b = await CreateUserAsync("userB");
         await SendRequestAndGetIdAsync(a.Id, b.Id);
 
-        LoginAs(b.Id);
+        LoginAs(a.Id);
         await Assert.ThrowsAsync<EntityAlreadyExistsException>(() =>
-            _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = a.Id }));
+            _friendRequestService.SendRequestAsync(new FriendRequestCreateRequestDto { AddresseeId = b.Id }));
     }
 
     [Fact]

@@ -77,7 +77,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     }
 
     [Fact]
-    public async Task SendRequest_Returns409_WhenAlreadyExists()
+    public async Task SendRequest_Returns409_WhenDuplicateOutgoingRequest()
     {
         // Arrange
         const string testMethodName = "FriendSendDup";
@@ -92,6 +92,31 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         // Assert
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
+    }
+
+    [Fact]
+    public async Task SendRequest_Returns200_AndCreatesFriendship_WhenAddresseeSendsBackToPendingRequester()
+    {
+        // Arrange
+        const string testMethodName = "FriendSendReciprocal";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        await LoginAs(requester);
+        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        await LoginAs(addressee);
+
+        // Act
+        var reciprocal = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, reciprocal.StatusCode);
+        await LoginAs(addressee);
+        Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
+
+        var pending = await Client.GetAsync($"{RequestsBase}/pending");
+        Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
     }
 
     // --- GET ---
