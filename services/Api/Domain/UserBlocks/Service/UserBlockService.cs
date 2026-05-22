@@ -39,11 +39,10 @@ namespace Api.Domain.UserBlocks.Service
             var blockerId = GetUserIdFromLogin();
             await ValidateBlockPartiesAsync(blockerId, request.BlockedUserId);
 
-            if (!await _repo.ExistsAsync(blockerId, request.BlockedUserId))
-            {
-                await _repo.CreateAsync(new UserBlock(blockerId, request.BlockedUserId));
-            }
+            if (await _repo.ExistsAsync(blockerId, request.BlockedUserId))
+                throw new EntityAlreadyExistsException($"User {request.BlockedUserId} is already blocked.");
 
+            await _repo.CreateAsync(new UserBlock(blockerId, request.BlockedUserId));
             await _friendRequestService.Value.IgnorePendingRequestForUserPairAsync(blockerId, request.BlockedUserId);
         }
 
@@ -76,7 +75,7 @@ namespace Api.Domain.UserBlocks.Service
             await _userService.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
         }
 
-        private static UserBlockResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
+        private UserBlockResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
             new(
                 Id: block.Id,
                 BlockedUserId: block.BlockedUserId,
