@@ -6,5 +6,8 @@ namespace Api.Domain.UserBlocks.Repository
     {
         Task CreateAsync(UserBlock userBlock);
         Task<bool> ExistsAsync(long blockerId, long blockedUserId);
+        Task<UserBlock?> GetByIdAsync(long id);
+        Task<List<UserBlock>> GetAllForBlockerAsync(long blockerId);
+        Task DeleteAsync(UserBlock userBlock);
     }
 }
