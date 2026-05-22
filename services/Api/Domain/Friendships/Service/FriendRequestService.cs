@@ -143,15 +143,17 @@ namespace Api.Domain.Friendships.Service
         public async Task HandlePendingFriendRequestOnBlockAsync(long blockerId, long blockedUserId)
         {
             var friendRequest = await _repo.GetForUserPairAsync(blockerId, blockedUserId);
-            if (friendRequest is null || !friendRequest.IsPending) return;
+            if (friendRequest is null) return;
 
             if (friendRequest.RequesterId == blockerId)
-                await _repo.DeleteAsync(friendRequest);
-            else
             {
-                friendRequest.Ignore();
-                await _repo.UpdateAsync(friendRequest);
+                await _repo.DeleteAsync(friendRequest);
+                return;
             }
+
+            if (!friendRequest.IsPending) return;
+            friendRequest.Ignore();
+            await _repo.UpdateAsync(friendRequest);
         }
 
         private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
