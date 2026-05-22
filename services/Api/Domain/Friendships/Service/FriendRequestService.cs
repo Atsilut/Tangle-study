@@ -6,6 +6,8 @@ using Api.Domain.Users.Service;
 using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Api.Domain.Friendships.Service
 {
@@ -50,9 +52,38 @@ namespace Api.Domain.Friendships.Service
             if (existingRequest is not null)
                 return await HandleExistingFriendRequestAsync(requesterId, request.AddresseeId, existingRequest);
 
-            await CreateOutgoingFriendRequestAsync(requesterId, request.AddresseeId);
-            return SendFriendRequestOutcome.FriendRequestCreated;
+            try
+            {
+                await CreateOutgoingFriendRequestInTransactionAsync(requesterId, request.AddresseeId);
+            }
+            catch (DbUpdateException ex) when (IsFriendRequestPairUniqueViolation(ex))
+            {
+                // Concurrent opposite-direction send; resolve using the row that won the race.
+            }
+
+            return await ResolveSendOutcomeForUserPairAsync(requesterId, request.AddresseeId);
         }
+
+        private async Task CreateOutgoingFriendRequestInTransactionAsync(long requesterId, long addresseeId)
+        {
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                if (await _repo.GetForUserPairAsync(requesterId, addresseeId) is not null)
+                    return;
+
+                await CreateOutgoingFriendRequestAsync(requesterId, addresseeId);
+            });
+        }
+
+        private async Task<SendFriendRequestOutcome> ResolveSendOutcomeForUserPairAsync(long requesterId, long addresseeId)
+        {
+            var existingRequest = await _repo.GetForUserPairAsync(requesterId, addresseeId)
+                ?? throw new InvalidOperationException("Friend request for user pair was not created.");
+            return await HandleExistingFriendRequestAsync(requesterId, addresseeId, existingRequest);
+        }
+
+        private static bool IsFriendRequestPairUniqueViolation(DbUpdateException exception) =>
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
         private async Task ValidateSendRequestPartiesAsync(long requesterId, long addresseeId)
         {

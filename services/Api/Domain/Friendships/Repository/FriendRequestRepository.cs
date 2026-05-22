@@ -25,9 +25,12 @@ namespace Api.Domain.Friendships.Repository
             await _context.FriendRequests.FindAsync(id);
 
         public async Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
-            await _context.FriendRequests.FirstOrDefaultAsync(r =>
-                (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
-                (r.RequesterId == otherUserId && r.AddresseeId == userId));
+            await _context.FriendRequests
+                .Where(r =>
+                    (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
+                    (r.RequesterId == otherUserId && r.AddresseeId == userId))
+                .OrderBy(r => r.Id)
+                .FirstOrDefaultAsync();
 
         public async Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
         {

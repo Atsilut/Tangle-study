@@ -10,6 +10,9 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
 
     public Task CreateAsync(FriendRequest friendRequest)
     {
+        if (_requests.Exists(r => InvolvesSameUserPair(r, friendRequest.RequesterId, friendRequest.AddresseeId)))
+            throw new InvalidOperationException("A friend request already exists for this user pair.");
+
         typeof(FriendRequest)
             .GetProperty(nameof(FriendRequest.Id))!
             .SetValue(friendRequest, _nextId++);
@@ -17,13 +20,18 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
         return Task.CompletedTask;
     }
 
+    private static bool InvolvesSameUserPair(FriendRequest request, long userId, long otherUserId) =>
+        (request.RequesterId == userId && request.AddresseeId == otherUserId) ||
+        (request.RequesterId == otherUserId && request.AddresseeId == userId);
+
     public Task<FriendRequest?> GetByIdAsync(long id) =>
         Task.FromResult(_requests.FirstOrDefault(r => r.Id == id));
 
     public Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
-        Task.FromResult(_requests.FirstOrDefault(r =>
-            (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
-            (r.RequesterId == otherUserId && r.AddresseeId == userId)));
+        Task.FromResult(_requests
+            .Where(r => InvolvesSameUserPair(r, userId, otherUserId))
+            .OrderBy(r => r.Id)
+            .FirstOrDefault());
 
     public Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
     {
