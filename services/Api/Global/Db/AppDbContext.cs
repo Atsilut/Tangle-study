@@ -3,6 +3,7 @@ using Api.Domain.Posts.Domain;
 using Microsoft.EntityFrameworkCore;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
+using Api.Domain.UserBlocks.Domain;
 
 namespace Api.Global.Db
 {
@@ -13,6 +14,7 @@ namespace Api.Global.Db
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Friendship> Friendships { get; set; }
         public DbSet<FriendRequest> FriendRequests { get; set; }
+        public DbSet<UserBlock> UserBlocks { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -76,6 +78,18 @@ namespace Api.Global.Db
                 .HasOne(r => r.Addressee)
                 .WithMany()
                 .HasForeignKey(r => r.AddresseeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<UserBlock>()
+                .HasOne(b => b.Blocker)
+                .WithMany()
+                .HasForeignKey(b => b.BlockerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<UserBlock>()
+                .HasOne(b => b.BlockedUser)
+                .WithMany()
+                .HasForeignKey(b => b.BlockedUserId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }
