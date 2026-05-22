@@ -190,7 +190,7 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task SendRequest_ReturnsCreated_WhenResendingAfterAddresseeIgnored()
+    public async Task SendRequest_ReturnsCreatedWithoutReactivate_WhenResendingAfterAddresseeIgnored()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -208,7 +208,12 @@ public sealed class FriendRequestServiceUnitTests
         Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
         var stored = await _friendRequestRepository.GetByIdAsync(requestId);
         Assert.NotNull(stored);
-        Assert.True(stored.IsPending);
+        Assert.False(stored.IsPending);
+        Assert.False(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
+        var pending = await _friendRequestService.GetPendingAsync();
+        var dto = Assert.Single(pending);
+        Assert.True(dto.IsPending);
+        Assert.Equal(addressee.Id, dto.OtherUserId);
     }
 
     [Fact]

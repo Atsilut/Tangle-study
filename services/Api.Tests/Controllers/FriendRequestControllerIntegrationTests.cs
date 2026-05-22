@@ -328,6 +328,21 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         var resend = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
         Assert.Equal(HttpStatusCode.Created, resend.StatusCode);
+
+        await LoginAs(addressee);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        var ignoredAfterResend = await Client.GetAsync($"{RequestsBase}/ignored");
+        Assert.Equal(HttpStatusCode.OK, ignoredAfterResend.StatusCode);
+        var ignoredAfterResendList = await ignoredAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        Assert.Contains(ignoredAfterResendList!, d => d.Id == requestId && !d.IsPending);
+
+        await LoginAs(requester);
+        var requesterPendingAfterResend = await Client.GetAsync($"{RequestsBase}/pending");
+        Assert.Equal(HttpStatusCode.OK, requesterPendingAfterResend.StatusCode);
+        var outgoingAfterResend = Assert.Single(
+            await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>());
+        Assert.True(outgoingAfterResend.IsPending);
+        Assert.Equal(addressee.Id, outgoingAfterResend.OtherUserId);
     }
 
     [Fact]
