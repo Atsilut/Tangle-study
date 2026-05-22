@@ -97,6 +97,27 @@ public sealed class UserBlockServiceUnitTests
     }
 
     [Fact]
+    public async Task BlockUser_IgnoresPendingIncomingFriendRequest()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        LoginAs(requester.Id);
+        await _friendRequestService.SendRequestAsync(
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+
+        // Act
+        LoginAs(addressee.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+
+        // Assert
+        var stored = await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
+    }
+
+    [Fact]
     public async Task BlockUser_DeletesPendingOutgoingFriendRequest()
     {
         // Arrange

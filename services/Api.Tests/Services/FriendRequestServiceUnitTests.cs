@@ -255,7 +255,7 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task SendRequest_ReturnsCreatedWithNewIgnoredRequest_WhenAddresseeBlockedRequesterAfterPendingRemoved()
+    public async Task SendRequest_ReturnsCreatedWithoutReactivate_WhenAddresseeBlockedRequester()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -272,8 +272,7 @@ public sealed class FriendRequestServiceUnitTests
 
         // Assert
         Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
-        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
-        var stored = await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id);
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
         Assert.NotNull(stored);
         Assert.False(stored.IsPending);
         Assert.True(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
@@ -396,7 +395,7 @@ public sealed class FriendRequestServiceUnitTests
     }
 
     [Fact]
-    public async Task Accept_ThrowsNotFound_WhenAddresseeBlockedRequester()
+    public async Task Accept_ThrowsArgument_WhenAddresseeBlockedRequester()
     {
         // Arrange
         var requester = await CreateTestUserAsync("requester");
@@ -408,10 +407,32 @@ public sealed class FriendRequestServiceUnitTests
         LoginAs(addressee.Id);
 
         // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+        await Assert.ThrowsAsync<ArgumentException>(() =>
             _friendRequestService.AcceptRequestAsync(requestId));
-        Assert.Null(await _friendRequestRepository.GetByIdAsync(requestId));
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
         Assert.Null(await _friendshipRepository.GetForUserPairAsync(requester.Id, addressee.Id));
+    }
+
+    [Fact]
+    public async Task IgnoreRequest_NoOp_WhenAlreadyIgnoredByBlock()
+    {
+        // Arrange
+        var requester = await CreateTestUserAsync("requester");
+        var addressee = await CreateTestUserAsync("addressee");
+        var requestId = await SendFriendRequestAndGetIdAsync(requester.Id, addressee.Id);
+        LoginAs(addressee.Id);
+        await _userBlockService.BlockUserAsync(
+            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+
+        // Act
+        await _friendRequestService.IgnoreRequestAsync(requestId);
+
+        // Assert
+        var stored = await _friendRequestRepository.GetByIdAsync(requestId);
+        Assert.NotNull(stored);
+        Assert.False(stored.IsPending);
     }
 
     [Fact]
