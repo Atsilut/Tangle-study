@@ -32,11 +32,19 @@ namespace Api.Domain.Friendships.Api
         }
 
         [HttpPost("{id:long}/accept")]
-        [SwaggerOperation(Summary = "Accept a pending friend request")]
-        public async Task<ActionResult<FriendshipResponseDto>> Accept([FromRoute] long id)
+        [SwaggerOperation(Summary = "Accept a friend request (pending or ignored incoming)")]
+        public async Task<IActionResult> Accept([FromRoute] long id)
         {
             await _service.AcceptRequestAsync(id);
             return Ok();
+        }
+
+        [HttpPost("{id:long}/ignore")]
+        [SwaggerOperation(Summary = "Ignore an incoming friend request")]
+        public async Task<IActionResult> IgnoreRequest([FromRoute] long id)
+        {
+            await _service.IgnoreRequestAsync(id);
+            return NoContent();
         }
 
         [HttpGet("pending")]
@@ -44,6 +52,15 @@ namespace Api.Domain.Friendships.Api
         public async Task<ActionResult<List<FriendRequestResponseDto>?>> GetPending()
         {
             var response = await _service.GetPendingAsync();
+            if (response == null) return NoContent();
+            return Ok(response);
+        }
+
+        [HttpGet("ignored")]
+        [SwaggerOperation(Summary = "List incoming ignored friend requests (addressee only)")]
+        public async Task<ActionResult<List<FriendRequestResponseDto>?>> GetIgnoredIncoming()
+        {
+            var response = await _service.GetIgnoredIncomingAsync();
             if (response == null) return NoContent();
             return Ok(response);
         }
@@ -57,7 +74,7 @@ namespace Api.Domain.Friendships.Api
         }
 
         [HttpDelete("{id:long}/reject")]
-        [SwaggerOperation(Summary = "Reject a pending friend request (addressee only; removes the request)")]
+        [SwaggerOperation(Summary = "Reject a friend request (pending or ignored incoming; removes the request)")]
         public async Task<IActionResult> Reject([FromRoute] long id)
         {
             await _service.RejectRequestAsync(id);

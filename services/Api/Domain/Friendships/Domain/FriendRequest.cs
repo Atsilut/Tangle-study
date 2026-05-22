@@ -43,5 +43,17 @@ namespace Api.Domain.Friendships.Domain
             if (AddresseeId == userId) return RequesterId;
             throw new ArgumentException($"User {userId} is not part of this friend request.");
         }
+
+        public void Ignore()
+        {
+            IsPending = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Unignore()
+        {
+            IsPending = true;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }
