@@ -82,7 +82,7 @@ namespace Api.Domain.Friendships.Service
             return await HandleExistingFriendRequestAsync(requesterId, addresseeId, existingRequest);
         }
 
-        private static bool IsFriendRequestPairUniqueViolation(DbUpdateException exception) =>
+        private bool IsFriendRequestPairUniqueViolation(DbUpdateException exception) =>
             exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
         private async Task ValidateSendRequestPartiesAsync(long requesterId, long addresseeId)
@@ -230,7 +230,7 @@ namespace Api.Domain.Friendships.Service
                 MapRequestToDto(r, viewerId, nicknames.GetValueOrDefault(r.OtherPartyId(viewerId), "Deleted User"))).ToList();
         }
 
-        private static FriendRequestResponseDto MapRequestToDto(FriendRequest request, long viewerId, string otherUserNickname) =>
+        private FriendRequestResponseDto MapRequestToDto(FriendRequest request, long viewerId, string otherUserNickname) =>
             new(
                 Id: request.Id,
                 RequesterId: request.RequesterId,
@@ -242,7 +242,7 @@ namespace Api.Domain.Friendships.Service
                 CreatedAt: request.CreatedAt,
                 UpdatedAt: request.UpdatedAt);
 
-        private static bool AppearsPendingForViewer(FriendRequest request, long viewerId) =>
+        private bool AppearsPendingForViewer(FriendRequest request, long viewerId) =>
             request.IsPending || request.RequesterId == viewerId;
 
         public async Task DeleteRequestByIdAsync(long id)

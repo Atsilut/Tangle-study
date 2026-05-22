@@ -103,7 +103,7 @@ namespace Api.Domain.Friendships.Service
             }
         }
 
-        private static FriendshipResponseDto MapToDto(Friendship friendship, long viewerId, string otherUserNickname) =>
+        private FriendshipResponseDto MapToDto(Friendship friendship, long viewerId, string otherUserNickname) =>
             new(
                 Id: friendship.Id,
                 OtherUserId: friendship.OtherPartyId(viewerId),
