@@ -44,6 +44,40 @@ namespace Api.Migrations
                 table: "Friendships",
                 newName: "IX_Friendships_UserHighId");
 
+            // RequesterId/AddresseeId are directional; UserLowId/UserHighId require ordering.
+            migrationBuilder.DropIndex(
+                name: "IX_Friendships_UserLowId_UserHighId",
+                table: "Friendships");
+
+            migrationBuilder.Sql(
+                """
+                UPDATE "Friendships"
+                SET "UserLowId" = LEAST("UserLowId", "UserHighId"),
+                    "UserHighId" = GREATEST("UserLowId", "UserHighId")
+                WHERE "UserLowId" > "UserHighId";
+                """);
+
+            migrationBuilder.Sql(
+                """
+                DELETE FROM "Friendships"
+                WHERE "UserLowId" = "UserHighId";
+                """);
+
+            migrationBuilder.Sql(
+                """
+                DELETE FROM "Friendships" a
+                USING "Friendships" b
+                WHERE a."Id" > b."Id"
+                  AND a."UserLowId" = b."UserLowId"
+                  AND a."UserHighId" = b."UserHighId";
+                """);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Friendships_UserLowId_UserHighId",
+                table: "Friendships",
+                columns: new[] { "UserLowId", "UserHighId" },
+                unique: true);
+
             migrationBuilder.CreateTable(
                 name: "FriendRequests",
                 columns: table => new
