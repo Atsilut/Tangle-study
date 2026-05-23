@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Users.Domain;
 using Api.Tests.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Tests.Controllers;
 
@@ -82,6 +83,9 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("You must be friends to view this user's friends list.", problem.Detail);
     }
 
     [Fact]
@@ -125,6 +129,9 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("This user's friends list is private.", problem.Detail);
     }
 
     // --- DELETE ---
@@ -169,5 +176,8 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Unauthorized access", problem.Detail);
     }
 }

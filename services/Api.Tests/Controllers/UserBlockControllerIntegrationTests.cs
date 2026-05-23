@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Tests.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Tests.Controllers;
 
@@ -61,6 +62,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Cannot block yourself.", problem.Detail);
     }
 
     [Fact]
@@ -79,6 +83,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Assert
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal($"User {blocked.Id} is already blocked.", problem.Detail);
     }
 
     [Fact]
@@ -95,6 +102,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("User not found", problem.Detail);
     }
 
     // --- GET ---
@@ -176,6 +186,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Unauthorized access", problem.Detail);
     }
 
     [Fact]
@@ -191,6 +204,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         var blockedSend = await Client.PostAsJsonAsync(RequestsBase,
             new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
         Assert.Equal(HttpStatusCode.BadRequest, blockedSend.StatusCode);
+        var blockedSendProblem = await blockedSend.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(blockedSendProblem);
+        Assert.Equal("Cannot send a friend request to a user you have blocked.", blockedSendProblem.Detail);
 
         var blockId = await GetBlockIdAsync(addressee.Id);
 
