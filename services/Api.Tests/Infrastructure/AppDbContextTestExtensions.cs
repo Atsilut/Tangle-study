@@ -10,6 +10,9 @@ public static class AppDbContextTestExtensions
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.FriendRequests.ExecuteDeleteAsync();
+        await db.UserBlocks.ExecuteDeleteAsync();
+        await db.Friendships.ExecuteDeleteAsync();
         await db.Comments.ExecuteDeleteAsync();
         await db.Posts.ExecuteDeleteAsync();
         await db.Users.ExecuteDeleteAsync();

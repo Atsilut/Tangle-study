@@ -83,6 +83,7 @@ namespace Api.Domain.Users.Service
             Id: user.Id,
             Email: user.Email,
             Nickname: user.Nickname,
+            FriendsListVisibility: user.FriendsListVisibility,
             CreatedAt: user.CreatedAt,
             UpdatedAt: user.UpdatedAt
         );
@@ -104,6 +105,22 @@ namespace Api.Domain.Users.Service
                 Nickname: user.Nickname,
                 UpdatedAt: user.UpdatedAt
             );
+        }
+
+        public async Task<FriendsListVisibility> GetFriendsListVisibilityAsync(long userId)
+        {
+            var user = await GetUserEntityOrThrowAsync(userId);
+            return user.FriendsListVisibility;
+        }
+
+        public async Task<UserPrivacySettingsResponseDto> UpdatePrivacySettingsAsync(UserPrivacySettingsUpdateRequestDto request)
+        {
+            var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            user.UpdateFriendsListVisibility(request.FriendsListVisibility);
+            await _repo.UpdateUserAsync(user);
+            return new UserPrivacySettingsResponseDto(
+                FriendsListVisibility: user.FriendsListVisibility,
+                UpdatedAt: user.UpdatedAt);
         }
 
         public async Task DeleteUserAsync(long id)

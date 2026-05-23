@@ -126,6 +126,24 @@ public sealed class UserServiceUnitTests
             service.UpdateUserDetailAsync(new UserPatchRequestDto(owner.Id, "new")));
     }
 
+    [Fact]
+    public async Task UpdatePrivacySettingsAsync_UpdatesFriendsListVisibility()
+    {
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var repo = graph.UserRepository;
+        var service = graph.UserService;
+        var user = new User("a@a.com", "password", "nick");
+        await repo.CreateUserAsync(user);
+
+        var res = await service.UpdatePrivacySettingsAsync(
+            new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Public });
+
+        Assert.Equal(FriendsListVisibility.Public, res.FriendsListVisibility);
+        var reloaded = await repo.GetUserByIdAsync(user.Id);
+        Assert.Equal(FriendsListVisibility.Public, reloaded!.FriendsListVisibility);
+    }
+
     // --- DELETE ---
 
     [Fact]

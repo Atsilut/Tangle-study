@@ -3,6 +3,7 @@ using System;
 using Api.Global.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260521034640_AddFriendships")]
+    partial class AddFriendships
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace Api.Migrations
                     b.ToTable("Comments");
                 });
 
-            modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
+            modelBuilder.Entity("Api.Domain.Friendships.Domain.Friendship", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -83,11 +86,11 @@ namespace Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsPending")
-                        .HasColumnType("boolean");
-
                     b.Property<long>("RequesterId")
                         .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -99,40 +102,7 @@ namespace Api.Migrations
                     b.HasIndex("RequesterId", "AddresseeId")
                         .IsUnique();
 
-                    b.ToTable("FriendRequests");
-                });
-
-            modelBuilder.Entity("Api.Domain.Friendships.Domain.Friendship", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("UserHighId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("UserLowId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserHighId");
-
-                    b.HasIndex("UserLowId", "UserHighId")
-                        .IsUnique();
-
-                    b.ToTable("Friendships", t =>
-                        {
-                            t.HasCheckConstraint("CK_Friendships_UserLowLtUserHigh", "\"UserLowId\" < \"UserHighId\"");
-                        });
+                    b.ToTable("Friendships");
                 });
 
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
@@ -170,36 +140,6 @@ namespace Api.Migrations
                     b.ToTable("Posts");
                 });
 
-            modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("BlockedUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("BlockerId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BlockedUserId");
-
-                    b.HasIndex("BlockerId", "BlockedUserId")
-                        .IsUnique();
-
-                    b.ToTable("UserBlocks");
-                });
-
             modelBuilder.Entity("Api.Domain.Users.Domain.User", b =>
                 {
                     b.Property<long>("Id")
@@ -214,9 +154,6 @@ namespace Api.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int>("FriendsListVisibility")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Nickname")
                         .IsRequired()
@@ -261,42 +198,23 @@ namespace Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
+            modelBuilder.Entity("Api.Domain.Friendships.Domain.Friendship", b =>
                 {
                     b.HasOne("Api.Domain.Users.Domain.User", "Addressee")
                         .WithMany()
                         .HasForeignKey("AddresseeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("Api.Domain.Users.Domain.User", "Requester")
                         .WithMany()
                         .HasForeignKey("RequesterId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Addressee");
 
                     b.Navigation("Requester");
-                });
-
-            modelBuilder.Entity("Api.Domain.Friendships.Domain.Friendship", b =>
-                {
-                    b.HasOne("Api.Domain.Users.Domain.User", "UserHigh")
-                        .WithMany()
-                        .HasForeignKey("UserHighId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "UserLow")
-                        .WithMany()
-                        .HasForeignKey("UserLowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UserHigh");
-
-                    b.Navigation("UserLow");
                 });
 
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
@@ -307,25 +225,6 @@ namespace Api.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
-                {
-                    b.HasOne("Api.Domain.Users.Domain.User", "BlockedUser")
-                        .WithMany()
-                        .HasForeignKey("BlockedUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "Blocker")
-                        .WithMany()
-                        .HasForeignKey("BlockerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BlockedUser");
-
-                    b.Navigation("Blocker");
                 });
 
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
