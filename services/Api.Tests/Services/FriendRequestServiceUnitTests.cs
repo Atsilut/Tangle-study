@@ -76,6 +76,7 @@ public sealed class FriendRequestServiceUnitTests
         // Assert
         Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
         var pending = await _friendRequestService.GetPendingAsync();
+        Assert.NotNull(pending);
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
         Assert.Equal(requester.Id, dto.RequesterId);
@@ -211,6 +212,7 @@ public sealed class FriendRequestServiceUnitTests
         Assert.False(stored.IsPending);
         Assert.False(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
         var pending = await _friendRequestService.GetPendingAsync();
+        Assert.NotNull(pending);
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
         Assert.Equal(addressee.Id, dto.OtherUserId);
@@ -240,6 +242,7 @@ public sealed class FriendRequestServiceUnitTests
         Assert.False(stored.IsPending);
         Assert.True(await _userBlockRepository.ExistsAsync(addressee.Id, requester.Id));
         var pending = await _friendRequestService.GetPendingAsync();
+        Assert.NotNull(pending);
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
         Assert.Equal(addressee.Id, dto.OtherUserId);
@@ -283,6 +286,7 @@ public sealed class FriendRequestServiceUnitTests
         Assert.NotNull(stored);
         Assert.False(stored.IsPending);
         var pending = await _friendRequestService.GetPendingAsync();
+        Assert.NotNull(pending);
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
         Assert.Equal(addressee.Id, dto.OtherUserId);
@@ -329,6 +333,7 @@ public sealed class FriendRequestServiceUnitTests
         var pending = await _friendRequestService.GetPendingAsync();
 
         // Assert
+        Assert.NotNull(pending);
         var dto = Assert.Single(pending);
         Assert.True(dto.IsPending);
         Assert.False(dto.IsIncoming);

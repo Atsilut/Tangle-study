@@ -85,6 +85,7 @@ public sealed class FriendshipServiceUnitTests
         var friends = await _friendshipService.GetMyFriendsAsync();
 
         // Assert
+        Assert.NotNull(friends);
         var single = Assert.Single(friends);
         Assert.Equal(friend.Id, single.OtherUserId);
     }
@@ -104,6 +105,7 @@ public sealed class FriendshipServiceUnitTests
         var friends = await _friendshipService.GetUserFriendsAsync(owner.Id);
 
         // Assert
+        Assert.NotNull(friends);
         var single = Assert.Single(friends);
         Assert.Equal(friend.Id, single.OtherUserId);
     }
