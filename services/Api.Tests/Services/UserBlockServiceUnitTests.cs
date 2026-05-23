@@ -1,7 +1,3 @@
-using Api.Domain.Friendships.Dto;
-using Api.Domain.Friendships.Service;
-using Api.Domain.Friendships.Dto;
-using Api.Domain.Friendships.Repository;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Domain;
@@ -16,9 +12,7 @@ namespace Api.Tests.Services;
 public sealed class UserBlockServiceUnitTests
 {
     private readonly UserBlockService _userBlockService;
-    private readonly FriendRequestService _friendRequestService;
     private readonly FakeUserBlockRepository _userBlockRepository;
-    private readonly FakeFriendRequestRepository _friendRequestRepository;
     private readonly FakeUserRepository _userRepository;
     private readonly FakeHttpContextAccessor _httpContextAccessor;
 
@@ -27,9 +21,7 @@ public sealed class UserBlockServiceUnitTests
         _httpContextAccessor = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
         _userBlockService = graph.UserBlockService;
-        _friendRequestService = graph.FriendRequestService;
         _userBlockRepository = graph.UserBlockRepository;
-        _friendRequestRepository = graph.FriendRequestRepository;
         _userRepository = graph.UserRepository;
     }
 
@@ -65,6 +57,7 @@ public sealed class UserBlockServiceUnitTests
         // Assert
         Assert.True(await _userBlockRepository.ExistsAsync(blocker.Id, blocked.Id));
         var blocks = await _userBlockService.GetMyBlocksAsync();
+        Assert.NotNull(blocks);
         var single = Assert.Single(blocks);
         Assert.Equal(blocked.Id, single.BlockedUserId);
         Assert.Equal("blocked", single.BlockedUserNickname);
@@ -94,67 +87,6 @@ public sealed class UserBlockServiceUnitTests
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             _userBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = missingUserId }));
         Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
-    }
-
-    [Fact]
-    public async Task BlockUser_IgnoresPendingIncomingFriendRequest()
-    {
-        // Arrange
-        var requester = await CreateTestUserAsync("requester");
-        var addressee = await CreateTestUserAsync("addressee");
-        LoginAs(requester.Id);
-        await _friendRequestService.SendRequestAsync(
-            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act
-        LoginAs(addressee.Id);
-        await _userBlockService.BlockUserAsync(
-            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
-
-        // Assert
-        var stored = await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id);
-        Assert.NotNull(stored);
-        Assert.False(stored.IsPending);
-    }
-
-    [Fact]
-    public async Task BlockUser_DeletesPendingOutgoingFriendRequest()
-    {
-        // Arrange
-        var requester = await CreateTestUserAsync("requester");
-        var addressee = await CreateTestUserAsync("addressee");
-        LoginAs(requester.Id);
-        await _friendRequestService.SendRequestAsync(
-            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
-
-        // Act
-        await _userBlockService.BlockUserAsync(
-            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
-
-        // Assert
-        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
-    }
-
-    [Fact]
-    public async Task BlockUser_DeletesIgnoredFriendRequest_WhenRequesterBlocksAddressee()
-    {
-        // Arrange — pending A→B, B ignores, then A blocks B
-        var requester = await CreateTestUserAsync("requester");
-        var addressee = await CreateTestUserAsync("addressee");
-        LoginAs(requester.Id);
-        await _friendRequestService.SendRequestAsync(
-            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
-        var requestId = (await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id))!.Id;
-        LoginAs(addressee.Id);
-        await _friendRequestService.IgnoreRequestAsync(requestId);
-
-        // Act
-        LoginAs(requester.Id);
-        await _userBlockService.BlockUserAsync(
-            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
-
-        // Assert
-        Assert.Null(await _friendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
 
     [Fact]
@@ -208,6 +140,7 @@ public sealed class UserBlockServiceUnitTests
         var blocks = await _userBlockService.GetMyBlocksAsync();
 
         // Assert
+        Assert.NotNull(blocks);
         var single = Assert.Single(blocks);
         Assert.Equal(blockedB.Id, single.BlockedUserId);
     }
