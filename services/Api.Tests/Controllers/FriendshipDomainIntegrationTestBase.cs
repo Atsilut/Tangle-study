@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
+using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
@@ -15,8 +16,9 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
     protected const string RequestsBase = "/api/friendships/requests";
     protected const string FriendshipsBase = "/api/friendships";
 
-    protected async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, long index = 1, string password = "testtest123!")
+    protected async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, long index = 1, string? password = null)
     {
+        password ??= testPassword;
         var email = testMethodName + index.ToString() + "@test.com";
         var nickname = $"{testMethodName}User" + index.ToString();
         var req = new UserCreateRequestDto
@@ -33,20 +35,25 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         return all!.Single(u => u.Email == req.Email);
     }
 
-    protected async Task LoginAs(UserGetResponseDto user, string password = "testtest123!")
+    protected async Task LoginAs(UserGetResponseDto user, string? password = null)
     {
-        var req = new LoginRequestDto { Email = user.Email, Password = password };
+        password ??= testPassword;
+        var req = new LoginRequestDto
+        {
+            Email = user.Email,
+            Password = password,
+        };
         var login = await Client.PostAsJsonAsync("/api/login", req);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
 
-        var body = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
-        Assert.NotNull(body);
-        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body.AccessToken);
+        var loginRes = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
+        Assert.NotNull(loginRes);
+        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
     }
 
     protected async Task SetFriendsListVisibilityAsync(UserGetResponseDto user, FriendsListVisibility visibility)
     {
-        await LoginAs(user, testPassword);
+        await LoginAs(user);
         var res = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = visibility });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -70,16 +77,16 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
 
     protected async Task<long> SendFriendRequestAndGetOutgoingIdAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
     {
-        await LoginAs(requester, testPassword);
+        await LoginAs(requester);
         await SendFriendRequestAsync(addressee.Id);
         return (await GetPendingRequestAsync(addressee.Id, isIncoming: false)).Id;
     }
 
     protected async Task AcceptFriendshipAsync(UserGetResponseDto requester, UserGetResponseDto addressee)
     {
-        await LoginAs(requester, testPassword);
+        await LoginAs(requester);
         await SendFriendRequestAsync(addressee.Id);
-        await LoginAs(addressee, testPassword);
+        await LoginAs(addressee);
         var id = (await GetPendingRequestAsync(requester.Id, isIncoming: true)).Id;
         var accept = await Client.PostAsync($"{RequestsBase}/{id}/accept", content: null);
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
@@ -92,5 +99,19 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
         Assert.NotNull(list);
         return list.Single(f => f.OtherUserId == otherUserId);
+    }
+
+    protected async Task BlockUserAsync(long blockedUserId)
+    {
+        var res = await Client.PostAsJsonAsync("/api/users/blocks",
+            new UserBlockCreateRequestDto { BlockedUserId = blockedUserId });
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
+
+    protected async Task IgnoreIncomingRequestAsync(UserGetResponseDto addressee, long requestId)
+    {
+        await LoginAs(addressee);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
     }
 }

@@ -82,14 +82,14 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
     {
         // Arrange
         const string testMethodName = "FriendSendDup";
-        var a = await CreateUserForTest(testMethodName, 1);
-        var b = await CreateUserForTest(testMethodName, 2);
-        await LoginAs(a);
-        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = b.Id });
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        await LoginAs(requester);
+        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
         // Act
-        var dup = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = b.Id });
+        var dup = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, dup.StatusCode);
@@ -131,7 +131,6 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
         var ignore = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
         Assert.Equal(HttpStatusCode.NoContent, ignore.StatusCode);
-        await LoginAs(addressee);
 
         // Act
         var reciprocal = await Client.PostAsJsonAsync(RequestsBase,
@@ -208,9 +207,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
 
         await LoginAs(addressee);
-        var block = await Client.PostAsJsonAsync("/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
-        Assert.Equal(HttpStatusCode.OK, block.StatusCode);
+        await BlockUserAsync(requester.Id);
 
         // Act
         var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
@@ -232,8 +229,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
 
         await LoginAs(addressee);
-        await Client.PostAsJsonAsync("/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
+        await BlockUserAsync(requester.Id);
 
         // Act
         var res = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
@@ -254,8 +250,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
 
         await LoginAs(requester);
-        await Client.PostAsJsonAsync("/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
+        await BlockUserAsync(addressee.Id);
         var blocks = await Client.GetAsync("/api/users/blocks/me");
         var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockResponseDto>>();
         var blockId = Assert.Single(blockList!).Id;
@@ -339,8 +334,9 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
         var requesterPendingAfterResend = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.OK, requesterPendingAfterResend.StatusCode);
-        var outgoingAfterResend = Assert.Single(
-            await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>());
+        var requesterListAfterResend = await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        Assert.NotNull(requesterListAfterResend);
+        var outgoingAfterResend = Assert.Single(requesterListAfterResend);
         Assert.True(outgoingAfterResend.IsPending);
         Assert.Equal(addressee.Id, outgoingAfterResend.OtherUserId);
     }
@@ -353,8 +349,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(requester);
-        var block = await Client.PostAsJsonAsync("/api/users/blocks", new UserBlockCreateRequestDto { BlockedUserId = addressee.Id });
-        Assert.Equal(HttpStatusCode.OK, block.StatusCode);
+        await BlockUserAsync(addressee.Id);
 
         // Act
         var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
@@ -373,9 +368,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
 
         await LoginAs(addressee);
-        var block = await Client.PostAsJsonAsync("/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
-        Assert.Equal(HttpStatusCode.OK, block.StatusCode);
+        await BlockUserAsync(requester.Id);
 
         var addresseePending = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.NoContent, addresseePending.StatusCode);
@@ -407,8 +400,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(addressee);
-        var block = await Client.PostAsJsonAsync("/api/users/blocks", new UserBlockCreateRequestDto { BlockedUserId = requester.Id });
-        Assert.Equal(HttpStatusCode.OK, block.StatusCode);
+        await BlockUserAsync(requester.Id);
 
         // Act
         var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
@@ -455,6 +447,89 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
         var pending = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
+    }
+
+    [Fact]
+    public async Task SendRequest_Returns400_WhenIgnoredBlockedThenAddresseeSendsBack()
+    {
+        // Arrange
+        const string testMethodName = "FriendIgnoreBlockRecip";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+        await LoginAs(addressee);
+        await IgnoreIncomingRequestAsync(addressee, requestId);
+        await BlockUserAsync(requester.Id);
+
+        // Act
+        var send = await Client.PostAsJsonAsync(RequestsBase,
+            new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, send.StatusCode);
+        await LoginAs(requester);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Accept_Returns200_WhenIgnoredIncomingWithoutBlock()
+    {
+        // Arrange
+        const string testMethodName = "FriendAcceptIgnored";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+        await IgnoreIncomingRequestAsync(addressee, requestId);
+        await LoginAs(addressee);
+
+        // Act
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Reject_Returns204_WhenIgnoredIncoming()
+    {
+        // Arrange
+        const string testMethodName = "FriendRejectIgnored";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+        await IgnoreIncomingRequestAsync(addressee, requestId);
+        await LoginAs(addressee);
+
+        // Act
+        var res = await Client.DeleteAsync($"{RequestsBase}/{requestId}/reject");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        await LoginAs(requester);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Accept_Returns400_WhenIgnoredIncomingAndBlocked()
+    {
+        // Arrange
+        const string testMethodName = "FriendAcceptIgnBlk";
+        var requester = await CreateUserForTest(testMethodName, 1);
+        var addressee = await CreateUserForTest(testMethodName, 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
+        await IgnoreIncomingRequestAsync(addressee, requestId);
+        await BlockUserAsync(requester.Id);
+        await LoginAs(addressee);
+
+        // Act
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
     }
 
     [Fact]
