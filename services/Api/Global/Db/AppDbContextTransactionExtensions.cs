@@ -8,6 +8,8 @@ public static class AppDbContextTransactionExtensions
     {
         if (!db.Database.IsRelational())
             return action();
+        if (db.Database.CurrentTransaction is not null)
+            return action();
 
         var strategy = db.Database.CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>

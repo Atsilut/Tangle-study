@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
 using Api.Domain.UserBlocks.Domain;
+using Api.Domain.Groups.Domain;
 
 namespace Api.Global.Db
 {
@@ -15,6 +16,8 @@ namespace Api.Global.Db
         public DbSet<Friendship> Friendships { get; set; }
         public DbSet<FriendRequest> FriendRequests { get; set; }
         public DbSet<UserBlock> UserBlocks { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -91,6 +94,18 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(b => b.BlockedUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GroupMember>()
+                .HasOne(m => m.Group)
+                .WithMany(g => g.Members)
+                .HasForeignKey(m => m.GroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<GroupMember>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }
