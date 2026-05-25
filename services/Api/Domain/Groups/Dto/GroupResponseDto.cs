@@ -7,6 +7,7 @@ namespace Api.Domain.Groups.Dto
         string Name,
         string Description,
         GroupVisibility Visibility,
+        GroupJoinPolicy JoinPolicy,
         int MemberCount,
         DateTime CreatedAt,
         DateTime UpdatedAt);

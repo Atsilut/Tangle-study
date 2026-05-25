@@ -61,7 +61,11 @@ namespace Api.Domain.Groups.Service
             var creatorId = GetUserIdFromLogin();
             await _userService.EnsureUserExistsAsync(creatorId, "Authentication failed", StatusCodes.Status400BadRequest);
 
-            var group = new Group(request.Name, request.Description, request.Visibility);
+            var group = new Group(
+                request.Name,
+                request.Description,
+                request.Visibility,
+                request.JoinPolicy ?? GroupJoinPolicy.Requestable);
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreateGroupAsync(group);
@@ -87,7 +91,7 @@ namespace Api.Domain.Groups.Service
             await _membership.EnsureAdminOrOwnerAsync(request.Id, callerId);
 
             var group = await GetGroupOrThrowAsync(request.Id);
-            group.UpdateDetails(request.Name, request.Description, request.Visibility);
+            group.UpdateDetails(request.Name, request.Description, request.Visibility, request.JoinPolicy);
             await _repo.UpdateGroupAsync(group);
 
             var memberCount = await _membership.CountMembersAsync(group.Id);
@@ -137,6 +141,7 @@ namespace Api.Domain.Groups.Service
             Name: group.Name,
             Description: group.Description,
             Visibility: group.Visibility,
+            JoinPolicy: group.JoinPolicy,
             MemberCount: memberCount,
             CreatedAt: group.CreatedAt,
             UpdatedAt: group.UpdatedAt);

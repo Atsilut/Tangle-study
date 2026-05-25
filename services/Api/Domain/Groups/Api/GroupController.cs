@@ -12,10 +12,12 @@ namespace Api.Domain.Groups.Api
     public class GroupController : ControllerBase
     {
         private readonly GroupService _service;
+        private readonly GroupJoinService _joinService;
 
-        public GroupController(GroupService service)
+        public GroupController(GroupService service, GroupJoinService joinService)
         {
             _service = service;
+            _joinService = joinService;
         }
 
         [HttpPost]
@@ -24,6 +26,14 @@ namespace Api.Domain.Groups.Api
         {
             var response = await _service.CreateGroupAsync(request);
             return Created($"/api/groups/{response.Id}", response);
+        }
+
+        [HttpPost("{id:long}/join")]
+        [SwaggerOperation(Summary = "Join a group immediately (open join policy only)")]
+        public async Task<IActionResult> Join([FromRoute] long id)
+        {
+            await _joinService.JoinAsync(id);
+            return Ok();
         }
 
         [HttpGet("{id:long}")]

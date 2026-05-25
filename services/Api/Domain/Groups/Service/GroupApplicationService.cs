@@ -54,8 +54,10 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupApplicationResult> ApplyAsync(long groupId)
         {
             var applicantId = GetUserIdFromLogin();
-            if (await _groupRepo.GetGroupByIdAsync(groupId) is null)
-                throw new EntityNotFoundException("Group not found");
+            var group = await _groupRepo.GetGroupByIdAsync(groupId)
+                ?? throw new EntityNotFoundException("Group not found");
+
+            GroupJoinPolicyRules.EnsureCanApply(group.JoinPolicy);
 
             if (await _membershipService.IsMemberAsync(groupId, applicantId))
                 throw new EntityAlreadyExistsException("You are already a member of this group.");

@@ -23,6 +23,10 @@ namespace Api.Domain.Groups.Dto
         [SwaggerSchema(Description = "Group visibility (Private = 0, Public = 1)")]
         [DefaultValue(GroupVisibility.Private)]
         public GroupVisibility Visibility { get; init; }
+
+        [SwaggerSchema(Description = "How users may join (Open = 0, Requestable = 1, InvitationOnly = 2). Defaults to Requestable when omitted.")]
+        [DefaultValue(GroupJoinPolicy.Requestable)]
+        public GroupJoinPolicy? JoinPolicy { get; init; }
     }
 
     public record GroupPatchRequestDto
@@ -44,6 +48,10 @@ namespace Api.Domain.Groups.Dto
         [Required]
         [SwaggerSchema(Description = "Group visibility (Private = 0, Public = 1)")]
         public GroupVisibility Visibility { get; init; }
+
+        [Required]
+        [SwaggerSchema(Description = "How users may join (Open = 0, Requestable = 1, InvitationOnly = 2)")]
+        public GroupJoinPolicy JoinPolicy { get; init; }
     }
 
     public record GroupTransferOwnershipRequestDto
