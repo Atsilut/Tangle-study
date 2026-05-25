@@ -33,6 +33,14 @@ namespace Api.Domain.Groups.Api
             };
         }
 
+        [HttpPost("api/invitations/{id:long}/ignore")]
+        [SwaggerOperation(Summary = "Ignore an invitation (invitee)")]
+        public async Task<IActionResult> Ignore([FromRoute] long id)
+        {
+            await _service.IgnoreAsync(id);
+            return NoContent();
+        }
+
         [HttpPost("api/invitations/{id:long}/accept")]
         [SwaggerOperation(Summary = "Accept an invitation (invitee)")]
         public async Task<IActionResult> Accept([FromRoute] long id)
@@ -58,10 +66,20 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpGet("api/invitations/me")]
-        [SwaggerOperation(Summary = "List my pending invitations")]
-        public async Task<ActionResult<List<GroupInvitationCreateResponseDto>>> GetMyPending()
+        [SwaggerOperation(Summary = "List my pending invitations and ignored outgoing invitations")]
+        public async Task<IActionResult> GetMyPending()
         {
             var response = await _service.GetMyPendingAsync();
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
+        [HttpGet("api/invitations/ignored")]
+        [SwaggerOperation(Summary = "List invitations I ignored (incoming)")]
+        public async Task<IActionResult> GetIgnoredIncoming()
+        {
+            var response = await _service.GetIgnoredIncomingAsync();
+            if (response is null) return NoContent();
             return Ok(response);
         }
     }

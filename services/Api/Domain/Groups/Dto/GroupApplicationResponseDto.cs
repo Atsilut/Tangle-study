@@ -6,6 +6,7 @@ namespace Api.Domain.Groups.Dto
         long ApplicantId,
         string ApplicantNickname,
         bool IsPending,
+        bool IsIncoming,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 }

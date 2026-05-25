@@ -6,7 +6,10 @@ namespace Api.Domain.Groups.Dto
         string GroupName,
         long InviterId,
         long InviteeId,
+        long OtherUserId,
+        string OtherUserNickname,
         bool IsPending,
+        bool IsIncoming,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 }

@@ -23,6 +23,10 @@ namespace Api.Domain.Groups.Repository
 
         public async Task<GroupInvitation?> GetByIdAsync(long id) => await _context.GroupInvitations.FindAsync(id);
 
+        public async Task<GroupInvitation?> GetForUserAsync(long groupId, long inviteeId) =>
+            await _context.GroupInvitations.FirstOrDefaultAsync(i =>
+                i.GroupId == groupId && i.InviteeId == inviteeId);
+
         public async Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId) =>
             await _context.GroupInvitations.FirstOrDefaultAsync(i =>
                 i.GroupId == groupId && i.InviteeId == inviteeId && i.IsPending);

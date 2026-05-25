@@ -6,6 +6,7 @@ namespace Api.Domain.Groups.Repository
     {
         Task CreateInvitationAsync(GroupInvitation invitation);
         Task<GroupInvitation?> GetByIdAsync(long id);
+        Task<GroupInvitation?> GetForUserAsync(long groupId, long inviteeId);
         Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId);
         Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId);
         Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId);

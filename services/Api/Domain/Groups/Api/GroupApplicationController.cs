@@ -31,12 +31,38 @@ namespace Api.Domain.Groups.Api
             };
         }
 
+        [HttpGet("api/applications/me")]
+        [SwaggerOperation(Summary = "List my pending applications and ignored outgoing applications")]
+        public async Task<IActionResult> GetMyApplications()
+        {
+            var response = await _service.GetMyApplicationsAsync();
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
         [HttpGet("api/groups/{groupId:long}/applications")]
         [SwaggerOperation(Summary = "List pending applications (owner/admin)")]
         public async Task<ActionResult<List<GroupApplicationResponseDto>>> GetPending([FromRoute] long groupId)
         {
             var response = await _service.GetPendingByGroupAsync(groupId);
             return Ok(response);
+        }
+
+        [HttpGet("api/groups/{groupId:long}/applications/ignored")]
+        [SwaggerOperation(Summary = "List ignored applications (owner/admin)")]
+        public async Task<IActionResult> GetIgnored([FromRoute] long groupId)
+        {
+            var response = await _service.GetIgnoredByGroupAsync(groupId);
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
+        [HttpPost("api/applications/{id:long}/ignore")]
+        [SwaggerOperation(Summary = "Ignore an application (owner/admin)")]
+        public async Task<IActionResult> Ignore([FromRoute] long id)
+        {
+            await _service.IgnoreAsync(id);
+            return NoContent();
         }
 
         [HttpPost("api/applications/{id:long}/approve")]

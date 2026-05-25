@@ -6,6 +6,7 @@ namespace Api.Domain.Groups.Repository
     {
         Task CreateApplicationAsync(GroupApplication application);
         Task<GroupApplication?> GetByIdAsync(long id);
+        Task<GroupApplication?> GetForUserAsync(long groupId, long applicantId);
         Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId);
         Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId);
         Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId);
