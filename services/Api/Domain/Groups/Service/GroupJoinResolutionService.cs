@@ -28,9 +28,15 @@ namespace Api.Domain.Groups.Service
         public Task CreateMembershipFromJoinRequestsAsync(long groupId, long userId) =>
             _db.ExecuteInTransactionAsync(async () =>
             {
+                await DeleteJoinArtifactsForUserAndGroupAsync(groupId, userId);
+                await _membershipService.AddMemberInternalAsync(groupId, userId, GroupRole.Member);
+            });
+
+        public Task DeleteJoinArtifactsForUserAndGroupAsync(long groupId, long userId) =>
+            _db.ExecuteInTransactionAsync(async () =>
+            {
                 await _invitationRepo.DeleteAllForUserAndGroupAsync(groupId, userId);
                 await _applicationRepo.DeleteAllForUserAndGroupAsync(groupId, userId);
-                await _membershipService.AddMemberInternalAsync(groupId, userId, GroupRole.Member);
             });
     }
 }

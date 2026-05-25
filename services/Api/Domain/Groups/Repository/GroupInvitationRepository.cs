@@ -27,10 +27,29 @@ namespace Api.Domain.Groups.Repository
             await _context.GroupInvitations.FirstOrDefaultAsync(i =>
                 i.GroupId == groupId && i.InviteeId == inviteeId && i.IsPending);
 
-        public async Task<List<GroupInvitation>> GetPendingForInviteeAsync(long inviteeId) =>
+        public async Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId) =>
             await _context.GroupInvitations
                 .Where(i => i.InviteeId == inviteeId && i.IsPending)
                 .ToListAsync();
+
+        public async Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId) =>
+            await _context.GroupInvitations
+                .Where(i => i.InviterId == inviterId && !i.IsPending)
+                .ToListAsync();
+
+        public async Task<List<GroupInvitation>> GetIgnoredIncomingForInviteeAsync(long inviteeId) =>
+            await _context.GroupInvitations
+                .Where(i => i.InviteeId == inviteeId && !i.IsPending)
+                .ToListAsync();
+
+        public async Task<List<GroupInvitation>> GetBetweenUsersAsync(long userId, long otherUserId) =>
+            await _context.GroupInvitations
+                .Where(i =>
+                    (i.InviterId == userId && i.InviteeId == otherUserId) ||
+                    (i.InviterId == otherUserId && i.InviteeId == userId))
+                .ToListAsync();
+
+        public async Task UpdateInvitationAsync(GroupInvitation invitation) => await _context.SaveChangesAsync();
 
         public async Task DeleteInvitationAsync(GroupInvitation invitation)
         {
@@ -41,7 +60,7 @@ namespace Api.Domain.Groups.Repository
         public async Task DeleteAllForUserAndGroupAsync(long groupId, long userId)
         {
             var invitations = await _context.GroupInvitations
-                .Where(i => i.GroupId == groupId && i.InviteeId == userId)
+                .Where(i => i.GroupId == groupId && (i.InviteeId == userId || i.InviterId == userId))
                 .ToListAsync();
             if (invitations.Count == 0) return;
             _context.GroupInvitations.RemoveRange(invitations);

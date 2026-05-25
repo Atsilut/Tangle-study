@@ -4,13 +4,17 @@ namespace Api.Domain.Groups.Repository
 {
     public interface IGroupApplicationRepository
     {
-        public Task CreateApplicationAsync(GroupApplication application);
-        public Task<GroupApplication?> GetByIdAsync(long id);
-        public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId);
-        public Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId);
-        public Task DeleteApplicationAsync(GroupApplication application);
-        public Task DeleteAllForUserAndGroupAsync(long groupId, long userId);
-        public Task DeleteAllByGroupAsync(long groupId);
-        public Task DeleteAllByUserAsync(long userId);
+        Task CreateApplicationAsync(GroupApplication application);
+        Task<GroupApplication?> GetByIdAsync(long id);
+        Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId);
+        Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId);
+        Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId);
+        Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId);
+        Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId);
+        Task UpdateApplicationAsync(GroupApplication application);
+        Task DeleteApplicationAsync(GroupApplication application);
+        Task DeleteAllForUserAndGroupAsync(long groupId, long userId);
+        Task DeleteAllByGroupAsync(long groupId);
+        Task DeleteAllByUserAsync(long userId);
     }
 }

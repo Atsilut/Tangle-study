@@ -168,7 +168,7 @@ namespace Api.Domain.Groups.Service
         public async Task<List<GroupInvitationCreateResponseDto>> GetMyPendingAsync()
         {
             var userId = GetUserIdFromLogin();
-            var invitations = await _invitationRepo.GetPendingForInviteeAsync(userId);
+            var invitations = await _invitationRepo.GetPendingIncomingForInviteeAsync(userId);
             if (invitations.Count == 0) return new List<GroupInvitationCreateResponseDto>();
 
             var groupNames = await GetGroupNamesAsync(invitations.Select(i => i.GroupId));

@@ -32,6 +32,23 @@ namespace Api.Domain.Groups.Repository
                 .Where(a => a.GroupId == groupId && a.IsPending)
                 .ToListAsync();
 
+        public async Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId) =>
+            await _context.GroupApplications
+                .Where(a => a.GroupId == groupId && !a.IsPending)
+                .ToListAsync();
+
+        public async Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId) =>
+            await _context.GroupApplications
+                .Where(a => a.ApplicantId == applicantId && a.IsPending)
+                .ToListAsync();
+
+        public async Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId) =>
+            await _context.GroupApplications
+                .Where(a => a.ApplicantId == applicantId && !a.IsPending)
+                .ToListAsync();
+
+        public async Task UpdateApplicationAsync(GroupApplication application) => await _context.SaveChangesAsync();
+
         public async Task DeleteApplicationAsync(GroupApplication application)
         {
             _context.GroupApplications.Remove(application);

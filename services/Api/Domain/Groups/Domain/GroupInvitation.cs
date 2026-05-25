@@ -39,5 +39,11 @@ namespace Api.Domain.Groups.Domain
             InviterId = inviterId;
             InviteeId = inviteeId;
         }
+
+        public void Ignore()
+        {
+            IsPending = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }
