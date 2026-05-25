@@ -1,6 +1,7 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Repository;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -18,6 +19,8 @@ namespace Api.Domain.Groups.Service
         private readonly IGroupRepository _groupRepo;
         private readonly GroupMembershipService _membershipService;
         private readonly GroupJoinResolutionService _joinResolution;
+        private readonly GroupBlacklistService _blacklistService;
+        private readonly UserBlockService _userBlockService;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -28,6 +31,8 @@ namespace Api.Domain.Groups.Service
             IGroupRepository groupRepo,
             GroupMembershipService membershipService,
             GroupJoinResolutionService joinResolution,
+            GroupBlacklistService blacklistService,
+            UserBlockService userBlockService,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -37,9 +42,21 @@ namespace Api.Domain.Groups.Service
             _groupRepo = groupRepo;
             _membershipService = membershipService;
             _joinResolution = joinResolution;
+            _blacklistService = blacklistService;
+            _userBlockService = userBlockService;
             _userService = userService;
             _db = db;
             _httpContextAccessor = httpContextAccessor;
+        }
+
+        private async Task<bool> BlockExistsBetweenUsersAsync(long userId, long otherUserId) =>
+            await _userBlockService.IsBlockedByAsync(userId, otherUserId)
+            || await _userBlockService.IsBlockedByAsync(otherUserId, userId);
+
+        private async Task EnsureNoBlockExistsBetweenUsersAsync(long userId, long otherUserId)
+        {
+            if (await BlockExistsBetweenUsersAsync(userId, otherUserId))
+                throw new ArgumentException("Cannot join the group while a block exists between you and this user.");
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -73,6 +90,11 @@ namespace Api.Domain.Groups.Service
             if (await _membershipService.IsMemberAsync(groupId, request.InviteeId))
                 throw new EntityAlreadyExistsException("User is already a member of this group.");
 
+            await _blacklistService.EnsureNotBlacklistedAsync(groupId, request.InviteeId);
+
+            if (await _userBlockService.IsBlockedByAsync(inviterId, request.InviteeId))
+                throw new ArgumentException("Cannot invite a user you have blocked.");
+
             var existingInvitation = await _invitationRepo.GetForUserAsync(groupId, request.InviteeId);
             if (existingInvitation is not null && existingInvitation.InviterId == inviterId)
                 return new GroupInvitationResult(
@@ -81,10 +103,7 @@ namespace Api.Domain.Groups.Service
 
             var pendingApplication = await _applicationRepo.GetPendingForUserAsync(groupId, request.InviteeId);
             if (pendingApplication is not null)
-            {
-                await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, request.InviteeId);
-                return new GroupInvitationResult(GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication, null);
-            }
+                return await ResolveReciprocalApplicationOnInviteAsync(groupId, inviterId, request.InviteeId);
 
             try
             {
@@ -105,18 +124,42 @@ namespace Api.Domain.Groups.Service
                 if (await _invitationRepo.GetForUserAsync(groupId, inviteeId) is not null)
                     return;
 
-                await _invitationRepo.CreateInvitationAsync(new GroupInvitation(groupId, inviterId, inviteeId));
+                var invitation = new GroupInvitation(groupId, inviterId, inviteeId);
+                if (await _userBlockService.IsBlockedByAsync(inviteeId, inviterId))
+                    invitation.Ignore();
+                await _invitationRepo.CreateInvitationAsync(invitation);
             });
+        }
+
+        private async Task<GroupInvitationResult> ResolveReciprocalApplicationOnInviteAsync(
+            long groupId, long inviterId, long inviteeId)
+        {
+            if (await BlockExistsBetweenUsersAsync(inviterId, inviteeId))
+                return await ReturnInvitationCreatedWithoutJoinAsync(groupId, inviterId, inviteeId);
+
+            await EnsureNoBlockExistsBetweenUsersAsync(inviterId, inviteeId);
+            await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, inviteeId);
+            return new GroupInvitationResult(GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication, null);
+        }
+
+        private async Task<GroupInvitationResult> ReturnInvitationCreatedWithoutJoinAsync(
+            long groupId, long inviterId, long inviteeId)
+        {
+            if (await _invitationRepo.GetForUserAsync(groupId, inviteeId) is null)
+                await CreateInvitationInTransactionAsync(groupId, inviterId, inviteeId);
+
+            var invitation = await _invitationRepo.GetForUserAsync(groupId, inviteeId)
+                ?? throw new InvalidOperationException("Group invitation was not created.");
+            return new GroupInvitationResult(
+                GroupInvitationOutcome.GroupInvitationCreated,
+                await MapToDtoAsync(invitation, inviterId));
         }
 
         private async Task<GroupInvitationResult> ResolveInviteOutcomeAsync(long groupId, long inviteeId, long inviterId)
         {
             var pendingApplication = await _applicationRepo.GetPendingForUserAsync(groupId, inviteeId);
             if (pendingApplication is not null)
-            {
-                await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, inviteeId);
-                return new GroupInvitationResult(GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication, null);
-            }
+                return await ResolveReciprocalApplicationOnInviteAsync(groupId, inviterId, inviteeId);
 
             var invitation = await _invitationRepo.GetForUserAsync(groupId, inviteeId)
                 ?? throw new InvalidOperationException("Group invitation was not created.");
@@ -144,6 +187,8 @@ namespace Api.Domain.Groups.Service
             if (await _membershipService.IsMemberAsync(invitation.GroupId, userId))
                 return;
 
+            await EnsureNoBlockExistsBetweenUsersAsync(invitation.InviterId, userId);
+            await _blacklistService.EnsureNotBlacklistedAsync(invitation.GroupId, userId);
             await _joinResolution.CreateMembershipFromJoinRequestsAsync(invitation.GroupId, userId);
         }
 

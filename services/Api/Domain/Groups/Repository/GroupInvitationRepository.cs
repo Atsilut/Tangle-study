@@ -46,13 +46,6 @@ namespace Api.Domain.Groups.Repository
                 .Where(i => i.InviteeId == inviteeId && !i.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupInvitation>> GetBetweenUsersAsync(long userId, long otherUserId) =>
-            await _context.GroupInvitations
-                .Where(i =>
-                    (i.InviterId == userId && i.InviteeId == otherUserId) ||
-                    (i.InviterId == otherUserId && i.InviteeId == userId))
-                .ToListAsync();
-
         public async Task UpdateInvitationAsync(GroupInvitation invitation) => await _context.SaveChangesAsync();
 
         public async Task DeleteInvitationAsync(GroupInvitation invitation)

@@ -18,6 +18,7 @@ namespace Api.Domain.Groups.Service
         private readonly IGroupRepository _groupRepo;
         private readonly GroupMembershipService _membershipService;
         private readonly GroupJoinResolutionService _joinResolution;
+        private readonly GroupBlacklistService _blacklistService;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -28,6 +29,7 @@ namespace Api.Domain.Groups.Service
             IGroupRepository groupRepo,
             GroupMembershipService membershipService,
             GroupJoinResolutionService joinResolution,
+            GroupBlacklistService blacklistService,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
@@ -37,6 +39,7 @@ namespace Api.Domain.Groups.Service
             _groupRepo = groupRepo;
             _membershipService = membershipService;
             _joinResolution = joinResolution;
+            _blacklistService = blacklistService;
             _userService = userService;
             _db = db;
             _httpContextAccessor = httpContextAccessor;
@@ -56,6 +59,8 @@ namespace Api.Domain.Groups.Service
 
             if (await _membershipService.IsMemberAsync(groupId, applicantId))
                 throw new EntityAlreadyExistsException("You are already a member of this group.");
+
+            await _blacklistService.EnsureNotBlacklistedAsync(groupId, applicantId);
 
             var existingApplication = await _applicationRepo.GetForUserAsync(groupId, applicantId);
             if (existingApplication is not null)
@@ -133,6 +138,7 @@ namespace Api.Domain.Groups.Service
             if (await _membershipService.IsMemberAsync(application.GroupId, application.ApplicantId))
                 return;
 
+            await _blacklistService.EnsureNotBlacklistedAsync(application.GroupId, application.ApplicantId);
             await _joinResolution.CreateMembershipFromJoinRequestsAsync(application.GroupId, application.ApplicantId);
         }
 
