@@ -4,12 +4,12 @@ namespace Api.Domain.Groups.Repository
 {
     public interface IGroupBlacklistRepository
     {
-        Task CreateAsync(GroupBlacklist entry);
-        Task<GroupBlacklist?> GetByIdAsync(long id);
-        Task<GroupBlacklist?> GetAsync(long groupId, long userId);
-        Task<bool> ExistsAsync(long groupId, long userId);
-        Task<List<GroupBlacklist>> GetByGroupAsync(long groupId);
-        Task DeleteAsync(GroupBlacklist entry);
-        Task DeleteAllByGroupAsync(long groupId);
+        public Task CreateAsync(GroupBlacklist entry);
+        public Task<GroupBlacklist?> GetByIdAsync(long id);
+        public Task<GroupBlacklist?> GetAsync(long groupId, long userId);
+        public Task<bool> ExistsAsync(long groupId, long userId);
+        public Task<List<GroupBlacklist>> GetByGroupAsync(long groupId);
+        public Task DeleteAsync(GroupBlacklist entry);
+        public Task DeleteAllByGroupAsync(long groupId);
     }
 }

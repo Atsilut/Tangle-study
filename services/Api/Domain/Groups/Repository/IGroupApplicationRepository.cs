@@ -4,18 +4,18 @@ namespace Api.Domain.Groups.Repository
 {
     public interface IGroupApplicationRepository
     {
-        Task CreateApplicationAsync(GroupApplication application);
-        Task<GroupApplication?> GetByIdAsync(long id);
-        Task<GroupApplication?> GetForUserAsync(long groupId, long applicantId);
-        Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId);
-        Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId);
-        Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId);
-        Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId);
-        Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId);
-        Task UpdateApplicationAsync(GroupApplication application);
-        Task DeleteApplicationAsync(GroupApplication application);
-        Task DeleteAllForUserAndGroupAsync(long groupId, long userId);
-        Task DeleteAllByGroupAsync(long groupId);
-        Task DeleteAllByUserAsync(long userId);
+        public Task CreateApplicationAsync(GroupApplication application);
+        public Task<GroupApplication?> GetByIdAsync(long id);
+        public Task<GroupApplication?> GetForUserAsync(long groupId, long applicantId);
+        public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId);
+        public Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId);
+        public Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId);
+        public Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId);
+        public Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId);
+        public Task UpdateApplicationAsync(GroupApplication application);
+        public Task DeleteApplicationAsync(GroupApplication application);
+        public Task DeleteAllForUserAndGroupAsync(long groupId, long userId);
+        public Task DeleteAllByGroupAsync(long groupId);
+        public Task DeleteAllByUserAsync(long userId);
     }
 }
