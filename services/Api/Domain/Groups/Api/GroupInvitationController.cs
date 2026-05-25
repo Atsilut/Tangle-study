@@ -1,0 +1,68 @@
+using Api.Domain.Groups.Dto;
+using Api.Domain.Groups.Service;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+
+namespace Api.Domain.Groups.Api
+{
+    [ApiController]
+    [Authorize]
+    public class GroupInvitationController : ControllerBase
+    {
+        private readonly GroupInvitationService _service;
+
+        public GroupInvitationController(GroupInvitationService service)
+        {
+            _service = service;
+        }
+
+        [HttpPost("api/groups/{groupId:long}/invitations")]
+        [SwaggerOperation(Summary = "Invite a user to a group (owner/admin)")]
+        public async Task<IActionResult> Invite(
+            [FromRoute] long groupId,
+            [FromBody] GroupInvitationCreateRequestDto request)
+        {
+            var result = await _service.InviteAsync(groupId, request);
+            return result.Outcome switch
+            {
+                GroupInvitationOutcome.GroupInvitationCreated => Created(
+                    $"/api/invitations/{result.Invitation!.Id}", result.Invitation),
+                GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication => Ok(),
+                _ => throw new InvalidOperationException($"Unexpected invite outcome: {result.Outcome}"),
+            };
+        }
+
+        [HttpPost("api/invitations/{id:long}/accept")]
+        [SwaggerOperation(Summary = "Accept an invitation (invitee)")]
+        public async Task<IActionResult> Accept([FromRoute] long id)
+        {
+            await _service.AcceptAsync(id);
+            return Ok();
+        }
+
+        [HttpPost("api/invitations/{id:long}/reject")]
+        [SwaggerOperation(Summary = "Reject an invitation (invitee)")]
+        public async Task<IActionResult> Reject([FromRoute] long id)
+        {
+            await _service.RejectAsync(id);
+            return NoContent();
+        }
+
+        [HttpDelete("api/invitations/{id:long}")]
+        [SwaggerOperation(Summary = "Cancel an invitation (inviter or admin/owner)")]
+        public async Task<IActionResult> Cancel([FromRoute] long id)
+        {
+            await _service.CancelAsync(id);
+            return NoContent();
+        }
+
+        [HttpGet("api/invitations/me")]
+        [SwaggerOperation(Summary = "List my pending invitations")]
+        public async Task<ActionResult<List<GroupInvitationCreateResponseDto>>> GetMyPending()
+        {
+            var response = await _service.GetMyPendingAsync();
+            return Ok(response);
+        }
+    }
+}
