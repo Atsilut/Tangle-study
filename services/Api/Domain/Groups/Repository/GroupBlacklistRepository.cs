@@ -37,5 +37,8 @@ namespace Api.Domain.Groups.Repository
             _context.GroupBlacklists.Remove(entry);
             await _context.SaveChangesAsync();
         }
+
+        public async Task DeleteAllByGroupAsync(long groupId) =>
+            await _context.GroupBlacklists.Where(b => b.GroupId == groupId).ExecuteDeleteAsync();
     }
 }

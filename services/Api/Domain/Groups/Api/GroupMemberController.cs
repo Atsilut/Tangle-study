@@ -39,7 +39,7 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpDelete("{userId:long}")]
-        [SwaggerOperation(Summary = "Leave (self) or kick (admin/owner) a member")]
+        [SwaggerOperation(Summary = "Leave (self), kick a member (admin/owner), or remove an admin (owner only)")]
         public async Task<IActionResult> RemoveMember([FromRoute] long groupId, [FromRoute] long userId)
         {
             await _service.RemoveMemberAsync(groupId, userId);

@@ -10,5 +10,6 @@ namespace Api.Domain.Groups.Repository
         Task<bool> ExistsAsync(long groupId, long userId);
         Task<List<GroupBlacklist>> GetByGroupAsync(long groupId);
         Task DeleteAsync(GroupBlacklist entry);
+        Task DeleteAllByGroupAsync(long groupId);
     }
 }

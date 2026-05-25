@@ -52,7 +52,7 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupBlacklistResponseDto> AddAsync(long groupId, GroupBlacklistCreateRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
-            await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
+            await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
             if (await _groupRepo.GetGroupByIdAsync(groupId) is null)
                 throw new EntityNotFoundException("Group not found");
@@ -85,7 +85,7 @@ namespace Api.Domain.Groups.Service
         public async Task RemoveAsync(long groupId, long userId)
         {
             var callerId = GetUserIdFromLogin();
-            await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
+            await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
             var entry = await _blacklistRepo.GetAsync(groupId, userId)
                 ?? throw new EntityNotFoundException("User is not on the group blacklist.");
@@ -96,7 +96,7 @@ namespace Api.Domain.Groups.Service
         public async Task<List<GroupBlacklistResponseDto>> ListAsync(long groupId)
         {
             var callerId = GetUserIdFromLogin();
-            await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
+            await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
             var entries = await _blacklistRepo.GetByGroupAsync(groupId);
             if (entries.Count == 0) return new List<GroupBlacklistResponseDto>();

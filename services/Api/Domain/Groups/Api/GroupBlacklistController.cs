@@ -19,7 +19,7 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpPost]
-        [SwaggerOperation(Summary = "Blacklist a user from a group (owner/admin); kicks member and clears pending join requests")]
+        [SwaggerOperation(Summary = "Blacklist a user from a group (owner only); kicks member and clears pending join requests")]
         public async Task<ActionResult<GroupBlacklistResponseDto>> Add(
             [FromRoute] long groupId,
             [FromBody] GroupBlacklistCreateRequestDto request)
@@ -29,7 +29,7 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpGet]
-        [SwaggerOperation(Summary = "List blacklisted users for a group (owner/admin)")]
+        [SwaggerOperation(Summary = "List blacklisted users for a group (owner only)")]
         public async Task<ActionResult<List<GroupBlacklistResponseDto>>> List([FromRoute] long groupId)
         {
             var response = await _service.ListAsync(groupId);
@@ -37,7 +37,7 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpDelete("{userId:long}")]
-        [SwaggerOperation(Summary = "Remove a user from the group blacklist (owner/admin)")]
+        [SwaggerOperation(Summary = "Remove a user from the group blacklist (owner only)")]
         public async Task<IActionResult> Remove([FromRoute] long groupId, [FromRoute] long userId)
         {
             await _service.RemoveAsync(groupId, userId);

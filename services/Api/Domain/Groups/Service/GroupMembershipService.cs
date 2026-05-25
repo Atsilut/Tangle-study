@@ -123,7 +123,7 @@ namespace Api.Domain.Groups.Service
 
             if (callerMember.Role == GroupRole.Member)
                 throw new UnauthorizedAccessException("Unauthorized access");
-            if (callerMember.Role == GroupRole.Admin && target.Role == GroupRole.Admin)
+            if (target.Role == GroupRole.Admin && callerMember.Role != GroupRole.Owner)
                 throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.RemoveMemberAsync(target);

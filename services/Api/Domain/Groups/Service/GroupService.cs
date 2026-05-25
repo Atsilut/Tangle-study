@@ -17,12 +17,14 @@ namespace Api.Domain.Groups.Service
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IGroupBlacklistRepository _blacklistRepo;
         private readonly Lazy<GroupInvitationService> _invitationService;
         private readonly Lazy<GroupApplicationService> _applicationService;
 
         public GroupService(
             IGroupRepository repo,
             IGroupMemberRepository memberRepo,
+            IGroupBlacklistRepository blacklistRepo,
             GroupMembershipService membership,
             UserService userService,
             AppDbContext db,
@@ -32,6 +34,7 @@ namespace Api.Domain.Groups.Service
         {
             _repo = repo;
             _memberRepo = memberRepo;
+            _blacklistRepo = blacklistRepo;
             _membership = membership;
             _userService = userService;
             _db = db;
@@ -130,6 +133,7 @@ namespace Api.Domain.Groups.Service
             {
                 await _invitationService.Value.DeleteAllByGroupAsync(id);
                 await _applicationService.Value.DeleteAllByGroupAsync(id);
+                await _blacklistRepo.DeleteAllByGroupAsync(id);
                 await _membership.RemoveAllByGroupAsync(id);
                 var group = await GetGroupOrThrowAsync(id);
                 await _repo.DeleteGroupAsync(group);
