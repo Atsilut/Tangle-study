@@ -17,6 +17,8 @@ namespace Api.Domain.Groups.Service
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly Lazy<GroupInvitationService> _invitationService;
+        private readonly Lazy<GroupApplicationService> _applicationService;
 
         public GroupService(
             IGroupRepository repo,
@@ -24,7 +26,9 @@ namespace Api.Domain.Groups.Service
             GroupMembershipService membership,
             UserService userService,
             AppDbContext db,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            Lazy<GroupInvitationService> invitationService,
+            Lazy<GroupApplicationService> applicationService)
         {
             _repo = repo;
             _memberRepo = memberRepo;
@@ -32,6 +36,8 @@ namespace Api.Domain.Groups.Service
             _userService = userService;
             _db = db;
             _httpContextAccessor = httpContextAccessor;
+            _invitationService = invitationService;
+            _applicationService = applicationService;
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -118,6 +124,8 @@ namespace Api.Domain.Groups.Service
 
             await _db.ExecuteInTransactionAsync(async () =>
             {
+                await _invitationService.Value.DeleteAllByGroupAsync(id);
+                await _applicationService.Value.DeleteAllByGroupAsync(id);
                 await _membership.RemoveAllByGroupAsync(id);
                 var group = await GetGroupOrThrowAsync(id);
                 await _repo.DeleteGroupAsync(group);
