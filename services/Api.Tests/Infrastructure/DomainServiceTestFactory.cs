@@ -1,5 +1,6 @@
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
+using Api.Domain.Groups.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
@@ -12,19 +13,25 @@ namespace Api.Tests.Infrastructure;
 
 internal static class DomainServiceTestFactory
 {
-    public static (
+    internal sealed record Graph(
         UserService UserService,
         PostService PostService,
         CommentService CommentService,
         FriendshipService FriendshipService,
         FriendRequestService FriendRequestService,
         UserBlockService UserBlockService,
+        GroupService GroupService,
+        GroupMembershipService GroupMembershipService,
         FakeUserRepository UserRepository,
         FakePostRepository PostRepository,
         FakeCommentRepository CommentRepository,
         FakeFriendshipRepository FriendshipRepository,
         FakeFriendRequestRepository FriendRequestRepository,
-        FakeUserBlockRepository UserBlockRepository) Create(FakeHttpContextAccessor? httpContextAccessor = null)
+        FakeUserBlockRepository UserBlockRepository,
+        FakeGroupRepository GroupRepository,
+        FakeGroupMemberRepository GroupMemberRepository);
+
+    public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var userRepository = new FakeUserRepository();
         var postRepository = new FakePostRepository();
@@ -32,6 +39,8 @@ internal static class DomainServiceTestFactory
         var friendshipRepository = new FakeFriendshipRepository();
         var friendRequestRepository = new FakeFriendRequestRepository();
         var userBlockRepository = new FakeUserBlockRepository();
+        var groupRepository = new FakeGroupRepository();
+        var groupMemberRepository = new FakeGroupMemberRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -40,12 +49,21 @@ internal static class DomainServiceTestFactory
         PostService postService = null!;
         CommentService commentService = null!;
         FriendshipService friendshipService = null!;
+        FriendRequestService friendRequestService = null!;
+        GroupMembershipService groupMembershipService = null!;
+        GroupService groupService = null!;
 
         var userService = new UserService(
             userRepository,
             db,
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
+            http);
+
+        groupMembershipService = new GroupMembershipService(
+            groupMemberRepository,
+            groupRepository,
+            userService,
             http);
 
         postService = new PostService(
@@ -67,8 +85,6 @@ internal static class DomainServiceTestFactory
             userService,
             http);
 
-        FriendRequestService friendRequestService = null!;
-
         var userBlockService = new UserBlockService(
             userBlockRepository,
             new Lazy<FriendRequestService>(() => friendRequestService),
@@ -84,6 +100,30 @@ internal static class DomainServiceTestFactory
             http,
             NullLogger<FriendRequestService>.Instance);
 
-        return (userService, postService, commentService, friendshipService, friendRequestService, userBlockService, userRepository, postRepository, commentRepository, friendshipRepository, friendRequestRepository, userBlockRepository);
+        groupService = new GroupService(
+            groupRepository,
+            groupMemberRepository,
+            groupMembershipService,
+            userService,
+            db,
+            http);
+
+        return new Graph(
+            userService,
+            postService,
+            commentService,
+            friendshipService,
+            friendRequestService,
+            userBlockService,
+            groupService,
+            groupMembershipService,
+            userRepository,
+            postRepository,
+            commentRepository,
+            friendshipRepository,
+            friendRequestRepository,
+            userBlockRepository,
+            groupRepository,
+            groupMemberRepository);
     }
 }
