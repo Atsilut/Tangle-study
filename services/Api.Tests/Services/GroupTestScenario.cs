@@ -15,10 +15,18 @@ public sealed class GroupTestScenario
 
     public GroupService GroupService { get; }
     public GroupMembershipService MembershipService { get; }
+    public GroupJoinService JoinService { get; }
+    public GroupApplicationService ApplicationService { get; }
+    public GroupInvitationService InvitationService { get; }
+    public GroupJoinResolutionService JoinResolution { get; }
+    public GroupBlacklistService BlacklistService { get; }
     public GroupBoardAccessService BoardAccess { get; }
     public GroupBoardService BoardService { get; }
     public FakeGroupRepository GroupRepository { get; }
     public FakeGroupMemberRepository GroupMemberRepository { get; }
+    public FakeGroupInvitationRepository InvitationRepository { get; }
+    public FakeGroupApplicationRepository ApplicationRepository { get; }
+    public FakeGroupBlacklistRepository BlacklistRepository { get; }
     public FakeGroupBoardRepository BoardRepository { get; }
     private readonly FakeUserRepository _userRepository;
 
@@ -32,10 +40,18 @@ public sealed class GroupTestScenario
         _httpContextAccessor = httpContextAccessor;
         GroupService = graph.GroupService;
         MembershipService = graph.GroupMembershipService;
+        JoinService = graph.GroupJoinService;
+        ApplicationService = graph.GroupApplicationService;
+        InvitationService = graph.GroupInvitationService;
+        JoinResolution = graph.GroupJoinResolutionService;
+        BlacklistService = graph.GroupBlacklistService;
         BoardAccess = graph.GroupBoardAccessService;
         BoardService = graph.GroupBoardService;
         GroupRepository = graph.GroupRepository;
         GroupMemberRepository = graph.GroupMemberRepository;
+        InvitationRepository = graph.GroupInvitationRepository;
+        ApplicationRepository = graph.GroupApplicationRepository;
+        BlacklistRepository = graph.GroupBlacklistRepository;
         BoardRepository = graph.GroupBoardRepository;
         _userRepository = graph.UserRepository;
     }
@@ -102,7 +118,8 @@ public sealed class GroupTestScenario
     public async Task<GroupResponseDto> SetupGroupAsync(
         GroupVisibility visibility,
         bool includeAdmin = true,
-        bool includeMember = true)
+        bool includeMember = true,
+        GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable)
     {
         LoginAs(Owner.Id);
         var group = await GroupService.CreateGroupAsync(new GroupCreateRequestDto
@@ -110,6 +127,7 @@ public sealed class GroupTestScenario
             Name = "TestGroup",
             Description = "test",
             Visibility = visibility,
+            JoinPolicy = joinPolicy,
         });
         if (includeAdmin)
             await MembershipService.AddMemberInternalAsync(group.Id, Admin.Id, GroupRole.Admin);
@@ -123,6 +141,37 @@ public sealed class GroupTestScenario
         var board = new GroupBoard(groupId, name, visibility);
         await BoardRepository.CreateAsync(board);
         return board;
+    }
+
+    public async Task<GroupInvitation> SeedInvitationAsync(
+        long groupId,
+        long inviterId,
+        long inviteeId,
+        bool isPending = true)
+    {
+        var invitation = new GroupInvitation(groupId, inviterId, inviteeId);
+        if (!isPending)
+            invitation.Ignore();
+        await InvitationRepository.CreateInvitationAsync(invitation);
+        return invitation;
+    }
+
+    public async Task<GroupApplication> SeedApplicationAsync(
+        long groupId,
+        long applicantId,
+        bool isPending = true)
+    {
+        var application = new GroupApplication(groupId, applicantId);
+        if (!isPending)
+            application.Ignore();
+        await ApplicationRepository.CreateApplicationAsync(application);
+        return application;
+    }
+
+    public async Task BlacklistUserAsync(long groupId, long userId)
+    {
+        LoginAs(Owner.Id);
+        await BlacklistService.AddAsync(groupId, new GroupBlacklistCreateRequestDto { UserId = userId });
     }
 
     public async Task AssertMemberRoleAsync(long groupId, long userId, GroupRole expected)
