@@ -6,10 +6,10 @@ using Api.Tests.Infrastructure;
 namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
-public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture postgres)
+public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture postgres)
     : IntegrationTestBase(postgres)
 {
-    private readonly string testUserPassword = "testtest123!";
+    private readonly string testUserPassword = IntegrationTestAuthHelpers.DefaultPassword;
     private readonly string testUserNickname = "old";
 
     public UserCreateRequestDto CreateUserRequest(
@@ -27,7 +27,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
     {
         req ??= CreateUserRequest();
         var create = await Client.PostAsJsonAsync("/api/join", req);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(create, HttpStatusCode.Created);
 
         var getAll = await Client.GetAsync("/api/users");
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
@@ -47,7 +47,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         var res = await Client.PostAsJsonAsync("/api/join", duplicateReq);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
     }
 
     // --- LOGIN (POST /api/login) ---
@@ -67,7 +67,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
         var loginResult = await res.Content.ReadFromJsonAsync<LoginResponseDto>();
         Assert.NotNull(loginResult);
@@ -89,7 +89,7 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -108,6 +108,6 @@ public sealed class LoginControllerIntegrationTest(PostgresTestcontainerFixture 
         var res = await Client.PostAsJsonAsync("/api/login", req);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
 }

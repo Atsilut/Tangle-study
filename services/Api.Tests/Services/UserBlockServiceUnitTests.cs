@@ -20,7 +20,7 @@ public sealed class UserBlockServiceUnitTests
 
         await graph.UserBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
 
-        Assert.True(await graph.UserBlockRepository.ExistsAsync(blocker.Id, blocked.Id));
+        Assert.True(await graph.UserBlockRepository.ExistsUserBlockAsync(blocker.Id, blocked.Id));
     }
 
     private static DefaultHttpContext ContextFor(long userId) => new()

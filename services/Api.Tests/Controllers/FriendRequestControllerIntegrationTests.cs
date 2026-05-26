@@ -172,7 +172,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.NotNull(list);
         Assert.Equal(2, list.Count);
         Assert.Contains(list, p => p.OtherUserId == outgoing.Id && !p.IsIncoming);
@@ -262,7 +262,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
         await BlockUserAsync(addressee.Id);
         var blocks = await Client.GetAsync("/api/users/blocks/me");
-        var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockResponseDto>>();
+        var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
         var blockId = Assert.Single(blockList!).Id;
         Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"/api/users/blocks/{blockId}")).StatusCode);
 
@@ -324,14 +324,14 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         var ignored = await Client.GetAsync($"{RequestsBase}/ignored");
         Assert.Equal(HttpStatusCode.OK, ignored.StatusCode);
-        var ignoredList = await ignored.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var ignoredList = await ignored.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.NotNull(ignoredList);
         Assert.Contains(ignoredList, d => d.Id == requestId && !d.IsPending);
 
         await LoginAs(requester);
         var requesterPending = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.OK, requesterPending.StatusCode);
-        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.NotNull(requesterList);
         var outgoing = Assert.Single(requesterList);
         Assert.True(outgoing.IsPending);
@@ -344,13 +344,13 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
         var ignoredAfterResend = await Client.GetAsync($"{RequestsBase}/ignored");
         Assert.Equal(HttpStatusCode.OK, ignoredAfterResend.StatusCode);
-        var ignoredAfterResendList = await ignoredAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var ignoredAfterResendList = await ignoredAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.Contains(ignoredAfterResendList!, d => d.Id == requestId && !d.IsPending);
 
         await LoginAs(requester);
         var requesterPendingAfterResend = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.OK, requesterPendingAfterResend.StatusCode);
-        var requesterListAfterResend = await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var requesterListAfterResend = await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.NotNull(requesterListAfterResend);
         var outgoingAfterResend = Assert.Single(requesterListAfterResend);
         Assert.True(outgoingAfterResend.IsPending);
@@ -401,7 +401,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         Assert.Equal(HttpStatusCode.Created, resend.StatusCode);
         var requesterPending = await Client.GetAsync($"{RequestsBase}/pending");
         Assert.Equal(HttpStatusCode.OK, requesterPending.StatusCode);
-        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
         Assert.NotNull(requesterList);
         var outgoing = Assert.Single(requesterList);
         Assert.True(outgoing.IsPending);

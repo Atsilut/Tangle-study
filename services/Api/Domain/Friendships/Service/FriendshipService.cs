@@ -44,13 +44,6 @@ namespace Api.Domain.Friendships.Service
             await _repo.CreateFriendshipAsync(friendship);
         }
 
-        public async Task<FriendshipGetResponseDto> MapToResponseDtoAsync(Friendship friendship, long viewerId)
-        {
-            var otherId = friendship.OtherPartyId(viewerId);
-            var other = await _userService.GetUserByIdAsync(otherId);
-            return MapToDto(friendship, viewerId, other?.Nickname ?? "Deleted User");
-        }
-
         public async Task DeleteFriendshipByIdAsync(long id)
         {
             var userId = GetUserIdFromLogin();

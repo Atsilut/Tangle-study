@@ -8,7 +8,7 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
     private readonly List<FriendRequest> _requests = new();
     private long _nextId = 1;
 
-    public Task CreateAsync(FriendRequest friendRequest)
+    public Task CreateFriendRequestAsync(FriendRequest friendRequest)
     {
         if (_requests.Exists(r => InvolvesSameUserPair(r, friendRequest.RequesterId, friendRequest.AddresseeId)))
             throw new InvalidOperationException("A friend request already exists for this user pair.");
@@ -24,7 +24,7 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
         (request.RequesterId == userId && request.AddresseeId == otherUserId) ||
         (request.RequesterId == otherUserId && request.AddresseeId == userId);
 
-    public Task<FriendRequest?> GetByIdAsync(long id) =>
+    public Task<FriendRequest?> GetFriendRequestByIdAsync(long id) =>
         Task.FromResult(_requests.FirstOrDefault(r => r.Id == id));
 
     public Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
@@ -41,9 +41,9 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
         return Task.FromResult(query.ToList());
     }
 
-    public Task UpdateAsync(FriendRequest friendRequest) => Task.CompletedTask;
+    public Task UpdateFriendRequestAsync(FriendRequest friendRequest) => Task.CompletedTask;
 
-    public Task DeleteAsync(FriendRequest friendRequest)
+    public Task DeleteFriendRequestAsync(FriendRequest friendRequest)
     {
         _requests.Remove(friendRequest);
         return Task.CompletedTask;

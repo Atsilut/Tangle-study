@@ -24,7 +24,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
     {
         var res = await Client.GetAsync($"{BlocksBase}/me");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<UserBlockResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
         Assert.NotNull(list);
         return list.Single(b => b.BlockedUserId == blockedUserId).Id;
     }
@@ -124,7 +124,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<UserBlockResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(blocked.Id, only.BlockedUserId);

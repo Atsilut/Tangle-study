@@ -36,7 +36,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(friend.Id, only.OtherUserId);
@@ -60,7 +60,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
         Assert.NotNull(list);
         Assert.Equal(friend.Id, Assert.Single(list).OtherUserId);
     }
@@ -107,7 +107,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
         Assert.NotNull(list);
         Assert.Equal(2, list.Count);
     }

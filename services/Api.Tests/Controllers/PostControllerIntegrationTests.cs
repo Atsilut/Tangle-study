@@ -10,42 +10,6 @@ namespace Api.Tests.Controllers;
 public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture postgres)
     : IntegrationTestBase(postgres)
 {
-    private readonly string testPassword = "testpass123!";
-
-    private async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, string password = "testpass123!", long index = 1)
-    {
-        var email = testMethodName + index.ToString() + "@test.com";
-        var nickname = $"{testMethodName}User" + index.ToString();
-        var req = new UserCreateRequestDto
-        {
-            Email = email,
-            Password = password,
-            Nickname = nickname,
-        };
-        var create = await Client.PostAsJsonAsync("/api/join", req);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-
-        var getAll = await Client.GetAsync("/api/users");
-        var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        return all!.Single(u => u.Email == req.Email);
-    }
-
-    private async Task LoginAs(UserGetResponseDto user, string password)
-    {
-        var req = new LoginRequestDto
-        {
-            Email = user.Email,
-            Password = password
-        };
-        var res = await Client.PostAsJsonAsync("/api/login", req);
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-
-        var loginRes = await res.Content.ReadFromJsonAsync<LoginResponseDto>();
-        Assert.NotNull(loginRes);
-
-        Client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
-    }
-
     // --- CREATE ---
 
     [Fact]
@@ -55,15 +19,15 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string testMethodName = "PostCreate";
         const string title = "my title";
         const string content = "my content";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var req = new PostCreateRequestDto { Title = title, Content = content };
 
         // Act
         var res = await Client.PostAsJsonAsync("/api/posts", req);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
     }
 
     [Theory]
@@ -74,13 +38,13 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "PostCreateWithInvalidRequest";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var req = new PostCreateRequestDto { Title = title, Content = content };
         // Act
         var res = await Client.PostAsJsonAsync("/api/posts", req);
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
     }
 
     // --- GET ---
@@ -90,8 +54,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "GetAllPosts";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         const string title = "test title";
         const string content = "test content";
         const string titleSuffix1 = "1";
@@ -101,15 +65,15 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var createReq1 = new PostCreateRequestDto { Title = title + titleSuffix1, Content = content + contentSuffix1 };
         var createReq2 = new PostCreateRequestDto { Title = title + titleSuffix2, Content = content + contentSuffix2 };
         var createRes1 = await Client.PostAsJsonAsync("/api/posts", createReq1);
-        Assert.Equal(HttpStatusCode.Created, createRes1.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes1, HttpStatusCode.Created);
         var createRes2 = await Client.PostAsJsonAsync("/api/posts", createReq2);
-        Assert.Equal(HttpStatusCode.Created, createRes2.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes2, HttpStatusCode.Created);
 
         // Act
         var res = await Client.GetAsync("/api/posts");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
         var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         Assert.Equal(2, list!.Count);
@@ -124,7 +88,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var res = await Client.GetAsync("/api/posts");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -132,16 +96,16 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "GetPostById";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         const string title = "test title";
         const string content = "test content";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         var listRes = await Client.GetAsync("/api/posts");
-        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(post => post.Title == title);
 
@@ -150,7 +114,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
         Assert.NotNull(dto);
         Assert.Equal(created.Id, dto.Id);
         Assert.Equal(title, dto.Title);
@@ -169,7 +133,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var res = await Client.GetAsync($"/api/posts/{missingPostId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -177,13 +141,13 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "GetPostsByNick";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         const string title = "nickname lookup title";
         const string content = "nickname lookup content";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         Client.DefaultRequestHeaders.Authorization = null;
 
@@ -193,7 +157,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
 
         var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         Assert.NotNull(list);
@@ -209,14 +173,14 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "GetPostsByNickEmpty";
-        var user = await CreateUserForTest(testMethodName, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         var encodedNickname = Uri.EscapeDataString(user.Nickname);
 
         // Act
         var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -229,7 +193,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var getRes = await Client.GetAsync("/api/posts/nickname/" + unknownNicknamePath);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NoContent);
     }
 
     // --- PATCH ---
@@ -241,11 +205,11 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string testMethodName = "PostPatch";
         const string originalTitle = "original";
         const string originalBody = "original body";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var createReq = new PostCreateRequestDto { Title = originalTitle, Content = originalBody };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         var listRes = await Client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
@@ -268,7 +232,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, patchRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
 
         Assert.NotNull(patchDto);
         Assert.Equal(newTitle, patchDto.Title);
@@ -286,21 +250,21 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "PostPatchAuth";
-        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
-        var nonOwner = await CreateUserForTest(testMethodName + "NonOwner", testPassword);
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var nonOwner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "NonOwner");
 
-        await LoginAs(owner, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         const string title = "owners post";
         const string content = "hands off";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         var listRes = await Client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == title);
 
-        await LoginAs(nonOwner, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, nonOwner);
         const string newTitle = "hijacked title";
         const string newContent = "hijacked body";
         var patchReq = new PostPatchRequestDto
@@ -314,9 +278,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, patchRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.Unauthorized);
 
-        await LoginAs(owner, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
@@ -333,8 +297,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string testMethodName = "PostPatchMissing";
         const long missingPostId = 999999999999;
         const string notApplicable = "n/a";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var patchReq = new PostPatchRequestDto
         {
             Id = missingPostId,
@@ -346,7 +310,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, patchRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.NotFound);
     }
 
     // --- DELETE ---
@@ -358,11 +322,11 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string testMethodName = "PostDelete";
         const string deleteTitle = "to delete";
         const string deleteContent = "gone soon";
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var createReq = new PostCreateRequestDto { Title = deleteTitle, Content = deleteContent };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         var listRes = await Client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
@@ -373,8 +337,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, deleteRes.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NoContent);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -382,31 +346,31 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "PostDeleteAuth";
-        var owner = await CreateUserForTest(testMethodName + "Owner", testPassword);
-        var other = await CreateUserForTest(testMethodName + "Other", testPassword);
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var other = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Other");
 
-        await LoginAs(owner, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         const string title = "do not delete me";
         const string content = "still here";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
         var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
-        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         var listRes = await Client.GetAsync("/api/posts");
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
         var created = allPosts!.Single(p => p.Title == title);
 
-        await LoginAs(other, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, other);
 
         // Act
         var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, deleteRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.Unauthorized);
 
-        await LoginAs(owner, testPassword);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
-        Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
         var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
         Assert.NotNull(dto);
         Assert.Equal(title, dto.Title);
@@ -419,13 +383,13 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         // Arrange
         const string testMethodName = "PostDeleteMissing";
         const long missingPostId = 999999999999;
-        var user = await CreateUserForTest(testMethodName, testPassword);
-        await LoginAs(user, testPassword);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
 
         // Act
         var deleteRes = await Client.DeleteAsync($"/api/posts/{missingPostId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, deleteRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NotFound);
     }
 }

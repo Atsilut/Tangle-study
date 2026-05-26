@@ -83,7 +83,8 @@ namespace Api.Domain.Comments.Service
             if (comment == null) return null;
             if (comment.PostId is not null)
                 await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
-            return MapToDto(comment);
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
+            return MapToDto(comment, nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"));
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
@@ -92,7 +93,7 @@ namespace Api.Domain.Comments.Service
             await EnsureGroupBoardViewAccessForPostAsync(postId);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
-            return BuildCommentTree(comments);
+            return await BuildCommentTreeAsync(comments);
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
@@ -104,13 +105,16 @@ namespace Api.Domain.Comments.Service
                 return null;
             }
 
-            return comments.Select(MapToDto).ToList();
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
+            return comments.Select(c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"))).ToList();
         }
 
-        private static CommentGetResponseDto MapToDto(Comment comment) => new()
+        private static CommentGetResponseDto MapToDto(Comment comment, string authorNickname) => new()
         {
             Id = comment.Id,
             Content = comment.Content,
+            AuthorId = comment.AuthorUserId,
+            AuthorNickname = authorNickname,
             UserId = comment.UserId,
             DeletedUserId = comment.DeletedUserId,
             PostId = comment.PostId,
@@ -121,9 +125,12 @@ namespace Api.Domain.Comments.Service
             UpdatedAt = comment.UpdatedAt
         };
 
-        private List<CommentGetResponseDto> BuildCommentTree(IReadOnlyList<Comment> comments)
+        private async Task<List<CommentGetResponseDto>> BuildCommentTreeAsync(IReadOnlyList<Comment> comments)
         {
-            var byId = comments.ToDictionary(c => c.Id, MapToDto);
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
+            var byId = comments.ToDictionary(
+                c => c.Id,
+                c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User")));
             var roots = new List<CommentGetResponseDto>();
 
             foreach (var comment in comments.OrderBy(c => c.CreatedAt))

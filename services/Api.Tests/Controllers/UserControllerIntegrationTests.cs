@@ -11,42 +11,6 @@ namespace Api.Tests.Controllers;
 public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture postgres)
     : IntegrationTestBase(postgres)
 {
-    private readonly string testUserPassword = "testtest123!";
-
-    private async Task<UserGetResponseDto> CreateUserForTest(string testMethodName, string password = "testtest123!", long index = 1)
-    {
-        var email = testMethodName + index.ToString() + "@test.com";
-        var nickname = $"{testMethodName}User" + index.ToString();
-        var req = new UserCreateRequestDto
-        {
-            Email = email,
-            Password = password,
-            Nickname = nickname,
-        };
-        var create = await Client.PostAsJsonAsync("/api/join", req);
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-
-        var getAll = await Client.GetAsync("/api/users");
-        var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
-        return all!.Single(u => u.Email == req.Email);
-    }
-
-    private async Task LoginAs(UserGetResponseDto user, string password)
-    {
-        var req = new LoginRequestDto
-        {
-            Email = user.Email,
-            Password = password
-        };
-        var login = await Client.PostAsJsonAsync("/api/login", req);
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-
-        var loginRes = await login.Content.ReadFromJsonAsync<LoginResponseDto>();
-        Assert.NotNull(loginRes);
-        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
-    }
-
-
     // --- GET ---
 
     [Fact]
@@ -54,13 +18,13 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "GetUserById";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
 
         // Act
         var res = await Client.GetAsync("/api/users/" + created.Id);
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
     }
 
     [Fact]
@@ -73,7 +37,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var res = await Client.GetAsync("/api/users/" + missingUserId);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
     }
 
     // --- PATCH ---
@@ -84,15 +48,15 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         // Arrange
         const string testMethodName = "UserPatch";
         const string newNickname = "new";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
 
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
         Assert.NotNull(patched);
@@ -106,16 +70,16 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         // Arrange
         const string testMethodName = "UserPatchMissing";
         const string newNickname = "new";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
-        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         // Act
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -123,14 +87,14 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserPatchUnauth";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         Client.DefaultRequestHeaders.Authorization = null;
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, "new"));
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -138,14 +102,14 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserPatchSameNickname";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, created.Nickname));
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
 
         var patched = await patch.Content.ReadFromJsonAsync<UserPatchResponseDto>();
         Assert.NotNull(patched);
@@ -157,15 +121,15 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserPatchDuplicateNickname";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        var existingUser = await CreateUserForTest(testMethodName + "Existing", testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var existingUser = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Existing");
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -173,28 +137,28 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserPatchAuth";
-        var owner = await CreateUserForTest(testMethodName + "Owner", testUserPassword);
-        var attacker = await CreateUserForTest(testMethodName + "Attacker", testUserPassword);
-        await LoginAs(attacker, testUserPassword);
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var attacker = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, attacker);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(owner.Id, "hacked"));
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task UpdatePrivacy_Returns200_AndUpdatesFriendsListVisibility()
     {
         const string testMethodName = "UserPrivacy";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Public });
 
-        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
         var body = await patch.Content.ReadFromJsonAsync<UserPrivacySettingsResponseDto>();
         Assert.NotNull(body);
         Assert.Equal(FriendsListVisibility.Public, body.FriendsListVisibility);
@@ -212,7 +176,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Private });
 
-        Assert.Equal(HttpStatusCode.Unauthorized, patch.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
     }
 
     // --- DELETE ---
@@ -222,17 +186,17 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserDelete";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         var found = await Client.GetAsync($"/api/users/{created.Id}");
-        Assert.Equal(HttpStatusCode.NotFound, found.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(found, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -240,16 +204,16 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserDeleteMissing";
-        var created = await CreateUserForTest(testMethodName, testUserPassword);
-        await LoginAs(created, testUserPassword);
+        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}");
-        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         // Act
         delete = await Client.DeleteAsync($"/api/users/{created.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -257,14 +221,14 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         // Arrange
         const string testMethodName = "UserDeleteAuth";
-        var owner = await CreateUserForTest(testMethodName + "Owner", testUserPassword);
-        var attacker = await CreateUserForTest(testMethodName + "Attacker", testUserPassword);
-        await LoginAs(attacker, testUserPassword);
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var attacker = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, attacker);
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{owner.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, delete.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.Unauthorized);
     }
 }

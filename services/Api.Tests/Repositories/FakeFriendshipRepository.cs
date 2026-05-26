@@ -8,7 +8,7 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
     private readonly List<Friendship> _friendships = new();
     private long _nextId = 1;
 
-    public Task CreateAsync(Friendship friendship)
+    public Task CreateFriendshipAsync(Friendship friendship)
     {
         typeof(Friendship)
             .GetProperty(nameof(Friendship.Id))!
@@ -17,7 +17,7 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
         return Task.CompletedTask;
     }
 
-    public Task<Friendship?> GetByIdAsync(long id) =>
+    public Task<Friendship?> GetFriendshipByIdAsync(long id) =>
         Task.FromResult(_friendships.FirstOrDefault(f => f.Id == id));
 
     public Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
@@ -39,7 +39,7 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
     public Task<List<Friendship>> GetAllForUserAsync(long userId) =>
         Task.FromResult(_friendships.Where(f => f.UserLowId == userId || f.UserHighId == userId).ToList());
 
-    public Task DeleteAsync(Friendship friendship)
+    public Task DeleteFriendshipAsync(Friendship friendship)
     {
         _friendships.Remove(friendship);
         return Task.CompletedTask;

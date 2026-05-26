@@ -6,7 +6,6 @@ namespace Api.Domain.Comments.Repository
     {
         public Task CreateCommentAsync(Comment comment);
         public Task<Comment?> GetCommentByIdAsync(long id);
-        public Task<bool> ExistsCommentByIdAsync(long id);
         public Task<List<Comment>> GetCommentsByPostIdAsync(long postId);
         public Task<List<Comment>> GetCommentsByUserIdAsync(long userId);
         public Task UpdateCommentAsync(Comment comment);

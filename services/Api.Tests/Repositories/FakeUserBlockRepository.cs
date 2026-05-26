@@ -8,7 +8,7 @@ public sealed class FakeUserBlockRepository : IUserBlockRepository
     private readonly List<UserBlock> _blocks = new();
     private long _nextId = 1;
 
-    public Task CreateAsync(UserBlock userBlock)
+    public Task CreateUserBlockAsync(UserBlock userBlock)
     {
         typeof(UserBlock)
             .GetProperty(nameof(UserBlock.Id))!
@@ -17,11 +17,11 @@ public sealed class FakeUserBlockRepository : IUserBlockRepository
         return Task.CompletedTask;
     }
 
-    public Task<bool> ExistsAsync(long blockerId, long blockedUserId) =>
+    public Task<bool> ExistsUserBlockAsync(long blockerId, long blockedUserId) =>
         Task.FromResult(_blocks.Any(b =>
             b.BlockerId == blockerId && b.BlockedUserId == blockedUserId));
 
-    public Task<UserBlock?> GetByIdAsync(long id) =>
+    public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
         Task.FromResult(_blocks.FirstOrDefault(b => b.Id == id));
 
     public Task<List<UserBlock>> GetAllForBlockerAsync(long blockerId) =>
@@ -30,7 +30,7 @@ public sealed class FakeUserBlockRepository : IUserBlockRepository
             .OrderByDescending(b => b.CreatedAt)
             .ToList());
 
-    public Task DeleteAsync(UserBlock userBlock)
+    public Task DeleteUserBlockAsync(UserBlock userBlock)
     {
         _blocks.Remove(userBlock);
         return Task.CompletedTask;

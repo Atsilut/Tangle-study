@@ -14,6 +14,11 @@ namespace Api.Domain.Comments.Dto
 
         public long? DeletedPostId { get; set; }
 
+        public long AuthorId { get; set; }
+
+        [Required]
+        public string AuthorNickname { get; set; }
+
         public long? UserId { get; set; }
 
         public long? DeletedUserId { get; set; }
