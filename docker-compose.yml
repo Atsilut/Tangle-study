@@ -1,9 +1,15 @@
-version: "3.9"
+name: tangle
+
+x-dotnet-env: &dotnet-env
+  DOTNET_CLI_HOME: /tmp/dotnet-cli
+  NUGET_PACKAGES: /tmp/nuget-packages
+  DOTNET_NOLOGO: "1"
+  ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=tangledb;Username=tangle;Password=tangletangle123;Pooling=true"
 
 services:
   db:
-    image: postgres:latest
-    restart: always
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: tangle
       POSTGRES_PASSWORD: tangletangle123
@@ -12,6 +18,12 @@ services:
       - "5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tangle -d tangledb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   api:
     build:
@@ -19,11 +31,58 @@ services:
       dockerfile: services/Api/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=tangledb;Username=tangle;Password=tangletangle123;Pooling=true"
     ports:
       - "5000:8080"
     depends_on:
-      - db  
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Build, EF migrations, and other dotnet CLI work (no local .nuget / .dotnet-tools).
+  sdk:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+    image: tangle-sdk:local
+    working_dir: /src
+    environment: *dotnet-env
+    volumes:
+      - .:/src
+    depends_on:
+      db:
+        condition: service_healthy
+
+  test:
+    profiles: ["test"]
+    image: tangle-sdk:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+    working_dir: /src
+    environment:
+      <<: *dotnet-env
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Testcontainers talks to the host Docker engine via the mounted socket.
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/src
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      [
+        "test",
+        "services/Api.Tests/Api.Tests.csproj",
+        "-c",
+        "Release",
+        "--verbosity",
+        "normal",
+      ]
 
 volumes:
   db-data:

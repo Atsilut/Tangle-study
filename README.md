@@ -56,6 +56,8 @@ Monitoring:
 API / Workers → Prometheus → Grafana
 ```
 
+Api service-layer conventions (one repository per service, peer services for other aggregates): see [services/Api/AGENTS.md](services/Api/AGENTS.md).
+
 ---
 
 ## Tech Stack
@@ -218,6 +220,59 @@ This project is built **for learning purposes only**.
 * Introduce service decomposition (microservices)
 * Add distributed tracing (e.g., OpenTelemetry)
 * Improve fault tolerance and recovery strategies
+
+---
+
+## Local development (Docker only)
+
+All .NET build, test, EF, and API runtime run in Docker so nothing writes `.nuget/` or `.dotnet-tools/` into the repo.
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+### Runtime (API + Postgres)
+
+```bash
+docker compose up --build
+```
+
+- API: http://localhost:5000  
+- Swagger: http://localhost:5000/api  
+- Postgres: `localhost:5433` (user `tangle`, db `tangledb`)
+
+Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT=Development`.
+
+### Build / EF / other CLI
+
+```bash
+chmod +x scripts/docker-dotnet.sh
+
+./scripts/docker-dotnet.sh build Tangle.slnx
+./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Api
+./scripts/docker-dotnet.sh ef database update --project services/Api
+```
+
+Equivalent without the script:
+
+```bash
+docker compose --profile tools run --rm sdk build Tangle.slnx
+docker compose --profile tools run --rm sdk ef migrations add MyMigration --project services/Api
+```
+
+### Tests (Testcontainers needs Docker socket)
+
+```bash
+docker compose --profile test run --rm test
+```
+
+Integration tests start their own Postgres containers via Testcontainers (using the host Docker engine through the mounted socket). The compose `db` service is not required for tests. Docker Desktop must be running.
+
+### Cleanup local SDK artifacts
+
+If `.nuget/` or `.dotnet-tools/` were created in the repo earlier, delete them (they are gitignored):
+
+```bash
+rm -rf .nuget .dotnet-tools
+```
 
 ---
 

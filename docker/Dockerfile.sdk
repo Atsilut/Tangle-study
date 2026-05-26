@@ -1,0 +1,19 @@
+# SDK image for build, test, and EF tooling. Keeps packages/tools inside the container.
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+
+ENV DOTNET_CLI_HOME=/tmp/dotnet-cli \
+    NUGET_PACKAGES=/tmp/nuget-packages \
+    DOTNET_NOLOGO=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/tmp/dotnet-cli/.dotnet/tools:/root/.dotnet/tools"
+
+WORKDIR /src
+
+COPY Tangle.slnx .
+COPY services/Api/Api.csproj services/Api/
+COPY services/Api.Tests/Api.Tests.csproj services/Api.Tests/
+RUN dotnet restore services/Api.Tests/Api.Tests.csproj
+
+ENTRYPOINT ["dotnet"]
