@@ -1,55 +1,11 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
-using Api.Domain.Groups.Service;
-using Api.Domain.Users.Domain;
 using Api.Global.Exceptions;
-using Api.Tests.Infrastructure;
-using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
 public sealed class GroupServiceUnitTests
 {
-    private readonly GroupService _groupService;
-    private readonly GroupMembershipService _membershipService;
-    private readonly FakeUserRepository _userRepository;
-    private readonly FakeGroupRepository _groupRepository;
-    private readonly FakeGroupMemberRepository _groupMemberRepository;
-    private readonly FakeGroupBlacklistRepository _blacklistRepository;
-    private readonly GroupBlacklistService _blacklistService;
-    private readonly FakeHttpContextAccessor _httpContextAccessor;
-
-    public GroupServiceUnitTests()
-    {
-        _httpContextAccessor = new FakeHttpContextAccessor("1");
-        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
-        _groupService = graph.GroupService;
-        _membershipService = graph.GroupMembershipService;
-        _blacklistService = graph.GroupBlacklistService;
-        _userRepository = graph.UserRepository;
-        _groupRepository = graph.GroupRepository;
-        _groupMemberRepository = graph.GroupMemberRepository;
-        _blacklistRepository = graph.GroupBlacklistRepository;
-    }
-
-    private async Task<User> CreateTestUserAsync(string nickname)
-    {
-        var user = new User(
-            email: $"{nickname}@test.com",
-            password: "password",
-            nickname: nickname);
-        await _userRepository.CreateUserAsync(user);
-        return user;
-    }
-
-    private void LoginAs(long userId) =>
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-        };
-
     private static GroupCreateRequestDto MakeCreateRequest(string name = "Devs", GroupVisibility visibility = GroupVisibility.Private) =>
         new() { Name = name, Description = "desc", Visibility = visibility };
 
@@ -58,18 +14,13 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task CreateGroup_AddsCreatorAsOwner()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        LoginAs(owner.Id);
+        var scenario = await GroupTestScenario.CreateAsync("grp_create");
+        scenario.LoginAs(scenario.Owner.Id);
 
-        // Act
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+        var group = await scenario.GroupService.CreateGroupAsync(MakeCreateRequest());
 
-        // Assert
         Assert.Equal(1, group.MemberCount);
-        var member = await _groupMemberRepository.GetMemberAsync(group.Id, owner.Id);
-        Assert.NotNull(member);
-        Assert.Equal(GroupRole.Owner, member!.Role);
+        await scenario.AssertMemberRoleAsync(group.Id, scenario.Owner.Id, GroupRole.Owner);
     }
 
     // --- GET ---
@@ -77,31 +28,24 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task GetGroup_ThrowsNotFound_WhenPrivateAndNotMember()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var stranger = await CreateTestUserAsync("stranger");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest(visibility: GroupVisibility.Private));
-        LoginAs(stranger.Id);
+        var scenario = await GroupTestScenario.CreateAsync("grp_get_private");
+        scenario.LoginAs(scenario.Owner.Id);
+        var group = await scenario.GroupService.CreateGroupAsync(MakeCreateRequest(visibility: GroupVisibility.Private));
+        scenario.LoginAs(scenario.Stranger.Id);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException>(() => _groupService.GetGroupAsync(group.Id));
+        await Assert.ThrowsAsync<EntityNotFoundException>(() => scenario.GroupService.GetGroupAsync(group.Id));
     }
 
     [Fact]
     public async Task GetGroup_ReturnsGroup_WhenPublicAndNotMember()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var stranger = await CreateTestUserAsync("stranger");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest(visibility: GroupVisibility.Public));
-        LoginAs(stranger.Id);
+        var scenario = await GroupTestScenario.CreateAsync("grp_get_public");
+        scenario.LoginAs(scenario.Owner.Id);
+        var group = await scenario.GroupService.CreateGroupAsync(MakeCreateRequest(visibility: GroupVisibility.Public));
+        scenario.LoginAs(scenario.Stranger.Id);
 
-        // Act
-        var dto = await _groupService.GetGroupAsync(group.Id);
+        var dto = await scenario.GroupService.GetGroupAsync(group.Id);
 
-        // Assert
         Assert.Equal(group.Id, dto.Id);
         Assert.Equal(GroupVisibility.Public, dto.Visibility);
     }
@@ -111,13 +55,11 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task UpdateGroup_UpdatesDetails_WhenOwner()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+        var scenario = await GroupTestScenario.CreateAsync("grp_update");
+        scenario.LoginAs(scenario.Owner.Id);
+        var group = await scenario.GroupService.CreateGroupAsync(MakeCreateRequest());
 
-        // Act
-        var updated = await _groupService.UpdateGroupAsync(new GroupPatchRequestDto
+        var updated = await scenario.GroupService.UpdateGroupAsync(new GroupPatchRequestDto
         {
             Id = group.Id,
             Name = "Renamed",
@@ -125,7 +67,6 @@ public sealed class GroupServiceUnitTests
             Visibility = GroupVisibility.Public,
         });
 
-        // Assert
         Assert.Equal("Renamed", updated.Name);
         Assert.Equal(GroupVisibility.Public, updated.Visibility);
     }
@@ -133,17 +74,12 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task UpdateGroup_ThrowsUnauthorized_WhenMember()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var member = await CreateTestUserAsync("member");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
-        await _membershipService.AddMemberInternalAsync(group.Id, member.Id, GroupRole.Member);
-        LoginAs(member.Id);
+        var scenario = await GroupTestScenario.CreateAsync("grp_update_denied");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
+        scenario.LoginAs(scenario.Member.Id);
 
-        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _groupService.UpdateGroupAsync(new GroupPatchRequestDto
+            scenario.GroupService.UpdateGroupAsync(new GroupPatchRequestDto
             {
                 Id = group.Id,
                 Name = "x",
@@ -157,51 +93,39 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task DeleteGroup_RemovesGroupAndMemberships()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var member = await CreateTestUserAsync("member");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
-        await _membershipService.AddMemberInternalAsync(group.Id, member.Id, GroupRole.Member);
+        var scenario = await GroupTestScenario.CreateAsync("grp_delete");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
+        scenario.LoginAs(scenario.Owner.Id);
 
-        // Act
-        await _groupService.DeleteGroupAsync(group.Id);
+        await scenario.GroupService.DeleteGroupAsync(group.Id);
 
-        // Assert
-        Assert.Null(await _groupRepository.GetGroupByIdAsync(group.Id));
-        Assert.Empty(await _groupMemberRepository.GetMembersByGroupAsync(group.Id));
+        Assert.Null(await scenario.GroupRepository.GetGroupByIdAsync(group.Id));
+        Assert.Empty(await scenario.GroupMemberRepository.GetMembersByGroupAsync(group.Id));
     }
 
     [Fact]
     public async Task DeleteGroup_ClearsBlacklist()
     {
-        var owner = await CreateTestUserAsync("owner");
-        var target = await CreateTestUserAsync("target");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+        var scenario = await GroupTestScenario.CreateAsync("grp_delete_bl");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: false);
+        await scenario.BlacklistUserAsync(group.Id, scenario.Stranger.Id);
+        Assert.True(await scenario.BlacklistRepository.ExistsAsync(group.Id, scenario.Stranger.Id));
+        scenario.LoginAs(scenario.Owner.Id);
 
-        await _blacklistService.AddAsync(group.Id, new GroupBlacklistCreateRequestDto { UserId = target.Id });
-        Assert.True(await _blacklistRepository.ExistsAsync(group.Id, target.Id));
+        await scenario.GroupService.DeleteGroupAsync(group.Id);
 
-        await _groupService.DeleteGroupAsync(group.Id);
-
-        Assert.Null(await _groupRepository.GetGroupByIdAsync(group.Id));
-        Assert.False(await _blacklistRepository.ExistsAsync(group.Id, target.Id));
+        Assert.Null(await scenario.GroupRepository.GetGroupByIdAsync(group.Id));
+        Assert.False(await scenario.BlacklistRepository.ExistsAsync(group.Id, scenario.Stranger.Id));
     }
 
     [Fact]
     public async Task DeleteGroup_ThrowsUnauthorized_WhenAdmin()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var admin = await CreateTestUserAsync("admin");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
-        await _membershipService.AddMemberInternalAsync(group.Id, admin.Id, GroupRole.Admin);
-        LoginAs(admin.Id);
+        var scenario = await GroupTestScenario.CreateAsync("grp_delete_denied");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
+        scenario.LoginAs(scenario.Admin.Id);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _groupService.DeleteGroupAsync(group.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => scenario.GroupService.DeleteGroupAsync(group.Id));
     }
 
     // --- TRANSFER ---
@@ -209,34 +133,26 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task TransferOwnership_SwapsRoles_WhenTargetIsMember()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var heir = await CreateTestUserAsync("heir");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
-        await _membershipService.AddMemberInternalAsync(group.Id, heir.Id, GroupRole.Member);
+        var scenario = await GroupTestScenario.CreateAsync("grp_transfer");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
+        scenario.LoginAs(scenario.Owner.Id);
 
-        // Act
-        await _groupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = heir.Id });
+        await scenario.GroupService.TransferOwnershipAsync(
+            new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id });
 
-        // Assert
-        var ownerMember = await _groupMemberRepository.GetMemberAsync(group.Id, owner.Id);
-        var heirMember = await _groupMemberRepository.GetMemberAsync(group.Id, heir.Id);
-        Assert.Equal(GroupRole.Admin, ownerMember!.Role);
-        Assert.Equal(GroupRole.Owner, heirMember!.Role);
+        await scenario.AssertMemberRoleAsync(group.Id, scenario.Owner.Id, GroupRole.Admin);
+        await scenario.AssertMemberRoleAsync(group.Id, scenario.Member.Id, GroupRole.Owner);
     }
 
     [Fact]
     public async Task TransferOwnership_ThrowsArgument_WhenTargetIsNotMember()
     {
-        // Arrange
-        var owner = await CreateTestUserAsync("owner");
-        var stranger = await CreateTestUserAsync("stranger");
-        LoginAs(owner.Id);
-        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+        var scenario = await GroupTestScenario.CreateAsync("grp_transfer_invalid");
+        scenario.LoginAs(scenario.Owner.Id);
+        var group = await scenario.GroupService.CreateGroupAsync(MakeCreateRequest());
 
-        // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _groupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = stranger.Id }));
+            scenario.GroupService.TransferOwnershipAsync(
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id }));
     }
 }

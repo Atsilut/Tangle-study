@@ -6,26 +6,27 @@ namespace Api.Tests.Services;
 
 public sealed class GroupJoinMatrixTests
 {
-    public static TheoryData<string, GroupJoinPolicy, JoinPolicyOperation, JoinPolicyRouteOutcome> PolicyRoutingMatrixData =>
+    // --- Join policy routing matrix ---
+
+    public static TheoryData<GroupJoinPolicy, JoinPolicyOperation, JoinPolicyRouteOutcome> PolicyRoutingMatrixData =>
         new()
         {
-            { "JP-R-01", GroupJoinPolicy.Open, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.MemberAdded },
-            { "JP-R-02", GroupJoinPolicy.Open, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.UseJoinEndpoint },
-            { "JP-R-03", GroupJoinPolicy.Requestable, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.RequiresApplication },
-            { "JP-R-04", GroupJoinPolicy.Requestable, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.ApplicationCreated },
-            { "JP-R-05", GroupJoinPolicy.InvitationOnly, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.InvitationOnly },
-            { "JP-R-06", GroupJoinPolicy.InvitationOnly, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.InvitationOnly },
+            { GroupJoinPolicy.Open, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.MemberAdded },
+            { GroupJoinPolicy.Open, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.UseJoinEndpoint },
+            { GroupJoinPolicy.Requestable, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.RequiresApplication },
+            { GroupJoinPolicy.Requestable, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.ApplicationCreated },
+            { GroupJoinPolicy.InvitationOnly, JoinPolicyOperation.Join, JoinPolicyRouteOutcome.InvitationOnly },
+            { GroupJoinPolicy.InvitationOnly, JoinPolicyOperation.Apply, JoinPolicyRouteOutcome.InvitationOnly },
         };
 
     [Theory]
     [MemberData(nameof(PolicyRoutingMatrixData))]
-    public async Task PolicyRouting_Matrix(
-        string caseId,
+    public async Task JoinAsync_RoutesByJoinPolicy_Matrix(
         GroupJoinPolicy joinPolicy,
         JoinPolicyOperation operation,
         JoinPolicyRouteOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"jp_r_{caseId}");
+        var scenario = await GroupTestScenario.CreateAsync($"join_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: false,
@@ -74,8 +75,10 @@ public sealed class GroupJoinMatrixTests
         }
     }
 
+    // --- Join policy facts ---
+
     [Fact]
-    public async Task JP_R00_CreateGroup_PersistsJoinPolicy()
+    public async Task CreateGroup_PersistsJoinPolicy()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_r00");
         var group = await scenario.SetupGroupAsync(
@@ -88,7 +91,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P01_Join_WhenAlreadyMember_Throws()
+    public async Task JoinAsync_WhenAlreadyMember_ThrowsAlreadyExists()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p01");
         var group = await scenario.SetupGroupAsync(
@@ -103,7 +106,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P02_Apply_WhenAlreadyMember_Throws()
+    public async Task ApplyAsync_WhenAlreadyMember_ThrowsAlreadyExists()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p02");
         var group = await scenario.SetupGroupAsync(
@@ -115,7 +118,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P03_BlacklistedUser_JoinOpen_Throws()
+    public async Task JoinAsync_WhenBlacklisted_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p03");
         var group = await scenario.SetupGroupAsync(
@@ -129,7 +132,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P04_BlacklistedUser_ApplyRequestable_Throws()
+    public async Task ApplyAsync_WhenBlacklisted_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p04");
         var group = await scenario.SetupGroupAsync(
@@ -143,7 +146,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P05_OpenJoin_WithPendingInvitation_ClearsArtifacts()
+    public async Task JoinAsync_WithPendingInvitation_ClearsArtifactsAndAddsMember()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p05");
         var group = await scenario.SetupGroupAsync(
@@ -160,7 +163,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P06_OpenJoin_WithPendingApplication_ClearsArtifacts()
+    public async Task JoinAsync_WithPendingApplication_ClearsArtifactsAndAddsMember()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p06");
         var group = await scenario.SetupGroupAsync(
@@ -176,7 +179,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P07_OpenJoin_WithIgnoredInvitation_ClearsRowAndAddsMember()
+    public async Task JoinAsync_WithIgnoredInvitation_ClearsRowAndAddsMember()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p07");
         var group = await scenario.SetupGroupAsync(
@@ -192,7 +195,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P08_Apply_WithPendingInvitation_ReciprocalJoin()
+    public async Task ApplyAsync_WithPendingInvitation_CreatesMembershipFromReciprocalInvitation()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p08");
         var group = await scenario.SetupGroupAsync(
@@ -209,7 +212,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P09_Apply_DuplicatePending_ReturnsCreatedWithoutSecondRow()
+    public async Task ApplyAsync_WhenDuplicatePending_ReturnsCreatedWithoutSecondRow()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p09");
         var group = await scenario.SetupGroupAsync(
@@ -225,7 +228,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P10_Join_MissingGroup_ThrowsNotFound()
+    public async Task JoinAsync_WhenGroupMissing_ThrowsNotFound()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p10");
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -235,7 +238,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P11_Apply_MissingGroup_ThrowsNotFound()
+    public async Task ApplyAsync_WhenGroupMissing_ThrowsNotFound()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p11");
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -245,7 +248,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P12_InvitationOnly_AdminCanStillInvite()
+    public async Task InviteAsync_WhenInvitationOnlyPolicy_AdminCanInvite()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p12");
         var group = await scenario.SetupGroupAsync(
@@ -263,7 +266,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P13_InvitationOnly_StrangerJoinStillBlocked()
+    public async Task JoinAsync_WhenInvitationOnlyPolicy_ThrowsForStranger()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p13");
         var group = await scenario.SetupGroupAsync(
@@ -280,7 +283,7 @@ public sealed class GroupJoinMatrixTests
     }
 
     [Fact]
-    public async Task JP_P14_OpenJoin_ClearsBothInvitationAndApplication()
+    public async Task JoinAsync_ClearsBothInvitationAndApplication()
     {
         var scenario = await GroupTestScenario.CreateAsync("jp_p14");
         var group = await scenario.SetupGroupAsync(
@@ -296,19 +299,105 @@ public sealed class GroupJoinMatrixTests
         Assert.Null(await scenario.InvitationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
         Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
     }
-}
 
-public enum JoinPolicyOperation
-{
-    Join,
-    Apply,
-}
+    // --- Join resolution ---
 
-public enum JoinPolicyRouteOutcome
-{
-    MemberAdded,
-    UseJoinEndpoint,
-    RequiresApplication,
-    InvitationOnly,
-    ApplicationCreated,
+    [Fact]
+    public async Task CreateMembershipFromJoinRequests_AddsMemberRole()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_member");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public, joinPolicy: GroupJoinPolicy.Open);
+
+        await scenario.JoinResolution.CreateMembershipFromJoinRequestsAsync(group.Id, scenario.Stranger.Id);
+
+        await scenario.AssertMemberRoleAsync(group.Id, scenario.Stranger.Id, GroupRole.Member);
+    }
+
+    [Fact]
+    public async Task CreateMembershipFromJoinRequests_WhenAlreadyMember_StillClearsJoinArtifacts()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_artifacts");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        await scenario.MembershipService.AddMemberInternalAsync(group.Id, scenario.Stranger.Id, GroupRole.Member);
+        await scenario.SeedInvitationAsync(group.Id, scenario.Owner.Id, scenario.Stranger.Id);
+        await scenario.SeedApplicationAsync(group.Id, scenario.Stranger.Id);
+
+        await scenario.JoinResolution.CreateMembershipFromJoinRequestsAsync(group.Id, scenario.Stranger.Id);
+
+        await scenario.AssertMemberRoleAsync(group.Id, scenario.Stranger.Id, GroupRole.Member);
+        Assert.Null(await scenario.InvitationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+        Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+    }
+
+    [Fact]
+    public async Task CreateMembershipFromJoinRequests_WhenBlacklisted_Throws()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_blacklist");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        await scenario.BlacklistUserAsync(group.Id, scenario.Stranger.Id);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            scenario.JoinResolution.CreateMembershipFromJoinRequestsAsync(group.Id, scenario.Stranger.Id));
+        Assert.Contains("blacklisted", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(await scenario.GroupMemberRepository.GetMemberAsync(group.Id, scenario.Stranger.Id));
+    }
+
+    [Fact]
+    public async Task CreateMembershipFromJoinRequests_DeletesInvitationsAndApplications()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_clear");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        await scenario.SeedInvitationAsync(group.Id, scenario.Owner.Id, scenario.Stranger.Id);
+        await scenario.SeedApplicationAsync(group.Id, scenario.Stranger.Id);
+
+        await scenario.JoinResolution.CreateMembershipFromJoinRequestsAsync(group.Id, scenario.Stranger.Id);
+
+        Assert.Null(await scenario.InvitationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+        Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+    }
+
+    [Fact]
+    public async Task DeleteJoinArtifacts_DoesNotAddMembership()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_delete_only");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        await scenario.SeedInvitationAsync(group.Id, scenario.Owner.Id, scenario.Stranger.Id);
+        await scenario.SeedApplicationAsync(group.Id, scenario.Stranger.Id);
+
+        await scenario.JoinResolution.DeleteJoinArtifactsForUserAndGroupAsync(group.Id, scenario.Stranger.Id);
+
+        Assert.Null(await scenario.GroupMemberRepository.GetMemberAsync(group.Id, scenario.Stranger.Id));
+        Assert.Null(await scenario.InvitationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+        Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+    }
+
+    [Fact]
+    public async Task CreateMembershipFromJoinRequests_DeletesAllInvitationsForUserInGroup()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_invites");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public, includeAdmin: true);
+        await scenario.SeedInvitationAsync(group.Id, scenario.Owner.Id, scenario.Stranger.Id);
+        await scenario.SeedInvitationAsync(group.Id, scenario.Admin.Id, scenario.Stranger.Id);
+
+        await scenario.JoinResolution.CreateMembershipFromJoinRequestsAsync(group.Id, scenario.Stranger.Id);
+
+        Assert.Null(await scenario.InvitationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+        Assert.Equal(1, (await scenario.GroupMemberRepository.GetMembersByGroupAsync(group.Id))
+            .Count(m => m.UserId == scenario.Stranger.Id));
+    }
+
+    [Fact]
+    public async Task DeleteJoinArtifacts_RemovesOnlyTargetUserApplications()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("jr_app_only");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        await scenario.SeedApplicationAsync(group.Id, scenario.Stranger.Id, isPending: true);
+        var ignored = await scenario.SeedApplicationAsync(group.Id, scenario.Member.Id, isPending: false);
+
+        await scenario.JoinResolution.DeleteJoinArtifactsForUserAndGroupAsync(group.Id, scenario.Stranger.Id);
+
+        Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
+        Assert.NotNull(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Member.Id));
+        Assert.Equal(ignored.Id, (await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Member.Id))!.Id);
+    }
 }

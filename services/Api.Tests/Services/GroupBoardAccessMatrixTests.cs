@@ -5,53 +5,54 @@ namespace Api.Tests.Services;
 
 public sealed class GroupBoardAccessMatrixTests
 {
-    public static TheoryData<string, GroupVisibility, BoardVisibility, BoardAccessActor, bool> ViewAccessMatrixData =>
+    // --- View access matrix ---
+
+    public static TheoryData<GroupVisibility, BoardVisibility, GroupActorRole, bool> ViewAccessMatrixData =>
         new()
         {
-            { "BA-001", GroupVisibility.Public, BoardVisibility.ForAll, BoardAccessActor.Anonymous, true },
-            { "BA-002", GroupVisibility.Public, BoardVisibility.ForAll, BoardAccessActor.Stranger, true },
-            { "BA-003", GroupVisibility.Public, BoardVisibility.ForAll, BoardAccessActor.Member, true },
-            { "BA-004", GroupVisibility.Public, BoardVisibility.ForAll, BoardAccessActor.Admin, true },
-            { "BA-005", GroupVisibility.Public, BoardVisibility.ForAll, BoardAccessActor.Owner, true },
-            { "BA-006", GroupVisibility.Private, BoardVisibility.ForAll, BoardAccessActor.Anonymous, false },
-            { "BA-007", GroupVisibility.Private, BoardVisibility.ForAll, BoardAccessActor.Stranger, false },
-            { "BA-008", GroupVisibility.Private, BoardVisibility.ForAll, BoardAccessActor.Member, true },
-            { "BA-009", GroupVisibility.Private, BoardVisibility.ForAll, BoardAccessActor.Admin, true },
-            { "BA-010", GroupVisibility.Private, BoardVisibility.ForAll, BoardAccessActor.Owner, true },
-            { "BA-011", GroupVisibility.Public, BoardVisibility.MembersOnly, BoardAccessActor.Anonymous, false },
-            { "BA-012", GroupVisibility.Public, BoardVisibility.MembersOnly, BoardAccessActor.Stranger, false },
-            { "BA-013", GroupVisibility.Public, BoardVisibility.MembersOnly, BoardAccessActor.Member, true },
-            { "BA-014", GroupVisibility.Public, BoardVisibility.MembersOnly, BoardAccessActor.Admin, true },
-            { "BA-015", GroupVisibility.Public, BoardVisibility.MembersOnly, BoardAccessActor.Owner, true },
-            { "BA-016", GroupVisibility.Private, BoardVisibility.MembersOnly, BoardAccessActor.Anonymous, false },
-            { "BA-017", GroupVisibility.Private, BoardVisibility.MembersOnly, BoardAccessActor.Stranger, false },
-            { "BA-018", GroupVisibility.Private, BoardVisibility.MembersOnly, BoardAccessActor.Member, true },
-            { "BA-019", GroupVisibility.Private, BoardVisibility.MembersOnly, BoardAccessActor.Admin, true },
-            { "BA-020", GroupVisibility.Private, BoardVisibility.MembersOnly, BoardAccessActor.Owner, true },
-            { "BA-021", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardAccessActor.Anonymous, false },
-            { "BA-022", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardAccessActor.Stranger, false },
-            { "BA-023", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardAccessActor.Member, false },
-            { "BA-024", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardAccessActor.Admin, true },
-            { "BA-025", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardAccessActor.Owner, true },
-            { "BA-026", GroupVisibility.Private, BoardVisibility.AdminOnly, BoardAccessActor.Anonymous, false },
-            { "BA-027", GroupVisibility.Private, BoardVisibility.AdminOnly, BoardAccessActor.Stranger, false },
-            { "BA-028", GroupVisibility.Private, BoardVisibility.AdminOnly, BoardAccessActor.Member, false },
-            { "BA-029", GroupVisibility.Private, BoardVisibility.AdminOnly, BoardAccessActor.Admin, true },
-            { "BA-030", GroupVisibility.Private, BoardVisibility.AdminOnly, BoardAccessActor.Owner, true },
+            { GroupVisibility.Public, BoardVisibility.ForAll, GroupActorRole.Anonymous, true },
+            { GroupVisibility.Public, BoardVisibility.ForAll, GroupActorRole.Stranger, true },
+            { GroupVisibility.Public, BoardVisibility.ForAll, GroupActorRole.Member, true },
+            { GroupVisibility.Public, BoardVisibility.ForAll, GroupActorRole.Admin, true },
+            { GroupVisibility.Public, BoardVisibility.ForAll, GroupActorRole.Owner, true },
+            { GroupVisibility.Private, BoardVisibility.ForAll, GroupActorRole.Anonymous, false },
+            { GroupVisibility.Private, BoardVisibility.ForAll, GroupActorRole.Stranger, false },
+            { GroupVisibility.Private, BoardVisibility.ForAll, GroupActorRole.Member, true },
+            { GroupVisibility.Private, BoardVisibility.ForAll, GroupActorRole.Admin, true },
+            { GroupVisibility.Private, BoardVisibility.ForAll, GroupActorRole.Owner, true },
+            { GroupVisibility.Public, BoardVisibility.MembersOnly, GroupActorRole.Anonymous, false },
+            { GroupVisibility.Public, BoardVisibility.MembersOnly, GroupActorRole.Stranger, false },
+            { GroupVisibility.Public, BoardVisibility.MembersOnly, GroupActorRole.Member, true },
+            { GroupVisibility.Public, BoardVisibility.MembersOnly, GroupActorRole.Admin, true },
+            { GroupVisibility.Public, BoardVisibility.MembersOnly, GroupActorRole.Owner, true },
+            { GroupVisibility.Private, BoardVisibility.MembersOnly, GroupActorRole.Anonymous, false },
+            { GroupVisibility.Private, BoardVisibility.MembersOnly, GroupActorRole.Stranger, false },
+            { GroupVisibility.Private, BoardVisibility.MembersOnly, GroupActorRole.Member, true },
+            { GroupVisibility.Private, BoardVisibility.MembersOnly, GroupActorRole.Admin, true },
+            { GroupVisibility.Private, BoardVisibility.MembersOnly, GroupActorRole.Owner, true },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, GroupActorRole.Anonymous, false },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, GroupActorRole.Stranger, false },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, GroupActorRole.Member, false },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, GroupActorRole.Admin, true },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, GroupActorRole.Owner, true },
+            { GroupVisibility.Private, BoardVisibility.AdminOnly, GroupActorRole.Anonymous, false },
+            { GroupVisibility.Private, BoardVisibility.AdminOnly, GroupActorRole.Stranger, false },
+            { GroupVisibility.Private, BoardVisibility.AdminOnly, GroupActorRole.Member, false },
+            { GroupVisibility.Private, BoardVisibility.AdminOnly, GroupActorRole.Admin, true },
+            { GroupVisibility.Private, BoardVisibility.AdminOnly, GroupActorRole.Owner, true },
         };
 
     [Theory]
     [MemberData(nameof(ViewAccessMatrixData))]
-    public async Task ViewAccess_Matrix(
-        string caseId,
+    public async Task TryCanViewBoard_MatchesExpectedForVisibilityAndRole(
         GroupVisibility groupVisibility,
         BoardVisibility boardVisibility,
-        BoardAccessActor actor,
+        GroupActorRole actor,
         bool canView)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"ba_{caseId}");
+        var scenario = await GroupTestScenario.CreateAsync($"view_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(groupVisibility, includeAdmin: true, includeMember: true);
-        var board = await scenario.SeedBoardAsync(group.Id, $"board_{caseId}", boardVisibility);
+        var board = await scenario.SeedBoardAsync(group.Id, "board", boardVisibility);
         scenario.LoginAs(actor);
 
         var tryResult = await scenario.BoardAccess.TryCanViewBoardAsync(group.Id, board.Id);
@@ -70,11 +71,13 @@ public sealed class GroupBoardAccessMatrixTests
         }
     }
 
+    // --- Infrastructure ---
+
     [Fact]
-    public async Task BA031_UnknownGroup_ThrowsGroupNotFound()
+    public async Task TryCanViewBoard_WhenGroupMissing_ThrowsNotFound()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba031");
-        scenario.LoginAs(BoardAccessActor.Owner);
+        var scenario = await GroupTestScenario.CreateAsync("view_grp");
+        scenario.LoginAs(GroupActorRole.Owner);
 
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             scenario.BoardAccess.TryCanViewBoardAsync(99999, 1));
@@ -82,13 +85,21 @@ public sealed class GroupBoardAccessMatrixTests
     }
 
     [Fact]
-    public async Task BA032_UnknownBoard_TryReturnsFalse_EnsureThrowsBoardNotFound()
+    public async Task TryCanViewBoard_WhenBoardMissing_ReturnsFalse()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba032");
+        var scenario = await GroupTestScenario.CreateAsync("view_board");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
-        scenario.LoginAs(BoardAccessActor.Owner);
+        scenario.LoginAs(GroupActorRole.Owner);
 
         Assert.False(await scenario.BoardAccess.TryCanViewBoardAsync(group.Id, 99999));
+    }
+
+    [Fact]
+    public async Task EnsureCanViewBoard_WhenBoardMissing_ThrowsNotFound()
+    {
+        var scenario = await GroupTestScenario.CreateAsync("view_ensure");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
+        scenario.LoginAs(GroupActorRole.Owner);
 
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             scenario.BoardAccess.EnsureCanViewBoardAsync(group.Id, 99999));
@@ -96,9 +107,9 @@ public sealed class GroupBoardAccessMatrixTests
     }
 
     [Fact]
-    public async Task BA033_EnsureCanWritePost_MatchesViewOnAllowedRow()
+    public async Task EnsureCanWritePost_WhenViewAllowed_Succeeds()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba033");
+        var scenario = await GroupTestScenario.CreateAsync("view_write_ok");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
         var board = await scenario.SeedBoardAsync(group.Id, "public_for_all", BoardVisibility.ForAll);
         scenario.LoginAnonymous();
@@ -107,21 +118,21 @@ public sealed class GroupBoardAccessMatrixTests
     }
 
     [Fact]
-    public async Task BA034_EnsureCanWritePost_MatchesViewOnDeniedRow()
+    public async Task EnsureCanWritePost_WhenViewDenied_ThrowsUnauthorized()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba034");
+        var scenario = await GroupTestScenario.CreateAsync("view_write_denied");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public, includeMember: true);
         var board = await scenario.SeedBoardAsync(group.Id, "admin_only", BoardVisibility.AdminOnly);
-        scenario.LoginAs(BoardAccessActor.Member);
+        scenario.LoginAs(GroupActorRole.Member);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             scenario.BoardAccess.EnsureCanWritePostAsync(group.Id, board.Id));
     }
 
     [Fact]
-    public async Task BA035_GetBoardOrThrow_MissingBoard_ThrowsBoardNotFound()
+    public async Task GetBoardOrThrow_WhenBoardMissing_ThrowsBoardNotFound()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba035");
+        var scenario = await GroupTestScenario.CreateAsync("view_get_board");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public);
 
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
@@ -130,9 +141,9 @@ public sealed class GroupBoardAccessMatrixTests
     }
 
     [Fact]
-    public async Task BA036_GetBoardOrThrow_MissingGroup_ThrowsGroupNotFound()
+    public async Task GetBoardOrThrow_WhenGroupMissing_ThrowsGroupNotFound()
     {
-        var scenario = await GroupTestScenario.CreateAsync("ba036");
+        var scenario = await GroupTestScenario.CreateAsync("view_get_group");
 
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             scenario.BoardAccess.GetBoardOrThrowAsync(99999, 1));

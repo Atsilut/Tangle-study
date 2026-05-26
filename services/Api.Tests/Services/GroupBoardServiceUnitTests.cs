@@ -1,50 +1,52 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Global.Exceptions;
+
 namespace Api.Tests.Services;
 
 public sealed class GroupBoardServiceUnitTests
 {
-    public static TheoryData<string, GroupVisibility, BoardVisibility?, BoardVisibility> CreateDefaultVisibilityData =>
+    // --- Create default visibility matrix ---
+
+    public static TheoryData<GroupVisibility, BoardVisibility?, BoardVisibility> CreateDefaultVisibilityData =>
         new()
         {
-            { "BS-C-01", GroupVisibility.Public, null, BoardVisibility.ForAll },
-            { "BS-C-02", GroupVisibility.Private, null, BoardVisibility.MembersOnly },
-            { "BS-C-03", GroupVisibility.Public, BoardVisibility.AdminOnly, BoardVisibility.AdminOnly },
-            { "BS-C-04", GroupVisibility.Private, BoardVisibility.ForAll, BoardVisibility.ForAll },
+            { GroupVisibility.Public, null, BoardVisibility.ForAll },
+            { GroupVisibility.Private, null, BoardVisibility.MembersOnly },
+            { GroupVisibility.Public, BoardVisibility.AdminOnly, BoardVisibility.AdminOnly },
+            { GroupVisibility.Private, BoardVisibility.ForAll, BoardVisibility.ForAll },
         };
 
     [Theory]
     [MemberData(nameof(CreateDefaultVisibilityData))]
-    public async Task Create_DefaultVisibility_Matrix(
-        string caseId,
+    public async Task CreateAsync_DefaultVisibility_Matrix(
         GroupVisibility groupVisibility,
         BoardVisibility? requestVisibility,
         BoardVisibility expectedVisibility)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"bsc_{caseId}");
+        var scenario = await GroupTestScenario.CreateAsync($"board_create_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(groupVisibility, includeAdmin: false, includeMember: false);
         scenario.LoginAs(GroupActorRole.Owner);
 
         var dto = await scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
         {
-            Name = $"board_{caseId}",
+            Name = "board",
             Description = "desc",
             Visibility = requestVisibility,
         });
 
         Assert.Equal(expectedVisibility, dto.Visibility);
-        Assert.Equal($"board_{caseId}", dto.Name);
-
         var persisted = await scenario.BoardRepository.GetByGroupAndIdAsync(group.Id, dto.Id);
         Assert.NotNull(persisted);
         Assert.Equal(expectedVisibility, persisted!.Visibility);
     }
 
+    // --- List filtering ---
+
     [Fact]
-    public async Task BS_L01_List_FiltersBoardsForMemberOnPrivateGroup()
+    public async Task ListAsync_FiltersBoardsForMemberOnPrivateGroup()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsl01");
+        var scenario = await GroupTestScenario.CreateAsync("board_list_member");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         await scenario.SeedBoardAsync(group.Id, "AdminOnly", BoardVisibility.AdminOnly);
         await scenario.SeedBoardAsync(group.Id, "MembersOnly", BoardVisibility.MembersOnly);
@@ -60,9 +62,9 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_L02_List_MemberSeesNoAdminOnlyBoards()
+    public async Task ListAsync_WhenOnlyAdminOnlyBoard_ReturnsEmptyForMember()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsl02");
+        var scenario = await GroupTestScenario.CreateAsync("board_list_admin_only");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeMember: true);
         await scenario.SeedBoardAsync(group.Id, "AdminOnly", BoardVisibility.AdminOnly);
 
@@ -73,9 +75,9 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_L03_List_AdminSeesAdminAndMembersBoards()
+    public async Task ListAsync_AdminSeesAdminAndMembersBoards()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsl03");
+        var scenario = await GroupTestScenario.CreateAsync("board_list_admin");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
         await scenario.SeedBoardAsync(group.Id, "AdminOnly", BoardVisibility.AdminOnly);
         await scenario.SeedBoardAsync(group.Id, "MembersOnly", BoardVisibility.MembersOnly);
@@ -89,9 +91,9 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_L04_List_StrangerOnPublicGroupSeesForAllBoard()
+    public async Task ListAsync_StrangerOnPublicGroupSeesForAllBoard()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsl04");
+        var scenario = await GroupTestScenario.CreateAsync("board_list_stranger");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public, includeAdmin: false, includeMember: false);
         await scenario.SeedBoardAsync(group.Id, "ForAll", BoardVisibility.ForAll);
         await scenario.SeedBoardAsync(group.Id, "MembersOnly", BoardVisibility.MembersOnly);
@@ -104,9 +106,9 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_L05_List_AnonymousOnPublicGroupSeesForAllOnly()
+    public async Task ListAsync_AnonymousOnPublicGroupSeesForAllOnly()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsl05");
+        var scenario = await GroupTestScenario.CreateAsync("board_list_anon");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public, includeMember: false);
         await scenario.SeedBoardAsync(group.Id, "ForAll", BoardVisibility.ForAll);
         await scenario.SeedBoardAsync(group.Id, "MembersOnly", BoardVisibility.MembersOnly);
@@ -118,28 +120,29 @@ public sealed class GroupBoardServiceUnitTests
         Assert.Equal("ForAll", listed[0].Name);
     }
 
-    public static TheoryData<string, GroupActorRole, BoardCrudOperation, GroupExpectedOutcome> CrudAuthorizationData =>
+    // --- CRUD authorization matrix ---
+
+    public static TheoryData<GroupActorRole, BoardCrudOperation, GroupExpectedOutcome> CrudAuthorizationData =>
         new()
         {
-            { "BS-M-01", GroupActorRole.Owner, BoardCrudOperation.Create, GroupExpectedOutcome.Ok },
-            { "BS-M-02", GroupActorRole.Admin, BoardCrudOperation.Create, GroupExpectedOutcome.Ok },
-            { "BS-M-03", GroupActorRole.Member, BoardCrudOperation.Create, GroupExpectedOutcome.Unauthorized },
-            { "BS-M-04", GroupActorRole.Stranger, BoardCrudOperation.Create, GroupExpectedOutcome.Unauthorized },
-            { "BS-M-05", GroupActorRole.Owner, BoardCrudOperation.Update, GroupExpectedOutcome.Ok },
-            { "BS-M-06", GroupActorRole.Member, BoardCrudOperation.Update, GroupExpectedOutcome.Unauthorized },
-            { "BS-M-07", GroupActorRole.Owner, BoardCrudOperation.Delete, GroupExpectedOutcome.Ok },
-            { "BS-M-08", GroupActorRole.Member, BoardCrudOperation.Delete, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Owner, BoardCrudOperation.Create, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Admin, BoardCrudOperation.Create, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Member, BoardCrudOperation.Create, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Stranger, BoardCrudOperation.Create, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Owner, BoardCrudOperation.Update, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Member, BoardCrudOperation.Update, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Owner, BoardCrudOperation.Delete, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Member, BoardCrudOperation.Delete, GroupExpectedOutcome.Unauthorized },
         };
 
     [Theory]
     [MemberData(nameof(CrudAuthorizationData))]
-    public async Task CrudAuthorization_Matrix(
-        string caseId,
+    public async Task BoardCrudAuthorization_Matrix(
         GroupActorRole actor,
         BoardCrudOperation operation,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"bsm_{caseId}");
+        var scenario = await GroupTestScenario.CreateAsync($"board_crud_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var board = await scenario.SeedBoardAsync(group.Id, "Original", BoardVisibility.MembersOnly);
         var countBefore = (await scenario.BoardRepository.GetByGroupAsync(group.Id)).Count;
@@ -151,19 +154,16 @@ public sealed class GroupBoardServiceUnitTests
             {
                 var created = await scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
                 {
-                    Name = $"created_{caseId}",
+                    Name = "created",
                     Description = "new",
                 });
-                Assert.Equal($"created_{caseId}", created.Name);
+                Assert.Equal("created", created.Name);
                 Assert.Equal(countBefore + 1, (await scenario.BoardRepository.GetByGroupAsync(group.Id)).Count);
             }
             else
             {
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                    scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
-                    {
-                        Name = $"denied_{caseId}",
-                    }));
+                    scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto { Name = "denied" }));
                 Assert.Equal(countBefore, (await scenario.BoardRepository.GetByGroupAsync(group.Id)).Count);
             }
 
@@ -212,10 +212,12 @@ public sealed class GroupBoardServiceUnitTests
         }
     }
 
+    // --- CRUD facts ---
+
     [Fact]
-    public async Task BS_M09_Create_DuplicateName_ThrowsAlreadyExists()
+    public async Task CreateAsync_DuplicateName_ThrowsAlreadyExists()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsm09");
+        var scenario = await GroupTestScenario.CreateAsync("board_dup");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
         scenario.LoginAs(GroupActorRole.Owner);
         await scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto { Name = "Dup" });
@@ -225,9 +227,9 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_M10_Update_ConflictingName_ThrowsAlreadyExists()
+    public async Task UpdateAsync_ConflictingName_ThrowsAlreadyExists()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsm10");
+        var scenario = await GroupTestScenario.CreateAsync("board_conflict");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
         scenario.LoginAs(GroupActorRole.Owner);
         var first = await scenario.BoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto { Name = "First" });
@@ -244,31 +246,13 @@ public sealed class GroupBoardServiceUnitTests
     }
 
     [Fact]
-    public async Task BS_M11_List_MissingGroup_ThrowsNotFound()
+    public async Task ListAsync_WhenGroupMissing_ThrowsNotFound()
     {
-        var scenario = await GroupTestScenario.CreateAsync("bsm11");
+        var scenario = await GroupTestScenario.CreateAsync("board_missing");
         scenario.LoginAs(GroupActorRole.Member);
 
         var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             scenario.BoardService.ListAsync(99999));
         Assert.Equal("Group not found", ex.Message);
     }
-
-    [Fact]
-    public async Task BS_M12_List_StrangerOnMissingGroup_ThrowsNotFound()
-    {
-        var scenario = await GroupTestScenario.CreateAsync("bsm12");
-        scenario.LoginAs(GroupActorRole.Stranger);
-
-        var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-            scenario.BoardService.ListAsync(99999));
-        Assert.Equal("Group not found", ex.Message);
-    }
-}
-
-public enum BoardCrudOperation
-{
-    Create,
-    Update,
-    Delete,
 }

@@ -6,10 +6,10 @@ namespace Api.Tests.Services;
 
 public sealed class GroupBlacklistJoinMatrixTests
 {
-    #region Blacklist × join path (BL-J)
+    // --- Blacklist and join paths ---
 
     [Fact]
-    public async Task BL_J01_BlacklistedUser_OpenJoin_Throws()
+    public async Task JoinAsync_WhenBlacklisted_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj01");
         var group = await scenario.SetupGroupAsync(
@@ -23,7 +23,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J02_BlacklistedUser_ApplyRequestable_Throws()
+    public async Task ApplyAsync_WhenBlacklisted_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj02");
         var group = await scenario.SetupGroupAsync(
@@ -37,7 +37,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J03_InviteBlacklistedUser_Throws_NoInvitationRow()
+    public async Task InviteAsync_WhenInviteeBlacklisted_ThrowsWithoutRow()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj03");
         var group = await scenario.SetupGroupAsync(
@@ -55,7 +55,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J04_AcceptAfterBlacklist_InvitationRemoved_ThrowsNotFound()
+    public async Task AcceptAsync_AfterBlacklist_ThrowsNotFound()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj04");
         var group = await scenario.SetupGroupAsync(
@@ -72,7 +72,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J05_ApproveAfterBlacklist_ApplicationRemoved_ThrowsNotFound()
+    public async Task ApproveAsync_AfterBlacklist_ThrowsNotFound()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj05");
         var group = await scenario.SetupGroupAsync(
@@ -89,7 +89,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J06_Blacklist_KicksExistingMember()
+    public async Task AddAsync_KicksExistingMember()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj06");
         var group = await scenario.SetupGroupAsync(
@@ -106,7 +106,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J07_EnsureNotBlacklisted_ThrowsWhenListed()
+    public async Task EnsureNotBlacklisted_WhenListed_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj07");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
@@ -118,7 +118,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J08_RemoveFromBlacklist_ThenOpenJoin_Succeeds()
+    public async Task JoinAsync_AfterRemoveFromBlacklist_Succeeds()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj08");
         var group = await scenario.SetupGroupAsync(
@@ -136,7 +136,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_J09_AddBlacklist_ClearsPendingInvitationAndApplication()
+    public async Task AddAsync_ClearsPendingInvitationAndApplication()
     {
         var scenario = await GroupTestScenario.CreateAsync("blj09");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
@@ -150,29 +150,26 @@ public sealed class GroupBlacklistJoinMatrixTests
         Assert.Null(await scenario.ApplicationRepository.GetForUserAsync(group.Id, scenario.Stranger.Id));
     }
 
-    #endregion
+    // --- Blacklist admin authorization ---
 
-    #region Blacklist admin (BL-A)
-
-    public static TheoryData<string, GroupActorRole, BlacklistAdminAction, GroupExpectedOutcome> AdminAuthorizationData =>
+    public static TheoryData<GroupActorRole, BlacklistAdminAction, GroupExpectedOutcome> AdminAuthorizationData =>
         new()
         {
-            { "BL-A-01", GroupActorRole.Owner, BlacklistAdminAction.Add, GroupExpectedOutcome.Ok },
-            { "BL-A-02", GroupActorRole.Admin, BlacklistAdminAction.Add, GroupExpectedOutcome.Unauthorized },
-            { "BL-A-03", GroupActorRole.Member, BlacklistAdminAction.Add, GroupExpectedOutcome.Unauthorized },
-            { "BL-A-07", GroupActorRole.Admin, BlacklistAdminAction.Remove, GroupExpectedOutcome.Unauthorized },
-            { "BL-A-08", GroupActorRole.Owner, BlacklistAdminAction.Remove, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Owner, BlacklistAdminAction.Add, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Admin, BlacklistAdminAction.Add, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Member, BlacklistAdminAction.Add, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Admin, BlacklistAdminAction.Remove, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Owner, BlacklistAdminAction.Remove, GroupExpectedOutcome.Ok },
         };
 
     [Theory]
     [MemberData(nameof(AdminAuthorizationData))]
-    public async Task AdminAuthorization_Matrix(
-        string caseId,
+    public async Task BlacklistAdminAuthorization_Matrix(
         GroupActorRole caller,
         BlacklistAdminAction action,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"bla_{caseId}");
+        var scenario = await GroupTestScenario.CreateAsync($"blacklist_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         scenario.LoginAs(caller);
 
@@ -218,7 +215,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_A04_AddSelf_ThrowsArgument()
+    public async Task AddAsync_WhenSelf_ThrowsArgument()
     {
         var scenario = await GroupTestScenario.CreateAsync("bla04");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
@@ -232,7 +229,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_A05_AddCurrentOwnerRole_ThrowsTransferFirst()
+    public async Task AddAsync_WhenTargetIsOwner_Throws()
     {
         var scenario = await GroupTestScenario.CreateAsync("bla05");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeMember: false);
@@ -246,7 +243,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_A05b_AfterTransfer_CanBlacklistFormerOwnerNowAdmin()
+    public async Task AddAsync_AfterTransfer_CanBlacklistFormerOwner()
     {
         var scenario = await GroupTestScenario.CreateAsync("bla05b");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeMember: true);
@@ -267,7 +264,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_A06_AddTwice_ThrowsAlreadyExists()
+    public async Task AddAsync_WhenAlreadyBlacklisted_ThrowsAlreadyExists()
     {
         var scenario = await GroupTestScenario.CreateAsync("bla06");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
@@ -284,7 +281,7 @@ public sealed class GroupBlacklistJoinMatrixTests
     }
 
     [Fact]
-    public async Task BL_A09_Add_BlacklistsAdminMember()
+    public async Task AddAsync_BlacklistsAdminMember()
     {
         var scenario = await GroupTestScenario.CreateAsync("bla09");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
@@ -298,11 +295,4 @@ public sealed class GroupBlacklistJoinMatrixTests
         Assert.False(await scenario.MembershipService.IsMemberAsync(group.Id, scenario.Admin.Id));
     }
 
-    #endregion
-}
-
-public enum BlacklistAdminAction
-{
-    Add,
-    Remove,
 }

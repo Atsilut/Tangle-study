@@ -1,7 +1,9 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Service;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Domain;
+using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +24,7 @@ public sealed class GroupTestScenario
     public GroupBlacklistService BlacklistService { get; }
     public GroupBoardAccessService BoardAccess { get; }
     public GroupBoardService BoardService { get; }
+    public UserBlockService UserBlockService { get; }
     public FakeGroupRepository GroupRepository { get; }
     public FakeGroupMemberRepository GroupMemberRepository { get; }
     public FakeGroupInvitationRepository InvitationRepository { get; }
@@ -32,7 +35,9 @@ public sealed class GroupTestScenario
 
     public User Owner { get; private set; } = null!;
     public User Admin { get; private set; } = null!;
+    public User AdminB { get; private set; } = null!;
     public User Member { get; private set; } = null!;
+    public User MemberB { get; private set; } = null!;
     public User Stranger { get; private set; } = null!;
 
     private GroupTestScenario(FakeHttpContextAccessor httpContextAccessor, DomainServiceTestFactory.Graph graph)
@@ -47,6 +52,7 @@ public sealed class GroupTestScenario
         BlacklistService = graph.GroupBlacklistService;
         BoardAccess = graph.GroupBoardAccessService;
         BoardService = graph.GroupBoardService;
+        UserBlockService = graph.UserBlockService;
         GroupRepository = graph.GroupRepository;
         GroupMemberRepository = graph.GroupMemberRepository;
         InvitationRepository = graph.GroupInvitationRepository;
@@ -61,32 +67,35 @@ public sealed class GroupTestScenario
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var scenario = new GroupTestScenario(http, graph);
-        scenario.Owner = await scenario.CreateUserAsync($"{nicknamePrefix}_owner");
-        scenario.Admin = await scenario.CreateUserAsync($"{nicknamePrefix}_admin");
-        scenario.Member = await scenario.CreateUserAsync($"{nicknamePrefix}_member");
-        scenario.Stranger = await scenario.CreateUserAsync($"{nicknamePrefix}_stranger");
+        scenario.Owner = await scenario.CreateTestUserAsync($"{nicknamePrefix}_owner");
+        scenario.Admin = await scenario.CreateTestUserAsync($"{nicknamePrefix}_admin");
+        scenario.AdminB = await scenario.CreateTestUserAsync($"{nicknamePrefix}_adminB");
+        scenario.Member = await scenario.CreateTestUserAsync($"{nicknamePrefix}_member");
+        scenario.MemberB = await scenario.CreateTestUserAsync($"{nicknamePrefix}_memberB");
+        scenario.Stranger = await scenario.CreateTestUserAsync($"{nicknamePrefix}_stranger");
         return scenario;
     }
 
-    private async Task<User> CreateUserAsync(string nickname)
+    private async Task<User> CreateTestUserAsync(string nickname)
     {
-        var user = new User($"{nickname}@test.com", "password", nickname);
+        var user = new User(
+            email: $"{nickname}@test.com",
+            password: "password",
+            nickname: nickname);
         await _userRepository.CreateUserAsync(user);
         return user;
     }
 
-    public void LoginAs(BoardAccessActor actor)
+    public void LoginAs(GroupActorRole role)
     {
-        if (actor == BoardAccessActor.Anonymous)
+        if (role == GroupActorRole.Anonymous)
         {
             LoginAnonymous();
             return;
         }
 
-        LoginAs(ResolveActorUserId(actor));
+        LoginAs(ResolveActorUserId(role));
     }
-
-    public void LoginAs(GroupActorRole role) => LoginAs(ResolveActorUserId(role));
 
     public void LoginAs(long userId) =>
         _httpContextAccessor.HttpContext = new DefaultHttpContext
@@ -96,23 +105,25 @@ public sealed class GroupTestScenario
 
     public void LoginAnonymous() => _httpContextAccessor.HttpContext = new DefaultHttpContext();
 
-    public long ResolveActorUserId(BoardAccessActor actor) => actor switch
-    {
-        BoardAccessActor.Owner => Owner.Id,
-        BoardAccessActor.Admin => Admin.Id,
-        BoardAccessActor.Member => Member.Id,
-        BoardAccessActor.Stranger => Stranger.Id,
-        BoardAccessActor.Anonymous => throw new InvalidOperationException("Anonymous has no user id."),
-        _ => throw new ArgumentOutOfRangeException(nameof(actor), actor, null),
-    };
-
     public long ResolveActorUserId(GroupActorRole role) => role switch
     {
         GroupActorRole.Owner => Owner.Id,
         GroupActorRole.Admin => Admin.Id,
         GroupActorRole.Member => Member.Id,
         GroupActorRole.Stranger => Stranger.Id,
+        GroupActorRole.Anonymous => throw new InvalidOperationException("Anonymous has no user id."),
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, null),
+    };
+
+    public long ResolveTargetUserId(GroupTargetRole target, GroupActorRole caller) => target switch
+    {
+        GroupTargetRole.Owner => Owner.Id,
+        GroupTargetRole.Admin => Admin.Id,
+        GroupTargetRole.OtherAdmin => AdminB.Id,
+        GroupTargetRole.Member => Member.Id,
+        GroupTargetRole.OtherMember => MemberB.Id,
+        GroupTargetRole.Self => ResolveActorUserId(caller),
+        _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
     };
 
     public async Task<GroupResponseDto> SetupGroupAsync(
@@ -130,9 +141,15 @@ public sealed class GroupTestScenario
             JoinPolicy = joinPolicy,
         });
         if (includeAdmin)
+        {
             await MembershipService.AddMemberInternalAsync(group.Id, Admin.Id, GroupRole.Admin);
+            await MembershipService.AddMemberInternalAsync(group.Id, AdminB.Id, GroupRole.Admin);
+        }
         if (includeMember)
+        {
             await MembershipService.AddMemberInternalAsync(group.Id, Member.Id, GroupRole.Member);
+            await MembershipService.AddMemberInternalAsync(group.Id, MemberB.Id, GroupRole.Member);
+        }
         return group;
     }
 
@@ -216,13 +233,99 @@ public sealed class GroupTestScenario
         Assert.NotNull(member);
         Assert.Equal(expected, member!.Role);
     }
+
+    public async Task AssertMemberAbsentAsync(long groupId, long userId) =>
+        Assert.Null(await GroupMemberRepository.GetMemberAsync(groupId, userId));
+
+    public async Task AssertIsMemberAsync(long groupId, long userId, bool expected) =>
+        Assert.Equal(expected, await MembershipService.IsMemberAsync(groupId, userId));
 }
 
-public enum BoardAccessActor
+public enum GroupActorRole
 {
     Anonymous,
-    Stranger,
-    Member,
-    Admin,
     Owner,
+    Admin,
+    Member,
+    Stranger,
+}
+
+public enum GroupTargetRole
+{
+    Owner,
+    Admin,
+    OtherAdmin,
+    Member,
+    OtherMember,
+    Self,
+}
+
+public enum GroupReadOperation
+{
+    GetGroup,
+    GetMembers,
+}
+
+public enum GroupManagementAction
+{
+    Update,
+    Delete,
+    TransferToMember,
+    TransferToSelf,
+    TransferToStranger,
+}
+
+public enum GroupExpectedOutcome
+{
+    Ok,
+    NotFound,
+    Unauthorized,
+    ArgumentException,
+}
+
+public enum JoinPolicyOperation
+{
+    Join,
+    Apply,
+}
+
+public enum JoinPolicyRouteOutcome
+{
+    MemberAdded,
+    UseJoinEndpoint,
+    RequiresApplication,
+    InvitationOnly,
+    ApplicationCreated,
+}
+
+public enum BlacklistAdminAction
+{
+    Add,
+    Remove,
+}
+
+public enum InvitationRequestAction
+{
+    Accept,
+    AcceptAsNonInvitee,
+    Reject,
+    Ignore,
+    Cancel,
+    CancelAsNonInviterAdmin,
+}
+
+public enum ApplicationRequestAction
+{
+    Approve,
+    ApproveAsApplicant,
+    Reject,
+    Ignore,
+    Cancel,
+}
+
+public enum BoardCrudOperation
+{
+    Create,
+    Update,
+    Delete,
 }
