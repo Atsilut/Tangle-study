@@ -1,9 +1,8 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Repository;
-using Api.Domain.Posts.Repository;
+using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
-using Microsoft.EntityFrameworkCore;
 using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -14,51 +13,59 @@ namespace Api.Domain.Groups.Service
     public class GroupService
     {
         private readonly IGroupRepository _repo;
-        private readonly IGroupMemberRepository _memberRepo;
         private readonly GroupMembershipService _membership;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IGroupBlacklistRepository _blacklistRepo;
-        private readonly IGroupBoardRepository _boardRepo;
-        private readonly IPostRepository _postRepo;
         private readonly Lazy<GroupInvitationService> _invitationService;
         private readonly Lazy<GroupApplicationService> _applicationService;
+        private readonly Lazy<GroupBlacklistService> _blacklistService;
+        private readonly Lazy<GroupBoardService> _boardService;
+        private readonly Lazy<PostService> _postService;
 
         public GroupService(
             IGroupRepository repo,
-            IGroupMemberRepository memberRepo,
-            IGroupBlacklistRepository blacklistRepo,
-            IGroupBoardRepository boardRepo,
-            IPostRepository postRepo,
             GroupMembershipService membership,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor,
             Lazy<GroupInvitationService> invitationService,
-            Lazy<GroupApplicationService> applicationService)
+            Lazy<GroupApplicationService> applicationService,
+            Lazy<GroupBlacklistService> blacklistService,
+            Lazy<GroupBoardService> boardService,
+            Lazy<PostService> postService)
         {
             _repo = repo;
-            _memberRepo = memberRepo;
-            _blacklistRepo = blacklistRepo;
-            _boardRepo = boardRepo;
-            _postRepo = postRepo;
             _membership = membership;
             _userService = userService;
             _db = db;
             _httpContextAccessor = httpContextAccessor;
             _invitationService = invitationService;
             _applicationService = applicationService;
+            _blacklistService = blacklistService;
+            _boardService = boardService;
+            _postService = postService;
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
-        private async Task<Group> GetGroupOrThrowAsync(long id)
+        public async Task<Group> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found")
         {
             var group = await _repo.GetGroupByIdAsync(id);
-            if (group is null) throw new EntityNotFoundException("Group not found");
+            if (group is null) throw new EntityNotFoundException(notFoundMessage);
             return group;
+        }
+
+        public async Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids)
+        {
+            var names = new Dictionary<long, string>();
+            foreach (var id in ids.Distinct())
+            {
+                var group = await _repo.GetGroupByIdAsync(id);
+                if (group is not null) names[id] = group.Name;
+            }
+            return names;
         }
 
         public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "Group not found", int statusCode = StatusCodes.Status404NotFound)
@@ -80,7 +87,7 @@ namespace Api.Domain.Groups.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreateGroupAsync(group);
-                await _memberRepo.AddMemberAsync(new GroupMember(group.Id, creatorId, GroupRole.Owner));
+                await _membership.AddMemberInternalAsync(group.Id, creatorId, GroupRole.Owner);
             });
 
             return MapToDto(group, 1);
@@ -116,16 +123,13 @@ namespace Api.Domain.Groups.Service
             if (request.NewOwnerUserId == callerId)
                 throw new ArgumentException("You already own this group.");
 
-            var newOwner = await _memberRepo.GetMemberAsync(request.Id, request.NewOwnerUserId)
+            var newOwner = await _membership.GetMemberAsync(request.Id, request.NewOwnerUserId)
                 ?? throw new ArgumentException("Target user is not a member of this group.");
 
             var group = await GetGroupOrThrowAsync(request.Id);
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                ownerMember.ChangeRole(GroupRole.Admin);
-                newOwner.ChangeRole(GroupRole.Owner);
-                await _memberRepo.UpdateMemberAsync(ownerMember);
-                await _memberRepo.UpdateMemberAsync(newOwner);
+                await _membership.TransferOwnershipInternalAsync(request.Id, ownerMember, newOwner);
             });
 
             var memberCount = await _membership.CountMembersAsync(request.Id);
@@ -141,21 +145,9 @@ namespace Api.Domain.Groups.Service
             {
                 await _invitationService.Value.DeleteAllByGroupAsync(id);
                 await _applicationService.Value.DeleteAllByGroupAsync(id);
-                await _blacklistRepo.DeleteAllByGroupAsync(id);
-
-                var postIds = await _db.Posts
-                    .Where(p => p.GroupId == id)
-                    .Select(p => p.Id)
-                    .ToListAsync();
-                if (postIds.Count > 0)
-                {
-                    await _db.Comments
-                        .Where(c => c.PostId != null && postIds.Contains(c.PostId.Value))
-                        .ExecuteDeleteAsync();
-                    await _postRepo.DeleteAllByGroupAsync(id);
-                }
-
-                await _boardRepo.DeleteAllByGroupAsync(id);
+                await _blacklistService.Value.DeleteAllByGroupAsync(id);
+                await _postService.Value.DeleteAllByGroupAsync(id);
+                await _boardService.Value.DeleteAllByGroupAsync(id);
                 await _membership.RemoveAllByGroupAsync(id);
                 var group = await GetGroupOrThrowAsync(id);
                 await _repo.DeleteGroupAsync(group);

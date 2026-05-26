@@ -72,6 +72,7 @@ internal static class DomainServiceTestFactory
         GroupInvitationService groupInvitationService = null!;
         GroupBlacklistService groupBlacklistService = null!;
         GroupService groupService = null!;
+        GroupBoardService groupBoardService = null!;
 
         var userService = new UserService(
             userRepository,
@@ -82,31 +83,14 @@ internal static class DomainServiceTestFactory
 
         groupMembershipService = new GroupMembershipService(
             groupMemberRepository,
-            groupRepository,
+            new Lazy<GroupService>(() => groupService),
             userService,
             http);
 
         var groupBoardAccessService = new GroupBoardAccessService(
-            groupRepository,
             groupBoardRepository,
-            groupMemberRepository,
-            http);
-
-        groupJoinResolutionService = new GroupJoinResolutionService(
-            groupInvitationRepository,
-            groupApplicationRepository,
-            groupBlacklistRepository,
+            new Lazy<GroupService>(() => groupService),
             groupMembershipService,
-            db);
-
-        groupBlacklistService = new GroupBlacklistService(
-            groupBlacklistRepository,
-            groupRepository,
-            groupMemberRepository,
-            groupMembershipService,
-            groupJoinResolutionService,
-            userService,
-            db,
             http);
 
         postService = new PostService(
@@ -145,56 +129,71 @@ internal static class DomainServiceTestFactory
             http,
             NullLogger<FriendRequestService>.Instance);
 
+        groupBlacklistService = new GroupBlacklistService(
+            groupBlacklistRepository,
+            new Lazy<GroupService>(() => groupService),
+            groupMembershipService,
+            new Lazy<GroupJoinResolutionService>(() => groupJoinResolutionService),
+            userService,
+            db,
+            http);
+
         groupApplicationService = new GroupApplicationService(
             groupApplicationRepository,
-            groupInvitationRepository,
-            groupRepository,
+            new Lazy<GroupInvitationService>(() => groupInvitationService),
+            new Lazy<GroupService>(() => groupService),
             groupMembershipService,
-            groupJoinResolutionService,
+            new Lazy<GroupJoinResolutionService>(() => groupJoinResolutionService),
             groupBlacklistService,
             userService,
             db,
             http);
 
-        groupJoinService = new GroupJoinService(
-            groupRepository,
-            groupInvitationRepository,
-            groupMembershipService,
-            groupJoinResolutionService,
-            groupBlacklistService,
-            http);
-
         groupInvitationService = new GroupInvitationService(
             groupInvitationRepository,
-            groupApplicationRepository,
-            groupRepository,
+            new Lazy<GroupApplicationService>(() => groupApplicationService),
+            new Lazy<GroupService>(() => groupService),
             groupMembershipService,
-            groupJoinResolutionService,
+            new Lazy<GroupJoinResolutionService>(() => groupJoinResolutionService),
             groupBlacklistService,
             userBlockService,
             userService,
             db,
             http);
 
+        groupJoinResolutionService = new GroupJoinResolutionService(
+            groupMembershipService,
+            groupInvitationService,
+            groupApplicationService,
+            groupBlacklistService,
+            db);
+
+        groupJoinService = new GroupJoinService(
+            new Lazy<GroupService>(() => groupService),
+            groupInvitationService,
+            groupMembershipService,
+            groupJoinResolutionService,
+            groupBlacklistService,
+            http);
+
+        groupBoardService = new GroupBoardService(
+            groupBoardRepository,
+            new Lazy<GroupService>(() => groupService),
+            groupMembershipService,
+            groupBoardAccessService,
+            http);
+
         groupService = new GroupService(
             groupRepository,
-            groupMemberRepository,
-            groupBlacklistRepository,
-            groupBoardRepository,
-            postRepository,
             groupMembershipService,
             userService,
             db,
             http,
             new Lazy<GroupInvitationService>(() => groupInvitationService),
-            new Lazy<GroupApplicationService>(() => groupApplicationService));
-
-        var groupBoardService = new GroupBoardService(
-            groupBoardRepository,
-            groupRepository,
-            groupMembershipService,
-            groupBoardAccessService,
-            http);
+            new Lazy<GroupApplicationService>(() => groupApplicationService),
+            new Lazy<GroupBlacklistService>(() => groupBlacklistService),
+            new Lazy<GroupBoardService>(() => groupBoardService),
+            new Lazy<PostService>(() => postService));
 
         return new Graph(
             userService,

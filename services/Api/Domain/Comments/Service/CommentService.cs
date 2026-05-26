@@ -53,9 +53,9 @@ namespace Api.Domain.Comments.Service
             await _userService.EnsureUserExistsAsync(userId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
 
-            var post = await _db.Posts.FindAsync(request.PostId);
-            if (post?.GroupId is not null && post.GroupBoardId is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            var groupBoard = await _postService.TryGetGroupBoardContextAsync(request.PostId);
+            if (groupBoard is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
 
             if (request.ParentId.HasValue)
             {
@@ -78,9 +78,9 @@ namespace Api.Domain.Comments.Service
             if (comment == null) return null;
             if (comment.PostId is not null)
             {
-                var post = await _db.Posts.FindAsync(comment.PostId.Value);
-                if (post?.GroupId is not null && post.GroupBoardId is not null)
-                    await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+                var groupBoard = await _postService.TryGetGroupBoardContextAsync(comment.PostId.Value);
+                if (groupBoard is not null)
+                    await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
             }
             return MapToDto(comment);
         }
@@ -88,9 +88,9 @@ namespace Api.Domain.Comments.Service
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
         {
             await _postService.EnsurePostExistsAsync(postId);
-            var post = await _db.Posts.FindAsync(postId);
-            if (post?.GroupId is not null && post.GroupBoardId is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
+            if (groupBoard is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
             return BuildCommentTree(comments);
@@ -163,6 +163,9 @@ namespace Api.Domain.Comments.Service
 
         public Task DetachCommentsFromDeletedPostAsync(long postId) =>
             _repo.DetachPostFromCommentsAsync(postId);
+
+        public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds) =>
+            _repo.DeleteAllForPostIdsAsync(postIds);
 
         public Task DetachAuthorFromDeletedUserAsync(long userId) =>
             _repo.DetachAuthorFromCommentsAsync(userId);

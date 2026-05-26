@@ -37,6 +37,9 @@ namespace Api.Domain.Posts.Repository
         public async Task DeleteAllByGroupAsync(long groupId) =>
             await _context.Posts.Where(p => p.GroupId == groupId).ExecuteDeleteAsync();
 
+        public async Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
+            await _context.Posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToListAsync();
+
         public async Task<Post?> GetPostByIdAsync(long id) => await _context.Posts.FindAsync(id);
 
         public async Task<bool> ExistsPostByIdAsync(long id) =>

@@ -9,21 +9,21 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupBoardService
     {
-        private readonly IGroupBoardRepository _boardRepo;
-        private readonly IGroupRepository _groupRepo;
+        private readonly IGroupBoardRepository _repo;
+        private readonly Lazy<GroupService> _groupService;
         private readonly GroupMembershipService _membership;
         private readonly GroupBoardAccessService _access;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupBoardService(
-            IGroupBoardRepository boardRepo,
-            IGroupRepository groupRepo,
+            IGroupBoardRepository repo,
+            Lazy<GroupService> groupService,
             GroupMembershipService membership,
             GroupBoardAccessService access,
             IHttpContextAccessor httpContextAccessor)
         {
-            _boardRepo = boardRepo;
-            _groupRepo = groupRepo;
+            _repo = repo;
+            _groupService = groupService;
             _membership = membership;
             _access = access;
             _httpContextAccessor = httpContextAccessor;
@@ -34,10 +34,9 @@ namespace Api.Domain.Groups.Service
 
         public async Task<List<GroupBoardResponseDto>> ListAsync(long groupId)
         {
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
-            var boards = await _boardRepo.GetByGroupAsync(groupId);
+            var boards = await _repo.GetByGroupAsync(groupId);
             var visible = new List<GroupBoardResponseDto>();
             foreach (var board in boards)
             {
@@ -54,16 +53,15 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
-            if (await _boardRepo.ExistsByNameAsync(groupId, request.Name))
+            if (await _repo.ExistsByNameAsync(groupId, request.Name))
                 throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
 
             var visibility = request.Visibility
                 ?? (group.Visibility == GroupVisibility.Public ? BoardVisibility.ForAll : BoardVisibility.MembersOnly);
             var board = new GroupBoard(groupId, request.Name, visibility, request.Description);
-            await _boardRepo.CreateAsync(board);
+            await _repo.CreateAsync(board);
 
             return MapToDto(board);
         }
@@ -73,17 +71,16 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
-            var board = await _boardRepo.GetByGroupAndIdAsync(groupId, boardId)
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
-            if (await _boardRepo.ExistsByNameAsync(groupId, request.Name, boardId))
+            if (await _repo.ExistsByNameAsync(groupId, request.Name, boardId))
                 throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
 
             board.Update(request.Name, request.Visibility, request.Description);
-            await _boardRepo.UpdateAsync(board);
+            await _repo.UpdateAsync(board);
 
             return MapToDto(board);
         }
@@ -93,11 +90,13 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            var board = await _boardRepo.GetByGroupAndIdAsync(groupId, boardId)
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
-            await _boardRepo.DeleteAsync(board);
+            await _repo.DeleteAsync(board);
         }
+
+        public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
         private static GroupBoardResponseDto MapToDto(GroupBoard board) => new(
             Id: board.Id,

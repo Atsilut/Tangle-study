@@ -169,6 +169,22 @@ namespace Api.Domain.Posts.Service
         public Task DetachAuthorFromDeletedUserAsync(long userId) =>
             _repo.DetachAuthorFromPostsAsync(userId);
 
+        public async Task<(long GroupId, long GroupBoardId)?> TryGetGroupBoardContextAsync(long postId)
+        {
+            var post = await _repo.GetPostByIdAsync(postId);
+            if (post is null) return null;
+            if (post.GroupId is null || post.GroupBoardId is null) return null;
+            return (post.GroupId.Value, post.GroupBoardId.Value);
+        }
+
+        public async Task DeleteAllByGroupAsync(long groupId)
+        {
+            var postIds = await _repo.GetPostIdsByGroupAsync(groupId);
+            if (postIds.Count > 0)
+                await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
+            await _repo.DeleteAllByGroupAsync(groupId);
+        }
+
         public async Task DeletePostAsync(long id)
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");

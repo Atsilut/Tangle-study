@@ -11,28 +11,25 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupBlacklistService
     {
-        private readonly IGroupBlacklistRepository _blacklistRepo;
-        private readonly IGroupRepository _groupRepo;
-        private readonly IGroupMemberRepository _memberRepo;
+        private readonly IGroupBlacklistRepository _repo;
+        private readonly Lazy<GroupService> _groupService;
         private readonly GroupMembershipService _membershipService;
-        private readonly GroupJoinResolutionService _joinResolution;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupBlacklistService(
-            IGroupBlacklistRepository blacklistRepo,
-            IGroupRepository groupRepo,
-            IGroupMemberRepository memberRepo,
+            IGroupBlacklistRepository repo,
+            Lazy<GroupService> groupService,
             GroupMembershipService membershipService,
-            GroupJoinResolutionService joinResolution,
+            Lazy<GroupJoinResolutionService> joinResolution,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            _blacklistRepo = blacklistRepo;
-            _groupRepo = groupRepo;
-            _memberRepo = memberRepo;
+            _repo = repo;
+            _groupService = groupService;
             _membershipService = membershipService;
             _joinResolution = joinResolution;
             _userService = userService;
@@ -43,9 +40,12 @@ namespace Api.Domain.Groups.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
+        public Task<bool> IsBlacklistedAsync(long groupId, long userId) =>
+            _repo.ExistsAsync(groupId, userId);
+
         public async Task EnsureNotBlacklistedAsync(long groupId, long userId, string? message = null)
         {
-            if (await _blacklistRepo.ExistsAsync(groupId, userId))
+            if (await _repo.ExistsAsync(groupId, userId))
                 throw new ArgumentException(message ?? "This user is blacklisted from the group.");
         }
 
@@ -54,28 +54,25 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
-            if (await _groupRepo.GetGroupByIdAsync(groupId) is null)
-                throw new EntityNotFoundException("Group not found");
+            await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
             if (callerId == request.UserId)
                 throw new ArgumentException("Cannot blacklist yourself.");
 
             await _userService.EnsureUserExistsAsync(request.UserId, "User not found", StatusCodes.Status400BadRequest);
 
-            if (await _blacklistRepo.ExistsAsync(groupId, request.UserId))
+            if (await _repo.ExistsAsync(groupId, request.UserId))
                 throw new EntityAlreadyExistsException("User is already blacklisted from this group.");
 
-            if ((await _memberRepo.GetMemberAsync(groupId, request.UserId))?.Role == GroupRole.Owner)
+            if ((await _membershipService.GetMemberAsync(groupId, request.UserId))?.Role == GroupRole.Owner)
                 throw new ArgumentException("Cannot blacklist the group owner. Transfer ownership first.");
 
             var entry = new GroupBlacklist(groupId, request.UserId);
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                await _blacklistRepo.CreateAsync(entry);
-                var member = await _memberRepo.GetMemberAsync(groupId, request.UserId);
-                if (member is not null)
-                    await _memberRepo.RemoveMemberAsync(member);
-                await _joinResolution.DeleteJoinArtifactsForUserAndGroupAsync(groupId, request.UserId);
+                await _repo.CreateAsync(entry);
+                await _membershipService.RemoveMemberInternalAsync(groupId, request.UserId);
+                await _joinResolution.Value.DeleteJoinArtifactsForUserAndGroupAsync(groupId, request.UserId);
             });
 
             var nickname = (await _userService.GetUserByIdAsync(request.UserId))?.Nickname ?? "Deleted User";
@@ -87,10 +84,10 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
-            var entry = await _blacklistRepo.GetAsync(groupId, userId)
+            var entry = await _repo.GetAsync(groupId, userId)
                 ?? throw new EntityNotFoundException("User is not on the group blacklist.");
 
-            await _blacklistRepo.DeleteAsync(entry);
+            await _repo.DeleteAsync(entry);
         }
 
         public async Task<List<GroupBlacklistResponseDto>> ListAsync(long groupId)
@@ -98,7 +95,7 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
-            var entries = await _blacklistRepo.GetByGroupAsync(groupId);
+            var entries = await _repo.GetByGroupAsync(groupId);
             if (entries.Count == 0) return new List<GroupBlacklistResponseDto>();
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(entries.Select(e => e.UserId));
@@ -106,6 +103,8 @@ namespace Api.Domain.Groups.Service
                 .Select(e => MapToDto(e, nicknames.GetValueOrDefault(e.UserId, "Deleted User")))
                 .ToList();
         }
+
+        public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
         private static GroupBlacklistResponseDto MapToDto(GroupBlacklist entry, string nickname) => new(
             Id: entry.Id,

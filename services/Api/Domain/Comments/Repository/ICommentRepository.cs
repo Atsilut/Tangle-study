@@ -12,6 +12,7 @@ namespace Api.Domain.Comments.Repository
         public Task UpdateCommentAsync(Comment comment);
         public Task DetachAuthorFromCommentsAsync(long userId);
         public Task DetachPostFromCommentsAsync(long postId);
+        public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds);
         public Task DetachParentFromRepliesAsync(long parentCommentId);
         public Task DeleteCommentAsync(Comment comment);
     }

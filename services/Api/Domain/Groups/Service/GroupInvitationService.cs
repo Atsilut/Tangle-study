@@ -14,11 +14,11 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupInvitationService
     {
-        private readonly IGroupInvitationRepository _invitationRepo;
-        private readonly IGroupApplicationRepository _applicationRepo;
-        private readonly IGroupRepository _groupRepo;
+        private readonly IGroupInvitationRepository _repo;
+        private readonly Lazy<GroupApplicationService> _groupApplicationService;
+        private readonly Lazy<GroupService> _groupService;
         private readonly GroupMembershipService _membershipService;
-        private readonly GroupJoinResolutionService _joinResolution;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution;
         private readonly GroupBlacklistService _blacklistService;
         private readonly UserBlockService _userBlockService;
         private readonly UserService _userService;
@@ -26,20 +26,20 @@ namespace Api.Domain.Groups.Service
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupInvitationService(
-            IGroupInvitationRepository invitationRepo,
-            IGroupApplicationRepository applicationRepo,
-            IGroupRepository groupRepo,
+            IGroupInvitationRepository repo,
+            Lazy<GroupApplicationService> groupApplicationService,
+            Lazy<GroupService> groupService,
             GroupMembershipService membershipService,
-            GroupJoinResolutionService joinResolution,
+            Lazy<GroupJoinResolutionService> joinResolution,
             GroupBlacklistService blacklistService,
             UserBlockService userBlockService,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            _invitationRepo = invitationRepo;
-            _applicationRepo = applicationRepo;
-            _groupRepo = groupRepo;
+            _repo = repo;
+            _groupApplicationService = groupApplicationService;
+            _groupService = groupService;
             _membershipService = membershipService;
             _joinResolution = joinResolution;
             _blacklistService = blacklistService;
@@ -65,7 +65,7 @@ namespace Api.Domain.Groups.Service
         private async Task<GroupInvitation> GetIncomingInvitationForInviteeOrThrowAsync(
             long id, long inviteeId, bool requirePending)
         {
-            var invitation = await _invitationRepo.GetByIdAsync(id)
+            var invitation = await _repo.GetByIdAsync(id)
                 ?? throw new EntityNotFoundException("Invitation not found");
             if (invitation.InviteeId != inviteeId)
                 throw new UnauthorizedAccessException("Only the invitee can act on this invitation.");
@@ -75,7 +75,10 @@ namespace Api.Domain.Groups.Service
         }
 
         public Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId) =>
-            _invitationRepo.GetPendingForUserAsync(groupId, inviteeId);
+            _repo.GetPendingForUserAsync(groupId, inviteeId);
+
+        public Task DeleteAllForUserAndGroupAsync(long groupId, long userId) =>
+            _repo.DeleteAllForUserAndGroupAsync(groupId, userId);
 
         public async Task<GroupInvitationResult> InviteAsync(long groupId, GroupInvitationCreateRequestDto request)
         {
@@ -95,13 +98,13 @@ namespace Api.Domain.Groups.Service
             if (await _userBlockService.IsBlockedByAsync(inviterId, request.InviteeId))
                 throw new ArgumentException("Cannot invite a user you have blocked.");
 
-            var existingInvitation = await _invitationRepo.GetForUserAsync(groupId, request.InviteeId);
+            var existingInvitation = await _repo.GetForUserAsync(groupId, request.InviteeId);
             if (existingInvitation is not null && existingInvitation.InviterId == inviterId)
                 return new GroupInvitationResult(
                     GroupInvitationOutcome.GroupInvitationCreated,
                     await MapToDtoAsync(existingInvitation, inviterId));
 
-            var pendingApplication = await _applicationRepo.GetPendingForUserAsync(groupId, request.InviteeId);
+            var pendingApplication = await _groupApplicationService.Value.GetPendingForUserAsync(groupId, request.InviteeId);
             if (pendingApplication is not null)
                 return await ResolveReciprocalApplicationOnInviteAsync(groupId, inviterId, request.InviteeId);
 
@@ -121,13 +124,13 @@ namespace Api.Domain.Groups.Service
         {
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                if (await _invitationRepo.GetForUserAsync(groupId, inviteeId) is not null)
+                if (await _repo.GetForUserAsync(groupId, inviteeId) is not null)
                     return;
 
                 var invitation = new GroupInvitation(groupId, inviterId, inviteeId);
                 if (await _userBlockService.IsBlockedByAsync(inviteeId, inviterId))
                     invitation.Ignore();
-                await _invitationRepo.CreateInvitationAsync(invitation);
+                await _repo.CreateInvitationAsync(invitation);
             });
         }
 
@@ -138,17 +141,17 @@ namespace Api.Domain.Groups.Service
                 return await ReturnInvitationCreatedWithoutJoinAsync(groupId, inviterId, inviteeId);
 
             await EnsureNoBlockExistsBetweenUsersAsync(inviterId, inviteeId);
-            await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, inviteeId);
+            await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(groupId, inviteeId);
             return new GroupInvitationResult(GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication, null);
         }
 
         private async Task<GroupInvitationResult> ReturnInvitationCreatedWithoutJoinAsync(
             long groupId, long inviterId, long inviteeId)
         {
-            if (await _invitationRepo.GetForUserAsync(groupId, inviteeId) is null)
+            if (await _repo.GetForUserAsync(groupId, inviteeId) is null)
                 await CreateInvitationInTransactionAsync(groupId, inviterId, inviteeId);
 
-            var invitation = await _invitationRepo.GetForUserAsync(groupId, inviteeId)
+            var invitation = await _repo.GetForUserAsync(groupId, inviteeId)
                 ?? throw new InvalidOperationException("Group invitation was not created.");
             return new GroupInvitationResult(
                 GroupInvitationOutcome.GroupInvitationCreated,
@@ -157,11 +160,11 @@ namespace Api.Domain.Groups.Service
 
         private async Task<GroupInvitationResult> ResolveInviteOutcomeAsync(long groupId, long inviteeId, long inviterId)
         {
-            var pendingApplication = await _applicationRepo.GetPendingForUserAsync(groupId, inviteeId);
+            var pendingApplication = await _groupApplicationService.Value.GetPendingForUserAsync(groupId, inviteeId);
             if (pendingApplication is not null)
                 return await ResolveReciprocalApplicationOnInviteAsync(groupId, inviterId, inviteeId);
 
-            var invitation = await _invitationRepo.GetForUserAsync(groupId, inviteeId)
+            var invitation = await _repo.GetForUserAsync(groupId, inviteeId)
                 ?? throw new InvalidOperationException("Group invitation was not created.");
             return new GroupInvitationResult(
                 GroupInvitationOutcome.GroupInvitationCreated,
@@ -177,7 +180,7 @@ namespace Api.Domain.Groups.Service
             var invitation = await GetIncomingInvitationForInviteeOrThrowAsync(invitationId, userId, requirePending: false);
             if (!invitation.IsPending) return;
             invitation.Ignore();
-            await _invitationRepo.UpdateInvitationAsync(invitation);
+            await _repo.UpdateInvitationAsync(invitation);
         }
 
         public async Task AcceptAsync(long invitationId)
@@ -189,20 +192,20 @@ namespace Api.Domain.Groups.Service
 
             await EnsureNoBlockExistsBetweenUsersAsync(invitation.InviterId, userId);
             await _blacklistService.EnsureNotBlacklistedAsync(invitation.GroupId, userId);
-            await _joinResolution.CreateMembershipFromJoinRequestsAsync(invitation.GroupId, userId);
+            await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(invitation.GroupId, userId);
         }
 
         public async Task RejectAsync(long invitationId)
         {
             var userId = GetUserIdFromLogin();
             var invitation = await GetIncomingInvitationForInviteeOrThrowAsync(invitationId, userId, requirePending: false);
-            await _invitationRepo.DeleteInvitationAsync(invitation);
+            await _repo.DeleteInvitationAsync(invitation);
         }
 
         public async Task CancelAsync(long invitationId)
         {
             var userId = GetUserIdFromLogin();
-            var invitation = await _invitationRepo.GetByIdAsync(invitationId)
+            var invitation = await _repo.GetByIdAsync(invitationId)
                 ?? throw new EntityNotFoundException("Invitation not found");
 
             if (invitation.InviterId != userId)
@@ -220,14 +223,14 @@ namespace Api.Domain.Groups.Service
             if (!invitation.IsPending)
                 throw new ArgumentException("Invalid invitation.");
 
-            await _invitationRepo.DeleteInvitationAsync(invitation);
+            await _repo.DeleteInvitationAsync(invitation);
         }
 
         public async Task<List<GroupInvitationCreateResponseDto>?> GetMyPendingAsync()
         {
             var userId = GetUserIdFromLogin();
-            var pending = await _invitationRepo.GetPendingIncomingForInviteeAsync(userId);
-            var ignoredOutgoing = await _invitationRepo.GetIgnoredOutgoingForInviterAsync(userId);
+            var pending = await _repo.GetPendingIncomingForInviteeAsync(userId);
+            var ignoredOutgoing = await _repo.GetIgnoredOutgoingForInviterAsync(userId);
             var invitations = pending.Concat(ignoredOutgoing).ToList();
             if (invitations.Count == 0) return null;
             return await MapInvitationsAsync(invitations, userId);
@@ -236,27 +239,31 @@ namespace Api.Domain.Groups.Service
         public async Task<List<GroupInvitationCreateResponseDto>?> GetIgnoredIncomingAsync()
         {
             var userId = GetUserIdFromLogin();
-            var invitations = await _invitationRepo.GetIgnoredIncomingForInviteeAsync(userId);
+            var invitations = await _repo.GetIgnoredIncomingForInviteeAsync(userId);
             if (invitations.Count == 0) return null;
             return await MapInvitationsAsync(invitations, userId);
         }
 
-        public Task DeleteAllByGroupAsync(long groupId) => _invitationRepo.DeleteAllByGroupAsync(groupId);
+        public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
-        public Task DeleteAllByUserAsync(long userId) => _invitationRepo.DeleteAllByUserAsync(userId);
+        public Task DeleteAllByUserAsync(long userId) => _repo.DeleteAllByUserAsync(userId);
 
         private async Task<GroupInvitationCreateResponseDto> MapToDtoAsync(GroupInvitation invitation, long viewerId)
         {
-            var group = await _groupRepo.GetGroupByIdAsync(invitation.GroupId);
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(new[] { invitation.GroupId });
             var otherUserId = invitation.InviteeId == viewerId ? invitation.InviterId : invitation.InviteeId;
             var nickname = (await _userService.GetUserByIdAsync(otherUserId))?.Nickname ?? "Deleted User";
-            return Map(invitation, group?.Name ?? "Unknown group", viewerId, nickname);
+            return Map(
+                invitation,
+                groupNames.GetValueOrDefault(invitation.GroupId, "Unknown group"),
+                viewerId,
+                nickname);
         }
 
         private async Task<List<GroupInvitationCreateResponseDto>> MapInvitationsAsync(
             IReadOnlyList<GroupInvitation> invitations, long viewerId)
         {
-            var groupNames = await GetGroupNamesAsync(invitations.Select(i => i.GroupId));
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(invitations.Select(i => i.GroupId));
             var otherUserIds = invitations
                 .Select(i => i.InviteeId == viewerId ? i.InviterId : i.InviteeId)
                 .Distinct();
@@ -294,17 +301,5 @@ namespace Api.Domain.Groups.Service
 
         private static bool AppearsPendingForViewer(GroupInvitation invitation, long viewerId) =>
             invitation.IsPending || invitation.InviterId == viewerId;
-
-        private async Task<Dictionary<long, string>> GetGroupNamesAsync(IEnumerable<long> groupIds)
-        {
-            var ids = groupIds.Distinct().ToList();
-            var names = new Dictionary<long, string>();
-            foreach (var id in ids)
-            {
-                var group = await _groupRepo.GetGroupByIdAsync(id);
-                if (group is not null) names[id] = group.Name;
-            }
-            return names;
-        }
     }
 }

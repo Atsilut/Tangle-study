@@ -1,5 +1,4 @@
 using Api.Domain.Groups.Domain;
-using Api.Domain.Groups.Repository;
 using Api.Global.Db;
 using Api.Global.Infrastructure;
 
@@ -8,29 +7,29 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupJoinResolutionService
     {
-        private readonly IGroupInvitationRepository _invitationRepo;
-        private readonly IGroupApplicationRepository _applicationRepo;
-        private readonly IGroupBlacklistRepository _blacklistRepo;
         private readonly GroupMembershipService _membershipService;
+        private readonly GroupInvitationService _groupInvitationService;
+        private readonly GroupApplicationService _groupApplicationService;
+        private readonly GroupBlacklistService _blacklistService;
         private readonly AppDbContext _db;
 
         public GroupJoinResolutionService(
-            IGroupInvitationRepository invitationRepo,
-            IGroupApplicationRepository applicationRepo,
-            IGroupBlacklistRepository blacklistRepo,
             GroupMembershipService membershipService,
+            GroupInvitationService groupInvitationService,
+            GroupApplicationService groupApplicationService,
+            GroupBlacklistService blacklistService,
             AppDbContext db)
         {
-            _invitationRepo = invitationRepo;
-            _applicationRepo = applicationRepo;
-            _blacklistRepo = blacklistRepo;
             _membershipService = membershipService;
+            _groupInvitationService = groupInvitationService;
+            _groupApplicationService = groupApplicationService;
+            _blacklistService = blacklistService;
             _db = db;
         }
 
         public async Task CreateMembershipFromJoinRequestsAsync(long groupId, long userId)
         {
-            if (await _blacklistRepo.ExistsAsync(groupId, userId))
+            if (await _blacklistService.IsBlacklistedAsync(groupId, userId))
                 throw new ArgumentException("This user is blacklisted from the group.");
 
             await _db.ExecuteInTransactionAsync(async () =>
@@ -43,8 +42,8 @@ namespace Api.Domain.Groups.Service
         public Task DeleteJoinArtifactsForUserAndGroupAsync(long groupId, long userId) =>
             _db.ExecuteInTransactionAsync(async () =>
             {
-                await _invitationRepo.DeleteAllForUserAndGroupAsync(groupId, userId);
-                await _applicationRepo.DeleteAllForUserAndGroupAsync(groupId, userId);
+                await _groupInvitationService.DeleteAllForUserAndGroupAsync(groupId, userId);
+                await _groupApplicationService.DeleteAllForUserAndGroupAsync(groupId, userId);
             });
     }
 }

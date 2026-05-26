@@ -13,30 +13,30 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupApplicationService
     {
-        private readonly IGroupApplicationRepository _applicationRepo;
-        private readonly IGroupInvitationRepository _invitationRepo;
-        private readonly IGroupRepository _groupRepo;
+        private readonly IGroupApplicationRepository _repo;
+        private readonly Lazy<GroupInvitationService> _groupInvitationService;
+        private readonly Lazy<GroupService> _groupService;
         private readonly GroupMembershipService _membershipService;
-        private readonly GroupJoinResolutionService _joinResolution;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution;
         private readonly GroupBlacklistService _blacklistService;
         private readonly UserService _userService;
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupApplicationService(
-            IGroupApplicationRepository applicationRepo,
-            IGroupInvitationRepository invitationRepo,
-            IGroupRepository groupRepo,
+            IGroupApplicationRepository repo,
+            Lazy<GroupInvitationService> groupInvitationService,
+            Lazy<GroupService> groupService,
             GroupMembershipService membershipService,
-            GroupJoinResolutionService joinResolution,
+            Lazy<GroupJoinResolutionService> joinResolution,
             GroupBlacklistService blacklistService,
             UserService userService,
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor)
         {
-            _applicationRepo = applicationRepo;
-            _invitationRepo = invitationRepo;
-            _groupRepo = groupRepo;
+            _repo = repo;
+            _groupInvitationService = groupInvitationService;
+            _groupService = groupService;
             _membershipService = membershipService;
             _joinResolution = joinResolution;
             _blacklistService = blacklistService;
@@ -49,13 +49,15 @@ namespace Api.Domain.Groups.Service
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
         public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
-            _applicationRepo.GetPendingForUserAsync(groupId, applicantId);
+            _repo.GetPendingForUserAsync(groupId, applicantId);
+
+        public Task DeleteAllForUserAndGroupAsync(long groupId, long userId) =>
+            _repo.DeleteAllForUserAndGroupAsync(groupId, userId);
 
         public async Task<GroupApplicationResult> ApplyAsync(long groupId)
         {
             var applicantId = GetUserIdFromLogin();
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
             GroupJoinPolicyRules.EnsureCanApply(group.JoinPolicy);
 
@@ -64,16 +66,16 @@ namespace Api.Domain.Groups.Service
 
             await _blacklistService.EnsureNotBlacklistedAsync(groupId, applicantId);
 
-            var existingApplication = await _applicationRepo.GetForUserAsync(groupId, applicantId);
+            var existingApplication = await _repo.GetForUserAsync(groupId, applicantId);
             if (existingApplication is not null)
                 return new GroupApplicationResult(
                     GroupApplicationOutcome.GroupApplicationCreated,
                     await MapToDtoAsync(existingApplication, applicantId));
 
-            var pendingInvitation = await _invitationRepo.GetPendingForUserAsync(groupId, applicantId);
+            var pendingInvitation = await _groupInvitationService.Value.GetPendingForUserAsync(groupId, applicantId);
             if (pendingInvitation is not null)
             {
-                await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
+                await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
                 return new GroupApplicationResult(GroupApplicationOutcome.GroupMembershipCreatedFromReciprocalInvitation, null);
             }
 
@@ -93,23 +95,23 @@ namespace Api.Domain.Groups.Service
         {
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                if (await _applicationRepo.GetForUserAsync(groupId, applicantId) is not null)
+                if (await _repo.GetForUserAsync(groupId, applicantId) is not null)
                     return;
 
-                await _applicationRepo.CreateApplicationAsync(new GroupApplication(groupId, applicantId));
+                await _repo.CreateApplicationAsync(new GroupApplication(groupId, applicantId));
             });
         }
 
         private async Task<GroupApplicationResult> ResolveApplyOutcomeAsync(long groupId, long applicantId)
         {
-            var pendingInvitation = await _invitationRepo.GetPendingForUserAsync(groupId, applicantId);
+            var pendingInvitation = await _groupInvitationService.Value.GetPendingForUserAsync(groupId, applicantId);
             if (pendingInvitation is not null)
             {
-                await _joinResolution.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
+                await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
                 return new GroupApplicationResult(GroupApplicationOutcome.GroupMembershipCreatedFromReciprocalInvitation, null);
             }
 
-            var application = await _applicationRepo.GetForUserAsync(groupId, applicantId)
+            var application = await _repo.GetForUserAsync(groupId, applicantId)
                 ?? throw new InvalidOperationException("Group application was not created.");
             return new GroupApplicationResult(
                 GroupApplicationOutcome.GroupApplicationCreated,
@@ -122,18 +124,18 @@ namespace Api.Domain.Groups.Service
         public async Task IgnoreAsync(long applicationId)
         {
             var callerId = GetUserIdFromLogin();
-            var application = await _applicationRepo.GetByIdAsync(applicationId)
+            var application = await _repo.GetByIdAsync(applicationId)
                 ?? throw new EntityNotFoundException("Application not found");
             await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
             if (!application.IsPending) return;
             application.Ignore();
-            await _applicationRepo.UpdateApplicationAsync(application);
+            await _repo.UpdateApplicationAsync(application);
         }
 
         public async Task ApproveAsync(long applicationId)
         {
             var callerId = GetUserIdFromLogin();
-            var application = await _applicationRepo.GetByIdAsync(applicationId)
+            var application = await _repo.GetByIdAsync(applicationId)
                 ?? throw new EntityNotFoundException("Application not found");
             await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
 
@@ -141,30 +143,30 @@ namespace Api.Domain.Groups.Service
                 return;
 
             await _blacklistService.EnsureNotBlacklistedAsync(application.GroupId, application.ApplicantId);
-            await _joinResolution.CreateMembershipFromJoinRequestsAsync(application.GroupId, application.ApplicantId);
+            await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(application.GroupId, application.ApplicantId);
         }
 
         public async Task RejectAsync(long applicationId)
         {
             var callerId = GetUserIdFromLogin();
-            var application = await _applicationRepo.GetByIdAsync(applicationId)
+            var application = await _repo.GetByIdAsync(applicationId)
                 ?? throw new EntityNotFoundException("Application not found");
             await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
 
-            await _applicationRepo.DeleteApplicationAsync(application);
+            await _repo.DeleteApplicationAsync(application);
         }
 
         public async Task CancelAsync(long applicationId)
         {
             var userId = GetUserIdFromLogin();
-            var application = await _applicationRepo.GetByIdAsync(applicationId)
+            var application = await _repo.GetByIdAsync(applicationId)
                 ?? throw new EntityNotFoundException("Application not found");
             if (application.ApplicantId != userId)
                 throw new UnauthorizedAccessException("Only the applicant can cancel this application.");
             if (!application.IsPending)
                 throw new ArgumentException("Invalid application.");
 
-            await _applicationRepo.DeleteApplicationAsync(application);
+            await _repo.DeleteApplicationAsync(application);
         }
 
         public async Task<List<GroupApplicationResponseDto>> GetPendingByGroupAsync(long groupId)
@@ -172,7 +174,7 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            var applications = await _applicationRepo.GetPendingByGroupAsync(groupId);
+            var applications = await _repo.GetPendingByGroupAsync(groupId);
             return await MapApplicationsForReviewerAsync(applications);
         }
 
@@ -181,7 +183,7 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            var applications = await _applicationRepo.GetIgnoredByGroupAsync(groupId);
+            var applications = await _repo.GetIgnoredByGroupAsync(groupId);
             if (applications.Count == 0) return null;
             return await MapApplicationsForReviewerAsync(applications);
         }
@@ -189,16 +191,16 @@ namespace Api.Domain.Groups.Service
         public async Task<List<GroupApplicationResponseDto>?> GetMyApplicationsAsync()
         {
             var applicantId = GetUserIdFromLogin();
-            var pending = await _applicationRepo.GetPendingForApplicantAsync(applicantId);
-            var ignoredOutgoing = await _applicationRepo.GetIgnoredOutgoingForApplicantAsync(applicantId);
+            var pending = await _repo.GetPendingForApplicantAsync(applicantId);
+            var ignoredOutgoing = await _repo.GetIgnoredOutgoingForApplicantAsync(applicantId);
             var applications = pending.Concat(ignoredOutgoing).ToList();
             if (applications.Count == 0) return null;
             return await MapApplicationsForApplicantAsync(applications, applicantId);
         }
 
-        public Task DeleteAllByGroupAsync(long groupId) => _applicationRepo.DeleteAllByGroupAsync(groupId);
+        public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
-        public Task DeleteAllByUserAsync(long userId) => _applicationRepo.DeleteAllByUserAsync(userId);
+        public Task DeleteAllByUserAsync(long userId) => _repo.DeleteAllByUserAsync(userId);
 
         private async Task<List<GroupApplicationResponseDto>> MapApplicationsForReviewerAsync(
             IReadOnlyList<GroupApplication> applications)

@@ -40,6 +40,9 @@ public class FakePostRepository : IPostRepository
         return Task.CompletedTask;
     }
 
+    public Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
+        Task.FromResult(_posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToList());
+
     public Task<Post?> GetPostByIdAsync(long id)
     {
         return Task.FromResult(_posts.FirstOrDefault(p => p.Id == id));

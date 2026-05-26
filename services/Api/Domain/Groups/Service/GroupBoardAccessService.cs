@@ -8,20 +8,20 @@ namespace Api.Domain.Groups.Service
     [Service]
     public class GroupBoardAccessService
     {
-        private readonly IGroupRepository _groupRepo;
-        private readonly IGroupBoardRepository _boardRepo;
-        private readonly IGroupMemberRepository _memberRepo;
+        private readonly IGroupBoardRepository _repo;
+        private readonly Lazy<GroupService> _groupService;
+        private readonly GroupMembershipService _membershipService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupBoardAccessService(
-            IGroupRepository groupRepo,
-            IGroupBoardRepository boardRepo,
-            IGroupMemberRepository memberRepo,
+            IGroupBoardRepository repo,
+            Lazy<GroupService> groupService,
+            GroupMembershipService membershipService,
             IHttpContextAccessor httpContextAccessor)
         {
-            _groupRepo = groupRepo;
-            _boardRepo = boardRepo;
-            _memberRepo = memberRepo;
+            _repo = repo;
+            _groupService = groupService;
+            _membershipService = membershipService;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -33,20 +33,18 @@ namespace Api.Domain.Groups.Service
 
         public async Task<GroupBoard> GetBoardOrThrowAsync(long groupId, long boardId, string notFoundMessage = "Board not found")
         {
-            if (await _groupRepo.GetGroupByIdAsync(groupId) is null)
-                throw new EntityNotFoundException("Group not found");
+            await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
-            var board = await _boardRepo.GetByGroupAndIdAsync(groupId, boardId);
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
             if (board is null) throw new EntityNotFoundException(notFoundMessage);
             return board;
         }
 
         public async Task<bool> TryCanViewBoardAsync(long groupId, long boardId)
         {
-            var group = await _groupRepo.GetGroupByIdAsync(groupId);
-            if (group is null) throw new EntityNotFoundException("Group not found");
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
-            var board = await _boardRepo.GetByGroupAndIdAsync(groupId, boardId);
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
             if (board is null) return false;
 
             return await CanViewBoardInternalAsync(group, board);
@@ -54,10 +52,9 @@ namespace Api.Domain.Groups.Service
 
         public async Task EnsureCanViewBoardAsync(long groupId, long boardId)
         {
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
-            var board = await _boardRepo.GetByGroupAndIdAsync(groupId, boardId)
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
             if (!await CanViewBoardInternalAsync(group, board))
@@ -72,18 +69,16 @@ namespace Api.Domain.Groups.Service
             var userId = TryGetUserIdFromLogin();
             if (userId is null) return false;
 
-            var member = await _memberRepo.GetMemberAsync(group.Id, userId.Value);
+            var member = await _membershipService.GetMemberAsync(group.Id, userId.Value);
             if (member is null) return false;
 
-            if (board.Visibility == BoardVisibility.MembersOnly)
+            if (board.Visibility is BoardVisibility.MembersOnly or BoardVisibility.ForAll)
                 return true;
 
-            return board.Visibility == BoardVisibility.AdminOnly
-                   && (member.Role == GroupRole.Admin || member.Role == GroupRole.Owner);
+            return member.Role is GroupRole.Admin or GroupRole.Owner;
         }
 
         public Task EnsureCanWritePostAsync(long groupId, long boardId) =>
             EnsureCanViewBoardAsync(groupId, boardId);
     }
 }
-

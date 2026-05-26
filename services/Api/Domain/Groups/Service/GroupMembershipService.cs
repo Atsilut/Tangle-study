@@ -11,18 +11,18 @@ namespace Api.Domain.Groups.Service
     public class GroupMembershipService
     {
         private readonly IGroupMemberRepository _repo;
-        private readonly IGroupRepository _groupRepo;
+        private readonly Lazy<GroupService> _groupService;
         private readonly UserService _userService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public GroupMembershipService(
             IGroupMemberRepository repo,
-            IGroupRepository groupRepo,
+            Lazy<GroupService> groupService,
             UserService userService,
             IHttpContextAccessor httpContextAccessor)
         {
             _repo = repo;
-            _groupRepo = groupRepo;
+            _groupService = groupService;
             _userService = userService;
             _httpContextAccessor = httpContextAccessor;
         }
@@ -67,10 +67,27 @@ namespace Api.Domain.Groups.Service
 
         public Task RemoveAllByGroupAsync(long groupId) => _repo.RemoveAllByGroupAsync(groupId);
 
+        public async Task TransferOwnershipInternalAsync(
+            long groupId,
+            GroupMember currentOwner,
+            GroupMember newOwner)
+        {
+            currentOwner.ChangeRole(GroupRole.Admin);
+            newOwner.ChangeRole(GroupRole.Owner);
+            await _repo.UpdateMemberAsync(currentOwner);
+            await _repo.UpdateMemberAsync(newOwner);
+        }
+
+        public async Task RemoveMemberInternalAsync(long groupId, long userId)
+        {
+            var member = await _repo.GetMemberAsync(groupId, userId);
+            if (member is not null)
+                await _repo.RemoveMemberAsync(member);
+        }
+
         public async Task<List<GroupMemberResponseDto>?> GetMembersAsync(long groupId)
         {
-            var group = await _groupRepo.GetGroupByIdAsync(groupId)
-                ?? throw new EntityNotFoundException("Group not found");
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
             if (group.Visibility == GroupVisibility.Private)
                 await EnsureMemberAsync(groupId, GetUserIdFromLogin());
