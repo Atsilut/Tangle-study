@@ -47,15 +47,20 @@ namespace Api.Domain.Comments.Service
             return comment;
         }
 
+        private async Task EnsureGroupBoardViewAccessForPostAsync(long postId)
+        {
+            var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
+            if (groupBoard is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+        }
+
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
             await _userService.EnsureUserExistsAsync(userId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
 
-            var groupBoard = await _postService.TryGetGroupBoardContextAsync(request.PostId);
-            if (groupBoard is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+            await EnsureGroupBoardViewAccessForPostAsync(request.PostId);
 
             if (request.ParentId.HasValue)
             {
@@ -77,20 +82,14 @@ namespace Api.Domain.Comments.Service
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) return null;
             if (comment.PostId is not null)
-            {
-                var groupBoard = await _postService.TryGetGroupBoardContextAsync(comment.PostId.Value);
-                if (groupBoard is not null)
-                    await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
-            }
+                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             return MapToDto(comment);
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
         {
             await _postService.EnsurePostExistsAsync(postId);
-            var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
-            if (groupBoard is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+            await EnsureGroupBoardViewAccessForPostAsync(postId);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
             return BuildCommentTree(comments);
@@ -149,6 +148,8 @@ namespace Api.Domain.Comments.Service
             var comment = await GetCommentOrThrowAsync(request.Id);
             if (comment.PostId is null && comment.DeletedPostId is not null)
                 throw new EntityNotFoundException("Post is not reachable. Comments are readonly.");
+            if (comment.PostId is not null)
+                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
             await _repo.UpdateCommentAsync(comment);
@@ -174,6 +175,8 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
             var comment = await GetCommentOrThrowAsync(id);
+            if (comment.PostId is not null)
+                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _db.ExecuteInTransactionAsync(async () =>
             {
