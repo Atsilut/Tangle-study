@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
+using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Dto;
 using Api.Global.Db;
 using Api.Tests.Infrastructure;
@@ -57,7 +58,8 @@ internal static class GroupIntegrationTestHelpers
     public static async Task<GroupResponseDto> CreateGroupAsAsync(
         HttpClient client,
         UserGetResponseDto user,
-        GroupVisibility visibility = GroupVisibility.Private)
+        GroupVisibility visibility = GroupVisibility.Private,
+        GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable)
     {
         await LoginAsAsync(client, user);
         var res = await client.PostAsJsonAsync(GroupsBase, new GroupCreateRequestDto
@@ -65,9 +67,17 @@ internal static class GroupIntegrationTestHelpers
             Name = $"Group_{Guid.NewGuid():N}".Substring(0, 20),
             Description = "test group",
             Visibility = visibility,
+            JoinPolicy = joinPolicy,
         });
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
         return (await res.Content.ReadFromJsonAsync<GroupResponseDto>())!;
+    }
+
+    public static async Task BlockUserAsync(HttpClient client, long blockedUserId)
+    {
+        var res = await client.PostAsJsonAsync("/api/users/blocks",
+            new UserBlockCreateRequestDto { BlockedUserId = blockedUserId });
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
     public static async Task SeedGroupMemberAsync(

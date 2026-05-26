@@ -150,6 +150,20 @@ public sealed class GroupMembershipServiceUnitTests
     }
 
     [Fact]
+    public async Task RemoveMember_RemovesAdmin_WhenOwnerKicksAdmin()
+    {
+        var owner = await CreateTestUserAsync("owner");
+        var admin = await CreateTestUserAsync("admin");
+        LoginAs(owner.Id);
+        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+        await _membershipService.AddMemberInternalAsync(group.Id, admin.Id, GroupRole.Admin);
+
+        await _membershipService.RemoveMemberAsync(group.Id, admin.Id);
+
+        Assert.Null(await _groupMemberRepository.GetMemberAsync(group.Id, admin.Id));
+    }
+
+    [Fact]
     public async Task RemoveMember_ThrowsUnauthorized_WhenAdminKicksAnotherAdmin()
     {
         // Arrange
