@@ -141,17 +141,19 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureOwnerAsync(id, callerId);
 
-            await _db.ExecuteInTransactionAsync(async () =>
-            {
-                await _invitationService.Value.DeleteAllByGroupAsync(id);
-                await _applicationService.Value.DeleteAllByGroupAsync(id);
-                await _blacklistService.Value.DeleteAllByGroupAsync(id);
-                await _postService.Value.DeleteAllByGroupAsync(id);
-                await _boardService.Value.DeleteAllByGroupAsync(id);
-                await _membership.RemoveAllByGroupAsync(id);
-                var group = await GetGroupOrThrowAsync(id);
-                await _repo.DeleteGroupAsync(group);
-            });
+            await _db.ExecuteInTransactionAsync(async () => await DeleteGroupInternalAsync(id));
+        }
+
+        public async Task DeleteGroupInternalAsync(long groupId)
+        {
+            await _invitationService.Value.DeleteAllByGroupAsync(groupId);
+            await _applicationService.Value.DeleteAllByGroupAsync(groupId);
+            await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
+            await _postService.Value.DeleteAllByGroupAsync(groupId);
+            await _boardService.Value.DeleteAllByGroupAsync(groupId);
+            await _membership.RemoveAllByGroupAsync(groupId);
+            var group = await GetGroupOrThrowAsync(groupId);
+            await _repo.DeleteGroupAsync(group);
         }
 
         private static GroupResponseDto MapToDto(Group group, int memberCount) => new(

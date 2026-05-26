@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Comments.Service;
+using Api.Domain.Groups.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
@@ -17,6 +18,7 @@ namespace Api.Domain.Users.Service
         private readonly AppDbContext _db;
         private readonly Lazy<PostService> _postService;
         private readonly Lazy<CommentService> _commentService;
+        private readonly Lazy<GroupMembershipService> _groupMembershipService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UserService(
@@ -24,12 +26,14 @@ namespace Api.Domain.Users.Service
             AppDbContext db,
             Lazy<PostService> postService,
             Lazy<CommentService> commentService,
+            Lazy<GroupMembershipService> groupMembershipService,
             IHttpContextAccessor httpContextAccessor)
         {
             _repo = repo;
             _db = db;
             _postService = postService;
             _commentService = commentService;
+            _groupMembershipService = groupMembershipService;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -132,6 +136,7 @@ namespace Api.Domain.Users.Service
             {
                 await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
                 await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
+                await _groupMembershipService.Value.HandleUserDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
         }

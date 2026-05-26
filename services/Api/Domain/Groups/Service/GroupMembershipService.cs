@@ -85,6 +85,28 @@ namespace Api.Domain.Groups.Service
                 await _repo.RemoveMemberAsync(member);
         }
 
+        public async Task HandleUserDeletionAsync(long userId)
+        {
+            var memberships = await _repo.GetMembershipsByUserAsync(userId);
+
+            foreach (var owned in memberships.Where(m => m.Role == GroupRole.Owner))
+            {
+                var members = await _repo.GetMembersByGroupAsync(owned.GroupId);
+                var successor = members
+                    .Where(m => m.UserId != userId)
+                    .OrderByDescending(m => m.Role)
+                    .ThenBy(m => m.JoinedAt)
+                    .FirstOrDefault();
+
+                if (successor is null)
+                    await _groupService.Value.DeleteGroupInternalAsync(owned.GroupId);
+                else
+                    await TransferOwnershipInternalAsync(owned.GroupId, owned, successor);
+            }
+
+            await _repo.RemoveAllByUserAsync(userId);
+        }
+
         public async Task<List<GroupMemberResponseDto>?> GetMembersAsync(long groupId)
         {
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
