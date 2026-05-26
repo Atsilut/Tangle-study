@@ -17,6 +17,8 @@ public sealed class GroupServiceUnitTests
     private readonly FakeUserRepository _userRepository;
     private readonly FakeGroupRepository _groupRepository;
     private readonly FakeGroupMemberRepository _groupMemberRepository;
+    private readonly FakeGroupBlacklistRepository _blacklistRepository;
+    private readonly GroupBlacklistService _blacklistService;
     private readonly FakeHttpContextAccessor _httpContextAccessor;
 
     public GroupServiceUnitTests()
@@ -25,9 +27,11 @@ public sealed class GroupServiceUnitTests
         var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
         _groupService = graph.GroupService;
         _membershipService = graph.GroupMembershipService;
+        _blacklistService = graph.GroupBlacklistService;
         _userRepository = graph.UserRepository;
         _groupRepository = graph.GroupRepository;
         _groupMemberRepository = graph.GroupMemberRepository;
+        _blacklistRepository = graph.GroupBlacklistRepository;
     }
 
     private async Task<User> CreateTestUserAsync(string nickname)
@@ -166,6 +170,23 @@ public sealed class GroupServiceUnitTests
         // Assert
         Assert.Null(await _groupRepository.GetGroupByIdAsync(group.Id));
         Assert.Empty(await _groupMemberRepository.GetMembersByGroupAsync(group.Id));
+    }
+
+    [Fact]
+    public async Task DeleteGroup_ClearsBlacklist()
+    {
+        var owner = await CreateTestUserAsync("owner");
+        var target = await CreateTestUserAsync("target");
+        LoginAs(owner.Id);
+        var group = await _groupService.CreateGroupAsync(MakeCreateRequest());
+
+        await _blacklistService.AddAsync(group.Id, new GroupBlacklistCreateRequestDto { UserId = target.Id });
+        Assert.True(await _blacklistRepository.ExistsAsync(group.Id, target.Id));
+
+        await _groupService.DeleteGroupAsync(group.Id);
+
+        Assert.Null(await _groupRepository.GetGroupByIdAsync(group.Id));
+        Assert.False(await _blacklistRepository.ExistsAsync(group.Id, target.Id));
     }
 
     [Fact]
