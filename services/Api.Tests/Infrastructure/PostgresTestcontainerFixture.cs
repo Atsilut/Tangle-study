@@ -29,7 +29,7 @@ public sealed class PostgresTestcontainerFixture : IAsyncLifetime
             .Options;
 
         await using var db = new AppDbContext(options);
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     public async ValueTask DisposeAsync()

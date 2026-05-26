@@ -18,6 +18,10 @@ namespace Api.Global.Db
         public DbSet<UserBlock> UserBlocks { get; set; }
         public DbSet<Group> Groups { get; set; }
         public DbSet<GroupMember> GroupMembers { get; set; }
+        public DbSet<GroupInvitation> GroupInvitations { get; set; }
+        public DbSet<GroupApplication> GroupApplications { get; set; }
+        public DbSet<GroupBlacklist> GroupBlacklists { get; set; }
+        public DbSet<GroupBoard> GroupBoards { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -30,6 +34,20 @@ namespace Api.Global.Db
                 .HasOne(p => p.User)
                 .WithMany(u => u.Posts)
                 .HasForeignKey(p => p.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Post>()
+                .HasOne(p => p.Group)
+                .WithMany()
+                .HasForeignKey(p => p.GroupId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Post>()
+                .HasOne(p => p.GroupBoard)
+                .WithMany()
+                .HasForeignKey(p => p.GroupBoardId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
@@ -105,6 +123,54 @@ namespace Api.Global.Db
                 .HasOne(m => m.User)
                 .WithMany()
                 .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<GroupInvitation>()
+                .HasOne(i => i.Group)
+                .WithMany()
+                .HasForeignKey(i => i.GroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<GroupInvitation>()
+                .HasOne(i => i.Inviter)
+                .WithMany()
+                .HasForeignKey(i => i.InviterId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GroupInvitation>()
+                .HasOne(i => i.Invitee)
+                .WithMany()
+                .HasForeignKey(i => i.InviteeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GroupApplication>()
+                .HasOne(a => a.Group)
+                .WithMany()
+                .HasForeignKey(a => a.GroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<GroupApplication>()
+                .HasOne(a => a.Applicant)
+                .WithMany()
+                .HasForeignKey(a => a.ApplicantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GroupBlacklist>()
+                .HasOne(b => b.Group)
+                .WithMany()
+                .HasForeignKey(b => b.GroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<GroupBlacklist>()
+                .HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<GroupBoard>()
+                .HasOne(b => b.Group)
+                .WithMany()
+                .HasForeignKey(b => b.GroupId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }

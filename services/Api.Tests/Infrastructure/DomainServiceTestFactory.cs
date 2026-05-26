@@ -22,6 +22,11 @@ internal static class DomainServiceTestFactory
         UserBlockService UserBlockService,
         GroupService GroupService,
         GroupMembershipService GroupMembershipService,
+        GroupApplicationService GroupApplicationService,
+        GroupInvitationService GroupInvitationService,
+        GroupJoinResolutionService GroupJoinResolutionService,
+        GroupJoinService GroupJoinService,
+        GroupBlacklistService GroupBlacklistService,
         FakeUserRepository UserRepository,
         FakePostRepository PostRepository,
         FakeCommentRepository CommentRepository,
@@ -29,7 +34,13 @@ internal static class DomainServiceTestFactory
         FakeFriendRequestRepository FriendRequestRepository,
         FakeUserBlockRepository UserBlockRepository,
         FakeGroupRepository GroupRepository,
-        FakeGroupMemberRepository GroupMemberRepository);
+        FakeGroupMemberRepository GroupMemberRepository,
+        FakeGroupApplicationRepository GroupApplicationRepository,
+        FakeGroupInvitationRepository GroupInvitationRepository,
+        FakeGroupBlacklistRepository GroupBlacklistRepository,
+        FakeGroupBoardRepository GroupBoardRepository,
+        GroupBoardAccessService GroupBoardAccessService,
+        GroupBoardService GroupBoardService);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
@@ -41,6 +52,10 @@ internal static class DomainServiceTestFactory
         var userBlockRepository = new FakeUserBlockRepository();
         var groupRepository = new FakeGroupRepository();
         var groupMemberRepository = new FakeGroupMemberRepository();
+        var groupApplicationRepository = new FakeGroupApplicationRepository();
+        var groupInvitationRepository = new FakeGroupInvitationRepository();
+        var groupBlacklistRepository = new FakeGroupBlacklistRepository();
+        var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -51,6 +66,11 @@ internal static class DomainServiceTestFactory
         FriendshipService friendshipService = null!;
         FriendRequestService friendRequestService = null!;
         GroupMembershipService groupMembershipService = null!;
+        GroupJoinResolutionService groupJoinResolutionService = null!;
+        GroupJoinService groupJoinService = null!;
+        GroupApplicationService groupApplicationService = null!;
+        GroupInvitationService groupInvitationService = null!;
+        GroupBlacklistService groupBlacklistService = null!;
         GroupService groupService = null!;
 
         var userService = new UserService(
@@ -66,18 +86,43 @@ internal static class DomainServiceTestFactory
             userService,
             http);
 
+        var groupBoardAccessService = new GroupBoardAccessService(
+            groupRepository,
+            groupBoardRepository,
+            groupMemberRepository,
+            http);
+
+        groupJoinResolutionService = new GroupJoinResolutionService(
+            groupInvitationRepository,
+            groupApplicationRepository,
+            groupBlacklistRepository,
+            groupMembershipService,
+            db);
+
+        groupBlacklistService = new GroupBlacklistService(
+            groupBlacklistRepository,
+            groupRepository,
+            groupMemberRepository,
+            groupMembershipService,
+            groupJoinResolutionService,
+            userService,
+            db,
+            http);
+
         postService = new PostService(
             postRepository,
             db,
             new Lazy<CommentService>(() => commentService),
             http,
-            userService);
+            userService,
+            groupBoardAccessService);
 
         commentService = new CommentService(
             commentRepository,
             db,
             http,
             postService,
+            groupBoardAccessService,
             userService);
 
         friendshipService = new FriendshipService(
@@ -100,12 +145,55 @@ internal static class DomainServiceTestFactory
             http,
             NullLogger<FriendRequestService>.Instance);
 
+        groupApplicationService = new GroupApplicationService(
+            groupApplicationRepository,
+            groupInvitationRepository,
+            groupRepository,
+            groupMembershipService,
+            groupJoinResolutionService,
+            groupBlacklistService,
+            userService,
+            db,
+            http);
+
+        groupJoinService = new GroupJoinService(
+            groupRepository,
+            groupInvitationRepository,
+            groupMembershipService,
+            groupJoinResolutionService,
+            groupBlacklistService,
+            http);
+
+        groupInvitationService = new GroupInvitationService(
+            groupInvitationRepository,
+            groupApplicationRepository,
+            groupRepository,
+            groupMembershipService,
+            groupJoinResolutionService,
+            groupBlacklistService,
+            userBlockService,
+            userService,
+            db,
+            http);
+
         groupService = new GroupService(
             groupRepository,
             groupMemberRepository,
+            groupBlacklistRepository,
+            groupBoardRepository,
+            postRepository,
             groupMembershipService,
             userService,
             db,
+            http,
+            new Lazy<GroupInvitationService>(() => groupInvitationService),
+            new Lazy<GroupApplicationService>(() => groupApplicationService));
+
+        var groupBoardService = new GroupBoardService(
+            groupBoardRepository,
+            groupRepository,
+            groupMembershipService,
+            groupBoardAccessService,
             http);
 
         return new Graph(
@@ -117,6 +205,11 @@ internal static class DomainServiceTestFactory
             userBlockService,
             groupService,
             groupMembershipService,
+            groupApplicationService,
+            groupInvitationService,
+            groupJoinResolutionService,
+            groupJoinService,
+            groupBlacklistService,
             userRepository,
             postRepository,
             commentRepository,
@@ -124,6 +217,12 @@ internal static class DomainServiceTestFactory
             friendRequestRepository,
             userBlockRepository,
             groupRepository,
-            groupMemberRepository);
+            groupMemberRepository,
+            groupApplicationRepository,
+            groupInvitationRepository,
+            groupBlacklistRepository,
+            groupBoardRepository,
+            groupBoardAccessService,
+            groupBoardService);
     }
 }
