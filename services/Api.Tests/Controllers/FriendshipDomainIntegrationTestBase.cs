@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.UserBlocks.Dto;

@@ -1,5 +1,4 @@
 using Api.Domain.Friendships.Dto;
-using Api.Domain.Friendships.Service;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Tests.Infrastructure;
