@@ -1,7 +1,9 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Repository;
+using Api.Domain.Posts.Repository;
 using Api.Domain.Users.Service;
+using Microsoft.EntityFrameworkCore;
 using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -18,6 +20,8 @@ namespace Api.Domain.Groups.Service
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IGroupBlacklistRepository _blacklistRepo;
+        private readonly IGroupBoardRepository _boardRepo;
+        private readonly IPostRepository _postRepo;
         private readonly Lazy<GroupInvitationService> _invitationService;
         private readonly Lazy<GroupApplicationService> _applicationService;
 
@@ -25,6 +29,8 @@ namespace Api.Domain.Groups.Service
             IGroupRepository repo,
             IGroupMemberRepository memberRepo,
             IGroupBlacklistRepository blacklistRepo,
+            IGroupBoardRepository boardRepo,
+            IPostRepository postRepo,
             GroupMembershipService membership,
             UserService userService,
             AppDbContext db,
@@ -35,6 +41,8 @@ namespace Api.Domain.Groups.Service
             _repo = repo;
             _memberRepo = memberRepo;
             _blacklistRepo = blacklistRepo;
+            _boardRepo = boardRepo;
+            _postRepo = postRepo;
             _membership = membership;
             _userService = userService;
             _db = db;
@@ -134,6 +142,20 @@ namespace Api.Domain.Groups.Service
                 await _invitationService.Value.DeleteAllByGroupAsync(id);
                 await _applicationService.Value.DeleteAllByGroupAsync(id);
                 await _blacklistRepo.DeleteAllByGroupAsync(id);
+
+                var postIds = await _db.Posts
+                    .Where(p => p.GroupId == id)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+                if (postIds.Count > 0)
+                {
+                    await _db.Comments
+                        .Where(c => c.PostId != null && postIds.Contains(c.PostId.Value))
+                        .ExecuteDeleteAsync();
+                    await _postRepo.DeleteAllByGroupAsync(id);
+                }
+
+                await _boardRepo.DeleteAllByGroupAsync(id);
                 await _membership.RemoveAllByGroupAsync(id);
                 var group = await GetGroupOrThrowAsync(id);
                 await _repo.DeleteGroupAsync(group);

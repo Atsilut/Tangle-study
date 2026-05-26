@@ -17,6 +17,12 @@ namespace Api.Domain.Posts.Dto
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Will be started in Aus")]
         public string Content { get; init; }
+
+        [SwaggerSchema(Description = "Group Id (optional; for group posts)")]
+        public long? GroupId { get; init; }
+
+        [SwaggerSchema(Description = "Group board Id (optional; for group posts)")]
+        public long? GroupBoardId { get; init; }
     }
 
     public record PostPatchRequestDto

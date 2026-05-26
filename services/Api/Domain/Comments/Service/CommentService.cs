@@ -3,6 +3,7 @@ using Api.Domain.Comments.Dto;
 using Api.Domain.Comments.Repository;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
+using Api.Domain.Groups.Service;
 using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -16,6 +17,7 @@ namespace Api.Domain.Comments.Service
         private readonly AppDbContext _db;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly PostService _postService;
+        private readonly GroupBoardAccessService _groupBoardAccess;
         private readonly UserService _userService;
 
         public CommentService(
@@ -23,12 +25,14 @@ namespace Api.Domain.Comments.Service
             AppDbContext db,
             IHttpContextAccessor httpContextAccessor,
             PostService postService,
+            GroupBoardAccessService groupBoardAccess,
             UserService userService)
         {
             _repo = repo;
             _db = db;
             _httpContextAccessor = httpContextAccessor;
             _postService = postService;
+            _groupBoardAccess = groupBoardAccess;
             _userService = userService;
         }
 
@@ -49,6 +53,10 @@ namespace Api.Domain.Comments.Service
             await _userService.EnsureUserExistsAsync(userId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
 
+            var post = await _db.Posts.FindAsync(request.PostId);
+            if (post?.GroupId is not null && post.GroupBoardId is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+
             if (request.ParentId.HasValue)
             {
                 var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found", StatusCodes.Status400BadRequest);
@@ -68,12 +76,21 @@ namespace Api.Domain.Comments.Service
         {
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) return null;
+            if (comment.PostId is not null)
+            {
+                var post = await _db.Posts.FindAsync(comment.PostId.Value);
+                if (post?.GroupId is not null && post.GroupBoardId is not null)
+                    await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            }
             return MapToDto(comment);
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
         {
             await _postService.EnsurePostExistsAsync(postId);
+            var post = await _db.Posts.FindAsync(postId);
+            if (post?.GroupId is not null && post.GroupBoardId is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
             return BuildCommentTree(comments);
