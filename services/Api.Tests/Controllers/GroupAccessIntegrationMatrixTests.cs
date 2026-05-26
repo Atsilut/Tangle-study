@@ -1,13 +1,14 @@
+using System.Net;
+using System.Net.Http.Json;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
-using Api.Global.Exceptions;
+using Api.Tests.Infrastructure;
 
-namespace Api.Tests.Services;
+namespace Api.Tests.Controllers;
 
-public sealed class GroupMatrixTests
+public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixture postgres)
+    : GroupIntegrationMatrixTestBase(postgres)
 {
-    // --- Access matrix ---
-
     public static TheoryData<GroupVisibility, GroupActorRole, GroupReadOperation, GroupExpectedOutcome> AccessMatrixData =>
         new()
         {
@@ -30,38 +31,35 @@ public sealed class GroupMatrixTests
         GroupReadOperation operation,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"acc_{Guid.NewGuid():N}"[..8]);
+        var scenario = await CreateScenarioAsync($"acc_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(visibility, includeAdmin: true, includeMember: true);
-        scenario.LoginAs(actor);
+        await scenario.LoginAsAsync(actor);
+
+        var path = operation == GroupReadOperation.GetGroup
+            ? $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}"
+            : $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members";
+        var res = await Client.GetAsync(path);
 
         if (expected == GroupExpectedOutcome.Ok)
         {
+            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
             if (operation == GroupReadOperation.GetGroup)
             {
-                var dto = await scenario.GroupService.GetGroupAsync(group.Id);
-                Assert.Equal(group.Id, dto.Id);
+                var dto = await res.Content.ReadFromJsonAsync<GroupResponseDto>();
+                Assert.Equal(group.Id, dto!.Id);
             }
             else
             {
-                var members = await scenario.MembershipService.GetMembersAsync(group.Id);
+                var members = await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>();
                 Assert.NotNull(members);
                 Assert.True(members!.Count >= 1);
             }
         }
         else
         {
-            var ex = await Assert.ThrowsAsync<EntityNotFoundException>(async () =>
-            {
-                if (operation == GroupReadOperation.GetGroup)
-                    await scenario.GroupService.GetGroupAsync(group.Id);
-                else
-                    await scenario.MembershipService.GetMembersAsync(group.Id);
-            });
-            Assert.Equal("Group not found", ex.Message);
+            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
         }
     }
-
-    // --- Management matrix ---
 
     public static TheoryData<GroupActorRole, GroupManagementAction, GroupExpectedOutcome> ManagementMatrixData =>
         new()
@@ -88,101 +86,63 @@ public sealed class GroupMatrixTests
         GroupManagementAction action,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"mgmt_{Guid.NewGuid():N}"[..8]);
+        var scenario = await CreateScenarioAsync($"mgmt_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
-        scenario.LoginAs(caller);
+        await scenario.LoginAsAsync(caller);
 
+        HttpResponseMessage res;
         switch (action)
         {
             case GroupManagementAction.Update:
-                await AssertManagementOutcomeAsync(
-                    expected,
-                    () => scenario.GroupService.UpdateGroupAsync(new GroupPatchRequestDto
-                    {
-                        Id = group.Id,
-                        Name = "Updated",
-                        Description = "desc",
-                        Visibility = GroupVisibility.Public,
-                    }),
-                    () => scenario.GroupService.UpdateGroupAsync(new GroupPatchRequestDto
-                    {
-                        Id = group.Id,
-                        Name = "x",
-                        Description = "y",
-                        Visibility = GroupVisibility.Public,
-                    }));
+                res = await Client.PatchAsJsonAsync(GroupIntegrationTestHelpers.GroupsBase, new GroupPatchRequestDto
+                {
+                    Id = group.Id,
+                    Name = expected == GroupExpectedOutcome.Ok ? "Updated" : "x",
+                    Description = "desc",
+                    Visibility = GroupVisibility.Public,
+                });
+                if (expected == GroupExpectedOutcome.Ok)
+                    await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+                else
+                    await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
                 break;
             case GroupManagementAction.Delete:
-                await AssertManagementOutcomeAsync(
-                    expected,
-                    async () =>
-                    {
-                        await scenario.GroupService.DeleteGroupAsync(group.Id);
-                        Assert.Null(await scenario.GroupRepository.GetGroupByIdAsync(group.Id));
-                    },
-                    () => scenario.GroupService.DeleteGroupAsync(group.Id));
+                res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+                if (expected == GroupExpectedOutcome.Ok)
+                {
+                    await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+                    await scenario.LoginAsAsync(GroupActorRole.Owner);
+                    var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+                    await IntegrationAssertions.AssertStatusAsync(get, HttpStatusCode.NotFound);
+                }
+                else
+                    await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
                 break;
             case GroupManagementAction.TransferToMember:
-                await AssertManagementOutcomeAsync(
-                    expected,
-                    async () =>
-                    {
-                        await scenario.GroupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto
-                        {
-                            Id = group.Id,
-                            NewOwnerUserId = scenario.Member.Id,
-                        });
-                        await scenario.AssertMemberRoleAsync(group.Id, scenario.Member.Id, GroupRole.Owner);
-                    },
-                    () => scenario.GroupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto
-                    {
-                        Id = group.Id,
-                        NewOwnerUserId = scenario.Member.Id,
-                    }));
+                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id });
+                if (expected == GroupExpectedOutcome.Ok)
+                {
+                    await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+                    await scenario.AssertMemberRoleAsync(group.Id, scenario.Member.Id, GroupRole.Owner);
+                }
+                else
+                    await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
                 break;
             case GroupManagementAction.TransferToSelf:
-                await Assert.ThrowsAsync<ArgumentException>(() =>
-                    scenario.GroupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto
-                    {
-                        Id = group.Id,
-                        NewOwnerUserId = scenario.Owner.Id,
-                    }));
+                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Owner.Id });
+                await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
                 break;
             case GroupManagementAction.TransferToStranger:
-                await Assert.ThrowsAsync<ArgumentException>(() =>
-                    scenario.GroupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto
-                    {
-                        Id = group.Id,
-                        NewOwnerUserId = scenario.Stranger.Id,
-                    }));
+                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id });
+                await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(action), action, null);
         }
     }
-
-    private static async Task AssertManagementOutcomeAsync(
-        GroupExpectedOutcome expected,
-        Func<Task> successAct,
-        Func<Task> denyAct)
-    {
-        switch (expected)
-        {
-            case GroupExpectedOutcome.Ok:
-                await successAct();
-                break;
-            case GroupExpectedOutcome.Unauthorized:
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(denyAct);
-                break;
-            case GroupExpectedOutcome.ArgumentException:
-                await Assert.ThrowsAsync<ArgumentException>(denyAct);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(expected), expected, null);
-        }
-    }
-
-    // --- Remove member matrix ---
 
     public static TheoryData<GroupActorRole, GroupTargetRole, GroupExpectedOutcome> RemoveMemberMatrixData =>
         new()
@@ -206,36 +166,24 @@ public sealed class GroupMatrixTests
         GroupTargetRole target,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"rm_{Guid.NewGuid():N}"[..8]);
+        var scenario = await CreateScenarioAsync($"rm_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var targetUserId = scenario.ResolveTargetUserId(target, caller);
-        scenario.LoginAs(caller);
+        await scenario.LoginAsAsync(caller);
 
-        switch (expected)
+        var res = await Client.DeleteAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{targetUserId}");
+
+        if (expected == GroupExpectedOutcome.Ok)
         {
-            case GroupExpectedOutcome.Ok:
-                await scenario.MembershipService.RemoveMemberAsync(group.Id, targetUserId);
-                await scenario.AssertMemberAbsentAsync(group.Id, targetUserId);
-                break;
-            case GroupExpectedOutcome.Unauthorized:
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                    scenario.MembershipService.RemoveMemberAsync(group.Id, targetUserId));
-                break;
-            case GroupExpectedOutcome.ArgumentException:
-                await Assert.ThrowsAsync<ArgumentException>(() =>
-                    scenario.MembershipService.RemoveMemberAsync(group.Id, targetUserId));
-                break;
-            case GroupExpectedOutcome.NotFound:
-                var ex = await Assert.ThrowsAsync<EntityNotFoundException>(() =>
-                    scenario.MembershipService.RemoveMemberAsync(group.Id, targetUserId));
-                Assert.Equal("Group not found", ex.Message);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(expected), expected, null);
+            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+            await scenario.LoginAsAsync(GroupActorRole.Owner);
+            var members = await scenario.GetMembersAsync(group.Id);
+            Assert.DoesNotContain(members, m => m.UserId == targetUserId);
         }
+        else
+            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
-
-    // --- Update role matrix ---
 
     public static TheoryData<GroupActorRole, GroupTargetRole, GroupRole, GroupExpectedOutcome> UpdateRoleMatrixData =>
         new()
@@ -257,46 +205,35 @@ public sealed class GroupMatrixTests
         GroupRole newRole,
         GroupExpectedOutcome expected)
     {
-        var scenario = await GroupTestScenario.CreateAsync($"role_{Guid.NewGuid():N}"[..8]);
+        var scenario = await CreateScenarioAsync($"role_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var targetUserId = scenario.ResolveTargetUserId(target, caller);
-        scenario.LoginAs(caller);
+        await scenario.LoginAsAsync(caller);
 
-        var patch = new GroupMemberRolePatchRequestDto { Role = newRole };
+        var res = await Client.PatchAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{targetUserId}",
+            new GroupMemberRolePatchRequestDto { Role = newRole });
 
-        switch (expected)
+        if (expected == GroupExpectedOutcome.Ok)
         {
-            case GroupExpectedOutcome.Ok:
-                var result = await scenario.MembershipService.UpdateRoleAsync(group.Id, targetUserId, patch);
-                Assert.Equal(newRole, result.Role);
-                break;
-            case GroupExpectedOutcome.Unauthorized:
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                    scenario.MembershipService.UpdateRoleAsync(group.Id, targetUserId, patch));
-                break;
-            case GroupExpectedOutcome.ArgumentException:
-                await Assert.ThrowsAsync<ArgumentException>(() =>
-                    scenario.MembershipService.UpdateRoleAsync(group.Id, targetUserId, patch));
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(expected), expected, null);
+            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+            var body = await res.Content.ReadFromJsonAsync<GroupMemberResponseDto>();
+            Assert.Equal(newRole, body!.Role);
         }
+        else
+            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
-
-    // --- Multi-step facts ---
 
     [Fact]
     public async Task TransferOwnership_SwapsOwnerAndPriorOwnerBecomesAdmin()
     {
-        var scenario = await GroupTestScenario.CreateAsync("xfer");
+        var scenario = await CreateScenarioAsync("xfer");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
-        scenario.LoginAs(GroupActorRole.Owner);
+        await scenario.LoginAsAsync(GroupActorRole.Owner);
 
-        await scenario.GroupService.TransferOwnershipAsync(new GroupTransferOwnershipRequestDto
-        {
-            Id = group.Id,
-            NewOwnerUserId = scenario.Member.Id,
-        });
+        var res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+            new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id });
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
         await scenario.AssertMemberRoleAsync(group.Id, scenario.Owner.Id, GroupRole.Admin);
         await scenario.AssertMemberRoleAsync(group.Id, scenario.Member.Id, GroupRole.Owner);
@@ -305,13 +242,14 @@ public sealed class GroupMatrixTests
     [Fact]
     public async Task DeleteGroup_RemovesAllMemberships()
     {
-        var scenario = await GroupTestScenario.CreateAsync("del");
+        var scenario = await CreateScenarioAsync("del");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
-        scenario.LoginAs(GroupActorRole.Owner);
+        await scenario.LoginAsAsync(GroupActorRole.Owner);
 
-        await scenario.GroupService.DeleteGroupAsync(group.Id);
+        var res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
-        Assert.Null(await scenario.GroupRepository.GetGroupByIdAsync(group.Id));
-        Assert.Empty(await scenario.GroupMemberRepository.GetMembersByGroupAsync(group.Id));
+        var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        await IntegrationAssertions.AssertStatusAsync(get, HttpStatusCode.NotFound);
     }
 }

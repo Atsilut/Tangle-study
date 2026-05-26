@@ -79,6 +79,7 @@ internal static class DomainServiceTestFactory
             db,
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
+            new Lazy<GroupMembershipService>(() => groupMembershipService),
             http);
 
         groupMembershipService = new GroupMembershipService(

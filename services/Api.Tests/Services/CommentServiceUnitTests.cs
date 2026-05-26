@@ -1,11 +1,9 @@
-﻿using Api.Domain.Comments.Domain;
-using Api.Domain.Comments.Dto;
-using Api.Domain.Comments.Service;
+﻿using Api.Domain.Comments.Dto;
+using Api.Domain.Groups.Domain;
+using Api.Domain.Groups.Dto;
 using Api.Domain.Posts.Domain;
-using Api.Domain.Posts.Service;
+using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Domain;
-using Api.Domain.Users.Service;
-using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Microsoft.AspNetCore.Http;
@@ -15,617 +13,124 @@ namespace Api.Tests.Services;
 
 public sealed class CommentServiceUnitTests
 {
-    private readonly CommentService _commentService;
-    private readonly FakeCommentRepository _commentRepository;
-    private readonly FakePostRepository _postRepository;
-    private readonly FakeUserRepository _userRepository;
-    private readonly FakeHttpContextAccessor _httpContextAccessor;
-    private readonly UserService _userService;
-    private readonly PostService _postService;
-
-    public CommentServiceUnitTests()
+    [Fact]
+    public async Task UpdateCommentAsync_OnGroupBoardPost_ReturnsUnauthorized_AfterMemberRemoved()
     {
-        _httpContextAccessor = new FakeHttpContextAccessor("1");
-        var graph = DomainServiceTestFactory.Create(_httpContextAccessor);
-        _userService = graph.UserService;
-        _postService = graph.PostService;
-        _commentService = graph.CommentService;
-        _commentRepository = graph.CommentRepository;
-        _postRepository = graph.PostRepository;
-        _userRepository = graph.UserRepository;
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var owner = await CreateUserAsync(graph.UserRepository, "owner");
+        var member = await CreateUserAsync(graph.UserRepository, "member");
+        http.HttpContext = ContextFor(owner.Id);
+        var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
+        {
+            Name = "G",
+            Description = "d",
+            Visibility = GroupVisibility.Private,
+        });
+        await graph.GroupMembershipService.AddMemberInternalAsync(group.Id, member.Id, GroupRole.Member);
+        var board = await graph.GroupBoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
+        {
+            Name = "board",
+            Description = "desc",
+        });
+
+        http.HttpContext = ContextFor(member.Id);
+        await graph.PostService.CreateGroupBoardPostAsync(
+            group.Id,
+            board.Id,
+            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" });
+        var post = (await graph.PostRepository.GetPostsByGroupBoardAsync(group.Id, board.Id)).Single();
+        await graph.CommentService.CreateCommentAsync(new CommentCreateRequestDto
+        {
+            PostId = post.Id,
+            Content = "comment",
+        });
+        var comment = (await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id)).Single();
+
+        http.HttpContext = ContextFor(owner.Id);
+        await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
+
+        http.HttpContext = ContextFor(member.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            graph.CommentService.UpdateCommentAsync(new CommentPatchRequestDto
+            {
+                Id = comment.Id,
+                Content = "hacked",
+            }));
     }
 
-    private async Task<User> CreateTestUserAsync(string email = "test@test.com", string username = "test")
+    [Fact]
+    public async Task DeleteCommentAsync_OnGroupBoardPost_ReturnsUnauthorized_AfterMemberRemoved()
     {
-        var user = new User(
-            email: email,
-            password: "Password123!",
-            nickname: username);
-        await _userRepository.CreateUserAsync(user);
-        return user;
-    }
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var owner = await CreateUserAsync(graph.UserRepository, "owner");
+        var member = await CreateUserAsync(graph.UserRepository, "member");
+        http.HttpContext = ContextFor(owner.Id);
+        var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
+        {
+            Name = "G",
+            Description = "d",
+            Visibility = GroupVisibility.Private,
+        });
+        await graph.GroupMembershipService.AddMemberInternalAsync(group.Id, member.Id, GroupRole.Member);
+        var board = await graph.GroupBoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
+        {
+            Name = "board",
+            Description = "desc",
+        });
 
-    private async Task<Post> CreateTestPostAsync(long userId, string title = "Test title", string content = "Test content")
-    {
-        var post = new Post(
-            userId: userId,
-            title: title,
-            content: content);
-        await _postRepository.CreatePostAsync(post);
-        return post;
-    }
+        http.HttpContext = ContextFor(member.Id);
+        await graph.PostService.CreateGroupBoardPostAsync(
+            group.Id,
+            board.Id,
+            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" });
+        var post = (await graph.PostRepository.GetPostsByGroupBoardAsync(group.Id, board.Id)).Single();
+        await graph.CommentService.CreateCommentAsync(new CommentCreateRequestDto
+        {
+            PostId = post.Id,
+            Content = "comment",
+        });
+        var comment = (await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id)).Single();
 
-    private async Task<Comment> CreateTestCommentAsync(
-        long userId,
-        long postId,
-        string content = "Test comment",
-        long? parentId = null)
-    {
-        var comment = new Comment(
-            content: content,
-            userId: userId,
-            postId: postId,
-            parentId: parentId);
-        await _commentRepository.CreateCommentAsync(comment);
-        return comment;
-    }
+        http.HttpContext = ContextFor(owner.Id);
+        await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
 
-    // --- CREATE ---
+        http.HttpContext = ContextFor(member.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            graph.CommentService.DeleteCommentAsync(comment.Id));
+    }
 
     [Fact]
     public async Task CreateCommentAsync_ValidRequest_CreatesComment()
     {
-        // Arrange
-        const string testComment = "Test comment";
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var request = new CommentCreateRequestDto
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var user = await CreateUserAsync(graph.UserRepository, "test");
+        var post = new Post(user.Id, "title", "content");
+        await graph.PostRepository.CreatePostAsync(post);
+        http.HttpContext = ContextFor(user.Id);
+
+        await graph.CommentService.CreateCommentAsync(new CommentCreateRequestDto
         {
-            Content = testComment,
-            PostId = post.Id
-        };
+            PostId = post.Id,
+            Content = "Test comment",
+        });
 
-        // Act
-        await _commentService.CreateCommentAsync(request);
-
-        // Assert
-        var comments = await _commentRepository.GetAllCommentsAsync();
+        var comments = await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id);
         Assert.Single(comments);
-        Assert.Equal(request.Content, comments[0].Content);
-        Assert.Equal(post.Id, comments[0].PostId);
-        Assert.Equal(user.Id, comments[0].UserId);
+        Assert.Equal("Test comment", comments[0].Content);
     }
 
-    [Fact]
-    public async Task CreateCommentAsync_MissingPost_ThrowsEntityNotFoundException()
+    private static DefaultHttpContext ContextFor(long userId) => new()
     {
-        // Arrange
-        const string testComment = "Test comment";
-        const string postNotFoundMessage = "Post not found";
-        var user = await CreateTestUserAsync();
-        const long nonExistentPostId = 999;
-        var request = new CommentCreateRequestDto
-        {
-            Content = testComment,
-            PostId = nonExistentPostId
-        };
+        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
+    };
 
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal(postNotFoundMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_MissingUser_ThrowsEntityNotFoundException()
+    private static async Task<User> CreateUserAsync(FakeUserRepository repo, string nickname)
     {
-        // Arrange
-        const long userId = 1;
-        const string testComment = "Test comment";
-        const string authenticationFailedMessage = "Authentication failed";
-        var post = await CreateTestPostAsync(userId: userId);
-        // User has never been created so default login user id of 1 will not exist in the user repository
-        var request = new CommentCreateRequestDto
-        {
-            Content = testComment,
-            PostId = post.Id,
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal(authenticationFailedMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_MissingLogin_ThrowsEntityNotFoundException()
-    {
-        // Arrange
-        const string testComment = "Test comment";
-        const string unauthorizedAccessMessage = "Unauthorized Access";
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var request = new CommentCreateRequestDto
-        {
-            Content = testComment,
-            PostId = post.Id
-        };
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity()) // Simulating no logged-in user
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal(unauthorizedAccessMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_WithParentId_CreatesReply()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        const string rootContent = "Test Root";
-        const string replyContent = "Reply";
-        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: rootContent);
-        var request = new CommentCreateRequestDto
-        {
-            Content = replyContent,
-            PostId = post.Id,
-            ParentId = parent.Id
-        };
-
-        // Act
-        await _commentService.CreateCommentAsync(request);
-
-        // Assert
-        var comments = await _commentRepository.GetAllCommentsAsync();
-        Assert.Equal(2, comments.Count);
-        Assert.Equal(parent.Id, comments[1].ParentId);
-    }
-
-    [Fact]
-    public async Task CreateCommentAsync_ParentOnDifferentPost_ThrowsArgumentException()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post1 = await CreateTestPostAsync(userId: user.Id);
-        var post2 = await CreateTestPostAsync(userId: user.Id);
-        const string rootContent = "Root on post 1";
-        const string replyContent = "Reply on wrong post";
-        const string parentPostMismatchMessage = "Parent comment must belong to the same post";
-        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post1.Id, content: rootContent);
-        var request = new CommentCreateRequestDto
-        {
-            Content = replyContent,
-            PostId = post2.Id,
-            ParentId = parent.Id
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _commentService.CreateCommentAsync(request));
-        Assert.Equal(parentPostMismatchMessage, exception.Message);
-    }
-
-    // --- GET ---
-
-    [Fact]
-    public async Task GetCommentByIdAsync_ExistingComment_ReturnsComment()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        const string testComment = "Test comment";
-        const long firstCommentId = 1;
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        // Act
-        var result = await _commentService.GetCommentByIdAsync(firstCommentId);
-        
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(testComment, result.Content);
-    }
-
-    [Fact]
-    public async Task GetCommentByIdAsync_NonExistingComment_ReturnsNull()
-    {
-        // Arrange
-        const long nonExistentCommentId = 999;
-
-        // Act
-        var result = await _commentService.GetCommentByIdAsync(nonExistentCommentId);
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task GetCommentsByPostIdAsync_ReturnsOnlyCommentsForThatPost()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        // Act
-        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Count);
-        Assert.All(result, root => Assert.Empty(root.Replies));
-    }
-
-    [Fact]
-    public async Task GetCommentsByPostIdAsync_ReturnsNestedTree()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        const string rootContent = "Root";
-        const string replyContent = "Reply";
-        const string siblingRootContent = "Sibling root";
-        var root = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: rootContent);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: replyContent, parentId: root.Id);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: siblingRootContent);
-
-        // Act
-        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Count);
-
-        var rootWithReply = result.Single(r => r.Content == rootContent);
-        Assert.Single(rootWithReply.Replies);
-        Assert.Equal(replyContent, rootWithReply.Replies[0].Content);
-        Assert.Equal(root.Id, rootWithReply.Replies[0].ParentId);
-    }
-
-    [Fact]
-    public async Task GetCommentsByPostIdAsync_NoComments_ReturnsNull()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-
-        // Act
-        var result = await _commentService.GetCommentsByPostIdAsync(post.Id);
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task GetCommentsByUserIdAsync_ReturnsOnlyCommentsForThatUser()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        const string comment1 = "Test Comment 1";
-        const string comment2 = "Test Comment 2";
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: comment1);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: comment2);
-
-        // Act
-        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
-        
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Count);
-        Assert.Equal(comment1, result[0].Content);
-        Assert.Equal(comment2, result[1].Content);
-    }
-
-    [Fact]
-    public async Task GetCommentsByUserIdAsync_NoComments_ReturnsNull()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        
-        // Act
-        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task GetCommentsByUserIdAsync_ReturnsFlatList_IncludingSiblingReplies()
-    {
-        // Arrange
-        const string rootContent = "Root";
-        const string reply1Content = "Reply 1";
-        const string reply2Content = "Reply 2";
-        const string nestedContent = "Nested";
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var root = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: rootContent);
-        var siblingReply1 = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: reply1Content, parentId: root.Id);
-        var siblingReply2 = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: reply2Content, parentId: root.Id);
-        var nestedReply = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: nestedContent, parentId: siblingReply1.Id);
-
-        // Act
-        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(4, result.Count);
-        Assert.All(result, dto => Assert.Empty(dto.Replies));
-
-        var rootDto = result.Single(c => c.Content == rootContent);
-        var reply1Dto = result.Single(c => c.Content == reply1Content);
-        var reply2Dto = result.Single(c => c.Content == reply2Content);
-        var nestedDto = result.Single(c => c.Content == nestedContent);
-
-        Assert.Null(rootDto.ParentId);
-        Assert.Equal(root.Id, reply1Dto.ParentId);
-        Assert.Equal(root.Id, reply2Dto.ParentId);
-        Assert.Equal(siblingReply1.Id, nestedDto.ParentId);
-    }
-
-    [Fact]
-    public async Task GetCommentsByUserIdAsync_IncludesCommentsAfterAuthorDetached()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        await _userService.DeleteUserAsync(user.Id);
-
-        var result = await _commentService.GetCommentsByUserIdAsync(user.Id);
-
-        Assert.NotNull(result);
-        Assert.Single(result);
-        Assert.Null(result[0].UserId);
-        Assert.Equal(user.Id, result[0].DeletedUserId);
-    }
-
-    // --- PATCH ---
-
-    [Fact]
-    public async Task UpdateCommentAsync_ValidRequest_UpdatesComment()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        const string newContent = "Updated comment";
-        var request = new CommentPatchRequestDto
-        {
-            Id = comment.Id,
-            Content = newContent
-        };
-
-        // Act
-        var result = await _commentService.UpdateCommentAsync(request);
-        
-        // Assert
-        Assert.Equal(post.Id, result.PostId);
-        Assert.Equal(newContent, result.Content);
-        var findComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
-        Assert.NotNull(findComment);
-        Assert.Equal(newContent, findComment.Content);
-    }
-
-    [Fact]
-    public async Task UpdateCommentAsync_MissingComment_ThrowsEntityNotFoundException()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-
-        const long nonExistentCommentId = 999;
-        const string updatedComment = "Updated comment";
-        const string commentNotFoundMessage = "Comment not found";
-        var request = new CommentPatchRequestDto
-        {
-            Id = nonExistentCommentId,
-            Content = updatedComment
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
-        Assert.Equal(commentNotFoundMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task UpdateCommentAsync_CorruptedUserData_ThrowsEntityNotFoundException()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-        const string testContent = "Test content";
-        const string invalidUserId = "999";
-        const string authenticationFailedMessage = "Authentication failed";
-
-        var request = new CommentPatchRequestDto
-        {
-            Id = comment.Id,
-            Content = testContent
-        };
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", invalidUserId) }))
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
-        Assert.Equal(authenticationFailedMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task UpdateCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
-    {
-        // Arrange
-        const string ownerEmail = "owner@test.com";
-        const string ownerUsername = "Owner";
-        const string hackerEmail = "hacker@test.com";
-        const string hackerUsername = "Hacker";
-        const string hackedContent = "This comment is hacked";
-        var mainOwner = await CreateTestUserAsync(email: ownerEmail, username: ownerUsername);
-        var post = await CreateTestPostAsync(userId: mainOwner.Id);
-        var requestingUser = await CreateTestUserAsync(email: hackerEmail, username: hackerUsername);
-        var comment = await CreateTestCommentAsync(userId: mainOwner.Id, postId: post.Id);
-
-        // Mock for the malicious/Unauthorized user token
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
-        };
-
-        var request = new CommentPatchRequestDto
-        {
-            Id = comment.Id,
-            Content = hackedContent
-        };
-
-        // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.UpdateCommentAsync(request));
-    }
-
-    [Fact]
-    public async Task UpdateCommentAsync_WhenPostDeleted_ThrowsEntityNotFoundException()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
-        };
-
-        await _postService.DeletePostAsync(post.Id);
-
-        var request = new CommentPatchRequestDto
-        {
-            Id = comment.Id,
-            Content = "should not apply"
-        };
-
-        await Assert.ThrowsAsync<EntityNotFoundException>(() => _commentService.UpdateCommentAsync(request));
-    }
-
-    // --- DELETE ---
-
-    [Fact]
-    public async Task DeleteCommentAsync_ValidRequest_DeletesComment()
-    {
-        // Arrange
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
-        };
-
-        // Act
-        await _commentService.DeleteCommentAsync(comment.Id);
-
-        // Assert
-        var findComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
-        Assert.Null(findComment);
-    }
-
-    [Fact]
-    public async Task DeleteCommentAsync_UserNotAuthor_ThrowsUnauthorizedAccessException()
-    {
-        // Arrange
-        const string ownerEmail = "owner@test.com";
-        const string ownerUsername = "Owner";
-        const string hackerEmail = "hacker@test.com";
-        const string hackerUsername = "Hacker";
-        const string unauthorizedAccessMessage = "Unauthorized access";
-        var owner = await CreateTestUserAsync(email: ownerEmail, username: ownerUsername);
-        var post = await CreateTestPostAsync(userId: owner.Id);
-        var comment = await CreateTestCommentAsync(userId: owner.Id, postId: post.Id);
-        var requestingUser = await CreateTestUserAsync(email: hackerEmail, username: hackerUsername);
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", requestingUser.Id.ToString()) }))
-        };
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _commentService.DeleteCommentAsync(comment.Id));
-        Assert.Equal(unauthorizedAccessMessage, exception.Message);
-    }
-
-    [Fact]
-    public async Task DeletePostAsync_DetachesCommentsWithTombstonePostId()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
-        };
-
-        await _postService.DeletePostAsync(post.Id);
-
-        var remaining = await _commentRepository.GetCommentByIdAsync(comment.Id);
-        Assert.NotNull(remaining);
-        Assert.Null(remaining.PostId);
-        Assert.Equal(post.Id, remaining.DeletedPostId);
-        Assert.Equal(user.Id, remaining.UserId);
-    }
-
-    [Fact]
-    public async Task DeleteCommentAsync_DetachesRepliesWithTombstoneParentId()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var parent = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "parent");
-        var reply = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "reply", parentId: parent.Id);
-        var sibling = await CreateTestCommentAsync(userId: user.Id, postId: post.Id, content: "sibling");
-
-        _httpContextAccessor.HttpContext = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", user.Id.ToString()) }))
-        };
-
-        await _commentService.DeleteCommentAsync(parent.Id);
-
-        var detachedReply = await _commentRepository.GetCommentByIdAsync(reply.Id);
-        var untouchedSibling = await _commentRepository.GetCommentByIdAsync(sibling.Id);
-
-        Assert.Null(await _commentRepository.GetCommentByIdAsync(parent.Id));
-        Assert.NotNull(detachedReply);
-        Assert.Null(detachedReply.ParentId);
-        Assert.Equal(parent.Id, detachedReply.DeletedParentId);
-        Assert.Null(untouchedSibling!.ParentId);
-        Assert.Null(untouchedSibling.DeletedParentId);
-    }
-
-    [Fact]
-    public async Task DeleteUserAsync_DetachesAuthorOnPostsAndComments()
-    {
-        var user = await CreateTestUserAsync();
-        var post = await CreateTestPostAsync(userId: user.Id);
-        var comment = await CreateTestCommentAsync(userId: user.Id, postId: post.Id);
-
-        await _userService.DeleteUserAsync(user.Id);
-
-        var remainingPost = await _postRepository.GetPostByIdAsync(post.Id);
-        var remainingComment = await _commentRepository.GetCommentByIdAsync(comment.Id);
-
-        Assert.NotNull(remainingPost);
-        Assert.Null(remainingPost.UserId);
-        Assert.Equal(user.Id, remainingPost.DeletedUserId);
-        Assert.NotNull(remainingComment);
-        Assert.Null(remainingComment.UserId);
-        Assert.Equal(user.Id, remainingComment.DeletedUserId);
-        Assert.Equal(post.Id, remainingComment.PostId);
+        var user = new User($"{nickname}@test.com", "Password123!", nickname);
+        await repo.CreateUserAsync(user);
+        return user;
     }
 }

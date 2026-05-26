@@ -1,0 +1,57 @@
+using System.Net;
+using Api.Domain.Groups.Domain;
+using Api.Tests.Infrastructure;
+
+namespace Api.Tests.Controllers;
+
+public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixture postgres)
+    : GroupIntegrationMatrixTestBase(postgres)
+{
+    [Fact]
+    public async Task DeleteUser_AsSoleGroupOwner_DeletesGroup()
+    {
+        var scenario = await CreateScenarioAsync("user_del_sole");
+        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, scenario.Owner);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
+
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}");
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
+
+        await scenario.LoginAsAsync(GroupActorRole.Stranger);
+        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getGroup.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUser_AsGroupOwnerWithAdmin_TransfersOwnership()
+    {
+        var scenario = await CreateScenarioAsync("user_del_xfer");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
+
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}");
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Admin);
+        var members = await scenario.GetMembersAsync(group.Id);
+        Assert.DoesNotContain(members, m => m.UserId == scenario.Owner.Id);
+        var owner = Assert.Single(members, m => m.Role == GroupRole.Owner);
+        Assert.Equal(scenario.Admin.Id, owner.UserId);
+    }
+
+    [Fact]
+    public async Task DeleteUser_AsMember_RemovesMembershipOnly()
+    {
+        var scenario = await CreateScenarioAsync("user_del_member");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Member);
+
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Member.Id}");
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
+        await scenario.AssertMemberAbsentAsync(group.Id, scenario.Member.Id);
+        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        await IntegrationAssertions.AssertStatusAsync(getGroup, HttpStatusCode.OK);
+    }
+}

@@ -17,9 +17,9 @@ public static class AppDbContextTestExtensions
         await db.GroupApplications.ExecuteDeleteAsync();
         await db.GroupInvitations.ExecuteDeleteAsync();
         await db.GroupBlacklists.ExecuteDeleteAsync();
-        await db.GroupBoards.ExecuteDeleteAsync();
         await db.Comments.ExecuteDeleteAsync();
         await db.Posts.ExecuteDeleteAsync();
+        await db.GroupBoards.ExecuteDeleteAsync();
         await db.Groups.ExecuteDeleteAsync();
         await db.Users.ExecuteDeleteAsync();
         db.ChangeTracker.Clear();

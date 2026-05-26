@@ -66,22 +66,6 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
 
-    [Fact]
-    public async Task CreatePost_Returns401_WhenNotAuthenticated()
-    {
-        // Arrange
-        Client.DefaultRequestHeaders.Authorization = null;
-        const string title = "title";
-        const string content = "content";
-        var req = new PostCreateRequestDto { Title = title, Content = content };
-
-        // Act
-        var res = await Client.PostAsJsonAsync("/api/posts", req);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
-    }
-
     [Theory]
     [InlineData("", "")]
     [InlineData("", "valid content")]

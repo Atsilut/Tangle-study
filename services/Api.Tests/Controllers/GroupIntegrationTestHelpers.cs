@@ -8,6 +8,9 @@ using Api.Domain.Users.Dto;
 using Api.Global.Db;
 using Api.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using GroupInvitationEntity = Api.Domain.Groups.Domain.GroupInvitation;
+using GroupApplicationEntity = Api.Domain.Groups.Domain.GroupApplication;
+using GroupBoardEntity = Api.Domain.Groups.Domain.GroupBoard;
 
 namespace Api.Tests.Controllers;
 
@@ -90,5 +93,52 @@ internal static class GroupIntegrationTestHelpers
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.GroupMembers.Add(new GroupMember(groupId, userId, role));
         await db.SaveChangesAsync();
+    }
+
+    public static async Task<GroupInvitationEntity> SeedInvitationAsync(
+        ApiWebApplicationFactory factory,
+        long groupId,
+        long inviterId,
+        long inviteeId,
+        bool isPending = true)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var invitation = new GroupInvitationEntity(groupId, inviterId, inviteeId);
+        if (!isPending)
+            invitation.Ignore();
+        db.GroupInvitations.Add(invitation);
+        await db.SaveChangesAsync();
+        return invitation;
+    }
+
+    public static async Task<GroupApplicationEntity> SeedApplicationAsync(
+        ApiWebApplicationFactory factory,
+        long groupId,
+        long applicantId,
+        bool isPending = true)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var application = new GroupApplicationEntity(groupId, applicantId);
+        if (!isPending)
+            application.Ignore();
+        db.GroupApplications.Add(application);
+        await db.SaveChangesAsync();
+        return application;
+    }
+
+    public static async Task<GroupBoardEntity> SeedBoardAsync(
+        ApiWebApplicationFactory factory,
+        long groupId,
+        string name,
+        BoardVisibility visibility)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var board = new GroupBoardEntity(groupId, name, visibility);
+        db.GroupBoards.Add(board);
+        await db.SaveChangesAsync();
+        return board;
     }
 }

@@ -7,10 +7,10 @@ using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
-public sealed class GroupApplicationServiceUnitTests
+public sealed class GroupJoinResolutionServiceUnitTests
 {
     [Fact]
-    public async Task Apply_CreatesPendingApplication()
+    public async Task CreateMembershipFromJoinRequests_AddsMemberRole()
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
@@ -22,14 +22,14 @@ public sealed class GroupApplicationServiceUnitTests
             Name = "G",
             Description = "d",
             Visibility = GroupVisibility.Public,
-            JoinPolicy = GroupJoinPolicy.Requestable,
+            JoinPolicy = GroupJoinPolicy.Open,
         });
-        http.HttpContext = ContextFor(stranger.Id);
 
-        var result = await graph.GroupApplicationService.ApplyAsync(group.Id);
+        await graph.GroupJoinResolutionService.CreateMembershipFromJoinRequestsAsync(group.Id, stranger.Id);
 
-        Assert.Equal(GroupApplicationOutcome.GroupApplicationCreated, result.Outcome);
-        Assert.NotNull(await graph.GroupApplicationRepository.GetPendingForUserAsync(group.Id, stranger.Id));
+        var member = await graph.GroupMemberRepository.GetMemberAsync(group.Id, stranger.Id);
+        Assert.NotNull(member);
+        Assert.Equal(GroupRole.Member, member!.Role);
     }
 
     private static DefaultHttpContext ContextFor(long userId) => new()

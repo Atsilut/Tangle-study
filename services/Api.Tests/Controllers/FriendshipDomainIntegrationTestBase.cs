@@ -5,7 +5,10 @@ using Api.Domain.Friendships.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
+using Api.Global.Db;
 using Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests.Controllers;
 
@@ -113,5 +116,112 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         await LoginAs(addressee);
         var res = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+    }
+
+    protected async Task ApplyFriendshipSetupStepsAsync(
+        UserGetResponseDto userA,
+        UserGetResponseDto userB,
+        IReadOnlyList<FriendshipSetupStep> steps)
+    {
+        long? requestId = null;
+        foreach (var step in steps)
+        {
+            switch (step)
+            {
+                case FriendshipSetupStep.SendAtoB:
+                    requestId = await SendFriendRequestAndGetOutgoingIdAsync(userA, userB);
+                    break;
+                case FriendshipSetupStep.IgnoreByB:
+                    await LoginAs(userB);
+                    requestId = (await GetPendingRequestAsync(userA.Id, isIncoming: true)).Id;
+                    await IgnoreIncomingRequestAsync(userB, requestId.Value);
+                    break;
+                case FriendshipSetupStep.UserBBlocksA:
+                    await LoginAs(userB);
+                    await BlockUserAsync(userA.Id);
+                    break;
+                case FriendshipSetupStep.UserABlocksB:
+                    await LoginAs(userA);
+                    await BlockUserAsync(userB.Id);
+                    break;
+            }
+        }
+    }
+
+    protected async Task<HttpStatusCode> SendFriendRequestStatusAsync(
+        UserGetResponseDto requester,
+        UserGetResponseDto addressee)
+    {
+        await LoginAs(requester);
+        var res = await Client.PostAsJsonAsync(RequestsBase,
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        return res.StatusCode;
+    }
+
+    protected async Task AssertNoPendingBetweenAsync(UserGetResponseDto userA, UserGetResponseDto userB)
+    {
+        await LoginAs(userA);
+        var aPending = await Client.GetAsync($"{RequestsBase}/pending");
+        if (aPending.StatusCode == HttpStatusCode.OK)
+        {
+            var list = await aPending.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+            Assert.DoesNotContain(list ?? [], p => p.OtherUserId == userB.Id);
+        }
+
+        await LoginAs(userB);
+        var bPending = await Client.GetAsync($"{RequestsBase}/pending");
+        if (bPending.StatusCode == HttpStatusCode.OK)
+        {
+            var list = await bPending.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+            Assert.DoesNotContain(list ?? [], p => p.OtherUserId == userA.Id);
+        }
+    }
+
+    protected async Task AssertFriendshipExistsAsync(
+        UserGetResponseDto userA,
+        UserGetResponseDto userB,
+        bool expected)
+    {
+        await LoginAs(userA);
+        var res = await Client.GetAsync($"{FriendshipsBase}/me");
+        if (!expected)
+        {
+            if (res.StatusCode == HttpStatusCode.NoContent)
+                return;
+            var list = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
+            Assert.DoesNotContain(list ?? [], f => f.OtherUserId == userB.Id);
+            return;
+        }
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var friends = await res.Content.ReadFromJsonAsync<List<FriendshipResponseDto>>();
+        Assert.Contains(friends!, f => f.OtherUserId == userB.Id);
+    }
+
+    protected async Task AssertPendingDtoAppearsAsync(
+        UserGetResponseDto viewer,
+        long otherUserId,
+        bool appearsPending,
+        bool? isIncoming = null)
+    {
+        await LoginAs(viewer);
+        var res = await Client.GetAsync($"{RequestsBase}/pending");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendRequestResponseDto>>();
+        var dto = list!.Single(p => p.OtherUserId == otherUserId && (isIncoming == null || p.IsIncoming == isIncoming));
+        Assert.Equal(appearsPending, dto.IsPending);
+    }
+
+    protected async Task AssertStoredFriendRequestIsPendingAsync(
+        long requesterId,
+        long addresseeId,
+        bool isPending)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var request = await db.FriendRequests.SingleOrDefaultAsync(r =>
+            r.RequesterId == requesterId && r.AddresseeId == addresseeId);
+        Assert.NotNull(request);
+        Assert.Equal(isPending, request!.IsPending);
     }
 }
