@@ -21,10 +21,27 @@ public class FakePostRepository : IPostRepository
         return Task.CompletedTask;
     }
 
-    public Task<List<Post>> GetAllPostsAsync()
+    public Task<List<Post>> GetAllPostsAsync() =>
+        Task.FromResult(_posts.Where(p => p.GroupId == null).ToList());
+
+    public Task<List<Post>> GetPostsByGroupBoardAsync(long groupId, long boardId) =>
+        Task.FromResult(_posts
+            .Where(p => p.GroupId == groupId && p.GroupBoardId == boardId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToList());
+
+    public Task<Post?> GetGroupBoardPostAsync(long groupId, long boardId, long postId) =>
+        Task.FromResult(_posts.FirstOrDefault(p =>
+            p.Id == postId && p.GroupId == groupId && p.GroupBoardId == boardId));
+
+    public Task DeleteAllByGroupAsync(long groupId)
     {
-        return Task.FromResult(_posts);
+        _posts.RemoveAll(p => p.GroupId == groupId);
+        return Task.CompletedTask;
     }
+
+    public Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
+        Task.FromResult(_posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToList());
 
     public Task<Post?> GetPostByIdAsync(long id)
     {

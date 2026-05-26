@@ -21,7 +21,24 @@ namespace Api.Domain.Posts.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<Post>> GetAllPostsAsync() => await _context.Posts.ToListAsync();
+        public async Task<List<Post>> GetAllPostsAsync() =>
+            await _context.Posts.Where(p => p.GroupId == null).ToListAsync();
+
+        public async Task<List<Post>> GetPostsByGroupBoardAsync(long groupId, long boardId) =>
+            await _context.Posts
+                .Where(p => p.GroupId == groupId && p.GroupBoardId == boardId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+        public async Task<Post?> GetGroupBoardPostAsync(long groupId, long boardId, long postId) =>
+            await _context.Posts.FirstOrDefaultAsync(p =>
+                p.Id == postId && p.GroupId == groupId && p.GroupBoardId == boardId);
+
+        public async Task DeleteAllByGroupAsync(long groupId) =>
+            await _context.Posts.Where(p => p.GroupId == groupId).ExecuteDeleteAsync();
+
+        public async Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
+            await _context.Posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToListAsync();
 
         public async Task<Post?> GetPostByIdAsync(long id) => await _context.Posts.FindAsync(id);
 

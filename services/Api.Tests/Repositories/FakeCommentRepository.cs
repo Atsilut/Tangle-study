@@ -58,6 +58,12 @@ namespace Api.Tests.Repositories
             return Task.CompletedTask;
         }
 
+        public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
+        {
+            _comments.RemoveAll(c => c.PostId is not null && postIds.Contains(c.PostId.Value));
+            return Task.CompletedTask;
+        }
+
         public Task DetachParentFromRepliesAsync(long parentCommentId)
         {
             foreach (var comment in _comments.Where(c => c.ParentId == parentCommentId))

@@ -1,0 +1,13 @@
+using Api.Domain.Groups.Domain;
+
+namespace Api.Domain.Groups.Repository
+{
+    public interface IGroupRepository
+    {
+        public Task CreateGroupAsync(Group group);
+        public Task<Group?> GetGroupByIdAsync(long id);
+        public Task<bool> ExistsGroupByIdAsync(long id);
+        public Task UpdateGroupAsync(Group group);
+        public Task DeleteGroupAsync(Group group);
+    }
+}
