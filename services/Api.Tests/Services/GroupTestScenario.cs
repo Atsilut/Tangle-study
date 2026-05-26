@@ -174,6 +174,42 @@ public sealed class GroupTestScenario
         await BlacklistService.AddAsync(groupId, new GroupBlacklistCreateRequestDto { UserId = userId });
     }
 
+    public async Task<GroupResponseDto> SetupInvitationOnlyGroupAsync(
+        bool includeAdmin = true,
+        bool includeMember = false) =>
+        await SetupGroupAsync(
+            GroupVisibility.Public,
+            includeAdmin: includeAdmin,
+            includeMember: includeMember,
+            joinPolicy: GroupJoinPolicy.InvitationOnly);
+
+    public async Task<GroupResponseDto> SetupRequestableGroupAsync(
+        bool includeAdmin = true,
+        bool includeMember = false) =>
+        await SetupGroupAsync(
+            GroupVisibility.Public,
+            includeAdmin: includeAdmin,
+            includeMember: includeMember,
+            joinPolicy: GroupJoinPolicy.Requestable);
+
+    public async Task<GroupInvitation> InviteStrangerAsync(long groupId, GroupActorRole inviter = GroupActorRole.Owner)
+    {
+        LoginAs(inviter);
+        var result = await InvitationService.InviteAsync(
+            groupId,
+            new GroupInvitationCreateRequestDto { InviteeId = Stranger.Id });
+        Assert.Equal(GroupInvitationOutcome.GroupInvitationCreated, result.Outcome);
+        return (await InvitationRepository.GetForUserAsync(groupId, Stranger.Id))!;
+    }
+
+    public async Task<GroupApplication> ApplyAsStrangerAsync(long groupId)
+    {
+        LoginAs(Stranger.Id);
+        var result = await ApplicationService.ApplyAsync(groupId);
+        Assert.Equal(GroupApplicationOutcome.GroupApplicationCreated, result.Outcome);
+        return (await ApplicationRepository.GetForUserAsync(groupId, Stranger.Id))!;
+    }
+
     public async Task AssertMemberRoleAsync(long groupId, long userId, GroupRole expected)
     {
         var member = await GroupMemberRepository.GetMemberAsync(groupId, userId);
