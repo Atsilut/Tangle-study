@@ -139,13 +139,13 @@ namespace Api.Domain.Friendships.Service
 
             if (friendRequest.RequesterId == blockerId)
             {
-                await _repo.DeleteAsync(friendRequest);
+                await _repo.DeleteFriendRequestAsync(friendRequest);
                 return;
             }
 
             if (!friendRequest.IsPending) return;
             friendRequest.Ignore();
-            await _repo.UpdateAsync(friendRequest);
+            await _repo.UpdateFriendRequestAsync(friendRequest);
         }
 
         private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
@@ -153,7 +153,7 @@ namespace Api.Domain.Friendships.Service
             var friendRequest = new FriendRequest(requesterId, addresseeId);
             if (await IsAddresseeBlockingRequesterAsync(addresseeId, requesterId))
                 friendRequest.Ignore();
-            await _repo.CreateAsync(friendRequest);
+            await _repo.CreateFriendRequestAsync(friendRequest);
         }
 
         private async Task CreateFriendshipFromRequestAsync(long requesterId, long addresseeId)
@@ -172,7 +172,7 @@ namespace Api.Domain.Friendships.Service
             var request = await GetIncomingRequestForAddresseeOrThrowAsync(id, userId, requirePending: false);
             if (!request.IsPending) return;
             request.Ignore();
-            await _repo.UpdateAsync(request);
+            await _repo.UpdateFriendRequestAsync(request);
         }
 
         public async Task AcceptRequestAsync(long id)
@@ -186,13 +186,13 @@ namespace Api.Domain.Friendships.Service
         {
             var userId = GetUserIdFromLogin();
             var request = await GetIncomingRequestForAddresseeOrThrowAsync(id, userId, requirePending: false);
-            await _repo.DeleteAsync(request);
+            await _repo.DeleteFriendRequestAsync(request);
         }
 
         private async Task<FriendRequest> GetIncomingRequestForAddresseeOrThrowAsync(
             long id, long addresseeId, bool requirePending)
         {
-            var request = await _repo.GetByIdAsync(id)
+            var request = await _repo.GetFriendRequestByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
             if (request.AddresseeId != addresseeId)
                 throw new UnauthorizedAccessException("Only the addressee can act on this friend request.");
@@ -201,7 +201,7 @@ namespace Api.Domain.Friendships.Service
             return request;
         }
 
-        public async Task<List<FriendRequestResponseDto>?> GetPendingAsync()
+        public async Task<List<FriendRequestGetResponseDto>?> GetPendingAsync()
         {
             var userId = GetUserIdFromLogin();
             var pending = await _repo.GetForUserAsync(userId, isPending: true);
@@ -212,7 +212,7 @@ namespace Api.Domain.Friendships.Service
             return await MapRequestsAsync(requests, userId);
         }
 
-        public async Task<List<FriendRequestResponseDto>?> GetIgnoredIncomingAsync()
+        public async Task<List<FriendRequestGetResponseDto>?> GetIgnoredIncomingAsync()
         {
             var userId = GetUserIdFromLogin();
             var requests = (await _repo.GetForUserAsync(userId, isPending: false))
@@ -222,7 +222,7 @@ namespace Api.Domain.Friendships.Service
             return await MapRequestsAsync(requests, userId);
         }
 
-        private async Task<List<FriendRequestResponseDto>> MapRequestsAsync(IReadOnlyList<FriendRequest> requests, long viewerId)
+        private async Task<List<FriendRequestGetResponseDto>> MapRequestsAsync(IReadOnlyList<FriendRequest> requests, long viewerId)
         {
             var otherIds = requests.Select(r => r.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);
@@ -231,7 +231,7 @@ namespace Api.Domain.Friendships.Service
                 MapRequestToDto(r, viewerId, nicknames.GetValueOrDefault(r.OtherPartyId(viewerId), "Deleted User"))).ToList();
         }
 
-        private FriendRequestResponseDto MapRequestToDto(FriendRequest request, long viewerId, string otherUserNickname) =>
+        private FriendRequestGetResponseDto MapRequestToDto(FriendRequest request, long viewerId, string otherUserNickname) =>
             new(
                 Id: request.Id,
                 RequesterId: request.RequesterId,
@@ -249,14 +249,14 @@ namespace Api.Domain.Friendships.Service
         public async Task DeleteRequestByIdAsync(long id)
         {
             var userId = GetUserIdFromLogin();
-            var request = await _repo.GetByIdAsync(id)
+            var request = await _repo.GetFriendRequestByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
             if (!request.IsUserInvolved(userId))
                 throw new UnauthorizedAccessException("Unauthorized access");
             if (!request.IsPending)
                 throw new ArgumentException("Invalid Friend Request.");
 
-            await _repo.DeleteAsync(request);
+            await _repo.DeleteFriendRequestAsync(request);
         }
     }
 }

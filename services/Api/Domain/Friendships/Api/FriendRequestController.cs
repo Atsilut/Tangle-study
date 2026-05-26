@@ -49,7 +49,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("pending")]
         [SwaggerOperation(Summary = "List my pending friend requests (incoming and outgoing)")]
-        public async Task<ActionResult<List<FriendRequestResponseDto>?>> GetPending()
+        public async Task<ActionResult<List<FriendRequestGetResponseDto>?>> GetPending()
         {
             var response = await _service.GetPendingAsync();
             if (response == null) return NoContent();
@@ -58,7 +58,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("ignored")]
         [SwaggerOperation(Summary = "List incoming ignored friend requests (addressee only)")]
-        public async Task<ActionResult<List<FriendRequestResponseDto>?>> GetIgnoredIncoming()
+        public async Task<ActionResult<List<FriendRequestGetResponseDto>?>> GetIgnoredIncoming()
         {
             var response = await _service.GetIgnoredIncomingAsync();
             if (response == null) return NoContent();

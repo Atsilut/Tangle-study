@@ -32,21 +32,21 @@ namespace Api.Domain.UserBlocks.Service
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
         private async Task<UserBlock> GetBlockOrThrowAsync(long id) =>
-            await _repo.GetByIdAsync(id) ?? throw new EntityNotFoundException("Block not found");
+            await _repo.GetUserBlockByIdAsync(id) ?? throw new EntityNotFoundException("Block not found");
 
         public async Task BlockUserAsync(UserBlockCreateRequestDto request)
         {
             var blockerId = GetUserIdFromLogin();
             await ValidateBlockPartiesAsync(blockerId, request.BlockedUserId);
 
-            if (await _repo.ExistsAsync(blockerId, request.BlockedUserId))
+            if (await _repo.ExistsUserBlockAsync(blockerId, request.BlockedUserId))
                 throw new EntityAlreadyExistsException($"User {request.BlockedUserId} is already blocked.");
 
-            await _repo.CreateAsync(new UserBlock(blockerId, request.BlockedUserId));
+            await _repo.CreateUserBlockAsync(new UserBlock(blockerId, request.BlockedUserId));
             await _friendRequestService.Value.HandlePendingFriendRequestOnBlockAsync(blockerId, request.BlockedUserId);
         }
 
-        public async Task<List<UserBlockResponseDto>?> GetMyBlocksAsync()
+        public async Task<List<UserBlockGetResponseDto>?> GetMyBlocksAsync()
         {
             var blockerId = GetUserIdFromLogin();
             var blocks = await _repo.GetAllForBlockerAsync(blockerId);
@@ -61,11 +61,11 @@ namespace Api.Domain.UserBlocks.Service
             if (block.BlockerId != userId)
                 throw new UnauthorizedAccessException("Unauthorized access");
 
-            await _repo.DeleteAsync(block);
+            await _repo.DeleteUserBlockAsync(block);
         }
 
         public Task<bool> IsBlockedByAsync(long blockerId, long blockedUserId) =>
-            _repo.ExistsAsync(blockerId, blockedUserId);
+            _repo.ExistsUserBlockAsync(blockerId, blockedUserId);
 
         private async Task ValidateBlockPartiesAsync(long blockerId, long blockedUserId)
         {
@@ -75,7 +75,7 @@ namespace Api.Domain.UserBlocks.Service
             await _userService.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
         }
 
-        private UserBlockResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
+        private UserBlockGetResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
             new(
                 Id: block.Id,
                 BlockedUserId: block.BlockedUserId,
@@ -83,7 +83,7 @@ namespace Api.Domain.UserBlocks.Service
                 CreatedAt: block.CreatedAt,
                 UpdatedAt: block.UpdatedAt);
 
-        private async Task<List<UserBlockResponseDto>> MapManyAsync(IReadOnlyList<UserBlock> blocks)
+        private async Task<List<UserBlockGetResponseDto>> MapManyAsync(IReadOnlyList<UserBlock> blocks)
         {
             var blockedUserIds = blocks.Select(b => b.BlockedUserId).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(blockedUserIds);

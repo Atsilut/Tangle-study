@@ -1,6 +1,6 @@
 namespace Api.Domain.Friendships.Dto
 {
-    public record FriendRequestResponseDto(
+    public record FriendRequestGetResponseDto(
         long Id,
         long RequesterId,
         long AddresseeId,

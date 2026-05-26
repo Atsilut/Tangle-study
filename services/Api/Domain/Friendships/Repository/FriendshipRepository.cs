@@ -15,13 +15,13 @@ namespace Api.Domain.Friendships.Repository
             _context = context;
         }
 
-        public async Task CreateAsync(Friendship friendship)
+        public async Task CreateFriendshipAsync(Friendship friendship)
         {
             _context.Friendships.Add(friendship);
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Friendship?> GetByIdAsync(long id) =>
+        public async Task<Friendship?> GetFriendshipByIdAsync(long id) =>
             await _context.Friendships.FindAsync(id);
 
         public async Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
@@ -45,7 +45,7 @@ namespace Api.Domain.Friendships.Repository
                 .Where(f => f.UserLowId == userId || f.UserHighId == userId)
                 .ToListAsync();
 
-        public async Task DeleteAsync(Friendship friendship)
+        public async Task DeleteFriendshipAsync(Friendship friendship)
         {
             _context.Friendships.Remove(friendship);
             await _context.SaveChangesAsync();

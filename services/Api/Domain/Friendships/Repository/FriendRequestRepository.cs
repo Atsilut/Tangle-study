@@ -15,13 +15,13 @@ namespace Api.Domain.Friendships.Repository
             _context = context;
         }
 
-        public async Task CreateAsync(FriendRequest friendRequest)
+        public async Task CreateFriendRequestAsync(FriendRequest friendRequest)
         {
             _context.FriendRequests.Add(friendRequest);
             await _context.SaveChangesAsync();
         }
 
-        public async Task<FriendRequest?> GetByIdAsync(long id) =>
+        public async Task<FriendRequest?> GetFriendRequestByIdAsync(long id) =>
             await _context.FriendRequests.FindAsync(id);
 
         public async Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
@@ -41,9 +41,9 @@ namespace Api.Domain.Friendships.Repository
             return await query.ToListAsync();
         }
 
-        public async Task UpdateAsync(FriendRequest friendRequest) => await _context.SaveChangesAsync();
+        public async Task UpdateFriendRequestAsync(FriendRequest friendRequest) => await _context.SaveChangesAsync();
 
-        public async Task DeleteAsync(FriendRequest friendRequest)
+        public async Task DeleteFriendRequestAsync(FriendRequest friendRequest)
         {
             _context.FriendRequests.Remove(friendRequest);
             await _context.SaveChangesAsync();

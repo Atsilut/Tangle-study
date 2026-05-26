@@ -20,7 +20,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List my accepted friends")]
-        public async Task<ActionResult<List<FriendshipResponseDto>?>> GetMyFriends()
+        public async Task<ActionResult<List<FriendshipGetResponseDto>?>> GetMyFriends()
         {
             var response = await _service.GetMyFriendsAsync();
             if (response == null) return NoContent();
@@ -29,7 +29,7 @@ namespace Api.Domain.Friendships.Api
 
         [HttpGet("users/{userId:long}")]
         [SwaggerOperation(Summary = "List another user's accepted friends (subject to their privacy settings)")]
-        public async Task<ActionResult<List<FriendshipResponseDto>?>> GetUserFriends([FromRoute] long userId)
+        public async Task<ActionResult<List<FriendshipGetResponseDto>?>> GetUserFriends([FromRoute] long userId)
         {
             var response = await _service.GetUserFriendsAsync(userId);
             if (response == null) return NoContent();

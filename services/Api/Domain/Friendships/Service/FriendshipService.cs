@@ -29,7 +29,7 @@ namespace Api.Domain.Friendships.Service
             ?? throw new EntityNotFoundException("Unauthorized Access"));
 
         private async Task<Friendship> GetFriendshipOrThrowAsync(long id) =>
-            await _repo.GetByIdAsync(id) ?? throw new EntityNotFoundException("Friendship not found");
+            await _repo.GetFriendshipByIdAsync(id) ?? throw new EntityNotFoundException("Friendship not found");
 
         public async Task EnsureFriendshipDoesNotExistForUserPairAsync(long userId, long otherUserId, string? message = null)
         {
@@ -41,10 +41,10 @@ namespace Api.Domain.Friendships.Service
         {
             await EnsureFriendshipDoesNotExistForUserPairAsync(userId, otherUserId);
             var friendship = new Friendship(userId, otherUserId);
-            await _repo.CreateAsync(friendship);
+            await _repo.CreateFriendshipAsync(friendship);
         }
 
-        public async Task<FriendshipResponseDto> MapToResponseDtoAsync(Friendship friendship, long viewerId)
+        public async Task<FriendshipGetResponseDto> MapToResponseDtoAsync(Friendship friendship, long viewerId)
         {
             var otherId = friendship.OtherPartyId(viewerId);
             var other = await _userService.GetUserByIdAsync(otherId);
@@ -58,10 +58,10 @@ namespace Api.Domain.Friendships.Service
             if (!friendship.Involves(userId))
                 throw new UnauthorizedAccessException("Unauthorized access");
 
-            await _repo.DeleteAsync(friendship);
+            await _repo.DeleteFriendshipAsync(friendship);
         }
 
-        public async Task<List<FriendshipResponseDto>?> GetMyFriendsAsync()
+        public async Task<List<FriendshipGetResponseDto>?> GetMyFriendsAsync()
         {
             var userId = GetUserIdFromLogin();
             var friendships = await _repo.GetAllForUserAsync(userId);
@@ -69,7 +69,7 @@ namespace Api.Domain.Friendships.Service
             return await MapManyAsync(friendships, userId);
         }
 
-        public async Task<List<FriendshipResponseDto>?> GetUserFriendsAsync(long userId)
+        public async Task<List<FriendshipGetResponseDto>?> GetUserFriendsAsync(long userId)
         {
             var viewerId = GetUserIdFromLogin();
             await _userService.EnsureUserExistsAsync(userId, "User not found");
@@ -103,7 +103,7 @@ namespace Api.Domain.Friendships.Service
             }
         }
 
-        private FriendshipResponseDto MapToDto(Friendship friendship, long viewerId, string otherUserNickname) =>
+        private FriendshipGetResponseDto MapToDto(Friendship friendship, long viewerId, string otherUserNickname) =>
             new(
                 Id: friendship.Id,
                 OtherUserId: friendship.OtherPartyId(viewerId),
@@ -111,7 +111,7 @@ namespace Api.Domain.Friendships.Service
                 CreatedAt: friendship.CreatedAt,
                 UpdatedAt: friendship.UpdatedAt);
 
-        private async Task<List<FriendshipResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
+        private async Task<List<FriendshipGetResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
         {
             var otherIds = friendships.Select(f => f.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);

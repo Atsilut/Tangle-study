@@ -28,7 +28,7 @@ namespace Api.Domain.UserBlocks.Api
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List users I have blocked")]
-        public async Task<ActionResult<List<UserBlockResponseDto>?>> GetMyBlocks()
+        public async Task<ActionResult<List<UserBlockGetResponseDto>?>> GetMyBlocks()
         {
             var response = await _service.GetMyBlocksAsync();
             if (response == null) return NoContent();

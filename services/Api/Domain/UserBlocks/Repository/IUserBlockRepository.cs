@@ -4,10 +4,10 @@ namespace Api.Domain.UserBlocks.Repository
 {
     public interface IUserBlockRepository
     {
-        public Task CreateAsync(UserBlock userBlock);
-        public Task<bool> ExistsAsync(long blockerId, long blockedUserId);
-        public Task<UserBlock?> GetByIdAsync(long id);
+        public Task CreateUserBlockAsync(UserBlock userBlock);
+        public Task<bool> ExistsUserBlockAsync(long blockerId, long blockedUserId);
+        public Task<UserBlock?> GetUserBlockByIdAsync(long id);
         public Task<List<UserBlock>> GetAllForBlockerAsync(long blockerId);
-        public Task DeleteAsync(UserBlock userBlock);
+        public Task DeleteUserBlockAsync(UserBlock userBlock);
     }
 }
