@@ -57,6 +57,10 @@ Prefix methods with the entity name:
 
 Existing Groups repositories may retain shorter names; align **Friendships** and **UserBlocks** with the prefixed style.
 
+## HTTP errors
+
+Services throw typed exceptions; `GlobalExceptionHandler` maps them to HTTP status codes. Full convention (401 / 404 / 400 / 409, service patterns, test guidance, known deviations): `.cursor/rules/api-exceptions.mdc`.
+
 ## Controllers and HTTP semantics
 
 - Route: `api/{resource}` (login/join under `api` for `LoginController`).
