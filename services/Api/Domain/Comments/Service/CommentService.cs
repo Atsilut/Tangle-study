@@ -37,7 +37,7 @@ namespace Api.Domain.Comments.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found", int statusCode = StatusCodes.Status404NotFound)
         {
@@ -151,10 +151,10 @@ namespace Api.Domain.Comments.Service
 
         public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)
         {
-            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(request.Id);
             if (comment.PostId is null && comment.DeletedPostId is not null)
-                throw new EntityNotFoundException("Post is not reachable. Comments are readonly.");
+                throw new ArgumentException("Post is not reachable. Comments are readonly.");
             if (comment.PostId is not null)
                 await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
@@ -180,7 +180,7 @@ namespace Api.Domain.Comments.Service
 
         public async Task DeleteCommentAsync(long id)
         {
-            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(id);
             if (comment.PostId is not null)
                 await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);

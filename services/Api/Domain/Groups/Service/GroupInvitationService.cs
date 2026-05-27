@@ -60,7 +60,7 @@ namespace Api.Domain.Groups.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         private async Task<GroupInvitation> GetIncomingInvitationForInviteeOrThrowAsync(
             long id, long inviteeId, bool requirePending)

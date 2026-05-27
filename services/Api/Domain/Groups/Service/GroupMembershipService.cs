@@ -28,7 +28,7 @@ namespace Api.Domain.Groups.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
             _repo.GetMemberAsync(groupId, userId);
@@ -130,7 +130,7 @@ namespace Api.Domain.Groups.Service
                 throw new ArgumentException("Owner role cannot be assigned directly. Use transfer ownership.");
 
             var target = await _repo.GetMemberAsync(groupId, userId)
-                ?? throw new EntityNotFoundException("Target user is not a member of this group.");
+                ?? throw new ArgumentException("Target user is not a member of this group.");
             if (target.Role == GroupRole.Owner)
                 throw new ArgumentException("Cannot demote the owner without transferring ownership.");
 
@@ -145,10 +145,10 @@ namespace Api.Domain.Groups.Service
         {
             var callerId = GetUserIdFromLogin();
             var callerMember = await _repo.GetMemberAsync(groupId, callerId)
-                ?? throw new EntityNotFoundException("Group not found");
+                ?? throw new UnauthorizedAccessException("Unauthorized access");
 
             var target = await _repo.GetMemberAsync(groupId, userId)
-                ?? throw new EntityNotFoundException("Target user is not a member of this group.");
+                ?? throw new ArgumentException("Target user is not a member of this group.");
 
             if (target.Role == GroupRole.Owner)
                 throw new ArgumentException("Owner cannot be removed. Transfer ownership first.");

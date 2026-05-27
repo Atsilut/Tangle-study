@@ -29,7 +29,7 @@ namespace Api.Domain.UserBlocks.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         private async Task<UserBlock> GetBlockOrThrowAsync(long id) =>
             await _repo.GetUserBlockByIdAsync(id) ?? throw new EntityNotFoundException("Block not found");

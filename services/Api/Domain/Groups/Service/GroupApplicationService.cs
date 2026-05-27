@@ -46,7 +46,7 @@ namespace Api.Domain.Groups.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
             _repo.GetPendingForUserAsync(groupId, applicantId);

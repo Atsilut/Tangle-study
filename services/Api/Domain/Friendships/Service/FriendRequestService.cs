@@ -41,7 +41,7 @@ namespace Api.Domain.Friendships.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public async Task<SendFriendRequestOutcome> SendRequestAsync(FriendRequestCreateRequestDto request)
         {

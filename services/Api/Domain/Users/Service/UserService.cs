@@ -38,7 +38,7 @@ namespace Api.Domain.Users.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found", int statusCode = StatusCodes.Status404NotFound)
         {
@@ -92,9 +92,18 @@ namespace Api.Domain.Users.Service
             UpdatedAt: user.UpdatedAt
         );
 
+        public async Task<User> GetLoggedInUserEntityOrThrowAsync()
+        {
+            var userId = GetUserIdFromLogin();
+            var user = await _repo.GetUserByIdAsync(userId);
+            if (user is null)
+                throw new UnauthorizedAccessException("Unauthorized access");
+            return user;
+        }
+
         public async Task<UserPatchResponseDto> UpdateUserDetailAsync(UserPatchRequestDto request)
         {
-            var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            var user = await GetLoggedInUserEntityOrThrowAsync();
             if (request.Id != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             if (!string.Equals(request.Nickname, user.Nickname, StringComparison.Ordinal))
@@ -119,7 +128,7 @@ namespace Api.Domain.Users.Service
 
         public async Task<UserPrivacySettingsResponseDto> UpdatePrivacySettingsAsync(UserPrivacySettingsUpdateRequestDto request)
         {
-            var user = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            var user = await GetLoggedInUserEntityOrThrowAsync();
             user.UpdateFriendsListVisibility(request.FriendsListVisibility);
             await _repo.UpdateUserAsync(user);
             return new UserPrivacySettingsResponseDto(
@@ -129,7 +138,7 @@ namespace Api.Domain.Users.Service
 
         public async Task DeleteUserAsync(long id)
         {
-            var userFromLogin = await GetUserEntityOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            var userFromLogin = await GetLoggedInUserEntityOrThrowAsync();
             if (id != userFromLogin.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _db.ExecuteInTransactionAsync(async () =>

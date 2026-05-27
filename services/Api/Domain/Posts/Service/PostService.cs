@@ -37,7 +37,7 @@ namespace Api.Domain.Posts.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found", int statusCode = StatusCodes.Status404NotFound)
         {
@@ -152,7 +152,7 @@ namespace Api.Domain.Posts.Service
 
         public async Task<PostPatchResponseDto> UpdatePostAsync(PostPatchRequestDto request)
         {
-            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Unauthorized user");
+            var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(request.Id);
             if (post.GroupId is not null && post.GroupBoardId is not null)
                 await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
@@ -187,7 +187,7 @@ namespace Api.Domain.Posts.Service
 
         public async Task DeletePostAsync(long id)
         {
-            var user = await _userService.GetUserByIdOrThrowAsync(GetUserIdFromLogin(), "Authentication failed");
+            var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(id);
             if (post.GroupId is not null && post.GroupBoardId is not null)
                 await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);

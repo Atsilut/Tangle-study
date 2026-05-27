@@ -26,7 +26,7 @@ namespace Api.Domain.Friendships.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         private async Task<Friendship> GetFriendshipOrThrowAsync(long id) =>
             await _repo.GetFriendshipByIdAsync(id) ?? throw new EntityNotFoundException("Friendship not found");
@@ -92,7 +92,7 @@ namespace Api.Domain.Friendships.Service
                         throw new UnauthorizedAccessException("You must be friends to view this user's friends list.");
                     return;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Unknown friends list visibility.");
+                    throw new ArgumentException("Unknown friends list visibility.", nameof(visibility));
             }
         }
 

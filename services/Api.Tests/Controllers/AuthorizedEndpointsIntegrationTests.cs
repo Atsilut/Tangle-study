@@ -4,6 +4,7 @@ using Api.Domain.Friendships.Dto;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Posts.Dto;
+using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
@@ -50,6 +51,13 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
                 "/api/users/privacy",
                 new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Private }
             },
+            {
+                HttpMethod.Post,
+                "/api/users/blocks",
+                new UserBlockCreateRequestDto { BlockedUserId = 1 }
+            },
+            { HttpMethod.Get, "/api/users/blocks/me", null },
+            { HttpMethod.Delete, "/api/users/blocks/1", null },
         };
 
     [Theory]

@@ -192,6 +192,24 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
     }
 
     [Fact]
+    public async Task DeleteBlock_Returns404_WhenNotFound()
+    {
+        // Arrange
+        const string testMethodName = "BlockRemoveMissing";
+        var blocker = await CreateUserForTest(testMethodName, 1);
+        await LoginAs(blocker);
+
+        // Act
+        var res = await Client.DeleteAsync($"{BlocksBase}/999999");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Block not found", problem.Detail);
+    }
+
+    [Fact]
     public async Task DeleteBlock_Returns201_WhenFriendRequestSentAfterUnblock()
     {
         // Arrange

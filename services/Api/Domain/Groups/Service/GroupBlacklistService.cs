@@ -38,7 +38,7 @@ namespace Api.Domain.Groups.Service
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new EntityNotFoundException("Unauthorized Access"));
+            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
         public Task<bool> IsBlacklistedAsync(long groupId, long userId) =>
             _repo.ExistsAsync(groupId, userId);

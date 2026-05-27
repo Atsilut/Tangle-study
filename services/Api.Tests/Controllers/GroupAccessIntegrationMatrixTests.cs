@@ -175,7 +175,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             { GroupActorRole.Member, GroupTargetRole.Self, GroupExpectedOutcome.Ok },
             { GroupActorRole.Member, GroupTargetRole.OtherMember, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Member, GroupTargetRole.Admin, GroupExpectedOutcome.Unauthorized },
-            { GroupActorRole.Stranger, GroupTargetRole.Member, GroupExpectedOutcome.NotFound },
+            { GroupActorRole.Stranger, GroupTargetRole.Member, GroupExpectedOutcome.Unauthorized },
         };
 
     [Theory]
