@@ -5,6 +5,7 @@ using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
 using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Groups.Domain;
+using Api.Domain.Chat.Domain;
 
 namespace Api.Global.Db
 {
@@ -22,6 +23,9 @@ namespace Api.Global.Db
         public DbSet<GroupApplication> GroupApplications { get; set; }
         public DbSet<GroupBlacklist> GroupBlacklists { get; set; }
         public DbSet<GroupBoard> GroupBoards { get; set; }
+        public DbSet<ChatRoom> ChatRooms { get; set; }
+        public DbSet<ChatRoomParticipant> ChatRoomParticipants { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -172,6 +176,77 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(b => b.GroupId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<ChatRoom>()
+                .HasOne(r => r.PlatformGroup)
+                .WithMany()
+                .HasForeignKey(r => r.PlatformGroupId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<ChatRoom>()
+                .HasOne(r => r.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(r => r.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatRoom>()
+                .HasOne(r => r.UserLow)
+                .WithMany()
+                .HasForeignKey(r => r.UserLowId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatRoom>()
+                .HasOne(r => r.UserHigh)
+                .WithMany()
+                .HasForeignKey(r => r.UserHighId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatRoom>()
+                .ToTable(t => t.HasCheckConstraint(
+                    "CK_ChatRooms_DirectUserLowLtUserHigh",
+                    "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL AND \"UserLowId\" < \"UserHighId\")"));
+
+            modelBuilder.Entity<ChatRoom>()
+                .ToTable(t => t.HasCheckConstraint(
+                    "CK_ChatRooms_PlatformGroupIdByKind",
+                    "(\"Kind\" = 2 AND \"PlatformGroupId\" IS NOT NULL) OR (\"Kind\" <> 2 AND \"PlatformGroupId\" IS NULL)"));
+
+            modelBuilder.Entity<ChatRoom>()
+                .ToTable(t => t.HasCheckConstraint(
+                    "CK_ChatRooms_DirectPairOnlyForDirect",
+                    "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL)"));
+
+            modelBuilder.Entity<ChatRoom>()
+                .ToTable(t => t.HasCheckConstraint(
+                    "CK_ChatRooms_NoDirectPairForNonDirect",
+                    "\"Kind\" = 0 OR (\"UserLowId\" IS NULL AND \"UserHighId\" IS NULL)"));
+
+            modelBuilder.Entity<ChatRoomParticipant>()
+                .HasOne(p => p.ChatRoom)
+                .WithMany(r => r.Participants)
+                .HasForeignKey(p => p.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatRoomParticipant>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.ChatRoom)
+                .WithMany()
+                .HasForeignKey(m => m.ChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
