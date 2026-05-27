@@ -113,11 +113,19 @@ public class ChatRoomService
 
     public async Task<ChatRoomGetResponseDto> GetRoomByIdAsync(long roomId)
     {
+        await EnsureCurrentUserIsParticipantAsync(roomId);
+        var room = await GetRoomWithParticipantsOrThrowAsync(roomId);
+        return await MapToGetDtoAsync(room, includeParticipants: true);
+    }
+
+    public async Task EnsureCurrentUserIsParticipantAsync(long roomId)
+    {
         var userId = GetUserIdFromLogin();
         var room = await GetRoomWithParticipantsOrThrowAsync(roomId);
         _access.EnsureParticipantInRoom(room.Participants.ToList(), userId);
-        return await MapToGetDtoAsync(room, includeParticipants: true);
     }
+
+    public Task TouchRoomUpdatedAtAsync(long roomId) => _repo.TouchChatRoomUpdatedAtAsync(roomId);
 
     public async Task<ChatRoomParticipantGetResponseDto> AddParticipantAsync(
         long roomId,
