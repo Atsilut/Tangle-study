@@ -78,6 +78,7 @@ public enum InvitationRequestAction
 public enum ApplicationRequestAction
 {
     Approve,
+    /// <summary>Applicant attempts approve (same HTTP route as <see cref="Approve"/>).</summary>
     ApproveAsApplicant,
     Reject,
     Ignore,

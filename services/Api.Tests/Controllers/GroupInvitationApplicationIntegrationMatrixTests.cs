@@ -105,6 +105,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         {
             { GroupActorRole.Owner, ApplicationRequestAction.Approve, GroupExpectedOutcome.Ok },
             { GroupActorRole.Admin, ApplicationRequestAction.Approve, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Stranger, ApplicationRequestAction.ApproveAsApplicant, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Member, ApplicationRequestAction.Approve, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Stranger, ApplicationRequestAction.Approve, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Owner, ApplicationRequestAction.Reject, GroupExpectedOutcome.Ok },
@@ -132,7 +133,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Act
         HttpResponseMessage res = action switch
         {
-            ApplicationRequestAction.Approve => await Client.PostAsync(
+            ApplicationRequestAction.Approve or ApplicationRequestAction.ApproveAsApplicant => await Client.PostAsync(
                 $"/api/applications/{application.Id}/approve", null),
             ApplicationRequestAction.Reject => await Client.PostAsync(
                 $"/api/applications/{application.Id}/reject", null),
