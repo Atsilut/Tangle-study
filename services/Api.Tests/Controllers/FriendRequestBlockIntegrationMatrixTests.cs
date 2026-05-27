@@ -4,6 +4,14 @@ using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
 
+/// <summary>
+/// Block × friend-request state matrix. Rows cover pending vs ignored requests when A or B blocks.
+/// Out of matrix (covered by facts in this class):
+/// reciprocal send after pending/ignore (<see cref="Send_ReciprocalFromB_ReturnsOkAndCreatesFriendship"/>),
+/// reciprocal send blocked after ignore + block (<see cref="Send_WhenIgnoredAndBlockedByAddressee_Returns400"/>),
+/// send when already friends 409 (<see cref="Send_WhenAlreadyFriends_Returns409"/>),
+/// pending-list masking for ignored outgoing (<see cref="GetPending_RequesterSeesMaskedPending_WhenOutgoingIgnored"/>).
+/// </summary>
 [Collection(IntegrationTestCollection.Name)]
 public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontainerFixture postgres)
     : FriendshipDomainIntegrationTestBase(postgres)

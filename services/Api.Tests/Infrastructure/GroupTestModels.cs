@@ -66,10 +66,12 @@ public enum BlacklistAdminAction
 public enum InvitationRequestAction
 {
     Accept,
+    /// <summary>Non-invitee attempts accept (same HTTP route as <see cref="Accept"/>).</summary>
     AcceptAsNonInvitee,
     Reject,
     Ignore,
     Cancel,
+    /// <summary>Group admin/owner who did not send the invite cancels (same HTTP route as <see cref="Cancel"/>).</summary>
     CancelAsNonInviterAdmin,
 }
 

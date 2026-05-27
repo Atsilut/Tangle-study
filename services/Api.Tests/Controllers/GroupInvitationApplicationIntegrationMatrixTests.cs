@@ -46,6 +46,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         {
             { GroupActorRole.Stranger, InvitationRequestAction.Accept, GroupExpectedOutcome.Ok },
             { GroupActorRole.Owner, InvitationRequestAction.Accept, GroupExpectedOutcome.Unauthorized },
+            { GroupActorRole.Owner, InvitationRequestAction.AcceptAsNonInvitee, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Admin, InvitationRequestAction.Accept, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Member, InvitationRequestAction.Accept, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Stranger, InvitationRequestAction.Reject, GroupExpectedOutcome.Ok },
@@ -54,6 +55,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             { GroupActorRole.Owner, InvitationRequestAction.Ignore, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Owner, InvitationRequestAction.Cancel, GroupExpectedOutcome.Ok },
             { GroupActorRole.Admin, InvitationRequestAction.Cancel, GroupExpectedOutcome.Ok },
+            { GroupActorRole.Admin, InvitationRequestAction.CancelAsNonInviterAdmin, GroupExpectedOutcome.Ok },
             { GroupActorRole.Member, InvitationRequestAction.Cancel, GroupExpectedOutcome.Unauthorized },
             { GroupActorRole.Stranger, InvitationRequestAction.Cancel, GroupExpectedOutcome.Unauthorized },
         };
@@ -76,10 +78,12 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Act
         HttpResponseMessage res = action switch
         {
-            InvitationRequestAction.Accept => await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null),
+            InvitationRequestAction.Accept or InvitationRequestAction.AcceptAsNonInvitee =>
+                await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null),
             InvitationRequestAction.Reject => await Client.PostAsync($"/api/invitations/{invitation.Id}/reject", null),
             InvitationRequestAction.Ignore => await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null),
-            InvitationRequestAction.Cancel => await Client.DeleteAsync($"/api/invitations/{invitation.Id}"),
+            InvitationRequestAction.Cancel or InvitationRequestAction.CancelAsNonInviterAdmin =>
+                await Client.DeleteAsync($"/api/invitations/{invitation.Id}"),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
         };
 
@@ -89,7 +93,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             Assert.True(
                 res.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
                 res.StatusCode.ToString());
-            if (action == InvitationRequestAction.Accept)
+            if (action is InvitationRequestAction.Accept or InvitationRequestAction.AcceptAsNonInvitee)
                 await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
         }
         else
