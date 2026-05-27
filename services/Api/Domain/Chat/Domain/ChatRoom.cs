@@ -82,6 +82,24 @@ public class ChatRoom
 
     public void TouchUpdatedAt() => UpdatedAt = DateTime.UtcNow;
 
+    /// <summary>
+    /// Converts a 1:1 room into a multi-user room so more participants can be added.
+    /// Clears the direct user-pair columns (required by DB constraints).
+    /// </summary>
+    public void PromoteDirectToMulti()
+    {
+        if (Kind != ChatRoomKind.Direct)
+            throw new InvalidOperationException("Only direct chat rooms can be promoted to multi.");
+
+        Kind = ChatRoomKind.Multi;
+        UserLowId = null;
+        UserHighId = null;
+        TouchUpdatedAt();
+    }
+
+    /// <summary>Platform-group chat rooms have a single owner who can invite; direct and multi do not.</summary>
+    public bool HasRoomOwner => Kind == ChatRoomKind.PlatformGroup;
+
     public bool InvolvesDirectUser(long userId) =>
         Kind == ChatRoomKind.Direct && (UserLowId == userId || UserHighId == userId);
 

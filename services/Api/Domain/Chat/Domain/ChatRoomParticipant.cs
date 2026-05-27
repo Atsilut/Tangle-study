@@ -35,4 +35,10 @@ public class ChatRoomParticipant
     }
 
     public bool IsOwner => Role == ChatRoomParticipantRole.Owner;
+
+    public void ChangeRole(ChatRoomParticipantRole role)
+    {
+        Role = role;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
