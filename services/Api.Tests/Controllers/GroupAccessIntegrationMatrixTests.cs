@@ -59,10 +59,10 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 Assert.True(members!.Count >= 1);
             }
         }
+        else if (expected == GroupExpectedOutcome.NotFound)
+            await AssertGroupNotFoundAsync(res);
         else
-        {
             await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
-        }
     }
 
     public static TheoryData<GroupActorRole, GroupManagementAction, GroupExpectedOutcome> ManagementMatrixData =>
@@ -142,7 +142,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                     await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
                     await scenario.LoginAsAsync(GroupActorRole.Owner);
                     var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
-                    await IntegrationAssertions.AssertStatusAsync(get, HttpStatusCode.NotFound);
+                    await AssertGroupNotFoundAsync(get);
                 }
                 else
                     await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
@@ -282,6 +282,6 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
         var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
-        await IntegrationAssertions.AssertStatusAsync(get, HttpStatusCode.NotFound);
+        await AssertGroupNotFoundAsync(get);
     }
 }

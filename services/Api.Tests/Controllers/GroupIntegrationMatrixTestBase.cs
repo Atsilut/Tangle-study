@@ -17,4 +17,8 @@ public abstract class GroupIntegrationMatrixTestBase(PostgresTestcontainerFixtur
         GroupExpectedOutcome.ArgumentException => HttpStatusCode.BadRequest,
         _ => throw new ArgumentOutOfRangeException(nameof(expected), expected, null),
     };
+
+    /// <summary>2-1 target missing via <see cref="EntityNotFoundException"/> (e.g. group/member checks).</summary>
+    protected static Task AssertGroupNotFoundAsync(HttpResponseMessage res) =>
+        IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Group not found");
 }

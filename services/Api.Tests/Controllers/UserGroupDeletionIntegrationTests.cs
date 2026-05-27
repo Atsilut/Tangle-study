@@ -23,7 +23,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
 
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
         var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
-        await IntegrationAssertions.AssertStatusAsync(getGroup, HttpStatusCode.NotFound);
+        await AssertGroupNotFoundAsync(getGroup);
     }
 
     [Fact]

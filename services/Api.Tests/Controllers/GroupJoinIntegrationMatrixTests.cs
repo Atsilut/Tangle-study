@@ -162,6 +162,6 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/99999/join", null);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await AssertGroupNotFoundAsync(res);
     }
 }
