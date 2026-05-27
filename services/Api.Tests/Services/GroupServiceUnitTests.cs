@@ -13,6 +13,7 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task CreateGroup_AddsCreatorAsOwner()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -21,6 +22,7 @@ public sealed class GroupServiceUnitTests
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", owner.Id.ToString()) })),
         };
 
+        // Act
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "Devs",
@@ -28,6 +30,7 @@ public sealed class GroupServiceUnitTests
             Visibility = GroupVisibility.Private,
         });
 
+        // Assert
         Assert.Equal(1, group.MemberCount);
         var member = await graph.GroupMemberRepository.GetMemberAsync(group.Id, owner.Id);
         Assert.NotNull(member);
@@ -37,6 +40,7 @@ public sealed class GroupServiceUnitTests
     [Fact]
     public async Task GetGroup_ThrowsNotFound_WhenPrivateAndNotMember()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -56,6 +60,7 @@ public sealed class GroupServiceUnitTests
             User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", stranger.Id.ToString()) })),
         };
 
+        // Act & Assert
         await Assert.ThrowsAsync<EntityNotFoundException>(() => graph.GroupService.GetGroupAsync(group.Id));
     }
 

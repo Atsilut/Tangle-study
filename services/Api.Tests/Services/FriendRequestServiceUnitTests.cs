@@ -13,15 +13,18 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task SendRequest_CreatesPendingRequest()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var requester = await CreateUserAsync(graph.UserRepository, "a");
         var addressee = await CreateUserAsync(graph.UserRepository, "b");
         http.HttpContext = ContextFor(requester.Id);
 
+        // Act
         var outcome = await graph.FriendRequestService.SendRequestAsync(
             new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
 
+        // Assert
         Assert.Equal(SendFriendRequestOutcome.FriendRequestCreated, outcome);
         Assert.NotNull(await graph.FriendRequestRepository.GetForUserPairAsync(requester.Id, addressee.Id));
     }
@@ -29,11 +32,13 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task SendRequest_ToSelf_ThrowsArgumentException()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var user = await CreateUserAsync(graph.UserRepository, "solo");
         http.HttpContext = ContextFor(user.Id);
 
+        // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
             graph.FriendRequestService.SendRequestAsync(
                 new FriendRequestCreateRequestDto { AddresseeId = user.Id }));
@@ -42,6 +47,7 @@ public sealed class FriendRequestServiceUnitTests
     [Fact]
     public async Task SendRequest_WhenAddresseeBlocked_ThrowsArgumentException()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var requester = await CreateUserAsync(graph.UserRepository, "blocker");
@@ -49,6 +55,7 @@ public sealed class FriendRequestServiceUnitTests
         http.HttpContext = ContextFor(requester.Id);
         await graph.UserBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
 
+        // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
             graph.FriendRequestService.SendRequestAsync(
                 new FriendRequestCreateRequestDto { AddresseeId = blocked.Id }));

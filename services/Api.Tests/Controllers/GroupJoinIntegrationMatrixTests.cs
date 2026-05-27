@@ -27,6 +27,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         JoinPolicyOperation operation,
         JoinPolicyRouteOutcome expected)
     {
+        // Arrange
         var scenario = await CreateScenarioAsync($"join_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
@@ -37,8 +38,11 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
 
         if (operation == JoinPolicyOperation.Join)
         {
+            // Act
             var joinRes = await Client.PostAsync(
                 $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+
+            // Assert
             if (expected == JoinPolicyRouteOutcome.MemberAdded)
             {
                 await IntegrationAssertions.AssertStatusAsync(joinRes, HttpStatusCode.OK);
@@ -52,8 +56,11 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
             return;
         }
 
+        // Act
         var applyRes = await Client.PostAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+
+        // Assert
         if (expected == JoinPolicyRouteOutcome.ApplicationCreated)
         {
             await IntegrationAssertions.AssertStatusAsync(applyRes, HttpStatusCode.Created);
@@ -69,6 +76,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     [Fact]
     public async Task Join_WhenAlreadyMember_Returns409()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("jp_p01");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
@@ -77,27 +85,35 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
             joinPolicy: GroupJoinPolicy.Open);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
+        // Act
         var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
     }
 
     [Fact]
     public async Task Apply_WhenAlreadyMember_Returns409()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("jp_p02");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Requestable);
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
+        // Act
         var res = await Client.PostAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
     }
 
     [Fact]
     public async Task Join_WithPendingInvitation_AddsMember()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("jp_p05");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
@@ -106,7 +122,10 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
             Factory, group.Id, scenario.Owner.Id, scenario.Stranger.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
+        // Act
         var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
     }
@@ -114,6 +133,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     [Fact]
     public async Task Apply_WithPendingInvitation_ReturnsOkAndAddsMember()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("jp_p08");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
@@ -122,8 +142,11 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
             Factory, group.Id, scenario.Owner.Id, scenario.Stranger.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
+        // Act
         var res = await Client.PostAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
     }
@@ -131,10 +154,14 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     [Fact]
     public async Task Join_WhenGroupMissing_Returns404()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("jp_p10");
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
+        // Act
         var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/99999/join", null);
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
     }
 }

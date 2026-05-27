@@ -16,6 +16,7 @@ public sealed class CommentServiceUnitTests
     [Fact]
     public async Task UpdateCommentAsync_OnGroupBoardPost_ReturnsUnauthorized_AfterMemberRemoved()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -49,8 +50,9 @@ public sealed class CommentServiceUnitTests
 
         http.HttpContext = ContextFor(owner.Id);
         await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
-
         http.HttpContext = ContextFor(member.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             graph.CommentService.UpdateCommentAsync(new CommentPatchRequestDto
             {
@@ -62,6 +64,7 @@ public sealed class CommentServiceUnitTests
     [Fact]
     public async Task DeleteCommentAsync_OnGroupBoardPost_ReturnsUnauthorized_AfterMemberRemoved()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -95,8 +98,9 @@ public sealed class CommentServiceUnitTests
 
         http.HttpContext = ContextFor(owner.Id);
         await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
-
         http.HttpContext = ContextFor(member.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             graph.CommentService.DeleteCommentAsync(comment.Id));
     }
@@ -104,6 +108,7 @@ public sealed class CommentServiceUnitTests
     [Fact]
     public async Task CreateCommentAsync_ValidRequest_CreatesComment()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var user = await CreateUserAsync(graph.UserRepository, "test");
@@ -111,12 +116,14 @@ public sealed class CommentServiceUnitTests
         await graph.PostRepository.CreatePostAsync(post);
         http.HttpContext = ContextFor(user.Id);
 
+        // Act
         await graph.CommentService.CreateCommentAsync(new CommentCreateRequestDto
         {
             PostId = post.Id,
             Content = "Test comment",
         });
 
+        // Assert
         var comments = await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id);
         Assert.Single(comments);
         Assert.Equal("Test comment", comments[0].Content);

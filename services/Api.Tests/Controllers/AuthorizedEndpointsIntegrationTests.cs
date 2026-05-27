@@ -59,11 +59,14 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
         string url,
         object? body)
     {
+        // Arrange
         Client.DefaultRequestHeaders.Authorization = null;
 
+        // Act
         var res = await SendAsync(method, url, body);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
 
     private Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, object? body) =>

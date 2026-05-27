@@ -1,5 +1,12 @@
 namespace Api.Tests.Infrastructure;
 
+/// <summary>
+/// Base class for HTTP integration tests. Tests use explicit
+/// <c>// Arrange</c>, <c>// Act</c>, and <c>// Assert</c> sections.
+/// Use <c>// Act &amp; Assert</c> when the step is assertion-only (for example
+/// <c>Assert.ThrowsAsync</c>). Unit tests in <c>Services/</c> follow the same convention.
+/// Matrix tests place scenario setup in Arrange and branched outcome checks in Assert.
+/// </summary>
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected ApiWebApplicationFactory Factory { get; }

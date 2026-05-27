@@ -150,13 +150,16 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task UpdatePrivacy_Returns200_AndUpdatesFriendsListVisibility()
     {
+        // Arrange
         const string testMethodName = "UserPrivacy";
         var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
+        // Act
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Public });
 
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
         var body = await patch.Content.ReadFromJsonAsync<UserPrivacySettingsResponseDto>();
         Assert.NotNull(body);
@@ -170,11 +173,14 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task UpdatePrivacy_Returns401_WhenNotAuthenticated()
     {
+        // Arrange
         Client.DefaultRequestHeaders.Authorization = null;
 
+        // Act
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
             new UserPrivacySettingsUpdateRequestDto { FriendsListVisibility = FriendsListVisibility.Private });
 
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
     }
 

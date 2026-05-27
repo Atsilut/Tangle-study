@@ -25,11 +25,13 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
         FriendshipSetupStep blockAct,
         ExpectedFriendRequestAfterBlock expectedAfterBlock)
     {
+        // Arrange
         const string prefix = "BlkMatrix";
         var userA = await CreateUserForTest(prefix + "A", 1);
         var userB = await CreateUserForTest(prefix + "B", 2);
         await ApplyFriendshipSetupStepsAsync(userA, userB, setupBeforeBlock);
 
+        // Act
         if (blockAct == FriendshipSetupStep.UserABlocksB)
         {
             await LoginAs(userA);
@@ -41,6 +43,7 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
             await BlockUserAsync(userA.Id);
         }
 
+        // Assert
         switch (expectedAfterBlock)
         {
             case ExpectedFriendRequestAfterBlock.Deleted:
@@ -69,12 +72,16 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
         HttpStatusCode expectedStatus,
         bool expectFriendship)
     {
+        // Arrange
         const string prefix = "RecipMatrix";
         var userA = await CreateUserForTest(prefix + "A", 1);
         var userB = await CreateUserForTest(prefix + "B", 2);
         await ApplyFriendshipSetupStepsAsync(userA, userB, setup);
 
+        // Act
         var status = await SendFriendRequestStatusAsync(userB, userA);
+
+        // Assert
         Assert.Equal(expectedStatus, status);
         await AssertFriendshipExistsAsync(userA, userB, expectFriendship);
     }
@@ -82,6 +89,7 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
     [Fact]
     public async Task Send_WhenIgnoredAndBlockedByAddressee_Returns400()
     {
+        // Arrange
         const string prefix = "RecipBlock";
         var userA = await CreateUserForTest(prefix + "A", 1);
         var userB = await CreateUserForTest(prefix + "B", 2);
@@ -90,7 +98,10 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
         await LoginAs(userB);
         await BlockUserAsync(userA.Id);
 
+        // Act
         var status = await SendFriendRequestStatusAsync(userB, userA);
+
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, status);
         await AssertFriendshipExistsAsync(userA, userB, expected: false);
     }
@@ -98,27 +109,35 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
     [Fact]
     public async Task Send_WhenAlreadyFriends_Returns409()
     {
+        // Arrange
         const string prefix = "Friends";
         var userA = await CreateUserForTest(prefix + "A", 1);
         var userB = await CreateUserForTest(prefix + "B", 2);
         await AcceptFriendshipAsync(userA, userB);
 
+        // Act
         var status = await SendFriendRequestStatusAsync(userA, userB);
+
+        // Assert
         Assert.Equal(HttpStatusCode.Conflict, status);
     }
 
     [Fact]
     public async Task GetPending_RequesterSeesMaskedPending_WhenOutgoingIgnored()
     {
+        // Arrange
         const string prefix = "Mask";
         var userA = await CreateUserForTest(prefix + "A", 1);
         var userB = await CreateUserForTest(prefix + "B", 2);
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(userA, userB);
         await IgnoreIncomingRequestAsync(userB, requestId);
-
         await AssertPendingDtoAppearsAsync(userA, userB.Id, appearsPending: true, isIncoming: false);
         await LoginAs(userB);
+
+        // Act
         var res = await Client.GetAsync($"{RequestsBase}/pending");
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }
 }

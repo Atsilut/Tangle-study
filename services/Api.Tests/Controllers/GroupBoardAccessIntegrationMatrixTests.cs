@@ -53,17 +53,20 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         GroupActorRole actor,
         bool canAccess)
     {
+        // Arrange
         var scenario = await CreateScenarioAsync($"view_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(groupVisibility, includeAdmin: true, includeMember: true);
         var board = await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "board", boardVisibility);
         await scenario.LoginAsAsync(actor);
 
+        // Act
         var listRes = await Client.GetAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts");
         var writeRes = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
             new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" });
 
+        // Assert
         // Board post endpoints require authentication; anonymous callers always get 401.
         if (actor == GroupActorRole.Anonymous)
         {
@@ -102,11 +105,15 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         BoardVisibility? requestVisibility,
         BoardVisibility expectedVisibility)
     {
+        // Arrange
         var scenario = await CreateScenarioAsync($"board_create_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(groupVisibility, includeAdmin: false, includeMember: false);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
+        // Act
         var board = await scenario.CreateBoardAsync(group.Id, "board", requestVisibility);
+
+        // Assert
         Assert.Equal(expectedVisibility, board.Visibility);
     }
 
@@ -130,6 +137,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         BoardCrudOperation operation,
         GroupExpectedOutcome expected)
     {
+        // Arrange
         var scenario = await CreateScenarioAsync($"board_crud_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
@@ -137,6 +145,8 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         await scenario.LoginAsAsync(actor);
 
         var boardsBase = $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards";
+
+        // Act
         HttpResponseMessage res;
         switch (operation)
         {
@@ -157,6 +167,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
                 throw new ArgumentOutOfRangeException(nameof(operation), operation, null);
         }
 
+        // Assert
         if (expected == GroupExpectedOutcome.Ok)
         {
             Assert.True(
@@ -170,6 +181,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
     [Fact]
     public async Task ListBoards_FiltersForMemberOnPrivateGroup()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("board_list_member");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "AdminOnly", BoardVisibility.AdminOnly);
@@ -177,7 +189,10 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "ForAll", BoardVisibility.ForAll);
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
+        // Act
         var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards");
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>();
         Assert.Equal(2, listed!.Count);
@@ -188,13 +203,17 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
     [Fact]
     public async Task ListBoards_StrangerOnPublicSeesForAllOnly()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("board_list_stranger");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Public, includeAdmin: false, includeMember: false);
         await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "ForAll", BoardVisibility.ForAll);
         await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "MembersOnly", BoardVisibility.MembersOnly);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
+        // Act
         var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards");
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>();
         Assert.Single(listed!);
@@ -204,14 +223,18 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
     [Fact]
     public async Task CreateBoard_Returns409_WhenDuplicateName()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("board_dup");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
         await scenario.CreateBoardAsync(group.Id, "Dup");
 
+        // Act
         var res = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards",
             new GroupBoardCreateRequestDto { Name = "Dup" });
+
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
     }
 }

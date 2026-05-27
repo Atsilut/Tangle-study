@@ -12,6 +12,7 @@ public sealed class GroupApplicationServiceUnitTests
     [Fact]
     public async Task Apply_CreatesPendingApplication()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -26,8 +27,10 @@ public sealed class GroupApplicationServiceUnitTests
         });
         http.HttpContext = ContextFor(stranger.Id);
 
+        // Act
         var result = await graph.GroupApplicationService.ApplyAsync(group.Id);
 
+        // Assert
         Assert.Equal(GroupApplicationOutcome.GroupApplicationCreated, result.Outcome);
         Assert.NotNull(await graph.GroupApplicationRepository.GetPendingForUserAsync(group.Id, stranger.Id));
     }

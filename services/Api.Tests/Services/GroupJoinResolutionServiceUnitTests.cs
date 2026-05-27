@@ -12,6 +12,7 @@ public sealed class GroupJoinResolutionServiceUnitTests
     [Fact]
     public async Task CreateMembershipFromJoinRequests_AddsMemberRole()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -25,8 +26,10 @@ public sealed class GroupJoinResolutionServiceUnitTests
             JoinPolicy = GroupJoinPolicy.Open,
         });
 
+        // Act
         await graph.GroupJoinResolutionService.CreateMembershipFromJoinRequestsAsync(group.Id, stranger.Id);
 
+        // Assert
         var member = await graph.GroupMemberRepository.GetMemberAsync(group.Id, stranger.Id);
         Assert.NotNull(member);
         Assert.Equal(GroupRole.Member, member!.Role);

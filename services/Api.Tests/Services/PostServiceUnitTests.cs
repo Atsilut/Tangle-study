@@ -13,17 +13,20 @@ public sealed class PostServiceUnitTests
     [Fact]
     public async Task CreatePostAsync_ValidRequest_CreatesPost()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var user = await CreateUserAsync(graph.UserRepository);
         http.HttpContext = ContextFor(user.Id);
 
+        // Act
         await graph.PostService.CreatePostAsync(new PostCreateRequestDto
         {
             Title = "Test title",
             Content = "Test content",
         });
 
+        // Assert
         var posts = await graph.PostRepository.GetPostsByUserIdAsync(user.Id);
         Assert.Single(posts);
         Assert.Equal("Test content", posts[0].Content);
@@ -32,6 +35,7 @@ public sealed class PostServiceUnitTests
     [Fact]
     public async Task UpdatePostAsync_NonOwner_ThrowsUnauthorized()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -39,8 +43,9 @@ public sealed class PostServiceUnitTests
         http.HttpContext = ContextFor(owner.Id);
         await graph.PostService.CreatePostAsync(new PostCreateRequestDto { Title = "t", Content = "c" });
         var post = (await graph.PostRepository.GetPostsByUserIdAsync(owner.Id)).Single();
-
         http.HttpContext = ContextFor(other.Id);
+
+        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             graph.PostService.UpdatePostAsync(new PostPatchRequestDto
             {
@@ -53,8 +58,13 @@ public sealed class PostServiceUnitTests
     [Fact]
     public async Task GetPostByIdAsync_ReturnsNull_WhenMissing()
     {
+        // Arrange
         var graph = DomainServiceTestFactory.Create();
+
+        // Act
         var dto = await graph.PostService.GetPostByIdAsync(99999);
+
+        // Assert
         Assert.Null(dto);
     }
 

@@ -83,7 +83,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         // Act
         var res = await Client.PostAsJsonAsync("/api/comments", req);
 
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
     }
 
@@ -101,7 +101,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
         // Act
         var res = await Client.PostAsJsonAsync("/api/comments", req);
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
 
@@ -122,7 +122,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         // Act
         var res = await Client.PostAsJsonAsync("/api/comments", req);
 
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
     }
 
@@ -244,7 +244,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         // Act
         var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
         
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var comments = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
         Assert.NotNull(comments);
@@ -396,7 +396,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var resActive = await Client.GetAsync($"/api/comments/user/{activeUser.Id}");
         var resLesser = await Client.GetAsync($"/api/comments/user/{lessUser.Id}");
 
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(resActive, HttpStatusCode.OK);
         await IntegrationAssertions.AssertStatusAsync(resLesser, HttpStatusCode.OK);
         var commentsActive = await resActive.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
@@ -472,8 +472,8 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     {
         // Arrange
         const long missingUserId = 9999; // Assuming this user has been deleted while commenting
-        // Act
 
+        // Act
         var res = await Client.GetAsync($"/api/comments/user/{missingUserId}");
         
         // Assert
@@ -491,7 +491,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         // Act
         var res = await Client.GetAsync($"/api/comments/user/{user.Id}");
         
-        //Assert
+        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }
 

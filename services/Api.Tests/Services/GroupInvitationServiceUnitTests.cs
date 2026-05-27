@@ -12,6 +12,7 @@ public sealed class GroupInvitationServiceUnitTests
     [Fact]
     public async Task Invite_CreatesPendingInvitation()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -25,10 +26,12 @@ public sealed class GroupInvitationServiceUnitTests
             JoinPolicy = GroupJoinPolicy.InvitationOnly,
         });
 
+        // Act
         var result = await graph.GroupInvitationService.InviteAsync(
             group.Id,
             new GroupInvitationCreateRequestDto { InviteeId = stranger.Id });
 
+        // Assert
         Assert.Equal(GroupInvitationOutcome.GroupInvitationCreated, result.Outcome);
         Assert.NotNull(await graph.GroupInvitationRepository.GetPendingForUserAsync(group.Id, stranger.Id));
     }

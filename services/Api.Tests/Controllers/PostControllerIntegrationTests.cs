@@ -84,6 +84,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task GetAllPosts_Returns204_WhenNoPosts()
     {
+        // Arrange
+        // (empty database from test fixture)
+
         // Act
         var res = await Client.GetAsync("/api/posts");
 

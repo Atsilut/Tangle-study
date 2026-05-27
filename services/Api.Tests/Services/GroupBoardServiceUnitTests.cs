@@ -12,6 +12,7 @@ public sealed class GroupBoardServiceUnitTests
     [Fact]
     public async Task CreateAsync_UsesMembersOnlyDefaultOnPrivateGroup()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var owner = await CreateUserAsync(graph.UserRepository, "owner");
@@ -23,12 +24,14 @@ public sealed class GroupBoardServiceUnitTests
             Visibility = GroupVisibility.Private,
         });
 
+        // Act
         var board = await graph.GroupBoardService.CreateAsync(group.Id, new GroupBoardCreateRequestDto
         {
             Name = "board",
             Description = "desc",
         });
 
+        // Assert
         Assert.Equal(BoardVisibility.MembersOnly, board.Visibility);
     }
 

@@ -13,15 +13,18 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
     [Fact]
     public async Task CreateGroup_Returns201_AndOwnerIsCreator()
     {
+        // Arrange
         const string testMethodName = "GroupCreate";
         var owner = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 1);
 
+        // Act
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
 
+        // Assert
         Assert.Equal(1, group.MemberCount);
 
         var membersRes = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members");
-        Assert.Equal(HttpStatusCode.OK, membersRes.StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(membersRes, HttpStatusCode.OK);
         var members = await membersRes.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>();
         Assert.NotNull(members);
         var single = Assert.Single(members);

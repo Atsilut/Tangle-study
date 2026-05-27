@@ -12,6 +12,7 @@ public sealed class FriendshipServiceUnitTests
     [Fact]
     public async Task GetFriends_ReturnsFriend_AfterAccept()
     {
+        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
         var userA = await CreateUserAsync(graph.UserRepository, "a");
@@ -23,10 +24,12 @@ public sealed class FriendshipServiceUnitTests
         var pending = await graph.FriendRequestService.GetPendingAsync();
         var requestId = pending!.Single(p => p.OtherUserId == userA.Id).Id;
         await graph.FriendRequestService.AcceptRequestAsync(requestId);
-
         http.HttpContext = ContextFor(userA.Id);
+
+        // Act
         var friends = await graph.FriendshipService.GetMyFriendsAsync();
 
+        // Assert
         Assert.NotNull(friends);
         Assert.Contains(friends!, f => f.OtherUserId == userB.Id);
     }

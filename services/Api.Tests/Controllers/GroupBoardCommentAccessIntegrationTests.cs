@@ -13,6 +13,7 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
     [Fact]
     public async Task GroupBoardComment_UpdateAndDelete_Return401_AfterMemberRemoved()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("gb_comment_mut");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
         var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
@@ -27,15 +28,16 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}");
         await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
         await scenario.AssertMemberAbsentAsync(group.Id, scenario.Member.Id);
-
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
+        // Act
         var updateRes = await Client.PatchAsJsonAsync(
             "/api/comments",
             new CommentPatchRequestDto { Id = comment.Id, Content = "updated after removal" });
-        await IntegrationAssertions.AssertStatusAsync(updateRes, HttpStatusCode.Unauthorized);
-
         var deleteRes = await Client.DeleteAsync($"/api/comments/{comment.Id}");
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(updateRes, HttpStatusCode.Unauthorized);
         await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.Unauthorized);
 
         await scenario.LoginAsAsync(GroupActorRole.Owner);
@@ -48,6 +50,7 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
     [Fact]
     public async Task GroupBoardComment_ReadAndCreate_Return401_AfterMemberRemoved()
     {
+        // Arrange
         var scenario = await CreateScenarioAsync("gb_comment_read");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
         var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
@@ -60,18 +63,18 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         var removeRes = await Client.DeleteAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}");
         await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
-
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
+        // Act
         var getByIdRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        await IntegrationAssertions.AssertStatusAsync(getByIdRes, HttpStatusCode.Unauthorized);
-
         var getByPostRes = await Client.GetAsync($"/api/comments/post/{postId}");
-        await IntegrationAssertions.AssertStatusAsync(getByPostRes, HttpStatusCode.Unauthorized);
-
         var createRes = await Client.PostAsJsonAsync(
             "/api/comments",
             new CommentCreateRequestDto { PostId = postId, Content = "new after removal" });
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(getByIdRes, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertStatusAsync(getByPostRes, HttpStatusCode.Unauthorized);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Unauthorized);
     }
 
