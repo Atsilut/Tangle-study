@@ -60,10 +60,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = 999999 });
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(problem);
-        Assert.Equal("Addressee not found", problem.Detail);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Addressee not found");
     }
 
     [Fact]
