@@ -1,3 +1,4 @@
+using Api.Domain.Chat.Realtime;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -47,10 +48,26 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
             var tokenProvider = sp.GetRequiredService<TokenProvider>();
             options.TokenValidationParameters = tokenProvider.GetValidationParameters();
             options.MapInboundClaims = false;
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken)
+                        && path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                },
+            };
         }));
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -87,5 +104,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

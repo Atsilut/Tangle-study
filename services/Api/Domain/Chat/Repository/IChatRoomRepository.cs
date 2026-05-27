@@ -4,14 +4,14 @@ namespace Api.Domain.Chat.Repository;
 
 public interface IChatRoomRepository
 {
-    Task CreateChatRoomAsync(ChatRoom room);
-    Task<ChatRoom?> GetChatRoomByIdAsync(long id, bool includeParticipants = false);
-    Task<ChatRoom?> GetDirectChatRoomForUserPairAsync(long userId, long otherUserId);
-    Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId);
-    Task<List<ChatRoom>> GetChatRoomsForPlatformGroupAsync(long platformGroupId);
-    Task<bool> ExistsChatRoomParticipantAsync(long chatRoomId, long userId);
-    Task<ChatRoomParticipant?> GetChatRoomParticipantAsync(long chatRoomId, long userId);
-    Task AddChatRoomParticipantAsync(ChatRoomParticipant participant);
-    Task RemoveChatRoomParticipantAsync(ChatRoomParticipant participant);
-    Task TouchChatRoomUpdatedAtAsync(long chatRoomId);
+    public Task CreateChatRoomAsync(ChatRoom room);
+    public Task<ChatRoom?> GetChatRoomByIdAsync(long id, bool includeParticipants = false);
+    public Task<ChatRoom?> GetDirectChatRoomForUserPairAsync(long userId, long otherUserId);
+    public Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId);
+    public Task<List<ChatRoom>> GetChatRoomsForPlatformGroupAsync(long platformGroupId);
+    public Task<bool> ExistsChatRoomParticipantAsync(long chatRoomId, long userId);
+    public Task<ChatRoomParticipant?> GetChatRoomParticipantAsync(long chatRoomId, long userId);
+    public Task AddChatRoomParticipantAsync(ChatRoomParticipant participant);
+    public Task RemoveChatRoomParticipantAsync(ChatRoomParticipant participant);
+    public Task TouchChatRoomUpdatedAtAsync(long chatRoomId);
 }
