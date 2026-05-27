@@ -128,7 +128,10 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Conflict);
+        await IntegrationAssertions.AssertProblemDetailAsync(
+            patch,
+            HttpStatusCode.Conflict,
+            $"A user with nickname '{existingUser.Nickname}' already exists.");
     }
 
     [Fact]
@@ -144,7 +147,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(owner.Id, "hacked"));
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(patch, HttpStatusCode.Unauthorized, "Unauthorized access");
     }
 
     [Fact]
@@ -234,6 +237,6 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var delete = await Client.DeleteAsync($"/api/users/{owner.Id}");
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(delete, HttpStatusCode.Unauthorized, "Unauthorized access");
     }
 }

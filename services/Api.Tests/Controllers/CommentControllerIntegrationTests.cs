@@ -123,7 +123,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Post not found");
     }
 
     [Theory]
@@ -201,7 +201,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Parent comment not found");
     }
 
     [Fact]
@@ -225,7 +225,8 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PostAsJsonAsync("/api/comments", req);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
+        await IntegrationAssertions.AssertProblemDetailAsync(
+            res, HttpStatusCode.BadRequest, "Parent comment must belong to the same post");
     }
 
     // --- GET ---
@@ -300,7 +301,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.GetAsync($"/api/comments/post/{missingPostId}");
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Post not found");
     }
 
     [Fact]
@@ -477,7 +478,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.GetAsync($"/api/comments/user/{missingUserId}");
         
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "User not found");
     }
 
     [Fact]
@@ -557,7 +558,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
 
         Assert.NotNull(dto);
         Assert.Equal(comment.Content, dto.Content);
@@ -614,7 +615,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PatchAsJsonAsync($"/api/comments", req);
         
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Comment not found");
     }
 
     // --- DELETE ---
@@ -656,7 +657,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
         Assert.Equal(comment.Content, dto.Content);
     }
@@ -696,6 +697,6 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.DeleteAsync($"/api/comments/{nonExistentCommentId}");
         
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Comment not found");
     }
 }

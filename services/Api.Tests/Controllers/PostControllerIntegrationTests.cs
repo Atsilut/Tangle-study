@@ -281,7 +281,10 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(
+            patchRes,
+            HttpStatusCode.Unauthorized,
+            "Attempted to perform an unauthorized operation.");
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
@@ -313,7 +316,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(patchRes, HttpStatusCode.NotFound, "Post not found");
     }
 
     // --- DELETE ---
@@ -369,7 +372,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}");
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.Unauthorized);
+        await IntegrationAssertions.AssertProblemDetailAsync(deleteRes, HttpStatusCode.Unauthorized, "Unauthorized access");
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
@@ -393,6 +396,6 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var deleteRes = await Client.DeleteAsync($"/api/posts/{missingPostId}");
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(deleteRes, HttpStatusCode.NotFound, "Post not found");
     }
 }

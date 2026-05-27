@@ -26,4 +26,15 @@ internal static class IntegrationAssertions
         Assert.NotNull(problem);
         Assert.Contains(expectedSubstring, problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
+
+    public static async Task AssertProblemDetailAsync(
+        HttpResponseMessage response,
+        HttpStatusCode expectedStatus,
+        string expectedDetail)
+    {
+        await AssertStatusAsync(response, expectedStatus);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal(expectedDetail, problem!.Detail);
+    }
 }
