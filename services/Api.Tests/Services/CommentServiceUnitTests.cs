@@ -3,11 +3,8 @@ using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
-using Api.Domain.Users.Domain;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
@@ -19,9 +16,9 @@ public sealed class CommentServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        var member = await CreateUserAsync(graph.UserRepository, "member");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var member = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "member");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "G",
@@ -35,7 +32,7 @@ public sealed class CommentServiceUnitTests
             Description = "desc",
         });
 
-        http.HttpContext = ContextFor(member.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(member.Id);
         await graph.PostService.CreateGroupBoardPostAsync(
             group.Id,
             board.Id,
@@ -48,9 +45,9 @@ public sealed class CommentServiceUnitTests
         });
         var comment = (await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id)).Single();
 
-        http.HttpContext = ContextFor(owner.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
-        http.HttpContext = ContextFor(member.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(member.Id);
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -67,9 +64,9 @@ public sealed class CommentServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        var member = await CreateUserAsync(graph.UserRepository, "member");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var member = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "member");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "G",
@@ -83,7 +80,7 @@ public sealed class CommentServiceUnitTests
             Description = "desc",
         });
 
-        http.HttpContext = ContextFor(member.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(member.Id);
         await graph.PostService.CreateGroupBoardPostAsync(
             group.Id,
             board.Id,
@@ -96,9 +93,9 @@ public sealed class CommentServiceUnitTests
         });
         var comment = (await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id)).Single();
 
-        http.HttpContext = ContextFor(owner.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         await graph.GroupMembershipService.RemoveMemberInternalAsync(group.Id, member.Id);
-        http.HttpContext = ContextFor(member.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(member.Id);
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -111,10 +108,10 @@ public sealed class CommentServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var user = await CreateUserAsync(graph.UserRepository, "test");
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "test");
         var post = new Post(user.Id, "title", "content");
         await graph.PostRepository.CreatePostAsync(post);
-        http.HttpContext = ContextFor(user.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
         // Act
         await graph.CommentService.CreateCommentAsync(new CommentCreateRequestDto
@@ -127,17 +124,5 @@ public sealed class CommentServiceUnitTests
         var comments = await graph.CommentRepository.GetCommentsByPostIdAsync(post.Id);
         Assert.Single(comments);
         Assert.Equal("Test comment", comments[0].Content);
-    }
-
-    private static DefaultHttpContext ContextFor(long userId) => new()
-    {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-    };
-
-    private static async Task<User> CreateUserAsync(FakeUserRepository repo, string nickname)
-    {
-        var user = new User($"{nickname}@test.com", "Password123!", nickname);
-        await repo.CreateUserAsync(user);
-        return user;
     }
 }

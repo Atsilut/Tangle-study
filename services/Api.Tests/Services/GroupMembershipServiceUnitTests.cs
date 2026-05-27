@@ -2,8 +2,6 @@ using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
@@ -15,8 +13,8 @@ public sealed class GroupMembershipServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "G",
@@ -38,9 +36,9 @@ public sealed class GroupMembershipServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        var admin = await CreateUserAsync(graph.UserRepository, "admin");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var admin = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "admin");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "G",
@@ -66,9 +64,9 @@ public sealed class GroupMembershipServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        var member = await CreateUserAsync(graph.UserRepository, "member");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var member = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "member");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
             Name = "G",
@@ -76,7 +74,7 @@ public sealed class GroupMembershipServiceUnitTests
             Visibility = GroupVisibility.Private,
         });
         await graph.GroupMembershipService.AddMemberInternalAsync(group.Id, member.Id, GroupRole.Member);
-        http.HttpContext = ContextFor(member.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(member.Id);
 
         // Act
         var members = await graph.GroupMembershipService.GetMembersAsync(group.Id);
@@ -84,17 +82,5 @@ public sealed class GroupMembershipServiceUnitTests
         // Assert
         Assert.NotNull(members);
         Assert.True(members!.Count >= 2);
-    }
-
-    private static DefaultHttpContext ContextFor(long userId) => new()
-    {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-    };
-
-    private static async Task<Api.Domain.Users.Domain.User> CreateUserAsync(FakeUserRepository repo, string nickname)
-    {
-        var user = new Api.Domain.Users.Domain.User($"{nickname}@test.com", "password", nickname);
-        await repo.CreateUserAsync(user);
-        return user;
     }
 }

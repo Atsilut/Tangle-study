@@ -1,10 +1,7 @@
 using Api.Domain.Friendships.Dto;
 using Api.Domain.UserBlocks.Dto;
-using Api.Domain.Users.Domain;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
@@ -16,9 +13,9 @@ public sealed class FriendRequestServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var requester = await CreateUserAsync(graph.UserRepository, "a");
-        var addressee = await CreateUserAsync(graph.UserRepository, "b");
-        http.HttpContext = ContextFor(requester.Id);
+        var requester = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "a");
+        var addressee = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "b");
+        http.HttpContext = ServiceTestHelpers.ContextFor(requester.Id);
 
         // Act
         var outcome = await graph.FriendRequestService.SendRequestAsync(
@@ -35,8 +32,8 @@ public sealed class FriendRequestServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var user = await CreateUserAsync(graph.UserRepository, "solo");
-        http.HttpContext = ContextFor(user.Id);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "solo");
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -50,26 +47,14 @@ public sealed class FriendRequestServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var requester = await CreateUserAsync(graph.UserRepository, "blocker");
-        var blocked = await CreateUserAsync(graph.UserRepository, "blocked");
-        http.HttpContext = ContextFor(requester.Id);
+        var requester = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "blocker");
+        var blocked = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "blocked");
+        http.HttpContext = ServiceTestHelpers.ContextFor(requester.Id);
         await graph.UserBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() =>
             graph.FriendRequestService.SendRequestAsync(
                 new FriendRequestCreateRequestDto { AddresseeId = blocked.Id }));
-    }
-
-    private static DefaultHttpContext ContextFor(long userId) => new()
-    {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-    };
-
-    private static async Task<User> CreateUserAsync(FakeUserRepository repo, string nickname)
-    {
-        var user = new User($"{nickname}@test.com", "password", nickname);
-        await repo.CreateUserAsync(user);
-        return user;
     }
 }

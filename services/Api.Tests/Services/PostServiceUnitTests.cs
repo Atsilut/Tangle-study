@@ -1,10 +1,7 @@
 using Api.Domain.Posts.Dto;
-using Api.Domain.Users.Domain;
 using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
@@ -16,8 +13,8 @@ public sealed class PostServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var user = await CreateUserAsync(graph.UserRepository);
-        http.HttpContext = ContextFor(user.Id);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
         // Act
         await graph.PostService.CreatePostAsync(new PostCreateRequestDto
@@ -38,12 +35,12 @@ public sealed class PostServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var owner = await CreateUserAsync(graph.UserRepository, "owner");
-        var other = await CreateUserAsync(graph.UserRepository, "other");
-        http.HttpContext = ContextFor(owner.Id);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var other = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "other");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         await graph.PostService.CreatePostAsync(new PostCreateRequestDto { Title = "t", Content = "c" });
         var post = (await graph.PostRepository.GetPostsByUserIdAsync(owner.Id)).Single();
-        http.HttpContext = ContextFor(other.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(other.Id);
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -66,17 +63,5 @@ public sealed class PostServiceUnitTests
 
         // Assert
         Assert.Null(dto);
-    }
-
-    private static DefaultHttpContext ContextFor(long userId) => new()
-    {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-    };
-
-    private static async Task<User> CreateUserAsync(FakeUserRepository repo, string nickname = "test")
-    {
-        var user = new User($"{nickname}@test.com", "Password123!", nickname);
-        await repo.CreateUserAsync(user);
-        return user;
     }
 }

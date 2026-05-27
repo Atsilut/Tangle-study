@@ -1,9 +1,6 @@
 using Api.Domain.UserBlocks.Dto;
-using Api.Domain.Users.Domain;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 
 namespace Api.Tests.Services;
 
@@ -15,26 +12,14 @@ public sealed class UserBlockServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = DomainServiceTestFactory.Create(http);
-        var blocker = await CreateUserAsync(graph.UserRepository, "blocker");
-        var blocked = await CreateUserAsync(graph.UserRepository, "blocked");
-        http.HttpContext = ContextFor(blocker.Id);
+        var blocker = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "blocker");
+        var blocked = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "blocked");
+        http.HttpContext = ServiceTestHelpers.ContextFor(blocker.Id);
 
         // Act
         await graph.UserBlockService.BlockUserAsync(new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
 
         // Assert
         Assert.True(await graph.UserBlockRepository.ExistsUserBlockAsync(blocker.Id, blocked.Id));
-    }
-
-    private static DefaultHttpContext ContextFor(long userId) => new()
-    {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
-    };
-
-    private static async Task<User> CreateUserAsync(FakeUserRepository repo, string nickname)
-    {
-        var user = new User($"{nickname}@test.com", "password", nickname);
-        await repo.CreateUserAsync(user);
-        return user;
     }
 }
