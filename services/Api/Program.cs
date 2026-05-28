@@ -2,6 +2,7 @@ using Api.Domain.Chat.Realtime;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
+using Api.Global.Infrastructure;
 using Api.Global.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -67,7 +68,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSignalR();
+builder.Services.AddTangleRedis(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -76,6 +77,12 @@ var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
+
+var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
+if (redisOptions.Enabled)
+    logger.LogInformation("Redis enabled (cache + SignalR backplane).");
+else
+    logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
 
 if (app.Environment.IsDevelopment())
 {

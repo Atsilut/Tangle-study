@@ -24,6 +24,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
+                ["Redis:Enabled"] = "false",
             });
         });
 
