@@ -36,7 +36,7 @@ public static class RedisServiceCollectionExtensions
         services.AddHostedService<RedisEventSubscriberHostedService>();
 
         services.AddSignalR()
-            .AddStackExchangeRedis(options.ConnectionString, redisOptions =>
+            .AddStackExchangeRedis(redisOptions =>
             {
                 if (!string.IsNullOrWhiteSpace(options.SignalRChannelPrefix))
                     redisOptions.Configuration.ChannelPrefix = RedisChannel.Literal(options.SignalRChannelPrefix);

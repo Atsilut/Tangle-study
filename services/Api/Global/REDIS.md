@@ -54,8 +54,10 @@ docker compose exec redis redis-cli XLEN tangle:queue:chat.message.created
 
 | Collection | Redis | Scope |
 |------------|-------|--------|
-| `IntegrationTests` (default) | Off | All REST / matrix / most integration tests |
-| `RedisRealtimeIntegrationTests` | Testcontainers Redis | `ChatHubRealtimeIntegrationTests` (SignalR + stream enqueue smoke) |
+| `IntegrationTests` (default) | Off | REST / matrix tests; `ChatInProcessRealtimeIntegrationTests.cs` |
+| `RedisRealtimeIntegrationTests` | Testcontainers Redis | `ChatRedisRealtimeIntegrationTests.cs`, `UserNicknameCacheRedisIntegrationTests.cs` |
+
+SignalR scale-out across multiple API replicas is not covered by integration tests (requires real networked hosts). Verify with scaled Compose when needed; see [QUEUE.md](Queue/QUEUE.md) for Streams/worker E2E later.
 
 Run all tests: `docker compose --profile test run --rm test`
 

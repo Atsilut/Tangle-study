@@ -1,6 +1,6 @@
 namespace Api.Tests.Infrastructure;
 
-[CollectionDefinition(Name)]
+[CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class RedisRealtimeIntegrationTestCollection :
     ICollectionFixture<PostgresTestcontainerFixture>,
     ICollectionFixture<RedisTestcontainerFixture>
