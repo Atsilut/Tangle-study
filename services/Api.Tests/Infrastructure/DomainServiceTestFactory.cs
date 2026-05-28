@@ -57,6 +57,8 @@ internal static class DomainServiceTestFactory
         var groupBlacklistRepository = new FakeGroupBlacklistRepository();
         var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
+        var distributedCache = new FakeDistributedCache();
+        var nicknameCacheService = new NicknameCacheService(userRepository, distributedCache);
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -80,7 +82,8 @@ internal static class DomainServiceTestFactory
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
-            http);
+            http,
+            nicknameCacheService);
 
         groupMembershipService = new GroupMembershipService(
             groupMemberRepository,
