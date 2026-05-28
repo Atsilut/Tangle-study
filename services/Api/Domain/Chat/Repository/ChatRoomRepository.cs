@@ -33,10 +33,12 @@ public class ChatRoomRepository : IChatRoomRepository
     {
         var userLowId = Math.Min(userId, otherUserId);
         var userHighId = Math.Max(userId, otherUserId);
-        return await _context.ChatRooms.FirstOrDefaultAsync(r =>
-            r.Kind == ChatRoomKind.Direct
-            && r.UserLowId == userLowId
-            && r.UserHighId == userHighId);
+        return await _context.ChatRooms
+            .Include(r => r.Participants)
+            .FirstOrDefaultAsync(r =>
+                r.Kind == ChatRoomKind.Direct
+                && r.UserLowId == userLowId
+                && r.UserHighId == userHighId);
     }
 
     public async Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId) =>

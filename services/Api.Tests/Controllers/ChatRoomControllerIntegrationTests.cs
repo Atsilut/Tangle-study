@@ -32,6 +32,9 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Assert
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(ChatRoomKind.Direct, second.Kind);
+        Assert.Equal(2, second.Participants.Count);
+        Assert.Contains(second.Participants, p => p.UserId == userA.Id);
+        Assert.Contains(second.Participants, p => p.UserId == userB.Id);
     }
 
     [Fact]
