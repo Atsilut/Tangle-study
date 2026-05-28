@@ -2,15 +2,22 @@ using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Chat.Dto;
 using Api.Domain.Chat.Realtime;
+using Api.Global.Config;
+using Api.Global.Queue;
 using Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace Api.Tests.Controllers;
 
-[Collection(IntegrationTestCollection.Name)]
-public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture postgres)
-    : ChatIntegrationTestBase(postgres)
+[Collection(RedisRealtimeIntegrationTestCollection.Name)]
+public sealed class ChatHubRealtimeIntegrationTests(
+    PostgresTestcontainerFixture postgres,
+    RedisTestcontainerFixture redis)
+    : ChatIntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
 {
     private HubConnection BuildHubConnection(string token) =>
         new HubConnectionBuilder()
@@ -135,5 +142,37 @@ public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture
         Assert.False(received.Task.IsCompleted, "MessageCreated should not be received when client has not joined the room group");
 
         await hubConnection.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PostMessage_EnqueuesChatMessageCreatedJob_ToRedisStream()
+    {
+        var testMethodName = nameof(PostMessage_EnqueuesChatMessageCreatedJob_ToRedisStream);
+
+        // Arrange
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        await LoginAs(userA);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var redisOptions = scope.ServiceProvider.GetRequiredService<IOptions<RedisOptions>>().Value;
+        Assert.True(redisOptions.Enabled);
+        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redis.ConnectionString);
+        var streamKey = redisOptions.WorkQueueStreamPrefix.EndsWith(':')
+            ? $"{redisOptions.WorkQueueStreamPrefix}{WorkQueueStreams.ChatMessageCreated}"
+            : $"{redisOptions.WorkQueueStreamPrefix}:{WorkQueueStreams.ChatMessageCreated}";
+        var database = multiplexer.GetDatabase();
+        var lengthBefore = await database.StreamLengthAsync(streamKey);
+
+        // Act
+        var createRes = await PostMessageAsync(room.Id, "Stream enqueue smoke");
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+        var lengthAfter = await database.StreamLengthAsync(streamKey);
+        Assert.Equal(lengthBefore + 1, lengthAfter);
+        await multiplexer.CloseAsync();
     }
 }

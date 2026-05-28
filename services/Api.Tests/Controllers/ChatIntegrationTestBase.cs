@@ -8,8 +8,11 @@ using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
 
-public abstract class ChatIntegrationTestBase(PostgresTestcontainerFixture postgres)
-    : FriendshipDomainIntegrationTestBase(postgres)
+public abstract class ChatIntegrationTestBase(
+    PostgresTestcontainerFixture postgres,
+    bool redisEnabled = false,
+    string? redisConnectionString = null)
+    : FriendshipDomainIntegrationTestBase(postgres, redisEnabled, redisConnectionString)
 {
     protected const string ChatRoomsBase = "/api/chat/rooms";
 
