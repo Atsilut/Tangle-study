@@ -196,8 +196,8 @@ This improves responsiveness and system scalability.
 
 1. Core API (auth, community, friends)
 2. Real-time chat (SignalR) — see [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md) for hub contract
-3. Redis integration (cache + pub/sub)
-4. Rust workers (media processing)
+3. Redis integration (cache + pub/sub + Streams producer) — see [services/Api/Global/Queue/QUEUE.md](services/Api/Global/Queue/QUEUE.md)
+4. Rust workers (media processing; consume Streams)
 5. Location features (Memory Map)
 6. Monitoring setup
 7. Optional client (MAUI)
