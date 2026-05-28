@@ -71,12 +71,19 @@ Payload shape (JSON):
 ## Recommended client flow
 
 1. Log in via `POST /api/login` and store `accessToken`.
-2. Connect to `/hubs/chat?access_token=...`.
-3. `JoinRoom(roomId)` for each open conversation.
-4. Listen for `MessageCreated`.
-5. Send text via `POST /api/chat/rooms/{roomId}/messages` (do not send chat text only over the hub).
-6. Load history via `GET /api/chat/rooms/{roomId}/messages?before=&limit=50`.
+2. **Load history** via `GET /api/chat/rooms/{roomId}/messages?before=&limit=50` (Postgres; required for context if the user was offline or joins late).
+3. Connect to `/hubs/chat?access_token=...`.
+4. `JoinRoom(roomId)` for each open conversation (subscribes to live pushes only; does not replay past messages).
+5. Listen for `MessageCreated`.
+6. Send text via `POST /api/chat/rooms/{roomId}/messages` (do not send chat text only over the hub).
 
-## Scaling note
+Planned: return the latest messages from `JoinRoom` to reduce round-trips (not implemented yet).
 
-This deployment uses in-process SignalR groups (single API instance). For multiple API replicas, add a Redis SignalR backplane (README phase 3).
+## Scaling and Redis
+
+| Mode | Behavior |
+|------|----------|
+| `Redis:Enabled=false` | In-process SignalR groups; fine for single API instance and tests |
+| `Redis:Enabled=true` | SignalR Redis backplane syncs groups across API replicas |
+
+See [Global/REDIS.md](../../Global/REDIS.md) for cache, pub/sub, and Streams. **Postgres remains message history; Redis does not store chat transcripts for clients.**
