@@ -6,6 +6,7 @@ using Api.Domain.Users.Service;
 using Api.Global.Events;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
+using Api.Global.Queue;
 
 namespace Api.Domain.Chat.Service;
 
@@ -20,6 +21,7 @@ public class ChatMessageService
     private readonly UserService _userService;
     private readonly IChatRealtimeNotifier _realtime;
     private readonly IEventPublisher _eventPublisher;
+    private readonly IWorkQueue _workQueue;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ChatMessageService(
@@ -28,6 +30,7 @@ public class ChatMessageService
         UserService userService,
         IChatRealtimeNotifier realtime,
         IEventPublisher eventPublisher,
+        IWorkQueue workQueue,
         IHttpContextAccessor httpContextAccessor)
     {
         _repo = repo;
@@ -35,6 +38,7 @@ public class ChatMessageService
         _userService = userService;
         _realtime = realtime;
         _eventPublisher = eventPublisher;
+        _workQueue = workQueue;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -77,6 +81,14 @@ public class ChatMessageService
         await _eventPublisher.PublishAsync(
             RedisEventChannels.ChatMessageCreated,
             new ChatMessageCreatedEvent(
+                message.Id,
+                message.ChatRoomId,
+                message.SenderUserId,
+                message.Body,
+                message.SentAt));
+        await _workQueue.EnqueueAsync(
+            WorkQueueStreams.ChatMessageCreated,
+            new ChatMessageCreatedJob(
                 message.Id,
                 message.ChatRoomId,
                 message.SenderUserId,
