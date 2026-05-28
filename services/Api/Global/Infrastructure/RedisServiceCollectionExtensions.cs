@@ -1,4 +1,5 @@
 using Api.Global.Config;
+using Api.Global.Events;
 using StackExchange.Redis;
 
 namespace Api.Global.Infrastructure;
@@ -16,6 +17,7 @@ public static class RedisServiceCollectionExtensions
         {
             services.AddDistributedMemoryCache();
             services.AddSignalR();
+            services.AddSingleton<IEventPublisher, NoOpEventPublisher>();
             return services;
         }
 
@@ -27,6 +29,8 @@ public static class RedisServiceCollectionExtensions
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(options.ConnectionString));
+        services.AddSingleton<IEventPublisher, RedisEventPublisher>();
+        services.AddHostedService<RedisEventSubscriberHostedService>();
 
         services.AddSignalR()
             .AddStackExchangeRedis(options.ConnectionString, redisOptions =>

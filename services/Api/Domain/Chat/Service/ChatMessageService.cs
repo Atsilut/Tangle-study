@@ -3,6 +3,7 @@ using Api.Domain.Chat.Dto;
 using Api.Domain.Chat.Realtime;
 using Api.Domain.Chat.Repository;
 using Api.Domain.Users.Service;
+using Api.Global.Events;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 
@@ -18,6 +19,7 @@ public class ChatMessageService
     private readonly ChatRoomService _chatRoomService;
     private readonly UserService _userService;
     private readonly IChatRealtimeNotifier _realtime;
+    private readonly IEventPublisher _eventPublisher;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ChatMessageService(
@@ -25,12 +27,14 @@ public class ChatMessageService
         ChatRoomService chatRoomService,
         UserService userService,
         IChatRealtimeNotifier realtime,
+        IEventPublisher eventPublisher,
         IHttpContextAccessor httpContextAccessor)
     {
         _repo = repo;
         _chatRoomService = chatRoomService;
         _userService = userService;
         _realtime = realtime;
+        _eventPublisher = eventPublisher;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -70,6 +74,14 @@ public class ChatMessageService
 
         var dto = await MapToDtoAsync(message);
         await _realtime.NotifyMessageCreatedAsync(roomId, dto);
+        await _eventPublisher.PublishAsync(
+            RedisEventChannels.ChatMessageCreated,
+            new ChatMessageCreatedEvent(
+                message.Id,
+                message.ChatRoomId,
+                message.SenderUserId,
+                message.Body,
+                message.SentAt));
         return dto;
     }
 
