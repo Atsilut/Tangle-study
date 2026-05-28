@@ -20,6 +20,7 @@ namespace Api.Domain.Users.Service
         private readonly Lazy<CommentService> _commentService;
         private readonly Lazy<GroupMembershipService> _groupMembershipService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly NicknameCacheService _nicknameCacheService;
 
         public UserService(
             IUserRepository repo,
@@ -27,7 +28,8 @@ namespace Api.Domain.Users.Service
             Lazy<PostService> postService,
             Lazy<CommentService> commentService,
             Lazy<GroupMembershipService> groupMembershipService,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            NicknameCacheService nicknameCacheService)
         {
             _repo = repo;
             _db = db;
@@ -35,6 +37,7 @@ namespace Api.Domain.Users.Service
             _commentService = commentService;
             _groupMembershipService = groupMembershipService;
             _httpContextAccessor = httpContextAccessor;
+            _nicknameCacheService = nicknameCacheService;
         }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -81,7 +84,7 @@ namespace Api.Domain.Users.Service
         }
 
         public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
-            await _repo.GetNicknamesByIdsAsync(userIds);
+            await _nicknameCacheService.GetNicknamesByUserIdsAsync(userIds);
 
         private static UserGetResponseDto MapToDto(User user) => new(
             Id: user.Id,
@@ -114,6 +117,7 @@ namespace Api.Domain.Users.Service
             }
             user.UpdateNickname(request.Nickname);
             await _repo.UpdateUserAsync(user);
+            await _nicknameCacheService.InvalidateUserNicknameAsync(user.Id);
             return new UserPatchResponseDto(
                 Nickname: user.Nickname,
                 UpdatedAt: user.UpdatedAt
@@ -148,6 +152,8 @@ namespace Api.Domain.Users.Service
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
+
+            await _nicknameCacheService.InvalidateUserNicknameAsync(id);
         }
     }
 }
