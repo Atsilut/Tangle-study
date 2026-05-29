@@ -81,6 +81,22 @@ services:
       db:
         condition: service_healthy
 
+  rust-worker:
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: workers/rust-worker/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_STREAM_PREFIX: "tangle:queue:"
+      WORKER_STREAM_KEY: chat.message.created
+      WORKER_CONSUMER_GROUP: tangle-workers
+      RUST_LOG: info
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   test:
     profiles: ["test"]
     image: tangle-sdk:local

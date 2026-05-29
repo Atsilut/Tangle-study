@@ -22,7 +22,9 @@ Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `ta
 }
 ```
 
-## Phase 4 consumer (planned)
+## Phase 4 consumer
+
+Rust worker crate: [`workers/rust-worker`](../../../../workers/rust-worker/README.md).
 
 ```
 API → XADD stream → Rust worker (XREADGROUP) → process → result storage
