@@ -5,6 +5,7 @@ using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
+using Api.Global.Events;
 using Api.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -57,6 +58,9 @@ internal static class DomainServiceTestFactory
         var groupBlacklistRepository = new FakeGroupBlacklistRepository();
         var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
+        var distributedCache = new FakeDistributedCache();
+        var nicknameCacheService = new NicknameCacheService(userRepository, distributedCache);
+        var eventPublisher = new NoOpEventPublisher();
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -80,7 +84,9 @@ internal static class DomainServiceTestFactory
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
-            http);
+            http,
+            nicknameCacheService,
+            eventPublisher);
 
         groupMembershipService = new GroupMembershipService(
             groupMemberRepository,

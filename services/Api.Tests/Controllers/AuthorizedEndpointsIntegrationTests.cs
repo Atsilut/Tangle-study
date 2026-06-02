@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Api.Domain.Chat.Dto;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
@@ -58,6 +59,14 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
             },
             { HttpMethod.Get, "/api/users/blocks/me", null },
             { HttpMethod.Delete, "/api/users/blocks/1", null },
+            // Chat endpoints
+            { HttpMethod.Get, "/api/chat/rooms", null },
+            {
+                HttpMethod.Post,
+                "/api/chat/rooms/direct",
+                new ChatRoomDirectCreateRequestDto { OtherUserId = 1 }
+            },
+            { HttpMethod.Get, "/api/chat/rooms/1/messages", null },
         };
 
     [Theory]

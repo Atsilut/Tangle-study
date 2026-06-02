@@ -1,29 +1,47 @@
 using Api.Global.Db;
+using Api.Global.Events;
+using Api.Global.Queue;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using StackExchange.Redis;
 
 namespace Api.Tests.Infrastructure;
 
 public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _connectionString;
+    private readonly bool _redisEnabled;
+    private readonly string? _redisConnectionString;
 
-    public ApiWebApplicationFactory(string connectionString)
+    public ApiWebApplicationFactory(
+        string connectionString,
+        bool redisEnabled = false,
+        string? redisConnectionString = null)
     {
         _connectionString = connectionString;
+        _redisEnabled = redisEnabled;
+        _redisConnectionString = redisConnectionString;
     }
 
-    protected override IHost CreateHost(IHostBuilder builder)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment(Environments.Production);
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
+                ["Redis:Enabled"] = _redisEnabled ? "true" : "false",
+                ["Redis:ConnectionString"] = _redisEnabled ? _redisConnectionString : "",
+                ["Redis:InstanceName"] = "tangle:",
+                ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
+                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
             });
         });
 
@@ -40,11 +58,27 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                     npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
         });
 
-        return base.CreateHost(builder);
+        if (_redisEnabled && !string.IsNullOrWhiteSpace(_redisConnectionString))
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                RemoveService<IConnectionMultiplexer>(services);
+                RemoveService<IWorkQueue>(services);
+                RemoveService<IEventPublisher>(services);
+
+                services.AddSingleton<IConnectionMultiplexer>(_ =>
+                    ConnectionMultiplexer.Connect(_redisConnectionString!));
+                services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
+                services.AddSingleton<IEventPublisher, RedisEventPublisher>();
+            });
+        }
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    private static void RemoveService<T>(IServiceCollection services)
     {
-        builder.UseEnvironment(Environments.Production);
+        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
+        {
+            services.Remove(descriptor);
+        }
     }
 }

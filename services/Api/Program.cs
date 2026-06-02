@@ -1,6 +1,8 @@
+using Api.Domain.Chat.Realtime;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
+using Api.Global.Infrastructure;
 using Api.Global.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -47,10 +49,26 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
             var tokenProvider = sp.GetRequiredService<TokenProvider>();
             options.TokenValidationParameters = tokenProvider.GetValidationParameters();
             options.MapInboundClaims = false;
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken)
+                        && path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                },
+            };
         }));
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddTangleRedis(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -59,6 +77,12 @@ var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
+
+var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
+if (redisOptions.Enabled)
+    logger.LogInformation("Redis enabled (cache + SignalR backplane).");
+else
+    logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
 
 if (app.Environment.IsDevelopment())
 {
@@ -87,5 +111,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

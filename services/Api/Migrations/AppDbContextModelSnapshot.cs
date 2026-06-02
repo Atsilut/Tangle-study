@@ -22,6 +22,126 @@ namespace Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<long>("ChatRoomId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SenderUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatRoomId");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatRoom", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("PlatformGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("UserHighId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UserLowId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("PlatformGroupId");
+
+                    b.HasIndex("UserHighId");
+
+                    b.HasIndex("UserLowId", "UserHighId")
+                        .IsUnique();
+
+                    b.ToTable("ChatRooms", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChatRooms_DirectPairOnlyForDirect", "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_ChatRooms_DirectUserLowLtUserHigh", "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL AND \"UserLowId\" < \"UserHighId\")");
+
+                            t.HasCheckConstraint("CK_ChatRooms_NoDirectPairForNonDirect", "\"Kind\" = 0 OR (\"UserLowId\" IS NULL AND \"UserHighId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_ChatRooms_PlatformGroupIdByKind", "(\"Kind\" = 2 AND \"PlatformGroupId\" IS NOT NULL) OR (\"Kind\" <> 2 AND \"PlatformGroupId\" IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatRoomParticipant", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ChatRoomId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ChatRoomId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ChatRoomParticipants");
+                });
+
             modelBuilder.Entity("Api.Domain.Comments.Domain.Comment", b =>
                 {
                     b.Property<long>("Id")
@@ -449,6 +569,76 @@ namespace Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatMessage", b =>
+                {
+                    b.HasOne("Api.Domain.Chat.Domain.ChatRoom", "ChatRoom")
+                        .WithMany()
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Api.Domain.Users.Domain.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatRoom");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatRoom", b =>
+                {
+                    b.HasOne("Api.Domain.Users.Domain.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Api.Domain.Groups.Domain.Group", "PlatformGroup")
+                        .WithMany()
+                        .HasForeignKey("PlatformGroupId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Api.Domain.Users.Domain.User", "UserHigh")
+                        .WithMany()
+                        .HasForeignKey("UserHighId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Api.Domain.Users.Domain.User", "UserLow")
+                        .WithMany()
+                        .HasForeignKey("UserLowId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("PlatformGroup");
+
+                    b.Navigation("UserHigh");
+
+                    b.Navigation("UserLow");
+                });
+
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatRoomParticipant", b =>
+                {
+                    b.HasOne("Api.Domain.Chat.Domain.ChatRoom", "ChatRoom")
+                        .WithMany("Participants")
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Api.Domain.Users.Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatRoom");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Api.Domain.Comments.Domain.Comment", b =>
                 {
                     b.HasOne("Api.Domain.Comments.Domain.Comment", "Parent")
@@ -647,6 +837,11 @@ namespace Api.Migrations
                     b.Navigation("BlockedUser");
 
                     b.Navigation("Blocker");
+                });
+
+            modelBuilder.Entity("Api.Domain.Chat.Domain.ChatRoom", b =>
+                {
+                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("Api.Domain.Groups.Domain.Group", b =>

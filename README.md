@@ -195,9 +195,9 @@ This improves responsiveness and system scalability.
 ## Development Phases
 
 1. Core API (auth, community, friends)
-2. Real-time chat (SignalR)
-3. Redis integration (cache + pub/sub)
-4. Rust workers (media processing)
+2. Real-time chat (SignalR) — see [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md) for hub contract
+3. Redis integration (cache + pub/sub + Streams producer) — see [services/Api/Global/Queue/QUEUE.md](services/Api/Global/Queue/QUEUE.md)
+4. Rust workers (media processing; consume Streams)
 5. Location features (Memory Map)
 6. Monitoring setup
 7. Optional client (MAUI)
@@ -229,7 +229,7 @@ All .NET build, test, EF, and API runtime run in Docker so nothing writes `.nuge
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### Runtime (API + Postgres)
+### Runtime (API + Postgres + Redis)
 
 ```bash
 docker compose up --build
@@ -238,8 +238,11 @@ docker compose up --build
 - API: http://localhost:5000  
 - Swagger: http://localhost:5000/api  
 - Postgres: `localhost:5433` (user `tangle`, db `tangledb`)
+- Redis: `localhost:6379` (enabled on the `api` service for cache, SignalR backplane, pub/sub, Streams producer)
 
 Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT=Development`.
+
+Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub contract: [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md).
 
 ### Build / EF / other CLI
 
@@ -265,6 +268,8 @@ docker compose --profile test run --rm test
 ```
 
 Integration tests start their own Postgres containers via Testcontainers (using the host Docker engine through the mounted socket). The compose `db` service is not required for tests. Docker Desktop must be running.
+
+Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` forces `Redis:Enabled=false`). Realtime hub tests use a separate collection with a Testcontainers Redis instance — see `RedisRealtimeIntegrationTestCollection` in [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md).
 
 ### Cleanup local SDK artifacts
 

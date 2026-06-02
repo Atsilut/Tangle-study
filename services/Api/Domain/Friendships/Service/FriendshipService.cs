@@ -37,6 +37,15 @@ namespace Api.Domain.Friendships.Service
                 throw new EntityAlreadyExistsException(message ?? $"Users {userId} and {otherUserId} are already friends.");
         }
 
+        public async Task EnsureFriendshipExistsForUserPairAsync(
+            long userId,
+            long otherUserId,
+            string message = "You must be friends to open a direct chat.")
+        {
+            if (await _repo.GetForUserPairAsync(userId, otherUserId) is null)
+                throw new ArgumentException(message);
+        }
+
         public async Task CreateFriendshipForUserPairAsync(long userId, long otherUserId)
         {
             await EnsureFriendshipDoesNotExistForUserPairAsync(userId, otherUserId);

@@ -64,7 +64,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task UpdateUser_Returns404_WhenMissing()
+    public async Task UpdateUser_Returns401_WhenLoggedInUserWasDeleted()
     {
         // Arrange
         const string testMethodName = "UserPatchMissing";
@@ -78,7 +78,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -208,7 +208,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
-    public async Task DeleteUser_Returns404_WhenMissing()
+    public async Task DeleteUser_Returns401_WhenLoggedInUserWasDeleted()
     {
         // Arrange
         const string testMethodName = "UserDeleteMissing";
@@ -221,7 +221,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         delete = await Client.DeleteAsync($"/api/users/{created.Id}");
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.Unauthorized);
     }
 
     [Fact]

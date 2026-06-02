@@ -11,8 +11,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Tests.Controllers;
 
-public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+public abstract class FriendshipDomainIntegrationTestBase(
+    PostgresTestcontainerFixture postgres,
+    bool redisEnabled = false,
+    string? redisConnectionString = null)
+    : IntegrationTestBase(postgres, redisEnabled, redisConnectionString)
 {
     protected const string RequestsBase = "/api/friendships/requests";
     protected const string FriendshipsBase = "/api/friendships";

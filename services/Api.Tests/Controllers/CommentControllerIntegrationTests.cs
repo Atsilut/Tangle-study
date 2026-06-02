@@ -566,7 +566,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     }
 
     [Fact]
-    public async Task UpdateComment_Returns404_WhenPostDeletedButCommentRemains()
+    public async Task UpdateComment_Returns400_WhenPostDeletedButCommentRemains()
     {
         // Arrange
         const string testMethodName = "UpdateComment_PostMissing";
@@ -586,7 +586,10 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PatchAsJsonAsync($"/api/comments", req);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
+        await IntegrationAssertions.AssertProblemDetailAsync(
+            res,
+            HttpStatusCode.BadRequest,
+            "Post is not reachable. Comments are readonly.");
         var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
         Assert.NotNull(dto);
