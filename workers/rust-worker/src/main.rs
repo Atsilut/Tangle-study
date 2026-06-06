@@ -3,10 +3,12 @@ mod consumer;
 mod dlq;
 mod handlers;
 mod job;
+mod message;
 mod retry;
 mod telemetry;
 
 use anyhow::Context;
+use redis::aio::ConnectionManager;
 use redis::Client;
 use tracing::info;
 
@@ -25,8 +27,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let client = Client::open(config.redis_url.as_str()).context("open redis client")?;
-    let mut connection = client
-        .get_multiplexed_async_connection()
+    let mut connection = ConnectionManager::new(client)
         .await
         .context("connect to redis")?;
     let pong: String = redis::cmd("PING")
@@ -35,5 +36,5 @@ async fn main() -> anyhow::Result<()> {
         .context("redis PING")?;
     info!(pong = %pong, "redis connected");
 
-    consumer::run(config, client).await
+    consumer::run(config, connection).await
 }

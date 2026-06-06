@@ -40,13 +40,23 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 | `WORKER_LOG_JSON` | `false` | Emit JSON logs |
 | `RUST_LOG` | `info` | `tracing` filter (e.g. `tangle_worker=debug`) |
 
+## Consumer behavior
+
+- Creates the consumer group on startup (`XGROUP CREATE … MKSTREAM`, idempotent).
+- Reads with `XREADGROUP` (`>`), batch size and block timeout from env.
+- Decodes `type` + `payload` fields (same shape as API `RedisStreamWorkQueue`).
+- Runs the handler, then `XACK` on success.
+- Handler failures leave the message in the pending entries list (retry/DLQ in a later milestone).
+- Malformed messages are acked after a warning so they do not block the group.
+
 ## Layout
 
 ```
 src/
   main.rs       # entrypoint, redis health check
   config.rs     # env configuration
-  consumer.rs   # stream read loop (todo 2+)
+  consumer.rs   # XREADGROUP loop and XACK
+  message.rs    # stream field decoding
   job.rs        # payload types (API contract)
   handlers/     # per-job-type processors
   retry.rs      # backoff helpers
