@@ -35,7 +35,7 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 | `WORKER_CONSUMER_NAME` | `tangle-worker-{pid}` | Consumer name within the group |
 | `WORKER_BLOCK_MS` | `5000` | `XREADGROUP` block timeout (ms) |
 | `WORKER_BATCH_COUNT` | `10` | Max entries per read |
-| `WORKER_MAX_ATTEMPTS` | `5` | Max deliveries before terminal ack (DLQ in next milestone) |
+| `WORKER_MAX_ATTEMPTS` | `5` | Max deliveries before publishing to the DLQ stream and acking the source message |
 | `WORKER_RETRY_BASE_MS` | `1000` | Base backoff for first retry (ms) |
 | `WORKER_RETRY_MAX_MS` | `60000` | Backoff cap (ms) |
 | `WORKER_RETRY_JITTER_PCT` | `0.1` | Jitter fraction added to backoff (0–1) |
