@@ -11,9 +11,3 @@ pub struct ChatMessageCreatedJob {
     pub sent_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamEnvelope {
-    #[serde(rename = "type")]
-    pub job_type: String,
-    pub payload: String,
-}
