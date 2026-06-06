@@ -32,7 +32,11 @@ impl Config {
             consumer_group: env_var("WORKER_CONSUMER_GROUP", "tangle-workers")?,
             consumer_name: env_var(
                 "WORKER_CONSUMER_NAME",
-                &format!("tangle-worker-{}", std::process::id()),
+                &format!(
+                    "tangle-worker-{}-{}",
+                    env::var("HOSTNAME").unwrap_or_else(|_| "unknown".to_owned()),
+                    std::process::id()
+                ),
             )?,
             block_ms: env_var_parse("WORKER_BLOCK_MS", 5_000)?,
             batch_count: env_var_parse("WORKER_BATCH_COUNT", 10)?,
