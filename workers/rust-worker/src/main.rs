@@ -19,13 +19,6 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env().context("load worker configuration")?;
     telemetry::init(&config).context("initialize telemetry")?;
 
-    info!(
-        stream = %config.full_stream_key(),
-        group = %config.consumer_group,
-        consumer = %config.consumer_name,
-        "starting tangle worker"
-    );
-
     let client = Client::open(config.redis_url.as_str()).context("open redis client")?;
     let mut connection = ConnectionManager::new(client)
         .await
@@ -36,5 +29,20 @@ async fn main() -> anyhow::Result<()> {
         .context("redis PING")?;
     info!(pong = %pong, "redis connected");
 
-    consumer::run(config, connection).await
+    if std::env::args().nth(1).as_deref() == Some("replay") {
+        info!(
+            dlq_stream = %config.dlq_stream_key(),
+            target_stream = %config.full_stream_key(),
+            "starting tangle worker in replay mode"
+        );
+        dlq::run_replay(&mut connection, &config).await
+    } else {
+        info!(
+            stream = %config.full_stream_key(),
+            group = %config.consumer_group,
+            consumer = %config.consumer_name,
+            "starting tangle worker"
+        );
+        consumer::run(config, connection).await
+    }
 }

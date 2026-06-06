@@ -17,6 +17,9 @@ pub struct Config {
     pub retry_max_ms: u64,
     pub retry_jitter_pct: f64,
     pub dlq_stream_suffix: String,
+    pub replay_count: usize,
+    pub replay_dry_run: bool,
+    pub replay_delete: bool,
     pub log_json: bool,
 }
 
@@ -38,6 +41,9 @@ impl Config {
             retry_max_ms: env_var_parse("WORKER_RETRY_MAX_MS", 60_000)?,
             retry_jitter_pct: env_var_parse("WORKER_RETRY_JITTER_PCT", 0.1)?,
             dlq_stream_suffix: env_var("WORKER_DLQ_STREAM_SUFFIX", ".dlq")?,
+            replay_count: env_var_parse("WORKER_REPLAY_COUNT", 10)?,
+            replay_dry_run: env_var_parse("WORKER_REPLAY_DRY_RUN", false)?,
+            replay_delete: env_var_parse("WORKER_REPLAY_DELETE", true)?,
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
         })
     }
@@ -102,6 +108,9 @@ mod tests {
             retry_max_ms: 60_000,
             retry_jitter_pct: 0.1,
             dlq_stream_suffix: ".dlq".to_owned(),
+            replay_count: 10,
+            replay_dry_run: false,
+            replay_delete: true,
             log_json: false,
         };
 

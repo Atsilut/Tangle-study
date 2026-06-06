@@ -39,6 +39,23 @@ fn value_to_str(value: &Value) -> Result<&str> {
     }
 }
 
+/// Returns `(type, payload)` from a stream entry envelope.
+pub fn extract_envelope_fields(entry: &StreamId) -> Result<(String, String)> {
+    let job_type = entry
+        .map
+        .get("type")
+        .context("stream entry missing `type` field")?;
+    let payload = entry
+        .map
+        .get("payload")
+        .context("stream entry missing `payload` field")?;
+
+    Ok((
+        value_to_str(job_type)?.to_owned(),
+        value_to_str(payload)?.to_owned(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

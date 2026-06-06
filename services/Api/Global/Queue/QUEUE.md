@@ -36,7 +36,7 @@ Workers should:
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
 
-The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, and PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter for `chat.message.created`. DLQ stream publish and metrics are still planned.
+The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`. Metrics are still planned.
 
 ## Relation to pub/sub and SignalR
 

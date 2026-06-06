@@ -40,6 +40,9 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 | `WORKER_RETRY_MAX_MS` | `60000` | Backoff cap (ms) |
 | `WORKER_RETRY_JITTER_PCT` | `0.1` | Jitter fraction added to backoff (0–1) |
 | `WORKER_DLQ_STREAM_SUFFIX` | `.dlq` | DLQ stream suffix |
+| `WORKER_REPLAY_COUNT` | `10` | Max DLQ entries to replay per run |
+| `WORKER_REPLAY_DRY_RUN` | `false` | Log replay actions without enqueuing |
+| `WORKER_REPLAY_DELETE` | `true` | Remove DLQ entry after successful replay |
 | `WORKER_LOG_JSON` | `false` | Emit JSON logs |
 | `RUST_LOG` | `info` | `tracing` filter (e.g. `tangle_worker=debug`) |
 
@@ -50,8 +53,25 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 - Decodes `type` + `payload` fields (same shape as API `RedisStreamWorkQueue`).
 - Runs the handler, then `XACK` on success.
 - Handler failures leave the message in the pending entries list; after `WORKER_RETRY_BASE_MS` × 2^(attempt−1) (capped, with jitter) the worker `XCLAIM`s and retries.
-- After `WORKER_MAX_ATTEMPTS` deliveries, the message is acknowledged and logged as exhausted (DLQ publish in next milestone).
+- After `WORKER_MAX_ATTEMPTS` deliveries, the worker publishes a record to the DLQ stream (`{stream}.dlq`) and acks the source message.
 - Malformed messages are acked after a warning so they do not block the group.
+
+### DLQ replay
+
+Re-drive failed jobs from the DLQ back onto the main work stream:
+
+```bash
+cd workers/rust-worker
+cargo run -- replay
+```
+
+Docker Compose:
+
+```bash
+docker compose --profile workers run --rm rust-worker replay
+```
+
+Optional env: `WORKER_REPLAY_COUNT`, `WORKER_REPLAY_DRY_RUN=true`, `WORKER_REPLAY_DELETE=false`.
 
 ## Layout
 

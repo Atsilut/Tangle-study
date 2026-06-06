@@ -115,10 +115,12 @@ async fn reclaim_pending_retries(conn: &mut ConnectionManager, config: &Config) 
 
         if retry::is_terminal(times_delivered, config.max_attempts) {
             let err = anyhow::anyhow!("max delivery attempts ({times_delivered}) reached");
-            dlq::record_exhausted(
+            let source_entry = dlq::fetch_stream_entry(conn, &stream, &item.id).await?;
+            dlq::publish_exhausted(
                 conn,
                 config,
                 &stream,
+                source_entry.as_ref(),
                 &item.id,
                 times_delivered,
                 &err,
@@ -198,10 +200,11 @@ async fn process_entry(
             }
             Err(err) => {
                 if retry::is_terminal(times_delivered, config.max_attempts) {
-                    dlq::record_exhausted(
+                    dlq::publish_exhausted(
                         conn,
                         config,
                         stream,
+                        Some(entry),
                         message_id,
                         times_delivered,
                         &err,
