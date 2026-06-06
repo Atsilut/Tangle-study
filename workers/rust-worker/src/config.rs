@@ -67,7 +67,7 @@ impl Config {
 
 fn env_var(key: &str, default: &str) -> Result<String> {
     match env::var(key) {
-        Ok(value) if !value.trim().is_empty() => Ok(value),
+        Ok(value) if !value.trim().is_empty() => Ok(value.trim().to_owned()),
         Ok(_) => Ok(default.to_owned()),
         Err(env::VarError::NotPresent) => Ok(default.to_owned()),
         Err(err) => Err(err).with_context(|| format!("reading environment variable {key}")),
