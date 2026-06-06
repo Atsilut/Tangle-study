@@ -13,6 +13,9 @@ pub struct Config {
     pub block_ms: u64,
     pub batch_count: usize,
     pub max_attempts: u32,
+    pub retry_base_ms: u64,
+    pub retry_max_ms: u64,
+    pub retry_jitter_pct: f64,
     pub dlq_stream_suffix: String,
     pub log_json: bool,
 }
@@ -31,6 +34,9 @@ impl Config {
             block_ms: env_var_parse("WORKER_BLOCK_MS", 5_000)?,
             batch_count: env_var_parse("WORKER_BATCH_COUNT", 10)?,
             max_attempts: env_var_parse("WORKER_MAX_ATTEMPTS", 5)?,
+            retry_base_ms: env_var_parse("WORKER_RETRY_BASE_MS", 1_000)?,
+            retry_max_ms: env_var_parse("WORKER_RETRY_MAX_MS", 60_000)?,
+            retry_jitter_pct: env_var_parse("WORKER_RETRY_JITTER_PCT", 0.1)?,
             dlq_stream_suffix: env_var("WORKER_DLQ_STREAM_SUFFIX", ".dlq")?,
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
         })
@@ -92,6 +98,9 @@ mod tests {
             block_ms: 0,
             batch_count: 0,
             max_attempts: 0,
+            retry_base_ms: 1_000,
+            retry_max_ms: 60_000,
+            retry_jitter_pct: 0.1,
             dlq_stream_suffix: ".dlq".to_owned(),
             log_json: false,
         };

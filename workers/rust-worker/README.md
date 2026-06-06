@@ -35,7 +35,10 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 | `WORKER_CONSUMER_NAME` | `tangle-worker-{pid}` | Consumer name within the group |
 | `WORKER_BLOCK_MS` | `5000` | `XREADGROUP` block timeout (ms) |
 | `WORKER_BATCH_COUNT` | `10` | Max entries per read |
-| `WORKER_MAX_ATTEMPTS` | `5` | Retry limit before DLQ (later milestone) |
+| `WORKER_MAX_ATTEMPTS` | `5` | Max deliveries before terminal ack (DLQ in next milestone) |
+| `WORKER_RETRY_BASE_MS` | `1000` | Base backoff for first retry (ms) |
+| `WORKER_RETRY_MAX_MS` | `60000` | Backoff cap (ms) |
+| `WORKER_RETRY_JITTER_PCT` | `0.1` | Jitter fraction added to backoff (0–1) |
 | `WORKER_DLQ_STREAM_SUFFIX` | `.dlq` | DLQ stream suffix |
 | `WORKER_LOG_JSON` | `false` | Emit JSON logs |
 | `RUST_LOG` | `info` | `tracing` filter (e.g. `tangle_worker=debug`) |
@@ -46,7 +49,8 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 - Reads with `XREADGROUP` (`>`), batch size and block timeout from env.
 - Decodes `type` + `payload` fields (same shape as API `RedisStreamWorkQueue`).
 - Runs the handler, then `XACK` on success.
-- Handler failures leave the message in the pending entries list (retry/DLQ in a later milestone).
+- Handler failures leave the message in the pending entries list; after `WORKER_RETRY_BASE_MS` × 2^(attempt−1) (capped, with jitter) the worker `XCLAIM`s and retries.
+- After `WORKER_MAX_ATTEMPTS` deliveries, the message is acknowledged and logged as exhausted (DLQ publish in next milestone).
 - Malformed messages are acked after a warning so they do not block the group.
 
 ## Layout
