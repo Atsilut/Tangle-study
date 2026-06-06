@@ -271,6 +271,15 @@ Integration tests start their own Postgres containers via Testcontainers (using 
 
 Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` forces `Redis:Enabled=false`). Realtime hub tests use a separate collection with a Testcontainers Redis instance — see `RedisRealtimeIntegrationTestCollection` in [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md).
 
+### Rust worker (optional)
+
+```bash
+docker compose --profile workers build rust-worker
+docker compose --profile workers up rust-worker
+```
+
+Requires Redis (e.g. `docker compose up redis` or the full stack). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
+
 ### Cleanup local SDK artifacts
 
 If `.nuget/` or `.dotnet-tools/` were created in the repo earlier, delete them (they are gitignored):
