@@ -32,6 +32,8 @@ This project combines multiple technologies and languages to simulate a modern s
 
 ## Architecture
 
+**Today:** one ASP.NET Core monolith (`services/Api`) plus an optional Rust worker. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ### High-Level Structure
 
 ```
@@ -40,7 +42,7 @@ Clients
  └─ Mobile (MAUI)
         │
         ▼
-ASP.NET Core API (Gateway)
+ASP.NET Core API (monolith today → gateway at Phase 9)
         │
  ┌──────┼──────────────┐
  ▼      ▼              ▼
@@ -52,11 +54,13 @@ DB    Redis        Queue (Streams)
          ▼
    Real-time Events
 
-Monitoring:
+Monitoring (planned):
 API / Workers → Prometheus → Grafana
 ```
 
 Api service-layer conventions (one repository per service, peer services for other aggregates): see [services/Api/AGENTS.md](services/Api/AGENTS.md).
+
+Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md), [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md).
 
 ---
 
@@ -192,15 +196,31 @@ This improves responsiveness and system scalability.
 
 ---
 
+## Documentation
+
+Central index: [docs/README.md](docs/README.md)
+
+| Doc | Topic |
+|-----|-------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Current monolith vs target MSA |
+| [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md) | Domain → microservice mapping |
+| [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
+
+---
+
 ## Development Phases
 
-1. Core API (auth, community, friends)
-2. Real-time chat (SignalR) — see [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md) for hub contract
-3. Redis integration (cache + pub/sub + Streams producer) — see [services/Api/Global/Queue/QUEUE.md](services/Api/Global/Queue/QUEUE.md)
-4. Rust workers (media processing; consume Streams)
-5. Location features (Memory Map)
-6. Monitoring setup
-7. Optional client (MAUI)
+| Phase | Focus | Status |
+|-------|-------|--------|
+| 1 | Core API (auth, community, friends) | Done |
+| 2 | Real-time chat (SignalR) — [CHAT.md](services/Api/Domain/Chat/CHAT.md) | Done |
+| 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
+| 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | In progress (worker infra done; media handlers TODO) |
+| 5 | Location / Memory Map — [SERVICE_BOUNDARIES.md#location-service](docs/SERVICE_BOUNDARIES.md#location-service) | Planned |
+| 6 | Monitoring (Prometheus / Grafana) | Planned |
+| 7 | Optional client (MAUI) | Planned |
+| 8 | MSA prep — cross-service contracts during 4–5; document events in [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Planned |
+| 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
 
 ---
 
@@ -217,9 +237,11 @@ This project is built **for learning purposes only**.
 ## Future Considerations
 
 * Replace Redis Streams with Kafka (if scaling demands it)
-* Introduce service decomposition (microservices)
 * Add distributed tracing (e.g., OpenTelemetry)
 * Improve fault tolerance and recovery strategies
+* Service mesh (beyond gateway + Compose) if operational needs grow
+
+Service decomposition is Phase 9 — see [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md).
 
 ---
 

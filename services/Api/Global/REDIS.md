@@ -23,7 +23,7 @@ Compose `api` sets `Redis__Enabled=true` and depends on the `redis` service. The
 | Nickname cache | `IDistributedCache` + `NicknameCacheService` | Faster reads; PG remains source of truth |
 | SignalR scale-out | `AddStackExchangeRedis` backplane | Live chat across multiple API replicas |
 | Domain events | `IEventPublisher` / Redis pub/sub | Server-side; subscriber currently logs |
-| Async jobs (producer) | `IWorkQueue` / Redis Streams | No consumer yet — see [Queue/QUEUE.md](Queue/QUEUE.md) |
+| Async jobs (producer) | `IWorkQueue` / Redis Streams | Consumed by [rust-worker](../../../workers/rust-worker/README.md) — see [Queue/QUEUE.md](Queue/QUEUE.md) |
 
 Chat message delivery to clients is **SignalR**, not pub/sub or Streams.
 
@@ -33,7 +33,7 @@ Chat message delivery to clients is **SignalR**, not pub/sub or Streams.
 POST message → Postgres (persist)
             → SignalR group room:{id} (live UI; backplane when Redis on)
             → pub/sub event (optional cross-service)
-            → Stream XADD (future Rust workers)
+            → Stream XADD (rust-worker)
 ```
 
 History and late join: `GET /api/chat/rooms/{roomId}/messages` (Postgres). WebSocket only delivers messages after `JoinRoom`.
