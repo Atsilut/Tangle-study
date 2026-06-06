@@ -82,6 +82,7 @@ where
     match env::var(key) {
         Ok(value) if value.trim().is_empty() => Ok(default),
         Ok(value) => value
+            .trim()
             .parse()
             .with_context(|| format!("parsing environment variable {key}")),
         Err(env::VarError::NotPresent) => Ok(default),
