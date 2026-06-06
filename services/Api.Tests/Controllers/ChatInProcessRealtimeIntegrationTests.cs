@@ -15,7 +15,7 @@ public sealed class ChatHubInProcessRealtimeIntegrationTests(PostgresTestcontain
     [Fact]
     public async Task PostMessage_PushesMessageCreated_ToJoinedHubClient_WithoutRedis()
     {
-        var testMethodName = nameof(PostMessage_PushesMessageCreated_ToJoinedHubClient_WithoutRedis);
+        const string testMethodName = nameof(PostMessage_PushesMessageCreated_ToJoinedHubClient_WithoutRedis);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);

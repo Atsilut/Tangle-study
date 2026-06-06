@@ -13,7 +13,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task CreateAndListMessages_Returns200_ForDirectRoomParticipants()
     {
-        var testMethodName = nameof(CreateAndListMessages_Returns200_ForDirectRoomParticipants);
+        const string testMethodName = nameof(CreateAndListMessages_Returns200_ForDirectRoomParticipants);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -43,7 +43,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task ListMessages_Returns204_WhenRoomHasNoMessages()
     {
-        var testMethodName = nameof(ListMessages_Returns204_WhenRoomHasNoMessages);
+        const string testMethodName = nameof(ListMessages_Returns204_WhenRoomHasNoMessages);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -61,7 +61,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task ListMessages_PaginatesWithBeforeCursor()
     {
-        var testMethodName = nameof(ListMessages_PaginatesWithBeforeCursor);
+        const string testMethodName = nameof(ListMessages_PaginatesWithBeforeCursor);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -86,7 +86,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task CreateMessage_Returns401_WhenStrangerNotInRoom()
     {
-        var testMethodName = nameof(CreateMessage_Returns401_WhenStrangerNotInRoom);
+        const string testMethodName = nameof(CreateMessage_Returns401_WhenStrangerNotInRoom);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -106,7 +106,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task ListMessages_Returns401_WhenStrangerNotInRoom()
     {
-        var testMethodName = nameof(ListMessages_Returns401_WhenStrangerNotInRoom);
+        const string testMethodName = nameof(ListMessages_Returns401_WhenStrangerNotInRoom);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -127,7 +127,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task ListMessages_Returns400_WhenBeforeMessageFromAnotherRoom()
     {
-        var testMethodName = nameof(ListMessages_Returns400_WhenBeforeMessageFromAnotherRoom);
+        const string testMethodName = nameof(ListMessages_Returns400_WhenBeforeMessageFromAnotherRoom);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -151,7 +151,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [InlineData(" ")]
     public async Task CreateMessage_Returns400_WhenBodyEmpty(string body)
     {
-        var testMethodName = nameof(CreateMessage_Returns400_WhenBodyEmpty);
+        const string testMethodName = nameof(CreateMessage_Returns400_WhenBodyEmpty);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -170,7 +170,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task CreateMessage_Returns400_WhenBodyExceedsMaxLength()
     {
-        var testMethodName = nameof(CreateMessage_Returns400_WhenBodyExceedsMaxLength);
+        const string testMethodName = nameof(CreateMessage_Returns400_WhenBodyExceedsMaxLength);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -194,7 +194,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [InlineData(200, 100)]   // over max → capped at 100
     public async Task ListMessages_NormalizesLimit(int? requestedLimit, int expectedCount)
     {
-        var testMethodName = nameof(ListMessages_NormalizesLimit);
+        const string testMethodName = nameof(ListMessages_NormalizesLimit);
 
         // Arrange
         var userA = await CreateUserForTest($"{testMethodName}_{requestedLimit}", 1);
@@ -221,7 +221,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     [Fact]
     public async Task ListMessages_Returns400_WhenBeforeMessageIdNotFound()
     {
-        var testMethodName = nameof(ListMessages_Returns400_WhenBeforeMessageIdNotFound);
+        const string testMethodName = nameof(ListMessages_Returns400_WhenBeforeMessageIdNotFound);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);

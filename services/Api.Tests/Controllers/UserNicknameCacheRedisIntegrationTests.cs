@@ -22,7 +22,7 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
     [Fact]
     public async Task UpdateNickname_InvalidatesDistributedCache_AndReturnsNewNicknameOnChatMessage()
     {
-        var testMethodName = nameof(UpdateNickname_InvalidatesDistributedCache_AndReturnsNewNicknameOnChatMessage);
+        const string testMethodName = nameof(UpdateNickname_InvalidatesDistributedCache_AndReturnsNewNicknameOnChatMessage);
         const string updatedNickname = "RedisCacheNick";
 
         // Arrange
@@ -61,7 +61,7 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
     [Fact]
     public async Task UpdateNickname_PublishesUserNicknameChangedEvent_ToRedisPubSub()
     {
-        var testMethodName = nameof(UpdateNickname_PublishesUserNicknameChangedEvent_ToRedisPubSub);
+        const string testMethodName = nameof(UpdateNickname_PublishesUserNicknameChangedEvent_ToRedisPubSub);
         const string updatedNickname = "PubSubNick";
 
         // Arrange

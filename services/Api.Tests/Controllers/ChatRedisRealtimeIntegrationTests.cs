@@ -27,7 +27,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task PostMessage_PushesMessageCreated_ToJoinedHubClient()
     {
-        var testMethodName = nameof(PostMessage_PushesMessageCreated_ToJoinedHubClient);
+        const string testMethodName = nameof(PostMessage_PushesMessageCreated_ToJoinedHubClient);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -59,7 +59,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task PostMessage_PushesMessageCreated_ToOtherJoinedParticipant()
     {
-        var testMethodName = nameof(PostMessage_PushesMessageCreated_ToOtherJoinedParticipant);
+        const string testMethodName = nameof(PostMessage_PushesMessageCreated_ToOtherJoinedParticipant);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -92,7 +92,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task JoinRoom_ThrowsHubException_WhenCallerIsNotParticipant()
     {
-        var testMethodName = nameof(JoinRoom_ThrowsHubException_WhenCallerIsNotParticipant);
+        const string testMethodName = nameof(JoinRoom_ThrowsHubException_WhenCallerIsNotParticipant);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -115,7 +115,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task PostMessage_DoesNotPushToClient_WhenClientNotJoined()
     {
-        var testMethodName = nameof(PostMessage_DoesNotPushToClient_WhenClientNotJoined);
+        const string testMethodName = nameof(PostMessage_DoesNotPushToClient_WhenClientNotJoined);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -145,7 +145,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task PostMessage_EnqueuesChatMessageCreatedJob_ToRedisStream()
     {
-        var testMethodName = nameof(PostMessage_EnqueuesChatMessageCreatedJob_ToRedisStream);
+        const string testMethodName = nameof(PostMessage_EnqueuesChatMessageCreatedJob_ToRedisStream);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -192,7 +192,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
     [Fact]
     public async Task PostMessage_PublishesChatMessageCreatedEvent_ToRedisPubSub()
     {
-        var testMethodName = nameof(PostMessage_PublishesChatMessageCreatedEvent_ToRedisPubSub);
+        const string testMethodName = nameof(PostMessage_PublishesChatMessageCreatedEvent_ToRedisPubSub);
         const string messageBody = "PubSub payload";
 
         // Arrange

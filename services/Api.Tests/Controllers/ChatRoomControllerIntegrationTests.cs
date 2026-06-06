@@ -18,7 +18,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetOrCreateDirect_ReturnsSameRoom_OnSecondCall()
     {
-        var testMethodName = nameof(GetOrCreateDirect_ReturnsSameRoom_OnSecondCall);
+        const string testMethodName = nameof(GetOrCreateDirect_ReturnsSameRoom_OnSecondCall);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -40,7 +40,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetOrCreateDirect_Returns400_WhenNotFriends()
     {
-        var testMethodName = nameof(GetOrCreateDirect_Returns400_WhenNotFriends);
+        const string testMethodName = nameof(GetOrCreateDirect_Returns400_WhenNotFriends);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -61,7 +61,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetOrCreateDirect_Returns400_WhenBlocked()
     {
-        var testMethodName = nameof(GetOrCreateDirect_Returns400_WhenBlocked);
+        const string testMethodName = nameof(GetOrCreateDirect_Returns400_WhenBlocked);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -82,7 +82,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetOrCreateDirect_Returns400_WhenSelfAsOtherUser()
     {
-        var testMethodName = nameof(GetOrCreateDirect_Returns400_WhenSelfAsOtherUser);
+        const string testMethodName = nameof(GetOrCreateDirect_Returns400_WhenSelfAsOtherUser);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -100,7 +100,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetOrCreateDirect_AfterPromotion_CreatesNewDirectRoomBetweenSamePair()
     {
-        var testMethodName = nameof(GetOrCreateDirect_AfterPromotion_CreatesNewDirectRoomBetweenSamePair);
+        const string testMethodName = nameof(GetOrCreateDirect_AfterPromotion_CreatesNewDirectRoomBetweenSamePair);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -126,7 +126,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task CreateMulti_Returns201_AndAnyParticipantCanAddOthers()
     {
-        var testMethodName = nameof(CreateMulti_Returns201_AndAnyParticipantCanAddOthers);
+        const string testMethodName = nameof(CreateMulti_Returns201_AndAnyParticipantCanAddOthers);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -153,7 +153,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task CreateMulti_Returns400_WhenNoOtherParticipants()
     {
-        var testMethodName = nameof(CreateMulti_Returns400_WhenNoOtherParticipants);
+        const string testMethodName = nameof(CreateMulti_Returns400_WhenNoOtherParticipants);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -171,7 +171,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task CreateMulti_Returns400_WhenParticipantIsBlocked()
     {
-        var testMethodName = nameof(CreateMulti_Returns400_WhenParticipantIsBlocked);
+        const string testMethodName = nameof(CreateMulti_Returns400_WhenParticipantIsBlocked);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -193,7 +193,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task AddParticipant_ToDirectRoom_PromotesToMulti_AndAddsThirdUser()
     {
-        var testMethodName = nameof(AddParticipant_ToDirectRoom_PromotesToMulti_AndAddsThirdUser);
+        const string testMethodName = nameof(AddParticipant_ToDirectRoom_PromotesToMulti_AndAddsThirdUser);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -220,7 +220,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task AddParticipant_Returns409_WhenDuplicate()
     {
-        var testMethodName = nameof(AddParticipant_Returns409_WhenDuplicate);
+        const string testMethodName = nameof(AddParticipant_Returns409_WhenDuplicate);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -243,7 +243,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task ListPlatformGroupChatRooms_Returns404_ForNonMember()
     {
-        var testMethodName = nameof(ListPlatformGroupChatRooms_Returns404_ForNonMember);
+        const string testMethodName = nameof(ListPlatformGroupChatRooms_Returns404_ForNonMember);
 
         // Arrange
         var owner = await CreateUserForTest(testMethodName, 1);
@@ -263,7 +263,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task CreatePlatformGroupChatRoom_AllowsMultipleRoomsPerGroup()
     {
-        var testMethodName = nameof(CreatePlatformGroupChatRoom_AllowsMultipleRoomsPerGroup);
+        const string testMethodName = nameof(CreatePlatformGroupChatRoom_AllowsMultipleRoomsPerGroup);
 
         // Arrange
         var owner = await CreateUserForTest(testMethodName, 1);
@@ -283,7 +283,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task AddParticipant_ToPlatformGroupRoom_RequiresOwner()
     {
-        var testMethodName = nameof(AddParticipant_ToPlatformGroupRoom_RequiresOwner);
+        const string testMethodName = nameof(AddParticipant_ToPlatformGroupRoom_RequiresOwner);
 
         // Arrange
         var owner = await CreateUserForTest(testMethodName, 1);
@@ -317,7 +317,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task AddParticipant_ToPlatformGroupRoom_Returns400_WhenInviteeNotGroupMember()
     {
-        var testMethodName = nameof(AddParticipant_ToPlatformGroupRoom_Returns400_WhenInviteeNotGroupMember);
+        const string testMethodName = nameof(AddParticipant_ToPlatformGroupRoom_Returns400_WhenInviteeNotGroupMember);
 
         // Arrange
         var owner = await CreateUserForTest(testMethodName, 1);
@@ -341,7 +341,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task ListMyRooms_Returns200_WithCreatedRooms()
     {
-        var testMethodName = nameof(ListMyRooms_Returns200_WithCreatedRooms);
+        const string testMethodName = nameof(ListMyRooms_Returns200_WithCreatedRooms);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -361,7 +361,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetRoom_Returns401_ForStranger()
     {
-        var testMethodName = nameof(GetRoom_Returns401_ForStranger);
+        const string testMethodName = nameof(GetRoom_Returns401_ForStranger);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -381,7 +381,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task GetRoom_Returns404_ForUnknownRoomId()
     {
-        var testMethodName = nameof(GetRoom_Returns404_ForUnknownRoomId);
+        const string testMethodName = nameof(GetRoom_Returns404_ForUnknownRoomId);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
@@ -397,7 +397,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     [Fact]
     public async Task LeaveRoom_RemovesParticipant_AndStranger401Unchanged()
     {
-        var testMethodName = nameof(LeaveRoom_RemovesParticipant_AndStranger401Unchanged);
+        const string testMethodName = nameof(LeaveRoom_RemovesParticipant_AndStranger401Unchanged);
 
         // Arrange
         var userA = await CreateUserForTest(testMethodName, 1);
