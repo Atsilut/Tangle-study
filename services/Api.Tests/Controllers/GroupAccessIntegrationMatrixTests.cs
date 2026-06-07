@@ -96,38 +96,27 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         await scenario.LoginAsAsync(caller);
 
         // Act
-        HttpResponseMessage res;
-        switch (action)
+        HttpResponseMessage res = action switch
         {
-            case GroupManagementAction.Update:
-                res = await Client.PatchAsJsonAsync(GroupIntegrationTestHelpers.GroupsBase, new GroupPatchRequestDto
-                {
-                    Id = group.Id,
-                    Name = expected == GroupExpectedOutcome.Ok ? "Updated" : "x",
-                    Description = "desc",
-                    Visibility = GroupVisibility.Public,
-                });
-                break;
-            case GroupManagementAction.Delete:
-                res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
-                break;
-            case GroupManagementAction.TransferToMember:
-                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id });
-                break;
-            case GroupManagementAction.TransferToSelf:
-                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Owner.Id });
-                break;
-            case GroupManagementAction.TransferToStranger:
-                res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                    new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id });
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(action), action, null);
-        }
+            GroupManagementAction.Update => await Client.PatchAsJsonAsync(GroupIntegrationTestHelpers.GroupsBase, new GroupPatchRequestDto
+            {
+                Id = group.Id,
+                Name = expected == GroupExpectedOutcome.Ok ? "Updated" : "x",
+                Description = "desc",
+                Visibility = GroupVisibility.Public,
+            }),
+            GroupManagementAction.Delete => await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}"),
+            GroupManagementAction.TransferToMember => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id }),
+            GroupManagementAction.TransferToSelf => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Owner.Id }),
+            GroupManagementAction.TransferToStranger => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id }),
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
+        };
 
         // Assert
+
         switch (action)
         {
             case GroupManagementAction.Update:

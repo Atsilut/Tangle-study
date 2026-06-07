@@ -147,27 +147,20 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         var boardsBase = $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards";
 
         // Act
-        HttpResponseMessage res;
-        switch (operation)
+        HttpResponseMessage res = operation switch
         {
-            case BoardCrudOperation.Create:
-                res = await Client.PostAsJsonAsync(boardsBase, new GroupBoardCreateRequestDto { Name = "created" });
-                break;
-            case BoardCrudOperation.Update:
-                res = await Client.PatchAsJsonAsync($"{boardsBase}/{board.Id}", new GroupBoardPatchRequestDto
-                {
-                    Name = "Updated",
-                    Visibility = BoardVisibility.AdminOnly,
-                });
-                break;
-            case BoardCrudOperation.Delete:
-                res = await Client.DeleteAsync($"{boardsBase}/{board.Id}");
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(operation), operation, null);
-        }
+            BoardCrudOperation.Create => await Client.PostAsJsonAsync(boardsBase, new GroupBoardCreateRequestDto { Name = "created" }),
+            BoardCrudOperation.Update => await Client.PatchAsJsonAsync($"{boardsBase}/{board.Id}", new GroupBoardPatchRequestDto
+            {
+                Name = "Updated",
+                Visibility = BoardVisibility.AdminOnly,
+            }),
+            BoardCrudOperation.Delete => await Client.DeleteAsync($"{boardsBase}/{board.Id}"),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null),
+        };
 
         // Assert
+
         if (expected == GroupExpectedOutcome.Ok)
         {
             Assert.True(
