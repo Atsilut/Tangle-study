@@ -9,7 +9,7 @@ internal static class ServiceTestHelpers
 {
     public static DefaultHttpContext ContextFor(long userId) => new()
     {
-        User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()) })),
+        User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", userId.ToString())])),
     };
 
     public static async Task<User> CreateUserAsync(
