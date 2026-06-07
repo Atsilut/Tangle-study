@@ -61,6 +61,13 @@ namespace Api.Domain.Groups.Service
             GroupMember currentOwner,
             GroupMember newOwner)
         {
+            if (currentOwner.GroupId != groupId || newOwner.GroupId != groupId)
+                throw new ArgumentException("Members do not belong to the specified group.");
+            if (currentOwner.Role != GroupRole.Owner)
+                throw new ArgumentException("Current member is not the group owner.");
+            if (currentOwner.UserId == newOwner.UserId)
+                throw new ArgumentException("Cannot transfer ownership to the current owner.");
+
             currentOwner.ChangeRole(GroupRole.Admin);
             newOwner.ChangeRole(GroupRole.Owner);
             await _repo.UpdateMemberAsync(currentOwner);
