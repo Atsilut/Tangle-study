@@ -23,6 +23,7 @@ namespace Api.Domain.Groups.Service
         UserService userService,
         AppDbContext db,
         IHttpContextAccessor httpContextAccessor)
+
     {
         private readonly IGroupInvitationRepository _repo = repo;
         private readonly Lazy<GroupApplicationService> _groupApplicationService = groupApplicationService;

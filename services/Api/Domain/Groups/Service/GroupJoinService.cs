@@ -5,30 +5,20 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupJoinService
+    public class GroupJoinService(
+        Lazy<GroupService> groupService,
+        GroupInvitationService groupInvitationService,
+        GroupMembershipService membershipService,
+        GroupJoinResolutionService joinResolution,
+        GroupBlacklistService blacklistService,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly Lazy<GroupService> _groupService;
-        private readonly GroupInvitationService _groupInvitationService;
-        private readonly GroupMembershipService _membershipService;
-        private readonly GroupJoinResolutionService _joinResolution;
-        private readonly GroupBlacklistService _blacklistService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public GroupJoinService(
-            Lazy<GroupService> groupService,
-            GroupInvitationService groupInvitationService,
-            GroupMembershipService membershipService,
-            GroupJoinResolutionService joinResolution,
-            GroupBlacklistService blacklistService,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _groupService = groupService;
-            _groupInvitationService = groupInvitationService;
-            _membershipService = membershipService;
-            _joinResolution = joinResolution;
-            _blacklistService = blacklistService;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupInvitationService _groupInvitationService = groupInvitationService;
+        private readonly GroupMembershipService _membershipService = membershipService;
+        private readonly GroupJoinResolutionService _joinResolution = joinResolution;
+        private readonly GroupBlacklistService _blacklistService = blacklistService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

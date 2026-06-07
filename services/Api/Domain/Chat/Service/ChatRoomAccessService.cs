@@ -9,27 +9,18 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Chat.Service;
 
 [Service]
-public class ChatRoomAccessService
+public class ChatRoomAccessService(
+    FriendshipService friendshipService,
+    UserBlockService userBlockService,
+    UserService userService,
+    GroupMembershipService groupMembershipService,
+    GroupService groupService)
 {
-    private readonly FriendshipService _friendshipService;
-    private readonly UserBlockService _userBlockService;
-    private readonly UserService _userService;
-    private readonly GroupMembershipService _groupMembershipService;
-    private readonly GroupService _groupService;
-
-    public ChatRoomAccessService(
-        FriendshipService friendshipService,
-        UserBlockService userBlockService,
-        UserService userService,
-        GroupMembershipService groupMembershipService,
-        GroupService groupService)
-    {
-        _friendshipService = friendshipService;
-        _userBlockService = userBlockService;
-        _userService = userService;
-        _groupMembershipService = groupMembershipService;
-        _groupService = groupService;
-    }
+    private readonly FriendshipService _friendshipService = friendshipService;
+    private readonly UserBlockService _userBlockService = userBlockService;
+    private readonly UserService _userService = userService;
+    private readonly GroupMembershipService _groupMembershipService = groupMembershipService;
+    private readonly GroupService _groupService = groupService;
 
     public async Task EnsureNoBlockBetweenUsersAsync(long userId, long otherUserId)
     {

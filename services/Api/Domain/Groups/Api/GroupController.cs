@@ -9,16 +9,10 @@ namespace Api.Domain.Groups.Api
     [ApiController]
     [Route("api/groups")]
     [Authorize]
-    public class GroupController : ControllerBase
+    public class GroupController(GroupService service, GroupJoinService joinService) : ControllerBase
     {
-        private readonly GroupService _service;
-        private readonly GroupJoinService _joinService;
-
-        public GroupController(GroupService service, GroupJoinService joinService)
-        {
-            _service = service;
-            _joinService = joinService;
-        }
+        private readonly GroupService _service = service;
+        private readonly GroupJoinService _joinService = joinService;
 
         [HttpPost]
         [SwaggerOperation(Summary = "Create a group (caller becomes owner)")]

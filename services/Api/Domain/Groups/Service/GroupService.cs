@@ -10,42 +10,28 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupService
+    public class GroupService(
+        IGroupRepository repo,
+        GroupMembershipService membership,
+        UserService userService,
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        Lazy<GroupInvitationService> invitationService,
+        Lazy<GroupApplicationService> applicationService,
+        Lazy<GroupBlacklistService> blacklistService,
+        Lazy<GroupBoardService> boardService,
+        Lazy<PostService> postService)
     {
-        private readonly IGroupRepository _repo;
-        private readonly GroupMembershipService _membership;
-        private readonly UserService _userService;
-        private readonly AppDbContext _db;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly Lazy<GroupInvitationService> _invitationService;
-        private readonly Lazy<GroupApplicationService> _applicationService;
-        private readonly Lazy<GroupBlacklistService> _blacklistService;
-        private readonly Lazy<GroupBoardService> _boardService;
-        private readonly Lazy<PostService> _postService;
-
-        public GroupService(
-            IGroupRepository repo,
-            GroupMembershipService membership,
-            UserService userService,
-            AppDbContext db,
-            IHttpContextAccessor httpContextAccessor,
-            Lazy<GroupInvitationService> invitationService,
-            Lazy<GroupApplicationService> applicationService,
-            Lazy<GroupBlacklistService> blacklistService,
-            Lazy<GroupBoardService> boardService,
-            Lazy<PostService> postService)
-        {
-            _repo = repo;
-            _membership = membership;
-            _userService = userService;
-            _db = db;
-            _httpContextAccessor = httpContextAccessor;
-            _invitationService = invitationService;
-            _applicationService = applicationService;
-            _blacklistService = blacklistService;
-            _boardService = boardService;
-            _postService = postService;
-        }
+        private readonly IGroupRepository _repo = repo;
+        private readonly GroupMembershipService _membership = membership;
+        private readonly UserService _userService = userService;
+        private readonly AppDbContext _db = db;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly Lazy<GroupInvitationService> _invitationService = invitationService;
+        private readonly Lazy<GroupApplicationService> _applicationService = applicationService;
+        private readonly Lazy<GroupBlacklistService> _blacklistService = blacklistService;
+        private readonly Lazy<GroupBoardService> _boardService = boardService;
+        private readonly Lazy<PostService> _postService = postService;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

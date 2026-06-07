@@ -9,14 +9,9 @@ namespace Api.Domain.Chat.Api;
 [ApiController]
 [Route("api/chat/rooms")]
 [Authorize]
-public class ChatRoomController : ControllerBase
+public class ChatRoomController(ChatRoomService service) : ControllerBase
 {
-    private readonly ChatRoomService _service;
-
-    public ChatRoomController(ChatRoomService service)
-    {
-        _service = service;
-    }
+    private readonly ChatRoomService _service = service;
 
     [HttpPost("direct")]
     [SwaggerOperation(Summary = "Get or create a 1:1 chat room with a friend")]

@@ -8,14 +8,9 @@ namespace Api.Domain.Groups.Api
 {
     [ApiController]
     [Authorize]
-    public class GroupInvitationController : ControllerBase
+    public class GroupInvitationController(GroupInvitationService service) : ControllerBase
     {
-        private readonly GroupInvitationService _service;
-
-        public GroupInvitationController(GroupInvitationService service)
-        {
-            _service = service;
-        }
+        private readonly GroupInvitationService _service = service;
 
         [HttpPost("api/groups/{groupId:long}/invitations")]
         [SwaggerOperation(Summary = "Invite a user to a group (owner/admin)")]

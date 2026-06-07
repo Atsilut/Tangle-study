@@ -11,30 +11,20 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Comments.Service
 {
     [Service]
-    public class CommentService
+    public class CommentService(
+        ICommentRepository repo,
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        PostService postService,
+        GroupBoardAccessService groupBoardAccess,
+        UserService userService)
     {
-        private readonly ICommentRepository _repo;
-        private readonly AppDbContext _db;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly PostService _postService;
-        private readonly GroupBoardAccessService _groupBoardAccess;
-        private readonly UserService _userService;
-
-        public CommentService(
-            ICommentRepository repo,
-            AppDbContext db,
-            IHttpContextAccessor httpContextAccessor,
-            PostService postService,
-            GroupBoardAccessService groupBoardAccess,
-            UserService userService)
-        {
-            _repo = repo;
-            _db = db;
-            _httpContextAccessor = httpContextAccessor;
-            _postService = postService;
-            _groupBoardAccess = groupBoardAccess;
-            _userService = userService;
-        }
+        private readonly ICommentRepository _repo = repo;
+        private readonly AppDbContext _db = db;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly PostService _postService = postService;
+        private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
+        private readonly UserService _userService = userService;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

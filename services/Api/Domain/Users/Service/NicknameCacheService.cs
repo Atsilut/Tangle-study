@@ -5,18 +5,12 @@ using Microsoft.Extensions.Caching.Distributed;
 namespace Api.Domain.Users.Service;
 
 [Service]
-public class NicknameCacheService
+public class NicknameCacheService(IUserRepository repo, IDistributedCache cache)
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
-    private readonly IUserRepository _repo;
-    private readonly IDistributedCache _cache;
-
-    public NicknameCacheService(IUserRepository repo, IDistributedCache cache)
-    {
-        _repo = repo;
-        _cache = cache;
-    }
+    private readonly IUserRepository _repo = repo;
+    private readonly IDistributedCache _cache = cache;
 
     public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds)
     {

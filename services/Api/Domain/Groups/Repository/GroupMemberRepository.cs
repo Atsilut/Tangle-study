@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Groups.Repository
 {
     [Repository]
-    public class GroupMemberRepository : IGroupMemberRepository
+    public class GroupMemberRepository(AppDbContext context) : IGroupMemberRepository
     {
-        private readonly AppDbContext _context;
-
-        public GroupMemberRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task AddMemberAsync(GroupMember member)
         {

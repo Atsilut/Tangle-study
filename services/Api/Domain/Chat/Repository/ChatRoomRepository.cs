@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Chat.Repository;
 
 [Repository]
-public class ChatRoomRepository : IChatRoomRepository
+public class ChatRoomRepository(AppDbContext context) : IChatRoomRepository
 {
-    private readonly AppDbContext _context;
-
-    public ChatRoomRepository(AppDbContext context)
-    {
-        _context = context;
-    }
+    private readonly AppDbContext _context = context;
 
     public Task CreateChatRoomAsync(ChatRoom room)
     {

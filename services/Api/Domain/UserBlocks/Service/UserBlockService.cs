@@ -9,24 +9,16 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.UserBlocks.Service
 {
     [Service]
-    public class UserBlockService
+    public class UserBlockService(
+        IUserBlockRepository repo,
+        Lazy<FriendRequestService> friendRequestService,
+        UserService userService,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IUserBlockRepository _repo;
-        private readonly Lazy<FriendRequestService> _friendRequestService;
-        private readonly UserService _userService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public UserBlockService(
-            IUserBlockRepository repo,
-            Lazy<FriendRequestService> friendRequestService,
-            UserService userService,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _friendRequestService = friendRequestService;
-            _userService = userService;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IUserBlockRepository _repo = repo;
+        private readonly Lazy<FriendRequestService> _friendRequestService = friendRequestService;
+        private readonly UserService _userService = userService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

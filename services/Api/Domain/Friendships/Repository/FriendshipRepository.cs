@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Friendships.Repository
 {
     [Repository]
-    public class FriendshipRepository : IFriendshipRepository
+    public class FriendshipRepository(AppDbContext context) : IFriendshipRepository
     {
-        private readonly AppDbContext _context;
-
-        public FriendshipRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateFriendshipAsync(Friendship friendship)
         {

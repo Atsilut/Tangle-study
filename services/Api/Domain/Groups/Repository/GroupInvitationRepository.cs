@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Groups.Repository
 {
     [Repository]
-    public class GroupInvitationRepository : IGroupInvitationRepository
+    public class GroupInvitationRepository(AppDbContext context) : IGroupInvitationRepository
     {
-        private readonly AppDbContext _context;
-
-        public GroupInvitationRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateInvitationAsync(GroupInvitation invitation)
         {

@@ -8,14 +8,9 @@ namespace Api.Domain.Groups.Api
 {
     [ApiController]
     [Authorize]
-    public class GroupApplicationController : ControllerBase
+    public class GroupApplicationController(GroupApplicationService service) : ControllerBase
     {
-        private readonly GroupApplicationService _service;
-
-        public GroupApplicationController(GroupApplicationService service)
-        {
-            _service = service;
-        }
+        private readonly GroupApplicationService _service = service;
 
         [HttpPost("api/groups/{groupId:long}/applications")]
         [SwaggerOperation(Summary = "Apply to join a group")]

@@ -7,13 +7,9 @@ namespace Api.Domain.Users.Api
 {
     [ApiController]
     [Route("api")]
-    public class LoginController : ControllerBase
+    public class LoginController(LoginService service) : ControllerBase
     {
-        private readonly LoginService _service;
-        public LoginController(LoginService service)
-        {
-            _service = service;
-        }
+        private readonly LoginService _service = service;
 
         [HttpPost("join")]
         [SwaggerOperation(Summary = "Sign Up")]

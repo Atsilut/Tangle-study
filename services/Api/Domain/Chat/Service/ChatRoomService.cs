@@ -10,27 +10,18 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Chat.Service;
 
 [Service]
-public class ChatRoomService
+public class ChatRoomService(
+    IChatRoomRepository repo,
+    ChatRoomAccessService access,
+    UserService userService,
+    AppDbContext db,
+    IHttpContextAccessor httpContextAccessor)
 {
-    private readonly IChatRoomRepository _repo;
-    private readonly ChatRoomAccessService _access;
-    private readonly UserService _userService;
-    private readonly AppDbContext _db;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public ChatRoomService(
-        IChatRoomRepository repo,
-        ChatRoomAccessService access,
-        UserService userService,
-        AppDbContext db,
-        IHttpContextAccessor httpContextAccessor)
-    {
-        _repo = repo;
-        _access = access;
-        _userService = userService;
-        _db = db;
-        _httpContextAccessor = httpContextAccessor;
-    }
+    private readonly IChatRoomRepository _repo = repo;
+    private readonly ChatRoomAccessService _access = access;
+    private readonly UserService _userService = userService;
+    private readonly AppDbContext _db = db;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("Unauthorized access"));

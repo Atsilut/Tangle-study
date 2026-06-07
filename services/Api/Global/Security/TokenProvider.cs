@@ -6,24 +6,14 @@ using System.Text;
 
 namespace Api.Global.Security
 {
-    public class TokenProvider
+    public class TokenProvider(IOptions<JwtOptions> options)
     {
-        private readonly string _issuer;
-        private readonly string _audience;
-        private readonly string _secretKey;
-        private readonly TimeSpan _tokenExpiryMinutes;
-
-        public TokenProvider(IOptions<JwtOptions> options)
-        {
-            var jwt = options.Value;
-
-            _issuer = jwt.Issuer;
-            _audience = jwt.Audience;
-            _secretKey = string.IsNullOrWhiteSpace(jwt.Secret)
-                ? throw new InvalidOperationException("Jwt:Secret is not configured.")
-                : jwt.Secret;
-            _tokenExpiryMinutes = TimeSpan.FromMinutes(jwt.ExpiryMinutes);
-        }
+        private readonly string _issuer = options.Value.Issuer;
+        private readonly string _audience = options.Value.Audience;
+        private readonly string _secretKey = string.IsNullOrWhiteSpace(options.Value.Secret)
+            ? throw new InvalidOperationException("Jwt:Secret is not configured.")
+            : options.Value.Secret;
+        private readonly TimeSpan _tokenExpiryMinutes = TimeSpan.FromMinutes(options.Value.ExpiryMinutes);
 
         public string GenerateToken(long userId)
         {

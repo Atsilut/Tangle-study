@@ -9,14 +9,9 @@ namespace Api.Domain.Friendships.Api
     [ApiController]
     [Route("api/friendships")]
     [Authorize]
-    public class FriendshipController : ControllerBase
+    public class FriendshipController(FriendshipService service) : ControllerBase
     {
-        private readonly FriendshipService _service;
-
-        public FriendshipController(FriendshipService service)
-        {
-            _service = service;
-        }
+        private readonly FriendshipService _service = service;
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List my accepted friends")]

@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Groups.Repository
 {
     [Repository]
-    public class GroupBoardRepository : IGroupBoardRepository
+    public class GroupBoardRepository(AppDbContext context) : IGroupBoardRepository
     {
-        private readonly AppDbContext _context;
-
-        public GroupBoardRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateAsync(GroupBoard board)
         {

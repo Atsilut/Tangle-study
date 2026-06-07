@@ -9,14 +9,9 @@ namespace Api.Domain.Chat.Api;
 [ApiController]
 [Route("api/chat/rooms/{roomId:long}/messages")]
 [Authorize]
-public class ChatMessageController : ControllerBase
+public class ChatMessageController(ChatMessageService service) : ControllerBase
 {
-    private readonly ChatMessageService _service;
-
-    public ChatMessageController(ChatMessageService service)
-    {
-        _service = service;
-    }
+    private readonly ChatMessageService _service = service;
 
     [HttpGet]
     [SwaggerOperation(Summary = "List messages in a chat room (participants only, cursor pagination)")]

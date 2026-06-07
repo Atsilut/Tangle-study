@@ -7,23 +7,14 @@ using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
 
-public sealed class GroupIntegrationScenario
+public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicationFactory factory)
 {
-    private readonly HttpClient _client;
-    private readonly ApiWebApplicationFactory _factory;
-
     public UserGetResponseDto Owner { get; private init; } = null!;
     public UserGetResponseDto Admin { get; private init; } = null!;
     public UserGetResponseDto AdminB { get; private init; } = null!;
     public UserGetResponseDto Member { get; private init; } = null!;
     public UserGetResponseDto MemberB { get; private init; } = null!;
     public UserGetResponseDto Stranger { get; private init; } = null!;
-
-    private GroupIntegrationScenario(HttpClient client, ApiWebApplicationFactory factory)
-    {
-        _client = client;
-        _factory = factory;
-    }
 
     public static async Task<GroupIntegrationScenario> CreateAsync(
         HttpClient client,
@@ -46,11 +37,11 @@ public sealed class GroupIntegrationScenario
     {
         if (role == GroupActorRole.Anonymous)
         {
-            _client.DefaultRequestHeaders.Authorization = null;
+            client.DefaultRequestHeaders.Authorization = null;
             return;
         }
 
-        await GroupIntegrationTestHelpers.LoginAsAsync(_client, ResolveUser(role));
+        await GroupIntegrationTestHelpers.LoginAsAsync(client, ResolveUser(role));
     }
 
     public long ResolveUserId(GroupActorRole role) => ResolveUser(role).Id;
@@ -83,16 +74,16 @@ public sealed class GroupIntegrationScenario
         GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable)
     {
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
-            _client, Owner, visibility, joinPolicy);
+            client, Owner, visibility, joinPolicy);
         if (includeAdmin)
         {
-            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(_factory, group.Id, Admin.Id, GroupRole.Admin);
-            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(_factory, group.Id, AdminB.Id, GroupRole.Admin);
+            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(factory, group.Id, Admin.Id, GroupRole.Admin);
+            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(factory, group.Id, AdminB.Id, GroupRole.Admin);
         }
         if (includeMember)
         {
-            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(_factory, group.Id, Member.Id, GroupRole.Member);
-            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(_factory, group.Id, MemberB.Id, GroupRole.Member);
+            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(factory, group.Id, Member.Id, GroupRole.Member);
+            await GroupIntegrationTestHelpers.SeedGroupMemberAsync(factory, group.Id, MemberB.Id, GroupRole.Member);
         }
         return group;
     }
@@ -100,7 +91,7 @@ public sealed class GroupIntegrationScenario
     public Task<GroupResponseDto> SetupInvitationOnlyGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
-SetupGroupAsync(
+        SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: includeAdmin,
             includeMember: includeMember,
@@ -109,7 +100,7 @@ SetupGroupAsync(
     public Task<GroupResponseDto> SetupRequestableGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
-SetupGroupAsync(
+        SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: includeAdmin,
             includeMember: includeMember,
@@ -121,7 +112,7 @@ SetupGroupAsync(
         BoardVisibility? visibility = null,
         string? description = null)
     {
-        var res = await _client.PostAsJsonAsync(
+        var res = await client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/boards",
             new GroupBoardCreateRequestDto
             {
@@ -138,7 +129,7 @@ SetupGroupAsync(
         string name,
         BoardVisibility visibility)
     {
-        await GroupIntegrationTestHelpers.LoginAsAsync(_client, Owner);
+        await GroupIntegrationTestHelpers.LoginAsAsync(client, Owner);
         return await CreateBoardAsync(groupId, name, visibility);
     }
 
@@ -147,7 +138,7 @@ SetupGroupAsync(
         GroupActorRole inviter = GroupActorRole.Owner)
     {
         await LoginAsAsync(inviter);
-        var res = await _client.PostAsJsonAsync(
+        var res = await client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/invitations",
             new GroupInvitationCreateRequestDto { InviteeId = Stranger.Id });
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -157,7 +148,7 @@ SetupGroupAsync(
     public async Task<GroupApplicationResponseDto> ApplyAsStrangerAsync(long groupId)
     {
         await LoginAsAsync(GroupActorRole.Stranger);
-        var res = await _client.PostAsync(
+        var res = await client.PostAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/applications",
             content: null);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -166,8 +157,8 @@ SetupGroupAsync(
 
     public async Task BlacklistUserAsync(long groupId, long userId)
     {
-        await GroupIntegrationTestHelpers.LoginAsAsync(_client, Owner);
-        var res = await _client.PostAsJsonAsync(
+        await GroupIntegrationTestHelpers.LoginAsAsync(client, Owner);
+        var res = await client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/blacklist",
             new GroupBlacklistCreateRequestDto { UserId = userId });
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -175,7 +166,7 @@ SetupGroupAsync(
 
     public async Task<List<GroupMemberResponseDto>> GetMembersAsync(long groupId)
     {
-        var res = await _client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/members");
+        var res = await client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/members");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         return (await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>())!;
     }

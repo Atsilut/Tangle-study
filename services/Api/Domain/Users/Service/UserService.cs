@@ -13,36 +13,25 @@ using Microsoft.AspNetCore.Http;
 namespace Api.Domain.Users.Service
 {
     [Service]
-    public class UserService
-    {
-        private readonly IUserRepository _repo;
-        private readonly AppDbContext _db;
-        private readonly Lazy<PostService> _postService;
-        private readonly Lazy<CommentService> _commentService;
-        private readonly Lazy<GroupMembershipService> _groupMembershipService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly NicknameCacheService _nicknameCacheService;
-        private readonly IEventPublisher _eventPublisher;
+    public class UserService(
+        IUserRepository repo,
+        AppDbContext db,
+        Lazy<PostService> postService,
+        Lazy<CommentService> commentService,
+        Lazy<GroupMembershipService> groupMembershipService,
+        IHttpContextAccessor httpContextAccessor,
+        NicknameCacheService nicknameCacheService,
+        IEventPublisher eventPublisher)
 
-        public UserService(
-            IUserRepository repo,
-            AppDbContext db,
-            Lazy<PostService> postService,
-            Lazy<CommentService> commentService,
-            Lazy<GroupMembershipService> groupMembershipService,
-            IHttpContextAccessor httpContextAccessor,
-            NicknameCacheService nicknameCacheService,
-            IEventPublisher eventPublisher)
-        {
-            _repo = repo;
-            _db = db;
-            _postService = postService;
-            _commentService = commentService;
-            _groupMembershipService = groupMembershipService;
-            _httpContextAccessor = httpContextAccessor;
-            _nicknameCacheService = nicknameCacheService;
-            _eventPublisher = eventPublisher;
-        }
+    {
+        private readonly IUserRepository _repo = repo;
+        private readonly AppDbContext _db = db;
+        private readonly Lazy<PostService> _postService = postService;
+        private readonly Lazy<CommentService> _commentService = commentService;
+        private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
+        private readonly IEventPublisher _eventPublisher = eventPublisher;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

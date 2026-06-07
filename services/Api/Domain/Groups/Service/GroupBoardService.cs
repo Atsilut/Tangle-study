@@ -7,27 +7,18 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupBoardService
+    public class GroupBoardService(
+        IGroupBoardRepository repo,
+        Lazy<GroupService> groupService,
+        GroupMembershipService membership,
+        GroupBoardAccessService access,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IGroupBoardRepository _repo;
-        private readonly Lazy<GroupService> _groupService;
-        private readonly GroupMembershipService _membership;
-        private readonly GroupBoardAccessService _access;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public GroupBoardService(
-            IGroupBoardRepository repo,
-            Lazy<GroupService> groupService,
-            GroupMembershipService membership,
-            GroupBoardAccessService access,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _groupService = groupService;
-            _membership = membership;
-            _access = access;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IGroupBoardRepository _repo = repo;
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupMembershipService _membership = membership;
+        private readonly GroupBoardAccessService _access = access;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

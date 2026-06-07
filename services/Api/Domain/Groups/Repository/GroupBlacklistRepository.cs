@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Groups.Repository
 {
     [Repository]
-    public class GroupBlacklistRepository : IGroupBlacklistRepository
+    public class GroupBlacklistRepository(AppDbContext context) : IGroupBlacklistRepository
     {
-        private readonly AppDbContext _context;
-
-        public GroupBlacklistRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateAsync(GroupBlacklist entry)
         {

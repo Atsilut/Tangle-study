@@ -9,21 +9,14 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Friendships.Service
 {
     [Service]
-    public class FriendshipService
+    public class FriendshipService(
+        IFriendshipRepository repo,
+        UserService userService,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IFriendshipRepository _repo;
-        private readonly UserService _userService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public FriendshipService(
-            IFriendshipRepository repo,
-            UserService userService,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _userService = userService;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IFriendshipRepository _repo = repo;
+        private readonly UserService _userService = userService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

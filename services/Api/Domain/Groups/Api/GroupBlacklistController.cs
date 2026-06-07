@@ -9,14 +9,9 @@ namespace Api.Domain.Groups.Api
     [ApiController]
     [Route("api/groups/{groupId:long}/blacklist")]
     [Authorize]
-    public class GroupBlacklistController : ControllerBase
+    public class GroupBlacklistController(GroupBlacklistService service) : ControllerBase
     {
-        private readonly GroupBlacklistService _service;
-
-        public GroupBlacklistController(GroupBlacklistService service)
-        {
-            _service = service;
-        }
+        private readonly GroupBlacklistService _service = service;
 
         [HttpPost]
         [SwaggerOperation(Summary = "Blacklist a user from a group (owner only); kicks member and clears pending join requests")]

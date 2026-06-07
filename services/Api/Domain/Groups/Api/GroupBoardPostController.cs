@@ -9,14 +9,9 @@ namespace Api.Domain.Groups.Api
     [ApiController]
     [Route("api/groups/{groupId:long}/boards/{boardId:long}/posts")]
     [Authorize]
-    public class GroupBoardPostController : ControllerBase
+    public class GroupBoardPostController(PostService service) : ControllerBase
     {
-        private readonly PostService _service;
-
-        public GroupBoardPostController(PostService service)
-        {
-            _service = service;
-        }
+        private readonly PostService _service = service;
 
         [HttpPost]
         [SwaggerOperation(Summary = "Create a post on a group board")]

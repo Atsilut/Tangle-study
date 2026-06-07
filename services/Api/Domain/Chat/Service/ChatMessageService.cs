@@ -11,36 +11,25 @@ using Api.Global.Queue;
 namespace Api.Domain.Chat.Service;
 
 [Service]
-public class ChatMessageService
+public class ChatMessageService(
+    IChatMessageRepository repo,
+    ChatRoomService chatRoomService,
+    UserService userService,
+    IChatRealtimeNotifier realtime,
+    IEventPublisher eventPublisher,
+    IWorkQueue workQueue,
+    IHttpContextAccessor httpContextAccessor)
 {
     public const int DefaultPageLimit = 50;
     public const int MaxPageLimit = 100;
 
-    private readonly IChatMessageRepository _repo;
-    private readonly ChatRoomService _chatRoomService;
-    private readonly UserService _userService;
-    private readonly IChatRealtimeNotifier _realtime;
-    private readonly IEventPublisher _eventPublisher;
-    private readonly IWorkQueue _workQueue;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public ChatMessageService(
-        IChatMessageRepository repo,
-        ChatRoomService chatRoomService,
-        UserService userService,
-        IChatRealtimeNotifier realtime,
-        IEventPublisher eventPublisher,
-        IWorkQueue workQueue,
-        IHttpContextAccessor httpContextAccessor)
-    {
-        _repo = repo;
-        _chatRoomService = chatRoomService;
-        _userService = userService;
-        _realtime = realtime;
-        _eventPublisher = eventPublisher;
-        _workQueue = workQueue;
-        _httpContextAccessor = httpContextAccessor;
-    }
+    private readonly IChatMessageRepository _repo = repo;
+    private readonly ChatRoomService _chatRoomService = chatRoomService;
+    private readonly UserService _userService = userService;
+    private readonly IChatRealtimeNotifier _realtime = realtime;
+    private readonly IEventPublisher _eventPublisher = eventPublisher;
+    private readonly IWorkQueue _workQueue = workQueue;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("Unauthorized access"));

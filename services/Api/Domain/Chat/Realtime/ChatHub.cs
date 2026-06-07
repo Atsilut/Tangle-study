@@ -5,16 +5,11 @@ using Microsoft.AspNetCore.SignalR;
 namespace Api.Domain.Chat.Realtime;
 
 [Authorize]
-public class ChatHub : Hub
+public class ChatHub(ChatRoomService chatRoomService) : Hub
 {
     public const string MessageCreatedEvent = "MessageCreated";
 
-    private readonly ChatRoomService _chatRoomService;
-
-    public ChatHub(ChatRoomService chatRoomService)
-    {
-        _chatRoomService = chatRoomService;
-    }
+    private readonly ChatRoomService _chatRoomService = chatRoomService;
 
     public static string RoomGroup(long roomId) => $"room:{roomId}";
 

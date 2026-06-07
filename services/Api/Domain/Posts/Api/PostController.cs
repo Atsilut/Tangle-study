@@ -8,14 +8,9 @@ namespace Api.Domain.Posts.Api
 {
     [ApiController]
     [Route("api/posts")]
-    public class PostController : ControllerBase
+    public class PostController(PostService service) : ControllerBase
     {
-        private readonly PostService _service;
-
-        public PostController(PostService service)
-        {
-            _service = service;
-        }
+        private readonly PostService _service = service;
 
         [HttpPost]
         [Authorize]

@@ -9,14 +9,9 @@ namespace Api.Domain.Groups.Api
     [ApiController]
     [Route("api/groups/{groupId:long}/members")]
     [Authorize]
-    public class GroupMemberController : ControllerBase
+    public class GroupMemberController(GroupMembershipService service) : ControllerBase
     {
-        private readonly GroupMembershipService _service;
-
-        public GroupMemberController(GroupMembershipService service)
-        {
-            _service = service;
-        }
+        private readonly GroupMembershipService _service = service;
 
         [HttpGet]
         [SwaggerOperation(Summary = "List members of a group")]

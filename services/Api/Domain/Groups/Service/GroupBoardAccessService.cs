@@ -6,24 +6,16 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupBoardAccessService
+    public class GroupBoardAccessService(
+        IGroupBoardRepository repo,
+        Lazy<GroupService> groupService,
+        GroupMembershipService membershipService,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IGroupBoardRepository _repo;
-        private readonly Lazy<GroupService> _groupService;
-        private readonly GroupMembershipService _membershipService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public GroupBoardAccessService(
-            IGroupBoardRepository repo,
-            Lazy<GroupService> groupService,
-            GroupMembershipService membershipService,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _groupService = groupService;
-            _membershipService = membershipService;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IGroupBoardRepository _repo = repo;
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupMembershipService _membershipService = membershipService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long? TryGetUserIdFromLogin()
         {

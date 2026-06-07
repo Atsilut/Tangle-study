@@ -9,14 +9,9 @@ namespace Api.Domain.Friendships.Api
     [ApiController]
     [Route("api/friendships/requests")]
     [Authorize]
-    public class FriendRequestController : ControllerBase
+    public class FriendRequestController(FriendRequestService service) : ControllerBase
     {
-        private readonly FriendRequestService _service;
-
-        public FriendRequestController(FriendRequestService service)
-        {
-            _service = service;
-        }
+        private readonly FriendRequestService _service = service;
 
         [HttpPost]
         [SwaggerOperation(Summary = "Send a friend request")]

@@ -12,21 +12,14 @@ using StackExchange.Redis;
 
 namespace Api.Tests.Infrastructure;
 
-public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
+public sealed class ApiWebApplicationFactory(
+    string connectionString,
+    bool redisEnabled = false,
+    string? redisConnectionString = null) : WebApplicationFactory<Program>
 {
-    private readonly string _connectionString;
-    private readonly bool _redisEnabled;
-    private readonly string? _redisConnectionString;
-
-    public ApiWebApplicationFactory(
-        string connectionString,
-        bool redisEnabled = false,
-        string? redisConnectionString = null)
-    {
-        _connectionString = connectionString;
-        _redisEnabled = redisEnabled;
-        _redisConnectionString = redisConnectionString;
-    }
+    private readonly string _connectionString = connectionString;
+    private readonly bool _redisEnabled = redisEnabled;
+    private readonly string? _redisConnectionString = redisConnectionString;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

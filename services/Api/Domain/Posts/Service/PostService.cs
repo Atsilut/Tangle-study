@@ -11,30 +11,20 @@ using Api.Global.Infrastructure;
 namespace Api.Domain.Posts.Service
 {
     [Service]
-    public class PostService
+    public class PostService(
+        IPostRepository repo,
+        AppDbContext db,
+        Lazy<CommentService> commentService,
+        IHttpContextAccessor httpContextAccessor,
+        UserService userService,
+        GroupBoardAccessService groupBoardAccess)
     {
-        private readonly IPostRepository _repo;
-        private readonly AppDbContext _db;
-        private readonly Lazy<CommentService> _commentService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly UserService _userService;
-        private readonly GroupBoardAccessService _groupBoardAccess;
-
-        public PostService(
-            IPostRepository repo,
-            AppDbContext db,
-            Lazy<CommentService> commentService,
-            IHttpContextAccessor httpContextAccessor,
-            UserService userService,
-            GroupBoardAccessService groupBoardAccess)
-        {
-            _repo = repo;
-            _db = db;
-            _commentService = commentService;
-            _httpContextAccessor = httpContextAccessor;
-            _userService = userService;
-            _groupBoardAccess = groupBoardAccess;
-        }
+        private readonly IPostRepository _repo = repo;
+        private readonly AppDbContext _db = db;
+        private readonly Lazy<CommentService> _commentService = commentService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly UserService _userService = userService;
+        private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));

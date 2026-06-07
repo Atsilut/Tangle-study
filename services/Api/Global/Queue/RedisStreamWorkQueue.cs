@@ -5,23 +5,16 @@ using StackExchange.Redis;
 
 namespace Api.Global.Queue;
 
-public sealed class RedisStreamWorkQueue : IWorkQueue
+public sealed class RedisStreamWorkQueue(
+    IConnectionMultiplexer connectionMultiplexer,
+    IOptions<RedisOptions> options,
+    ILogger<RedisStreamWorkQueue> logger) : IWorkQueue
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly RedisOptions _options;
-    private readonly ILogger<RedisStreamWorkQueue> _logger;
-
-    public RedisStreamWorkQueue(
-        IConnectionMultiplexer connectionMultiplexer,
-        IOptions<RedisOptions> options,
-        ILogger<RedisStreamWorkQueue> logger)
-    {
-        _connectionMultiplexer = connectionMultiplexer;
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly IConnectionMultiplexer _connectionMultiplexer = connectionMultiplexer;
+    private readonly RedisOptions _options = options.Value;
+    private readonly ILogger<RedisStreamWorkQueue> _logger = logger;
 
     public async Task EnqueueAsync<TPayload>(
         string streamKey,

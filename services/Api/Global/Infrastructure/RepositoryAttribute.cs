@@ -1,13 +1,8 @@
 ﻿namespace Api.Global.Infrastructure
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public sealed class RepositoryAttribute : Attribute
+    public sealed class RepositoryAttribute(ServiceLifetime lifetime = ServiceLifetime.Scoped) : Attribute
     {
-        public ServiceLifetime Lifetime { get; }
-
-        public RepositoryAttribute(ServiceLifetime lifetime = ServiceLifetime.Scoped)
-        {
-            Lifetime = lifetime;
-        }
+        public ServiceLifetime Lifetime { get; } = lifetime;
     }
 }

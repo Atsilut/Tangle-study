@@ -9,14 +9,9 @@ namespace Api.Domain.Chat.Api;
 [ApiController]
 [Route("api/groups/{groupId:long}/chat-rooms")]
 [Authorize]
-public class GroupChatRoomController : ControllerBase
+public class GroupChatRoomController(ChatRoomService service) : ControllerBase
 {
-    private readonly ChatRoomService _service;
-
-    public GroupChatRoomController(ChatRoomService service)
-    {
-        _service = service;
-    }
+    private readonly ChatRoomService _service = service;
 
     [HttpGet]
     [SwaggerOperation(Summary = "List chat rooms under a platform group (members only)")]

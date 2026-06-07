@@ -8,13 +8,9 @@ namespace Api.Domain.Users.Api
 {
     [ApiController]
     [Route("api/users")]
-    public class UserController : ControllerBase
+    public class UserController(UserService service) : ControllerBase
     {
-        private readonly UserService _service;
-        public UserController(UserService service)
-        {
-            _service = service;
-        }
+        private readonly UserService _service = service;
 
         [HttpGet]
         [SwaggerOperation(Summary = "Get All Users")]

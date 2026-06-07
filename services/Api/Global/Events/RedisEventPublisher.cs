@@ -3,20 +3,14 @@ using StackExchange.Redis;
 
 namespace Api.Global.Events;
 
-public sealed class RedisEventPublisher : IEventPublisher
+public sealed class RedisEventPublisher(
+    IConnectionMultiplexer connectionMultiplexer,
+    ILogger<RedisEventPublisher> logger) : IEventPublisher
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly ILogger<RedisEventPublisher> _logger;
-
-    public RedisEventPublisher(
-        IConnectionMultiplexer connectionMultiplexer,
-        ILogger<RedisEventPublisher> logger)
-    {
-        _connectionMultiplexer = connectionMultiplexer;
-        _logger = logger;
-    }
+    private readonly IConnectionMultiplexer _connectionMultiplexer = connectionMultiplexer;
+    private readonly ILogger<RedisEventPublisher> _logger = logger;
 
     public async Task PublishAsync<TPayload>(string channel, TPayload payload, CancellationToken cancellationToken = default)
     {

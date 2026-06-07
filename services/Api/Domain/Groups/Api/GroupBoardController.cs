@@ -9,14 +9,9 @@ namespace Api.Domain.Groups.Api
     [ApiController]
     [Route("api/groups/{groupId:long}/boards")]
     [Authorize]
-    public class GroupBoardController : ControllerBase
+    public class GroupBoardController(GroupBoardService service) : ControllerBase
     {
-        private readonly GroupBoardService _service;
-
-        public GroupBoardController(GroupBoardService service)
-        {
-            _service = service;
-        }
+        private readonly GroupBoardService _service = service;
 
         [HttpGet]
         [SwaggerOperation(Summary = "List boards visible to the caller")]

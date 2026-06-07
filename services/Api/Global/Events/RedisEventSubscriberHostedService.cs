@@ -3,18 +3,12 @@ using StackExchange.Redis;
 
 namespace Api.Global.Events;
 
-public sealed class RedisEventSubscriberHostedService : IHostedService
+public sealed class RedisEventSubscriberHostedService(
+    IConnectionMultiplexer connectionMultiplexer,
+    ILogger<RedisEventSubscriberHostedService> logger) : IHostedService
 {
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly ILogger<RedisEventSubscriberHostedService> _logger;
-
-    public RedisEventSubscriberHostedService(
-        IConnectionMultiplexer connectionMultiplexer,
-        ILogger<RedisEventSubscriberHostedService> logger)
-    {
-        _connectionMultiplexer = connectionMultiplexer;
-        _logger = logger;
-    }
+    private readonly IConnectionMultiplexer _connectionMultiplexer = connectionMultiplexer;
+    private readonly ILogger<RedisEventSubscriberHostedService> _logger = logger;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {

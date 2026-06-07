@@ -8,16 +8,10 @@ using Api.Global.Security;
 namespace Api.Domain.Users.Service
 {
     [Service]
-    public class LoginService
+    public class LoginService(IUserRepository repo, TokenProvider tokenProvider)
     {
-        private readonly IUserRepository _repo;
-        private readonly TokenProvider _tokenProvider;
-
-        public LoginService(IUserRepository repo, TokenProvider tokenProvider)
-        {
-            _repo = repo;
-            _tokenProvider = tokenProvider;
-        }
+        private readonly IUserRepository _repo = repo;
+        private readonly TokenProvider _tokenProvider = tokenProvider;
 
         public async Task CreateUserAsync(UserCreateRequestDto request)
         {

@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Comments.Repository
 {
     [Repository]
-    public class CommentRepository : ICommentRepository
+    public class CommentRepository(AppDbContext context) : ICommentRepository
     {
-        private readonly AppDbContext _context;
-
-        public CommentRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateCommentAsync(Comment comment)
         {

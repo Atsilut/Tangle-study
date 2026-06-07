@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Users.Repository
 {
     [Repository]
-    public class UserRepository : IUserRepository
+    public class UserRepository(AppDbContext context) : IUserRepository
     {
-        private readonly AppDbContext _context;
-
-        public UserRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateUserAsync(User user)
         {

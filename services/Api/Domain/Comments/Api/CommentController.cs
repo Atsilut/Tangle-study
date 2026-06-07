@@ -8,14 +8,9 @@ namespace Api.Domain.Comments.Api
 {
     [ApiController]
     [Route("api/comments")]
-    public class CommentController : ControllerBase
+    public class CommentController(CommentService service) : ControllerBase
     {
-        private readonly CommentService _service;
-
-        public CommentController(CommentService service)
-        {
-            _service = service;
-        }
+        private readonly CommentService _service = service;
 
         [HttpPost]
         [Authorize]

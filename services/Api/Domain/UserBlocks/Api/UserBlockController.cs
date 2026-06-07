@@ -9,14 +9,9 @@ namespace Api.Domain.UserBlocks.Api
     [ApiController]
     [Route("api/users/blocks")]
     [Authorize]
-    public class UserBlockController : ControllerBase
+    public class UserBlockController(UserBlockService service) : ControllerBase
     {
-        private readonly UserBlockService _service;
-
-        public UserBlockController(UserBlockService service)
-        {
-            _service = service;
-        }
+        private readonly UserBlockService _service = service;
 
         [HttpPost]
         [SwaggerOperation(Summary = "Block a user (shared across community features)")]

@@ -6,14 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.UserBlocks.Repository
 {
     [Repository]
-    public class UserBlockRepository : IUserBlockRepository
+    public class UserBlockRepository(AppDbContext context) : IUserBlockRepository
     {
-        private readonly AppDbContext _context;
-
-        public UserBlockRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly AppDbContext _context = context;
 
         public Task CreateUserBlockAsync(UserBlock userBlock)
         {
