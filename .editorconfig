@@ -1,0 +1,12 @@
+root = true
+
+[*.cs]
+# Braces on multi-line single-statement guards hurt readability for simple actions
+dotnet_diagnostic.RCS1001.severity = none
+
+[services/Api.Tests/**.cs]
+dotnet_diagnostic.RCS1037.severity = none
+
+[services/Api/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.category-roslynator.severity = none
