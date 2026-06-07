@@ -64,7 +64,7 @@ namespace Api.Domain.UserBlocks.Service
             await _userService.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
         }
 
-        private UserBlockGetResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
+        private static UserBlockGetResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
             new(
                 Id: block.Id,
                 BlockedUserId: block.BlockedUserId,
