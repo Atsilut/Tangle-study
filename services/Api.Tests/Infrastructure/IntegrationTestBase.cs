@@ -27,6 +27,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         Client.Dispose();
         Factory.Dispose();
+        GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
     }
 }
