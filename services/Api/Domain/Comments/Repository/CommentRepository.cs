@@ -15,23 +15,23 @@ namespace Api.Domain.Comments.Repository
             _context = context;
         }
 
-        public async Task CreateCommentAsync(Comment comment)
+        public Task CreateCommentAsync(Comment comment)
         {
             _context.Comments.Add(comment);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<Comment?> GetCommentByIdAsync(long id) => await _context.Comments.FindAsync(id);
+        public Task<Comment?> GetCommentByIdAsync(long id) => _context.Comments.FindAsync(id).AsTask();
 
-        public async Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
-            await _context.Comments.Where(c => c.PostId == postId).ToListAsync();
+        public Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
+            _context.Comments.Where(c => c.PostId == postId).ToListAsync();
 
-        public async Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
-            await _context.Comments
+        public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
+            _context.Comments
                 .Where(c => c.UserId == userId || c.DeletedUserId == userId)
                 .ToListAsync();
 
-        public async Task UpdateCommentAsync(Comment comment) => await _context.SaveChangesAsync();
+        public Task UpdateCommentAsync(Comment comment) => _context.SaveChangesAsync();
 
         public async Task DetachAuthorFromCommentsAsync(long userId)
         {
@@ -49,10 +49,10 @@ namespace Api.Domain.Comments.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
+        public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
         {
-            if (postIds.Count == 0) return;
-            await _context.Comments
+            if (postIds.Count == 0) return Task.CompletedTask;
+            return _context.Comments
                 .Where(c => c.PostId != null && postIds.Contains(c.PostId.Value))
                 .ExecuteDeleteAsync();
         }
@@ -65,10 +65,10 @@ namespace Api.Domain.Comments.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteCommentAsync(Comment comment)
+        public Task DeleteCommentAsync(Comment comment)
         {
             _context.Comments.Remove(comment);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
     }
 }

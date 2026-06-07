@@ -97,19 +97,19 @@ public sealed class GroupIntegrationScenario
         return group;
     }
 
-    public async Task<GroupResponseDto> SetupInvitationOnlyGroupAsync(
+    public Task<GroupResponseDto> SetupInvitationOnlyGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
-        await SetupGroupAsync(
+SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: includeAdmin,
             includeMember: includeMember,
             joinPolicy: GroupJoinPolicy.InvitationOnly);
 
-    public async Task<GroupResponseDto> SetupRequestableGroupAsync(
+    public Task<GroupResponseDto> SetupRequestableGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
-        await SetupGroupAsync(
+SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: includeAdmin,
             includeMember: includeMember,

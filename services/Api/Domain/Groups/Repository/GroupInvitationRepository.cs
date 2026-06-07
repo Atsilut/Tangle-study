@@ -15,43 +15,43 @@ namespace Api.Domain.Groups.Repository
             _context = context;
         }
 
-        public async Task CreateInvitationAsync(GroupInvitation invitation)
+        public Task CreateInvitationAsync(GroupInvitation invitation)
         {
             _context.GroupInvitations.Add(invitation);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<GroupInvitation?> GetByIdAsync(long id) => await _context.GroupInvitations.FindAsync(id);
+        public Task<GroupInvitation?> GetByIdAsync(long id) => _context.GroupInvitations.FindAsync(id).AsTask();
 
-        public async Task<GroupInvitation?> GetForUserAsync(long groupId, long inviteeId) =>
-            await _context.GroupInvitations.FirstOrDefaultAsync(i =>
+        public Task<GroupInvitation?> GetForUserAsync(long groupId, long inviteeId) =>
+            _context.GroupInvitations.FirstOrDefaultAsync(i =>
                 i.GroupId == groupId && i.InviteeId == inviteeId);
 
-        public async Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId) =>
-            await _context.GroupInvitations.FirstOrDefaultAsync(i =>
+        public Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId) =>
+            _context.GroupInvitations.FirstOrDefaultAsync(i =>
                 i.GroupId == groupId && i.InviteeId == inviteeId && i.IsPending);
 
-        public async Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId) =>
-            await _context.GroupInvitations
+        public Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId) =>
+            _context.GroupInvitations
                 .Where(i => i.InviteeId == inviteeId && i.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId) =>
-            await _context.GroupInvitations
+        public Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId) =>
+            _context.GroupInvitations
                 .Where(i => i.InviterId == inviterId && !i.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupInvitation>> GetIgnoredIncomingForInviteeAsync(long inviteeId) =>
-            await _context.GroupInvitations
+        public Task<List<GroupInvitation>> GetIgnoredIncomingForInviteeAsync(long inviteeId) =>
+            _context.GroupInvitations
                 .Where(i => i.InviteeId == inviteeId && !i.IsPending)
                 .ToListAsync();
 
-        public async Task UpdateInvitationAsync(GroupInvitation invitation) => await _context.SaveChangesAsync();
+        public Task UpdateInvitationAsync(GroupInvitation invitation) => _context.SaveChangesAsync();
 
-        public async Task DeleteInvitationAsync(GroupInvitation invitation)
+        public Task DeleteInvitationAsync(GroupInvitation invitation)
         {
             _context.GroupInvitations.Remove(invitation);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
         public async Task DeleteAllForUserAndGroupAsync(long groupId, long userId)

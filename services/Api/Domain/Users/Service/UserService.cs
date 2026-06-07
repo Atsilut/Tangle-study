@@ -87,8 +87,8 @@ namespace Api.Domain.Users.Service
             return user == null ? null : MapToDto(user);
         }
 
-        public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
-            await _nicknameCacheService.GetNicknamesByUserIdsAsync(userIds);
+        public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
+            _nicknameCacheService.GetNicknamesByUserIdsAsync(userIds);
 
         private static UserGetResponseDto MapToDto(User user) => new(
             Id: user.Id,

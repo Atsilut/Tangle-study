@@ -21,8 +21,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         Client = Factory.CreateClient();
     }
 
-    public async ValueTask InitializeAsync() =>
-        await Factory.ClearAllEntitiesAsync();
+    public async ValueTask InitializeAsync() => await Factory.ClearAllEntitiesAsync();
 
     public ValueTask DisposeAsync()
     {

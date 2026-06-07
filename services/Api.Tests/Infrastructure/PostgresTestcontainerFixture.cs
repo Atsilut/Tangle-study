@@ -31,8 +31,5 @@ public sealed class PostgresTestcontainerFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await _postgres.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => _postgres.DisposeAsync();
 }

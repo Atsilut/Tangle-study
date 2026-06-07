@@ -11,39 +11,26 @@ using Npgsql;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupApplicationService
+    public class GroupApplicationService(
+        IGroupApplicationRepository repo,
+        Lazy<GroupInvitationService> groupInvitationService,
+        Lazy<GroupService> groupService,
+        GroupMembershipService membershipService,
+        Lazy<GroupJoinResolutionService> joinResolution,
+        GroupBlacklistService blacklistService,
+        UserService userService,
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IGroupApplicationRepository _repo;
-        private readonly Lazy<GroupInvitationService> _groupInvitationService;
-        private readonly Lazy<GroupService> _groupService;
-        private readonly GroupMembershipService _membershipService;
-        private readonly Lazy<GroupJoinResolutionService> _joinResolution;
-        private readonly GroupBlacklistService _blacklistService;
-        private readonly UserService _userService;
-        private readonly AppDbContext _db;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public GroupApplicationService(
-            IGroupApplicationRepository repo,
-            Lazy<GroupInvitationService> groupInvitationService,
-            Lazy<GroupService> groupService,
-            GroupMembershipService membershipService,
-            Lazy<GroupJoinResolutionService> joinResolution,
-            GroupBlacklistService blacklistService,
-            UserService userService,
-            AppDbContext db,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _groupInvitationService = groupInvitationService;
-            _groupService = groupService;
-            _membershipService = membershipService;
-            _joinResolution = joinResolution;
-            _blacklistService = blacklistService;
-            _userService = userService;
-            _db = db;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IGroupApplicationRepository _repo = repo;
+        private readonly Lazy<GroupInvitationService> _groupInvitationService = groupInvitationService;
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupMembershipService _membershipService = membershipService;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
+        private readonly GroupBlacklistService _blacklistService = blacklistService;
+        private readonly UserService _userService = userService;
+        private readonly AppDbContext _db = db;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -91,9 +78,9 @@ namespace Api.Domain.Groups.Service
             return await ResolveApplyOutcomeAsync(groupId, applicantId);
         }
 
-        private async Task CreateApplicationInTransactionAsync(long groupId, long applicantId)
+        private Task CreateApplicationInTransactionAsync(long groupId, long applicantId)
         {
-            await _db.ExecuteInTransactionAsync(async () =>
+            return _db.ExecuteInTransactionAsync(async () =>
             {
                 if (await _repo.GetForUserAsync(groupId, applicantId) is not null)
                     return;

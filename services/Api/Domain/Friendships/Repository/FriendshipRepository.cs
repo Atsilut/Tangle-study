@@ -15,40 +15,40 @@ namespace Api.Domain.Friendships.Repository
             _context = context;
         }
 
-        public async Task CreateFriendshipAsync(Friendship friendship)
+        public Task CreateFriendshipAsync(Friendship friendship)
         {
             _context.Friendships.Add(friendship);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<Friendship?> GetFriendshipByIdAsync(long id) =>
-            await _context.Friendships.FindAsync(id);
+        public Task<Friendship?> GetFriendshipByIdAsync(long id) =>
+            _context.Friendships.FindAsync(id).AsTask();
 
-        public async Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
+        public Task<Friendship?> GetForUserPairAsync(long userId, long otherUserId)
         {
             var userLowId = Math.Min(userId, otherUserId);
             var userHighId = Math.Max(userId, otherUserId);
-            return await _context.Friendships.FirstOrDefaultAsync(f =>
+            return _context.Friendships.FirstOrDefaultAsync(f =>
                 f.UserLowId == userLowId && f.UserHighId == userHighId);
         }
 
-        public async Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId)
+        public Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId)
         {
             var userLowId = Math.Min(userId, otherUserId);
             var userHighId = Math.Max(userId, otherUserId);
-            return await _context.Friendships.AnyAsync(f =>
+            return _context.Friendships.AnyAsync(f =>
                 f.UserLowId == userLowId && f.UserHighId == userHighId);
         }
 
-        public async Task<List<Friendship>> GetAllForUserAsync(long userId) =>
-            await _context.Friendships
+        public Task<List<Friendship>> GetAllForUserAsync(long userId) =>
+            _context.Friendships
                 .Where(f => f.UserLowId == userId || f.UserHighId == userId)
                 .ToListAsync();
 
-        public async Task DeleteFriendshipAsync(Friendship friendship)
+        public Task DeleteFriendshipAsync(Friendship friendship)
         {
             _context.Friendships.Remove(friendship);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
         public async Task DeleteAllForUserAsync(long userId)

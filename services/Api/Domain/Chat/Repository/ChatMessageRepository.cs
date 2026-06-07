@@ -15,14 +15,14 @@ public class ChatMessageRepository : IChatMessageRepository
         _context = context;
     }
 
-    public async Task CreateChatMessageAsync(ChatMessage message)
+    public Task CreateChatMessageAsync(ChatMessage message)
     {
         _context.ChatMessages.Add(message);
-        await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
 
-    public async Task<ChatMessage?> GetChatMessageByIdAsync(long id) =>
-        await _context.ChatMessages.FindAsync(id);
+    public Task<ChatMessage?> GetChatMessageByIdAsync(long id) =>
+        _context.ChatMessages.FindAsync(id).AsTask();
 
     public async Task<List<ChatMessage>> GetChatMessagesForRoomAsync(
         long chatRoomId,

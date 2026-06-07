@@ -15,38 +15,38 @@ namespace Api.Domain.Friendships.Repository
             _context = context;
         }
 
-        public async Task CreateFriendRequestAsync(FriendRequest friendRequest)
+        public Task CreateFriendRequestAsync(FriendRequest friendRequest)
         {
             _context.FriendRequests.Add(friendRequest);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<FriendRequest?> GetFriendRequestByIdAsync(long id) =>
-            await _context.FriendRequests.FindAsync(id);
+        public Task<FriendRequest?> GetFriendRequestByIdAsync(long id) =>
+            _context.FriendRequests.FindAsync(id).AsTask();
 
-        public async Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
-            await _context.FriendRequests
+        public Task<FriendRequest?> GetForUserPairAsync(long userId, long otherUserId) =>
+            _context.FriendRequests
                 .Where(r =>
                     (r.RequesterId == userId && r.AddresseeId == otherUserId) ||
                     (r.RequesterId == otherUserId && r.AddresseeId == userId))
                 .OrderBy(r => r.Id)
                 .FirstOrDefaultAsync();
 
-        public async Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
+        public Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
         {
             var query = _context.FriendRequests
                 .Where(r => r.RequesterId == userId || r.AddresseeId == userId);
             if (isPending.HasValue)
                 query = query.Where(r => r.IsPending == isPending.Value);
-            return await query.ToListAsync();
+            return query.ToListAsync();
         }
 
-        public async Task UpdateFriendRequestAsync(FriendRequest friendRequest) => await _context.SaveChangesAsync();
+        public Task UpdateFriendRequestAsync(FriendRequest friendRequest) => _context.SaveChangesAsync();
 
-        public async Task DeleteFriendRequestAsync(FriendRequest friendRequest)
+        public Task DeleteFriendRequestAsync(FriendRequest friendRequest)
         {
             _context.FriendRequests.Remove(friendRequest);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
         public async Task DeleteAllForUserPairAsync(long userId, long otherUserId)

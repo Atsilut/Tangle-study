@@ -180,11 +180,11 @@ public class ChatRoomService
         await _repo.GetChatRoomByIdAsync(roomId, includeParticipants: true)
         ?? throw new EntityNotFoundException("Chat room not found");
 
-    private async Task CreateRoomWithParticipantsAsync(
+    private Task CreateRoomWithParticipantsAsync(
         ChatRoom room,
         IReadOnlyList<(long UserId, ChatRoomParticipantRole Role)> participants)
     {
-        await _db.ExecuteInTransactionAsync(async () =>
+        return _db.ExecuteInTransactionAsync(async () =>
         {
             _db.ChatRooms.Add(room);
             await _db.SaveChangesAsync();

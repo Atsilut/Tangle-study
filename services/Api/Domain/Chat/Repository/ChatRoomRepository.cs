@@ -15,25 +15,25 @@ public class ChatRoomRepository : IChatRoomRepository
         _context = context;
     }
 
-    public async Task CreateChatRoomAsync(ChatRoom room)
+    public Task CreateChatRoomAsync(ChatRoom room)
     {
         _context.ChatRooms.Add(room);
-        await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
 
-    public async Task<ChatRoom?> GetChatRoomByIdAsync(long id, bool includeParticipants = false)
+    public Task<ChatRoom?> GetChatRoomByIdAsync(long id, bool includeParticipants = false)
     {
         var query = _context.ChatRooms.AsQueryable();
         if (includeParticipants)
             query = query.Include(r => r.Participants);
-        return await query.FirstOrDefaultAsync(r => r.Id == id);
+        return query.FirstOrDefaultAsync(r => r.Id == id);
     }
 
-    public async Task<ChatRoom?> GetDirectChatRoomForUserPairAsync(long userId, long otherUserId)
+    public Task<ChatRoom?> GetDirectChatRoomForUserPairAsync(long userId, long otherUserId)
     {
         var userLowId = Math.Min(userId, otherUserId);
         var userHighId = Math.Max(userId, otherUserId);
-        return await _context.ChatRooms
+        return _context.ChatRooms
             .Include(r => r.Participants)
             .FirstOrDefaultAsync(r =>
                 r.Kind == ChatRoomKind.Direct
@@ -41,35 +41,35 @@ public class ChatRoomRepository : IChatRoomRepository
                 && r.UserHighId == userHighId);
     }
 
-    public async Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId) =>
-        await _context.ChatRooms
+    public Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId) =>
+        _context.ChatRooms
             .Where(r => r.Participants.Any(p => p.UserId == userId))
             .OrderByDescending(r => r.UpdatedAt)
             .ToListAsync();
 
-    public async Task<List<ChatRoom>> GetChatRoomsForPlatformGroupAsync(long platformGroupId) =>
-        await _context.ChatRooms
+    public Task<List<ChatRoom>> GetChatRoomsForPlatformGroupAsync(long platformGroupId) =>
+        _context.ChatRooms
             .Where(r => r.PlatformGroupId == platformGroupId)
             .OrderByDescending(r => r.UpdatedAt)
             .ToListAsync();
 
-    public async Task<bool> ExistsChatRoomParticipantAsync(long chatRoomId, long userId) =>
-        await _context.ChatRoomParticipants.AnyAsync(p => p.ChatRoomId == chatRoomId && p.UserId == userId);
+    public Task<bool> ExistsChatRoomParticipantAsync(long chatRoomId, long userId) =>
+        _context.ChatRoomParticipants.AnyAsync(p => p.ChatRoomId == chatRoomId && p.UserId == userId);
 
-    public async Task<ChatRoomParticipant?> GetChatRoomParticipantAsync(long chatRoomId, long userId) =>
-        await _context.ChatRoomParticipants.FirstOrDefaultAsync(p =>
+    public Task<ChatRoomParticipant?> GetChatRoomParticipantAsync(long chatRoomId, long userId) =>
+        _context.ChatRoomParticipants.FirstOrDefaultAsync(p =>
             p.ChatRoomId == chatRoomId && p.UserId == userId);
 
-    public async Task AddChatRoomParticipantAsync(ChatRoomParticipant participant)
+    public Task AddChatRoomParticipantAsync(ChatRoomParticipant participant)
     {
         _context.ChatRoomParticipants.Add(participant);
-        await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
 
-    public async Task RemoveChatRoomParticipantAsync(ChatRoomParticipant participant)
+    public Task RemoveChatRoomParticipantAsync(ChatRoomParticipant participant)
     {
         _context.ChatRoomParticipants.Remove(participant);
-        await _context.SaveChangesAsync();
+        return _context.SaveChangesAsync();
     }
 
     public async Task TouchChatRoomUpdatedAtAsync(long chatRoomId)

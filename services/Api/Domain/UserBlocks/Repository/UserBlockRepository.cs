@@ -15,29 +15,29 @@ namespace Api.Domain.UserBlocks.Repository
             _context = context;
         }
 
-        public async Task CreateUserBlockAsync(UserBlock userBlock)
+        public Task CreateUserBlockAsync(UserBlock userBlock)
         {
             _context.UserBlocks.Add(userBlock);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ExistsUserBlockAsync(long blockerId, long blockedUserId) =>
-            await _context.UserBlocks.AnyAsync(b =>
+        public Task<bool> ExistsUserBlockAsync(long blockerId, long blockedUserId) =>
+            _context.UserBlocks.AnyAsync(b =>
                 b.BlockerId == blockerId && b.BlockedUserId == blockedUserId);
 
-        public async Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
-            await _context.UserBlocks.FindAsync(id);
+        public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
+            _context.UserBlocks.FindAsync(id).AsTask();
 
-        public async Task<List<UserBlock>> GetAllForBlockerAsync(long blockerId) =>
-            await _context.UserBlocks
+        public Task<List<UserBlock>> GetAllForBlockerAsync(long blockerId) =>
+            _context.UserBlocks
                 .Where(b => b.BlockerId == blockerId)
                 .OrderByDescending(b => b.CreatedAt)
                 .ToListAsync();
 
-        public async Task DeleteUserBlockAsync(UserBlock userBlock)
+        public Task DeleteUserBlockAsync(UserBlock userBlock)
         {
             _context.UserBlocks.Remove(userBlock);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
     }
 }

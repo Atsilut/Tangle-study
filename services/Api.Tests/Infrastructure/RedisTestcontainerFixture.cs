@@ -17,5 +17,5 @@ public sealed class RedisTestcontainerFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync() => await _redis.StartAsync();
 
-    public async ValueTask DisposeAsync() => await _redis.DisposeAsync();
+    public ValueTask DisposeAsync() => _redis.DisposeAsync();
 }

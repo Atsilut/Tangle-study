@@ -15,48 +15,48 @@ namespace Api.Domain.Groups.Repository
             _context = context;
         }
 
-        public async Task CreateApplicationAsync(GroupApplication application)
+        public Task CreateApplicationAsync(GroupApplication application)
         {
             _context.GroupApplications.Add(application);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<GroupApplication?> GetByIdAsync(long id) => await _context.GroupApplications.FindAsync(id);
+        public Task<GroupApplication?> GetByIdAsync(long id) => _context.GroupApplications.FindAsync(id).AsTask();
 
-        public async Task<GroupApplication?> GetForUserAsync(long groupId, long applicantId) =>
-            await _context.GroupApplications.FirstOrDefaultAsync(a =>
+        public Task<GroupApplication?> GetForUserAsync(long groupId, long applicantId) =>
+            _context.GroupApplications.FirstOrDefaultAsync(a =>
                 a.GroupId == groupId && a.ApplicantId == applicantId);
 
-        public async Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
-            await _context.GroupApplications.FirstOrDefaultAsync(a =>
+        public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
+            _context.GroupApplications.FirstOrDefaultAsync(a =>
                 a.GroupId == groupId && a.ApplicantId == applicantId && a.IsPending);
 
-        public async Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId) =>
-            await _context.GroupApplications
+        public Task<List<GroupApplication>> GetPendingByGroupAsync(long groupId) =>
+            _context.GroupApplications
                 .Where(a => a.GroupId == groupId && a.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId) =>
-            await _context.GroupApplications
+        public Task<List<GroupApplication>> GetIgnoredByGroupAsync(long groupId) =>
+            _context.GroupApplications
                 .Where(a => a.GroupId == groupId && !a.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId) =>
-            await _context.GroupApplications
+        public Task<List<GroupApplication>> GetPendingForApplicantAsync(long applicantId) =>
+            _context.GroupApplications
                 .Where(a => a.ApplicantId == applicantId && a.IsPending)
                 .ToListAsync();
 
-        public async Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId) =>
-            await _context.GroupApplications
+        public Task<List<GroupApplication>> GetIgnoredOutgoingForApplicantAsync(long applicantId) =>
+            _context.GroupApplications
                 .Where(a => a.ApplicantId == applicantId && !a.IsPending)
                 .ToListAsync();
 
-        public async Task UpdateApplicationAsync(GroupApplication application) => await _context.SaveChangesAsync();
+        public Task UpdateApplicationAsync(GroupApplication application) => _context.SaveChangesAsync();
 
-        public async Task DeleteApplicationAsync(GroupApplication application)
+        public Task DeleteApplicationAsync(GroupApplication application)
         {
             _context.GroupApplications.Remove(application);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
         public async Task DeleteAllForUserAndGroupAsync(long groupId, long userId)

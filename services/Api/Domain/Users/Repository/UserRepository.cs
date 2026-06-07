@@ -15,47 +15,50 @@ namespace Api.Domain.Users.Repository
             _context = context;
         }
 
-        public async Task CreateUserAsync(User user)
+        public Task CreateUserAsync(User user)
         {
             _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<List<User>> GetAllUsersAsync() => await _context.Users.ToListAsync();
+        public Task<List<User>> GetAllUsersAsync() => _context.Users.ToListAsync();
 
-        public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids)
+        public Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids)
         {
             var idList = ids.Distinct().ToList();
             if (idList.Count == 0)
-                return new Dictionary<long, string>();
+                return Task.FromResult<IReadOnlyDictionary<long, string>>(new Dictionary<long, string>());
 
-            return await _context.Users
-                .Where(u => idList.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.Nickname);
+            return QueryNicknamesByIdsAsync(idList);
         }
 
-        public async Task<User?> GetUserByIdAsync(long id) => await _context.Users.FindAsync(id);
+        private async Task<IReadOnlyDictionary<long, string>> QueryNicknamesByIdsAsync(List<long> idList) =>
+            await _context.Users
+                .Where(u => idList.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Nickname);
 
-        public async Task<bool> ExistsUserByIdAsync(long id) =>
-            await _context.Users.AnyAsync(u => u.Id == id);
-        public async Task<User?> GetUserByEmailAsync(string email) 
-            => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        public Task<User?> GetUserByIdAsync(long id) => _context.Users.FindAsync(id).AsTask();
 
-        public async Task<bool> ExistsUserByEmailAsync(string email) =>
-            await _context.Users.AnyAsync(u => u.Email == email);
+        public Task<bool> ExistsUserByIdAsync(long id) =>
+            _context.Users.AnyAsync(u => u.Id == id);
+        public Task<User?> GetUserByEmailAsync(string email) 
+            => _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        public async Task<User?> GetUserByNicknameAsync(string nickname)
-            => await _context.Users.FirstOrDefaultAsync(u => u.Nickname == nickname);
+        public Task<bool> ExistsUserByEmailAsync(string email) =>
+            _context.Users.AnyAsync(u => u.Email == email);
 
-        public async Task<bool> ExistsUserByNicknameAsync(string nickname) =>
-            await _context.Users.AnyAsync(u => u.Nickname == nickname);
+        public Task<User?> GetUserByNicknameAsync(string nickname)
+            => _context.Users.FirstOrDefaultAsync(u => u.Nickname == nickname);
 
-        public async Task UpdateUserAsync(User user) => await _context.SaveChangesAsync();
+        public Task<bool> ExistsUserByNicknameAsync(string nickname) =>
+            _context.Users.AnyAsync(u => u.Nickname == nickname);
 
-        public async Task DeleteUserAsync(User user)
+        public Task UpdateUserAsync(User user) => _context.SaveChangesAsync();
+
+        public Task DeleteUserAsync(User user)
         {
             _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
     }
 }

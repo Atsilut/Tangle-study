@@ -6,50 +6,45 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Domain.Posts.Repository
 {
     [Repository]
-    public class PostRepository : IPostRepository
+    public class PostRepository(AppDbContext context) : IPostRepository
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _context = context;
 
-        public PostRepository(AppDbContext context)
-        {
-            _context = context;
-        }
-
-        public async Task CreatePostAsync(Post post)
+        public Task CreatePostAsync(Post post)
         {
             _context.Posts.Add(post);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<List<Post>> GetAllPostsAsync() =>
-            await _context.Posts.Where(p => p.GroupId == null).ToListAsync();
+        public Task<List<Post>> GetAllPostsAsync() =>
+            _context.Posts.Where(p => p.GroupId == null).ToListAsync();
 
-        public async Task<List<Post>> GetPostsByGroupBoardAsync(long groupId, long boardId) =>
-            await _context.Posts
+        public Task<List<Post>> GetPostsByGroupBoardAsync(long groupId, long boardId) =>
+            _context.Posts
                 .Where(p => p.GroupId == groupId && p.GroupBoardId == boardId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
-        public async Task<Post?> GetGroupBoardPostAsync(long groupId, long boardId, long postId) =>
-            await _context.Posts.FirstOrDefaultAsync(p =>
+        public Task<Post?> GetGroupBoardPostAsync(long groupId, long boardId, long postId) =>
+            _context.Posts.FirstOrDefaultAsync(p =>
                 p.Id == postId && p.GroupId == groupId && p.GroupBoardId == boardId);
 
-        public async Task DeleteAllByGroupAsync(long groupId) =>
-            await _context.Posts.Where(p => p.GroupId == groupId).ExecuteDeleteAsync();
+        public Task DeleteAllByGroupAsync(long groupId) =>
+            _context.Posts.Where(p => p.GroupId == groupId).ExecuteDeleteAsync();
 
-        public async Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
-            await _context.Posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToListAsync();
+        public Task<List<long>> GetPostIdsByGroupAsync(long groupId) =>
+            _context.Posts.Where(p => p.GroupId == groupId).Select(p => p.Id).ToListAsync();
 
-        public async Task<Post?> GetPostByIdAsync(long id) => await _context.Posts.FindAsync(id);
+        public Task<Post?> GetPostByIdAsync(long id) => _context.Posts.FindAsync(id).AsTask();
 
-        public async Task<bool> ExistsPostByIdAsync(long id) =>
-            await _context.Posts.AnyAsync(p => p.Id == id);
+        public Task<bool> ExistsPostByIdAsync(long id) =>
+            _context.Posts.AnyAsync(p => p.Id == id);
 
-        public async Task<List<Post>> GetPostsByUserIdAsync(long userId) => await _context.Posts
+        public Task<List<Post>> GetPostsByUserIdAsync(long userId) => _context.Posts
                 .Where(post => post.UserId == userId)
                 .ToListAsync();
 
-        public async Task UpdatePostAsync(Post post) => await _context.SaveChangesAsync();
+        public Task UpdatePostAsync(Post post) => _context.SaveChangesAsync();
 
         public async Task DetachAuthorFromPostsAsync(long userId)
         {
@@ -59,10 +54,10 @@ namespace Api.Domain.Posts.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeletePostAsync(Post post)
+        public Task DeletePostAsync(Post post)
         {
             _context.Posts.Remove(post);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
     }
 }

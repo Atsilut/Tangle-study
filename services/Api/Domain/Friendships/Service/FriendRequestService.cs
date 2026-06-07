@@ -12,33 +12,22 @@ using Npgsql;
 namespace Api.Domain.Friendships.Service
 {
     [Service]
-    public class FriendRequestService
+    public class FriendRequestService(
+        IFriendRequestRepository requestRepo,
+        FriendshipService friendshipService,
+        UserService userService,
+        UserBlockService userBlockService,
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<FriendRequestService> logger)
     {
-        private readonly IFriendRequestRepository _repo;
-        private readonly FriendshipService _friendshipService;
-        private readonly UserService _userService;
-        private readonly UserBlockService _userBlockService;
-        private readonly AppDbContext _db;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly ILogger<FriendRequestService> _logger;
-
-        public FriendRequestService(
-            IFriendRequestRepository requestRepo,
-            FriendshipService friendshipService,
-            UserService userService,
-            UserBlockService userBlockService,
-            AppDbContext db,
-            IHttpContextAccessor httpContextAccessor,
-            ILogger<FriendRequestService> logger)
-        {
-            _repo = requestRepo;
-            _friendshipService = friendshipService;
-            _userService = userService;
-            _userBlockService = userBlockService;
-            _db = db;
-            _httpContextAccessor = httpContextAccessor;
-            _logger = logger;
-        }
+        private readonly IFriendRequestRepository _repo = requestRepo;
+        private readonly FriendshipService _friendshipService = friendshipService;
+        private readonly UserService _userService = userService;
+        private readonly UserBlockService _userBlockService = userBlockService;
+        private readonly AppDbContext _db = db;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly ILogger<FriendRequestService> _logger = logger;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -64,9 +53,9 @@ namespace Api.Domain.Friendships.Service
             return await ResolveSendOutcomeForUserPairAsync(requesterId, request.AddresseeId);
         }
 
-        private async Task CreateOutgoingFriendRequestInTransactionAsync(long requesterId, long addresseeId)
+        private Task CreateOutgoingFriendRequestInTransactionAsync(long requesterId, long addresseeId)
         {
-            await _db.ExecuteInTransactionAsync(async () =>
+            return _db.ExecuteInTransactionAsync(async () =>
             {
                 if (await _repo.GetForUserPairAsync(requesterId, addresseeId) is not null)
                     return;

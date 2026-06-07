@@ -15,30 +15,30 @@ namespace Api.Domain.Groups.Repository
             _context = context;
         }
 
-        public async Task AddMemberAsync(GroupMember member)
+        public Task AddMemberAsync(GroupMember member)
         {
             _context.GroupMembers.Add(member);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public async Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
-            await _context.GroupMembers.FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
+        public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
+            _context.GroupMembers.FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
 
-        public async Task<List<GroupMember>> GetMembersByGroupAsync(long groupId) =>
-            await _context.GroupMembers.Where(m => m.GroupId == groupId).ToListAsync();
+        public Task<List<GroupMember>> GetMembersByGroupAsync(long groupId) =>
+            _context.GroupMembers.Where(m => m.GroupId == groupId).ToListAsync();
 
-        public async Task<List<GroupMember>> GetMembershipsByUserAsync(long userId) =>
-            await _context.GroupMembers.Where(m => m.UserId == userId).ToListAsync();
+        public Task<List<GroupMember>> GetMembershipsByUserAsync(long userId) =>
+            _context.GroupMembers.Where(m => m.UserId == userId).ToListAsync();
 
-        public async Task<int> CountMembersAsync(long groupId) =>
-            await _context.GroupMembers.CountAsync(m => m.GroupId == groupId);
+        public Task<int> CountMembersAsync(long groupId) =>
+            _context.GroupMembers.CountAsync(m => m.GroupId == groupId);
 
-        public async Task UpdateMemberAsync(GroupMember member) => await _context.SaveChangesAsync();
+        public Task UpdateMemberAsync(GroupMember member) => _context.SaveChangesAsync();
 
-        public async Task RemoveMemberAsync(GroupMember member)
+        public Task RemoveMemberAsync(GroupMember member)
         {
             _context.GroupMembers.Remove(member);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
         public async Task RemoveAllByGroupAsync(long groupId)

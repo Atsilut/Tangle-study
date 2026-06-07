@@ -141,7 +141,7 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureOwnerAsync(id, callerId);
 
-            await _db.ExecuteInTransactionAsync(async () => await DeleteGroupInternalAsync(id));
+            await _db.ExecuteInTransactionAsync(() => DeleteGroupInternalAsync(id));
         }
 
         public async Task DeleteGroupInternalAsync(long groupId)

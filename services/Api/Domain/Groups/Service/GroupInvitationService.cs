@@ -12,42 +12,28 @@ using Npgsql;
 namespace Api.Domain.Groups.Service
 {
     [Service]
-    public class GroupInvitationService
+    public class GroupInvitationService(
+        IGroupInvitationRepository repo,
+        Lazy<GroupApplicationService> groupApplicationService,
+        Lazy<GroupService> groupService,
+        GroupMembershipService membershipService,
+        Lazy<GroupJoinResolutionService> joinResolution,
+        GroupBlacklistService blacklistService,
+        UserBlockService userBlockService,
+        UserService userService,
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor)
     {
-        private readonly IGroupInvitationRepository _repo;
-        private readonly Lazy<GroupApplicationService> _groupApplicationService;
-        private readonly Lazy<GroupService> _groupService;
-        private readonly GroupMembershipService _membershipService;
-        private readonly Lazy<GroupJoinResolutionService> _joinResolution;
-        private readonly GroupBlacklistService _blacklistService;
-        private readonly UserBlockService _userBlockService;
-        private readonly UserService _userService;
-        private readonly AppDbContext _db;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-
-        public GroupInvitationService(
-            IGroupInvitationRepository repo,
-            Lazy<GroupApplicationService> groupApplicationService,
-            Lazy<GroupService> groupService,
-            GroupMembershipService membershipService,
-            Lazy<GroupJoinResolutionService> joinResolution,
-            GroupBlacklistService blacklistService,
-            UserBlockService userBlockService,
-            UserService userService,
-            AppDbContext db,
-            IHttpContextAccessor httpContextAccessor)
-        {
-            _repo = repo;
-            _groupApplicationService = groupApplicationService;
-            _groupService = groupService;
-            _membershipService = membershipService;
-            _joinResolution = joinResolution;
-            _blacklistService = blacklistService;
-            _userBlockService = userBlockService;
-            _userService = userService;
-            _db = db;
-            _httpContextAccessor = httpContextAccessor;
-        }
+        private readonly IGroupInvitationRepository _repo = repo;
+        private readonly Lazy<GroupApplicationService> _groupApplicationService = groupApplicationService;
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupMembershipService _membershipService = membershipService;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
+        private readonly GroupBlacklistService _blacklistService = blacklistService;
+        private readonly UserBlockService _userBlockService = userBlockService;
+        private readonly UserService _userService = userService;
+        private readonly AppDbContext _db = db;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private async Task<bool> BlockExistsBetweenUsersAsync(long userId, long otherUserId) =>
             await _userBlockService.IsBlockedByAsync(userId, otherUserId)
@@ -120,9 +106,9 @@ namespace Api.Domain.Groups.Service
             return await ResolveInviteOutcomeAsync(groupId, request.InviteeId, inviterId);
         }
 
-        private async Task CreateInvitationInTransactionAsync(long groupId, long inviterId, long inviteeId)
+        private Task CreateInvitationInTransactionAsync(long groupId, long inviterId, long inviteeId)
         {
-            await _db.ExecuteInTransactionAsync(async () =>
+            return _db.ExecuteInTransactionAsync(async () =>
             {
                 if (await _repo.GetForUserAsync(groupId, inviteeId) is not null)
                     return;
