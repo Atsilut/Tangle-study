@@ -12,7 +12,7 @@ namespace Api.Tests.Repositories
         {
             // Manually set the Id using reflection or a test-only constructor
             var idProperty = typeof(Comment).GetProperty("Id");
-            if (idProperty != null && idProperty.CanWrite) idProperty.SetValue(comment, _currentId++);
+            if (idProperty?.CanWrite is true) idProperty.SetValue(comment, _currentId++);
             else
                 throw new InvalidOperationException("Could not set the Id property on the Comment entity via reflection.");
             _comments.Add(comment);
