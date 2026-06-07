@@ -37,7 +37,7 @@ internal static class GroupIntegrationTestHelpers
         await LoginAsAsync(client, user);
         var res = await client.PostAsJsonAsync(GroupsBase, new GroupCreateRequestDto
         {
-            Name = $"Group_{Guid.NewGuid():N}".Substring(0, 20),
+            Name = $"Group_{Guid.NewGuid():N}"[..20],
             Description = "test group",
             Visibility = visibility,
             JoinPolicy = joinPolicy,
