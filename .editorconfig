@@ -6,8 +6,7 @@ dotnet_diagnostic.RCS1001.severity = none
 dotnet_diagnostic.RCS1003.severity = none
 # EF and domain entities use { get; private set; } instead of { get; } for mapped properties
 dotnet_diagnostic.RCS1170.severity = none
-
-[services/Api.Tests/**.cs]
+# Trailing whitespace
 dotnet_diagnostic.RCS1037.severity = none
 
 [services/Api/Migrations/**.cs]
