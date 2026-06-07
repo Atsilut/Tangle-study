@@ -170,7 +170,8 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var get = await Client.GetAsync($"/api/users/{created.Id}", TestContext.Current.CancellationToken);
         var user = await get.Content.ReadFromJsonAsync<UserGetResponseDto>(TestContext.Current.CancellationToken);
-        Assert.Equal(FriendsListVisibility.Public, user!.FriendsListVisibility);
+        Assert.NotNull(user);
+        Assert.Equal(FriendsListVisibility.Public, user.FriendsListVisibility);
     }
 
     [Fact]

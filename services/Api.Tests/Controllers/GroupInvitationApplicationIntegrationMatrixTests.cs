@@ -167,8 +167,9 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Single(list!);
-        Assert.Equal(scenario.Stranger.Id, list[0].ApplicantId);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
+        Assert.Equal(scenario.Stranger.Id, only.ApplicantId);
     }
 
     [Fact]
@@ -188,7 +189,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         if (res.StatusCode == HttpStatusCode.OK)
         {
             var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
-            Assert.Contains(list!, dto => dto.GroupId == group.Id && !dto.IsIncoming);
+            Assert.NotNull(list);
+            Assert.Contains(list, dto => dto.GroupId == group.Id && !dto.IsIncoming);
         }
     }
 
@@ -234,7 +236,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.Equal(group.Id, only.GroupId);
     }
 
@@ -276,7 +279,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(resend, HttpStatusCode.Created);
         var dto = await resend.Content.ReadFromJsonAsync<GroupInvitationCreateResponseDto>(TestContext.Current.CancellationToken);
-        Assert.True(dto!.IsPending);
+        Assert.NotNull(dto);
+        Assert.True(dto.IsPending);
         Assert.Equal(invitation.Id, dto.Id);
     }
 
@@ -310,7 +314,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.Equal(invitation.Id, only.Id);
         Assert.False(only.IsPending);
         Assert.True(only.IsIncoming);
@@ -333,7 +338,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.True(only.IsPending);
         Assert.False(only.IsIncoming);
     }
@@ -412,7 +418,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.True(only.IsPending);
         Assert.False(only.IsIncoming);
     }
@@ -450,7 +457,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
-        var only = Assert.Single(list!);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
         Assert.Equal(application.Id, only.Id);
         Assert.False(only.IsPending);
         Assert.True(only.IsIncoming);

@@ -659,6 +659,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
+        Assert.NotNull(dto);
         Assert.Equal(comment.Content, dto.Content);
     }
 

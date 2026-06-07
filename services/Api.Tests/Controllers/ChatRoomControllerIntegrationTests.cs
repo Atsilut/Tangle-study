@@ -55,7 +55,8 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
         var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
-        Assert.Contains("friends", problem!.Detail, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(problem);
+        Assert.Contains("friends", problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -145,7 +146,8 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(userA);
         var getRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}", TestContext.Current.CancellationToken);
         var updated = await getRes.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
-        Assert.Equal(3, updated!.Participants.Count);
+        Assert.NotNull(updated);
+        Assert.Equal(3, updated.Participants.Count);
         Assert.Contains(updated.Participants, p => p.UserId == userD.Id);
         Assert.All(updated.Participants, p => Assert.Equal(ChatRoomParticipantRole.Member, p.Role));
     }
@@ -212,7 +214,8 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         Assert.Equal(HttpStatusCode.Created, addRes.StatusCode);
         var room = await (await Client.GetAsync($"{ChatRoomsBase}/{directRoom.Id}", TestContext.Current.CancellationToken))
             .Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
-        Assert.Equal(ChatRoomKind.Multi, room!.Kind);
+        Assert.NotNull(room);
+        Assert.Equal(ChatRoomKind.Multi, room.Kind);
         Assert.Equal(3, room.Participants.Count);
         Assert.All(room.Participants, p => Assert.Equal(ChatRoomParticipantRole.Member, p.Role));
     }
@@ -355,7 +358,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
 
         // Assert
         Assert.NotNull(rooms);
-        Assert.Contains(rooms!, r => r.Id == room.Id);
+        Assert.Contains(rooms, r => r.Id == room.Id);
     }
 
     [Fact]

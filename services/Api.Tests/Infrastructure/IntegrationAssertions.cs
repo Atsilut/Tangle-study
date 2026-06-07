@@ -34,6 +34,7 @@ internal static class IntegrationAssertions
         await AssertStatusAsync(response, expectedStatus);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
-        Assert.Equal(expectedDetail, problem!.Detail);
+        Assert.NotNull(problem.Detail);
+        Assert.Equal(expectedDetail, problem.Detail);
     }
 }

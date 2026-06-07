@@ -36,7 +36,8 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         {
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
             var dto = await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
-            Assert.Equal(scenario.RoomId, dto!.Id);
+            Assert.NotNull(dto);
+            Assert.Equal(scenario.RoomId, dto.Id);
         }
         else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
         else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));

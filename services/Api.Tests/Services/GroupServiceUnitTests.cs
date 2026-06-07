@@ -29,7 +29,7 @@ public sealed class GroupServiceUnitTests
         Assert.Equal(1, group.MemberCount);
         var member = await graph.GroupMemberRepository.GetMemberAsync(group.Id, owner.Id);
         Assert.NotNull(member);
-        Assert.Equal(GroupRole.Owner, member!.Role);
+        Assert.Equal(GroupRole.Owner, member.Role);
     }
 
     [Fact]

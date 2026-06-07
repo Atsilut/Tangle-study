@@ -170,7 +170,8 @@ public abstract class FriendshipDomainIntegrationTestBase(
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var friends = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Contains(friends!, f => f.OtherUserId == userB.Id);
+        Assert.NotNull(friends);
+        Assert.Contains(friends, f => f.OtherUserId == userB.Id);
     }
 
     protected async Task AssertPendingDtoAppearsAsync(
@@ -183,7 +184,8 @@ public abstract class FriendshipDomainIntegrationTestBase(
         var res = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var list = await res.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
-        var dto = list!.Single(p => p.OtherUserId == otherUserId && (isIncoming == null || p.IsIncoming == isIncoming));
+        Assert.NotNull(list);
+        var dto = list.Single(p => p.OtherUserId == otherUserId && (isIncoming == null || p.IsIncoming == isIncoming));
         Assert.Equal(appearsPending, dto.IsPending);
     }
 
@@ -198,6 +200,6 @@ public abstract class FriendshipDomainIntegrationTestBase(
             r.RequesterId == requesterId && r.AddresseeId == addresseeId,
             TestContext.Current.CancellationToken);
         Assert.NotNull(request);
-        Assert.Equal(isPending, request!.IsPending);
+        Assert.Equal(isPending, request.IsPending);
     }
 }

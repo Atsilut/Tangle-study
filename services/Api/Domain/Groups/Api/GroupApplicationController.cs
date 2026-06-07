@@ -19,8 +19,9 @@ namespace Api.Domain.Groups.Api
             var result = await _service.ApplyAsync(groupId);
             return result.Outcome switch
             {
-                GroupApplicationOutcome.GroupApplicationCreated => Created(
-                    $"/api/applications/{result.Application!.Id}", result.Application),
+                GroupApplicationOutcome.GroupApplicationCreated => result.Application is { } application
+                    ? Created($"/api/applications/{application.Id}", application)
+                    : throw new InvalidOperationException($"Application missing for outcome {result.Outcome}"),
                 GroupApplicationOutcome.GroupMembershipCreatedFromReciprocalInvitation => Ok(),
                 _ => throw new InvalidOperationException($"Unexpected apply outcome: {result.Outcome}"),
             };

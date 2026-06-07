@@ -81,6 +81,6 @@ public sealed class GroupMembershipServiceUnitTests
 
         // Assert
         Assert.NotNull(members);
-        Assert.True(members!.Count >= 2);
+        Assert.True(members.Count >= 2);
     }
 }

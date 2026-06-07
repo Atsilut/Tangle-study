@@ -76,7 +76,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
         var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Equal(2, list!.Count);
+        Assert.NotNull(list);
+        Assert.Equal(2, list.Count);
         Assert.Contains(list, p => p.Title == title + titleSuffix1 && p.Content == content + contentSuffix1);
         Assert.Contains(list, p => p.Title == title + titleSuffix2 && p.Content == content + contentSuffix2);
     }
@@ -110,7 +111,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var created = allPosts!.Single(post => post.Title == title);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(post => post.Title == title);
 
         // Act
         var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
@@ -216,7 +218,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var created = allPosts!.Single(p => p.Title == originalTitle);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(p => p.Title == originalTitle);
         var updatedAtBefore = created.UpdatedAt;
 
         const string newTitle = "updated title";
@@ -265,7 +268,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var created = allPosts!.Single(p => p.Title == title);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(p => p.Title == title);
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, nonOwner);
         const string newTitle = "hijacked title";
@@ -336,7 +340,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var created = allPosts!.Single(p => p.Title == deleteTitle);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(p => p.Title == deleteTitle);
 
         // Act
         var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
@@ -364,7 +369,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var created = allPosts!.Single(p => p.Title == title);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(p => p.Title == title);
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, other);
 

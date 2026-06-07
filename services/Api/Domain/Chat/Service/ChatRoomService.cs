@@ -43,7 +43,7 @@ public class ChatRoomService(
             ]);
 
         return await MapToGetDtoAsync(
-            (await _repo.GetChatRoomByIdAsync(room.Id, includeParticipants: true))!,
+            await GetPersistedRoomOrThrowAsync(room.Id),
             includeParticipants: true);
     }
 
@@ -60,7 +60,7 @@ public class ChatRoomService(
         await CreateRoomWithParticipantsAsync(room, participants);
 
         return await MapToGetDtoAsync(
-            (await _repo.GetChatRoomByIdAsync(room.Id, includeParticipants: true))!,
+            await GetPersistedRoomOrThrowAsync(room.Id),
             includeParticipants: true);
     }
 
@@ -79,7 +79,7 @@ public class ChatRoomService(
         await CreateRoomWithParticipantsAsync(room, participants);
 
         return await MapToGetDtoAsync(
-            (await _repo.GetChatRoomByIdAsync(room.Id, includeParticipants: true))!,
+            await GetPersistedRoomOrThrowAsync(room.Id),
             includeParticipants: true);
     }
 
@@ -125,8 +125,7 @@ public class ChatRoomService(
     {
         var userId = GetUserIdFromLogin();
 
-        ChatRoomParticipant newParticipant = null!;
-        await _db.ExecuteInTransactionAsync(async () =>
+        var newParticipant = await _db.ExecuteInTransactionAsync(async () =>
         {
             var room = await _db.ChatRooms
                 .Include(r => r.Participants)
@@ -142,10 +141,11 @@ public class ChatRoomService(
 
             if (room.Kind == ChatRoomKind.Direct) room.PromoteDirectToMulti();
 
-            newParticipant = new ChatRoomParticipant(roomId, request.UserId, ChatRoomParticipantRole.Member);
-            _db.ChatRoomParticipants.Add(newParticipant);
+            var participant = new ChatRoomParticipant(roomId, request.UserId, ChatRoomParticipantRole.Member);
+            _db.ChatRoomParticipants.Add(participant);
             room.TouchUpdatedAt();
             await _db.SaveChangesAsync();
+            return participant;
         });
 
         var nicknames = await _userService.GetNicknamesByUserIdsAsync([request.UserId]);
@@ -167,6 +167,10 @@ public class ChatRoomService(
     private async Task<ChatRoom> GetRoomWithParticipantsOrThrowAsync(long roomId) =>
         await _repo.GetChatRoomByIdAsync(roomId, includeParticipants: true)
         ?? throw new EntityNotFoundException("Chat room not found");
+
+    private async Task<ChatRoom> GetPersistedRoomOrThrowAsync(long roomId) =>
+        await _repo.GetChatRoomByIdAsync(roomId, includeParticipants: true)
+        ?? throw new InvalidOperationException("Chat room was not persisted.");
 
     private Task CreateRoomWithParticipantsAsync(
         ChatRoom room,

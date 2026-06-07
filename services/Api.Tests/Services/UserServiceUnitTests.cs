@@ -43,11 +43,11 @@ public sealed class UserServiceUnitTests
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
         // Act
-        var res = await graph.UserService.UpdateUserDetailAsync(new UserPatchRequestDto(user.Id, "new"));
+        var res = await graph.UserService.UpdateUserDetailAsync(new UserPatchRequestDto { Id = user.Id, Nickname = "new" });
 
         // Assert
         Assert.NotNull(res);
-        Assert.Equal("new", res!.Nickname);
+        Assert.Equal("new", res.Nickname);
     }
 
     [Fact]
@@ -64,6 +64,6 @@ public sealed class UserServiceUnitTests
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            graph.UserService.UpdateUserDetailAsync(new UserPatchRequestDto(other.Id, "hijacked")));
+            graph.UserService.UpdateUserDetailAsync(new UserPatchRequestDto { Id = other.Id, Nickname = "hijacked" }));
     }
 }

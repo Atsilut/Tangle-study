@@ -21,8 +21,9 @@ namespace Api.Domain.Groups.Api
             var result = await _service.InviteAsync(groupId, request);
             return result.Outcome switch
             {
-                GroupInvitationOutcome.GroupInvitationCreated => Created(
-                    $"/api/invitations/{result.Invitation!.Id}", result.Invitation),
+                GroupInvitationOutcome.GroupInvitationCreated => result.Invitation is { } invitation
+                    ? Created($"/api/invitations/{invitation.Id}", invitation)
+                    : throw new InvalidOperationException($"Invitation missing for outcome {result.Outcome}"),
                 GroupInvitationOutcome.GroupMembershipCreatedFromReciprocalApplication => Ok(),
                 _ => throw new InvalidOperationException($"Unexpected invite outcome: {result.Outcome}"),
             };

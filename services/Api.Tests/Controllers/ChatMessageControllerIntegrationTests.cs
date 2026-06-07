@@ -27,7 +27,8 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         // Assert
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
         var created = await createRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
-        Assert.Equal("Hello there", created!.Body);
+        Assert.NotNull(created);
+        Assert.Equal("Hello there", created.Body);
         Assert.Equal(userA.Id, created.SenderUserId);
 
         // Act
@@ -36,8 +37,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         // Assert
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
         var messages = await listRes.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Single(messages!);
-        Assert.Equal(created.Id, messages![0].Id);
+        Assert.NotNull(messages);
+        var only = Assert.Single(messages);
+        Assert.Equal(created.Id, only.Id);
     }
 
     [Fact]
@@ -73,14 +75,18 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var first = await (await PostMessageAsync(room.Id, "First")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         var second = await (await PostMessageAsync(room.Id, "Second")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         var third = await (await PostMessageAsync(room.Id, "Third")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
-        var pageRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages?before={third!.Id}&limit=2", TestContext.Current.CancellationToken);
+        Assert.NotNull(third);
+        var pageRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages?before={third.Id}&limit=2", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(pageRes, HttpStatusCode.OK);
         var page = await pageRes.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Equal(2, page!.Count);
-        Assert.Equal(first!.Id, page[0].Id);
-        Assert.Equal(second!.Id, page[1].Id);
+        Assert.NotNull(page);
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(2, page.Count);
+        Assert.Equal(first.Id, page[0].Id);
+        Assert.Equal(second.Id, page[1].Id);
     }
 
     [Fact]
@@ -138,9 +144,10 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var roomB = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         var roomC = await GetOrCreateDirectRoomAsync(userA, userC.Id);
         var msgInC = await (await PostMessageAsync(roomC.Id, "Other room")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(msgInC);
 
         // Act
-        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{roomB.Id}/messages?before={msgInC!.Id}", TestContext.Current.CancellationToken);
+        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{roomB.Id}/messages?before={msgInC.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.BadRequest);
@@ -214,7 +221,8 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var messages = await res.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Equal(expectedCount, messages!.Count);
+        Assert.NotNull(messages);
+        Assert.Equal(expectedCount, messages.Count);
     }
 
     [Fact]

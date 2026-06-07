@@ -44,7 +44,8 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
-        Assert.Equal(commentContent, dto!.Content);
+        Assert.NotNull(dto);
+        Assert.Equal(commentContent, dto.Content);
     }
 
     [Fact]
@@ -96,7 +97,8 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         var listRes = await Client.GetAsync(postsBase, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
         var posts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
-        var post = posts!.Single(p => p.Title == title);
+        Assert.NotNull(posts);
+        var post = posts.Single(p => p.Title == title);
 
         var createCommentRes = await Client.PostAsJsonAsync(
             "/api/comments",
@@ -106,7 +108,8 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         var getCommentsRes = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getCommentsRes, HttpStatusCode.OK);
         var commentTree = await getCommentsRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
-        var comment = FindCommentByContent(commentTree!, commentContent);
+        Assert.NotNull(commentTree);
+        var comment = FindCommentByContent(commentTree, commentContent);
         Assert.NotNull(comment);
 
         return (post.Id, comment);

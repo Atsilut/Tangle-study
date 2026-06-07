@@ -66,10 +66,14 @@ public class ChatRoomAccessService(
         foreach (var participant in participants) await EnsureNoBlockBetweenUsersAsync(inviteeUserId, participant.UserId);
 
         if (room.Kind == ChatRoomKind.PlatformGroup)
+        {
+            var platformGroupId = room.PlatformGroupId
+                ?? throw new InvalidOperationException("Platform group room is missing PlatformGroupId.");
             await _groupMembershipService.EnsureMemberAsync(
-                room.PlatformGroupId!.Value,
+                platformGroupId,
                 inviteeUserId,
                 "User is not a member of this group");
+        }
     }
 
     public async Task EnsureGroupMemberCanListRoomsAsync(long platformGroupId, long userId)

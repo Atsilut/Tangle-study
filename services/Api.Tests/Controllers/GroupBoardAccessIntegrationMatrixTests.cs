@@ -185,7 +185,8 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Equal(2, listed!.Count);
+        Assert.NotNull(listed);
+        Assert.Equal(2, listed.Count);
         Assert.Contains(listed, b => b.Name == "MembersOnly");
         Assert.Contains(listed, b => b.Name == "ForAll");
     }
@@ -206,8 +207,9 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.Single(listed!);
-        Assert.Equal("ForAll", listed[0].Name);
+        Assert.NotNull(listed);
+        var only = Assert.Single(listed);
+        Assert.Equal("ForAll", only.Name);
     }
 
     [Fact]

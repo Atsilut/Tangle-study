@@ -85,6 +85,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
         var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
         Assert.Equal("You must be friends to view this user's friends list.", problem.Detail);
     }
 
@@ -131,6 +132,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
         var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
         Assert.Equal("This user's friends list is private.", problem.Detail);
     }
 
@@ -178,6 +180,7 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
         var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
         Assert.Equal("Unauthorized access", problem.Detail);
     }
 }
