@@ -13,6 +13,7 @@ pub fn backoff_delay_ms(
     let base = base_ms.saturating_mul(2u64.saturating_pow(exponent));
     let jittered = apply_jitter(base, message_id, jitter_pct);
     jittered.min(max_ms)
+}
 
 pub fn is_terminal(times_delivered: u32, max_attempts: u32) -> bool {
     times_delivered >= max_attempts
