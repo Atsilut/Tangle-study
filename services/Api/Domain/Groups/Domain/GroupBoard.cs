@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Domain.Groups.Domain
@@ -10,16 +9,15 @@ namespace Api.Domain.Groups.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
         [ForeignKey(nameof(Group))]
-        public long GroupId { get; }
+        public long GroupId { get; private set; }
 
-        public Group? Group { get; }
+        public Group? Group { get; private set; }
 
         public string Name { get; private set; }
 

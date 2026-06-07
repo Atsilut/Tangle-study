@@ -2,7 +2,6 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Chat.Domain;
 
@@ -11,19 +10,18 @@ public class ChatRoomParticipant
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
     public long Id { get; private set; }
 
-    public DateTime JoinedAt { get; } = DateTime.UtcNow;
+    public DateTime JoinedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
     [ForeignKey(nameof(ChatRoom))]
-    public long ChatRoomId { get; }
-    public ChatRoom? ChatRoom { get; }
+    public long ChatRoomId { get; private set; }
+    public ChatRoom? ChatRoom { get; private set; }
 
     [ForeignKey(nameof(User))]
-    public long UserId { get; }
-    public User? User { get; }
+    public long UserId { get; private set; }
+    public User? User { get; private set; }
 
     public ChatRoomParticipantRole Role { get; private set; }
 

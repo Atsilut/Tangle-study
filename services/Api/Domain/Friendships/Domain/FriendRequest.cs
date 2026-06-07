@@ -2,7 +2,6 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Friendships.Domain
 {
@@ -11,19 +10,18 @@ namespace Api.Domain.Friendships.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
         [ForeignKey(nameof(Requester))]
-        public long RequesterId { get; }
-        public User? Requester { get; }
+        public long RequesterId { get; private set; }
+        public User? Requester { get; private set; }
 
         [ForeignKey(nameof(Addressee))]
-        public long AddresseeId { get; }
-        public User? Addressee { get; }
+        public long AddresseeId { get; private set; }
+        public User? Addressee { get; private set; }
 
         public bool IsPending { get; private set; } = true;
 

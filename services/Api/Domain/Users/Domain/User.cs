@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Comments.Domain;
 
@@ -12,17 +11,16 @@ namespace Api.Domain.Users.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
-        public string Email { get; }
-        public string Password { get; }
+        public string Email { get; private set; }
+        public string Password { get; private set; }
         public string Nickname { get; private set; }
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
         public FriendsListVisibility FriendsListVisibility { get; private set; } = FriendsListVisibility.Private;
 
-        public ICollection<Post> Posts { get; } = [];
-        public ICollection<Comment> Comments { get; } = [];
+        public ICollection<Post> Posts { get; private set; } = [];
+        public ICollection<Comment> Comments { get; private set; } = [];
 
         private User() { }
 

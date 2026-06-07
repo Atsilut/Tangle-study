@@ -2,7 +2,6 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Groups.Domain
 {
@@ -11,23 +10,22 @@ namespace Api.Domain.Groups.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
         [ForeignKey(nameof(Group))]
-        public long GroupId { get; }
-        public Group? Group { get; }
+        public long GroupId { get; private set; }
+        public Group? Group { get; private set; }
 
         [ForeignKey(nameof(Inviter))]
-        public long InviterId { get; }
-        public User? Inviter { get; }
+        public long InviterId { get; private set; }
+        public User? Inviter { get; private set; }
 
         [ForeignKey(nameof(Invitee))]
-        public long InviteeId { get; }
-        public User? Invitee { get; }
+        public long InviteeId { get; private set; }
+        public User? Invitee { get; private set; }
 
         public bool IsPending { get; private set; } = true;
 

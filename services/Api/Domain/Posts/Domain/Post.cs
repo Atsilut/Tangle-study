@@ -3,7 +3,6 @@ using Api.Domain.Groups.Domain;
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Posts.Domain
 {
@@ -11,10 +10,9 @@ namespace Api.Domain.Posts.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
         public string Title { get; private set; }
         public string Content { get; private set; }
@@ -24,19 +22,19 @@ namespace Api.Domain.Posts.Domain
 
         public long? DeletedUserId { get; private set; }
 
-        public User? User { get; }
+        public User? User { get; private set; }
 
         [ForeignKey(nameof(Group))]
-        public long? GroupId { get; }
+        public long? GroupId { get; private set; }
 
-        public Group? Group { get; }
+        public Group? Group { get; private set; }
 
         [ForeignKey(nameof(GroupBoard))]
-        public long? GroupBoardId { get; }
+        public long? GroupBoardId { get; private set; }
 
-        public GroupBoard? GroupBoard { get; }
+        public GroupBoard? GroupBoard { get; private set; }
 
-        public ICollection<Comment> Comments { get; } = [];
+        public ICollection<Comment> Comments { get; private set; } = [];
 
         public long AuthorUserId => UserId ?? DeletedUserId!.Value;
 

@@ -2,7 +2,6 @@ using Api.Domain.Posts.Domain;
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Comments.Domain
 {
@@ -10,9 +9,8 @@ namespace Api.Domain.Comments.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
-        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
         public string Content { get; private set; }
 
@@ -21,21 +19,21 @@ namespace Api.Domain.Comments.Domain
 
         public long? DeletedUserId { get; private set; }
 
-        public User? User { get; }
+        public User? User { get; private set; }
 
         [ForeignKey(nameof(Post))]
         public long? PostId { get; private set; }
 
         public long? DeletedPostId { get; private set; }
 
-        public Post? Post { get; }
+        public Post? Post { get; private set; }
 
         [ForeignKey(nameof(Parent))]
         public long? ParentId { get; private set; }
 
         public long? DeletedParentId { get; private set; }
 
-        public Comment? Parent { get; }
+        public Comment? Parent { get; private set; }
 
         public long AuthorUserId => UserId ?? DeletedUserId!.Value;
 
