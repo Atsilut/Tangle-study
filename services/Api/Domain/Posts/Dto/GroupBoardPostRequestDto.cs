@@ -10,12 +10,12 @@ namespace Api.Domain.Posts.Dto
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Title")]
         [DefaultValue("Group post title")]
-        public string Title { get; init; }
+        public required string Title { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Group post content")]
-        public string Content { get; init; }
+        public required string Content { get; init; }
     }
 }

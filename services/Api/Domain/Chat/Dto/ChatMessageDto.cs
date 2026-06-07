@@ -7,7 +7,7 @@ public record ChatMessageCreateRequestDto
 {
     [Required]
     [MaxLength(ChatMessage.MaxBodyLength)]
-    public string Body { get; init; } = string.Empty;
+    public required string Body { get; init; } = string.Empty;
 }
 
 public record ChatMessageGetResponseDto(

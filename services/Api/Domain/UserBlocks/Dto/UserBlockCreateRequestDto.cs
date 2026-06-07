@@ -5,6 +5,6 @@ namespace Api.Domain.UserBlocks.Dto
     public record UserBlockCreateRequestDto
     {
         [Required]
-        public long BlockedUserId { get; init; }
+        public required long BlockedUserId { get; init; }
     }
 }

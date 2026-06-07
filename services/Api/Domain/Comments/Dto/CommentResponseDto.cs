@@ -5,10 +5,10 @@ namespace Api.Domain.Comments.Dto
     public record CommentGetResponseDto
     {
         [Required]
-        public long Id { get; set; }
+        public required long Id { get; set; }
 
         [Required]
-        public string Content { get; set; }
+        public required string Content { get; set; }
 
         public long? PostId { get; set; }
 
@@ -17,7 +17,7 @@ namespace Api.Domain.Comments.Dto
         public long AuthorId { get; set; }
 
         [Required]
-        public string AuthorNickname { get; set; }
+        public required string AuthorNickname { get; set; }
 
         public long? UserId { get; set; }
 
@@ -28,10 +28,10 @@ namespace Api.Domain.Comments.Dto
         public long? DeletedParentId { get; set; }
 
         [Required]
-        public DateTime CreatedAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
 
         [Required]
-        public DateTime UpdatedAt { get; set; }
+        public required DateTime UpdatedAt { get; set; }
 
         public List<CommentGetResponseDto> Replies { get; set; } = [];
     }
@@ -39,13 +39,13 @@ namespace Api.Domain.Comments.Dto
     public record CommentPatchResponseDto
     {
         [Required]
-        public string Content { get; set; }
+        public required string Content { get; set; }
 
         public long? PostId { get; set; }
 
         public long? DeletedPostId { get; set; }
 
         [Required]
-        public DateTime UpdatedAt { get; set; }
+        public required DateTime UpdatedAt { get; set; }
     }
 }

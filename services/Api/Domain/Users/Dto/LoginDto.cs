@@ -14,7 +14,7 @@ namespace Api.Domain.Users.Dto
         )]
         [SwaggerSchema(Description = "User email address", Format = "email")]
         [DefaultValue("tangler@gmail.com")]
-        public string Email { get; init; }
+        public required string Email { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
@@ -25,7 +25,7 @@ namespace Api.Domain.Users.Dto
         )]
         [SwaggerSchema(Description = "Password (8-32 characters, including letters and numbers)")]
         [DefaultValue("password123!")]
-        public string Password { get; init; }
+        public required string Password { get; init; }
     }
 
     public record LoginResponseDto(string AccessToken);

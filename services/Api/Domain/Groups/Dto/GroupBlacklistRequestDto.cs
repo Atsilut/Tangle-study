@@ -5,6 +5,6 @@ namespace Api.Domain.Groups.Dto
     public record GroupBlacklistCreateRequestDto
     {
         [Required]
-        public long UserId { get; init; }
+        public required long UserId { get; init; }
     }
 }

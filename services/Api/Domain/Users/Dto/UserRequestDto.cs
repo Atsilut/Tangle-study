@@ -2,6 +2,7 @@
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Users.Dto
 {
@@ -15,7 +16,7 @@ namespace Api.Domain.Users.Dto
         )]
         [SwaggerSchema(Description = "User email address", Format = "email")]
         [DefaultValue("tangler@gmail.com")]
-        public string Email { get; init; }
+        public required string Email { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
@@ -26,29 +27,30 @@ namespace Api.Domain.Users.Dto
         )]
         [SwaggerSchema(Description = "Password (8-32 characters, including letters and numbers)")]
         [DefaultValue("password123!")]
-        public string Password { get; init; }
+        public required string Password { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "User nickname")]
         [DefaultValue("TangleTangle")]
-        public string Nickname { get; init; }
+        public required string Nickname { get; init; }
     }
 
     public record UserPatchRequestDto
     {
+        [SetsRequiredMembers]
         public UserPatchRequestDto(long id, string nickname)
         {
             Id = id;
             Nickname = nickname;
         }
         [Required]
-        public long Id { get; init; }
+        public required long Id { get; init; }
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "User nickname")]
         [DefaultValue("EditedTangle")]
-        public string Nickname { get; init; }
+        public required string Nickname { get; init; }
     }
 
     public record UserPrivacySettingsUpdateRequestDto
@@ -56,6 +58,6 @@ namespace Api.Domain.Users.Dto
         [Required]
         [SwaggerSchema(Description = "Who can view your friends list")]
         [DefaultValue(FriendsListVisibility.Private)]
-        public FriendsListVisibility FriendsListVisibility { get; init; }
+        public required FriendsListVisibility FriendsListVisibility { get; init; }
     }
 }

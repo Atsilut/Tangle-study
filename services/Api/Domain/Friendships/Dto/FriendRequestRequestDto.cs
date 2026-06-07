@@ -9,6 +9,6 @@ namespace Api.Domain.Friendships.Dto
         [Required]
         [SwaggerSchema(Description = "Target user id to send a friend request to")]
         [DefaultValue(2)]
-        public long AddresseeId { get; init; }
+        public required long AddresseeId { get; init; }
     }
 }

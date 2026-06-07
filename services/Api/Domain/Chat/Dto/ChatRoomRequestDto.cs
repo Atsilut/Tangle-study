@@ -7,7 +7,7 @@ public record ChatRoomDirectCreateRequestDto
 {
     [Required]
     [SwaggerSchema(Description = "The other user in the 1:1 chat (must be a friend)")]
-    public long OtherUserId { get; init; }
+    public required long OtherUserId { get; init; }
 }
 
 public record ChatRoomMultiCreateRequestDto
@@ -19,7 +19,7 @@ public record ChatRoomMultiCreateRequestDto
     [Required]
     [MinLength(1)]
     [SwaggerSchema(Description = "User ids to include besides yourself (you are added automatically as owner)")]
-    public IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
+    public required IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
 }
 
 public record ChatRoomPlatformGroupCreateRequestDto
@@ -30,11 +30,11 @@ public record ChatRoomPlatformGroupCreateRequestDto
     [Required]
     [MinLength(1)]
     [SwaggerSchema(Description = "Initial participants (must be members of the platform group; you are added automatically as owner)")]
-    public IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
+    public required IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
 }
 
 public record ChatRoomParticipantAddRequestDto
 {
     [Required]
-    public long UserId { get; init; }
+    public required long UserId { get; init; }
 }

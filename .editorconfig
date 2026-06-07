@@ -9,6 +9,9 @@ dotnet_diagnostic.RCS1170.severity = none
 # Trailing whitespace
 dotnet_diagnostic.RCS1037.severity = none
 
+[services/Api/Domain/**/Domain/*.cs]
+dotnet_diagnostic.CS8618.severity = none
+
 [services/Api/Migrations/**.cs]
 generated_code = true
 dotnet_analyzer_diagnostic.category-roslynator.severity = none

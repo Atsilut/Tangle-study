@@ -8,6 +8,6 @@ namespace Api.Domain.Groups.Dto
     {
         [Required]
         [SwaggerSchema(Description = "Target role (Member = 0, Admin = 1). Owner cannot be set directly; use transfer ownership.")]
-        public GroupRole Role { get; init; }
+        public required GroupRole Role { get; init; }
     }
 }

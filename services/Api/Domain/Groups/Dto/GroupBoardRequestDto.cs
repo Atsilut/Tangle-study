@@ -8,7 +8,7 @@ namespace Api.Domain.Groups.Dto
     {
         [Required]
         [StringLength(100, MinimumLength = 1)]
-        public string Name { get; init; }
+        public required string Name { get; init; }
 
         public string? Description { get; init; }
 
@@ -20,11 +20,11 @@ namespace Api.Domain.Groups.Dto
     {
         [Required]
         [StringLength(100, MinimumLength = 1)]
-        public string Name { get; init; }
+        public required string Name { get; init; }
 
         public string? Description { get; init; }
 
         [Required]
-        public BoardVisibility Visibility { get; init; }
+        public required BoardVisibility Visibility { get; init; }
     }
 }

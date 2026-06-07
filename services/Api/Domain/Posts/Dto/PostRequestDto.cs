@@ -10,13 +10,13 @@ namespace Api.Domain.Posts.Dto
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Title")]
         [DefaultValue("My Happy Marriage")]
-        public string Title { get; init; }
+        public required string Title { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Will be started in Aus")]
-        public string Content { get; init; }
+        public required string Content { get; init; }
 
         [SwaggerSchema(Description = "Group Id (optional; for group posts)")]
         public long? GroupId { get; init; }
@@ -29,18 +29,18 @@ namespace Api.Domain.Posts.Dto
     {
         [Required]
         [SwaggerSchema(Description = "Post Id")]
-        public long Id { get; init; }
+        public required long Id { get; init; }
         
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Title")]
         [DefaultValue("My Happy Life")]
-        public string Title { get; init; }
+        public required string Title { get; init; }
 
         [Required]
         [StringLength(100, MinimumLength = 1)]
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Will be started in somewhere")]
-        public string Content { get; init; }
+        public required string Content { get; init; }
     }
 }
