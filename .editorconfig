@@ -12,6 +12,8 @@ dotnet_diagnostic.CA1859.severity = none
 dotnet_diagnostic.RCS1170.severity = none
 # Trailing whitespace
 dotnet_diagnostic.RCS1037.severity = none
+# Typed exceptions use status-code constructors only, not the standard Exception trio
+dotnet_diagnostic.RCS1194.severity = none
 
 [services/Api/Domain/**/Domain/*.cs]
 dotnet_diagnostic.CS8618.severity = none
