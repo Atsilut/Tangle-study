@@ -5,7 +5,7 @@ using StackExchange.Redis;
 
 namespace Api.Global.Queue;
 
-public sealed class RedisStreamWorkQueue(
+public sealed partial class RedisStreamWorkQueue(
     IConnectionMultiplexer connectionMultiplexer,
     IOptions<RedisOptions> options,
     ILogger<RedisStreamWorkQueue> logger) : IWorkQueue
@@ -36,11 +36,11 @@ public sealed class RedisStreamWorkQueue(
                     new NameValueEntry("type", streamKey),
                     new NameValueEntry("payload", serializedPayload),
                 ]);
-            _logger.LogDebug("Enqueued job on stream {Stream}", redisStreamKey);
+            LogJobEnqueued(_logger, redisStreamKey);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to enqueue job on stream {StreamKey}", streamKey);
+            LogFailedToEnqueueJob(_logger, ex, streamKey);
         }
     }
 
@@ -51,4 +51,14 @@ public sealed class RedisStreamWorkQueue(
 
         return prefix.EndsWith(':') ? $"{prefix}{streamKey}" : $"{prefix}:{streamKey}";
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "Enqueued job on stream {Stream}")]
+    private static partial void LogJobEnqueued(ILogger logger, string stream);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to enqueue job on stream {StreamKey}")]
+    private static partial void LogFailedToEnqueueJob(ILogger logger, Exception ex, string streamKey);
 }
