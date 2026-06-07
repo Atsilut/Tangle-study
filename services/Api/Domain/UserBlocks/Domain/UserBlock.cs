@@ -2,6 +2,7 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.UserBlocks.Domain
 {
@@ -10,18 +11,19 @@ namespace Api.Domain.UserBlocks.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; } = DateTime.UtcNow;
 
         [ForeignKey(nameof(Blocker))]
-        public long BlockerId { get; private set; }
-        public User? Blocker { get; private set; }
+        public long BlockerId { get; }
+        public User? Blocker { get; }
 
         [ForeignKey(nameof(BlockedUser))]
-        public long BlockedUserId { get; private set; }
-        public User? BlockedUser { get; private set; }
+        public long BlockedUserId { get; }
+        public User? BlockedUser { get; }
 
         private UserBlock() { }
 

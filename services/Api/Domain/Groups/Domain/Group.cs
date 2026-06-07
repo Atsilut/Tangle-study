@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Groups.Domain
 {
@@ -7,9 +8,10 @@ namespace Api.Domain.Groups.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
         public string Name { get; private set; }
@@ -17,7 +19,7 @@ namespace Api.Domain.Groups.Domain
         public GroupVisibility Visibility { get; private set; }
         public GroupJoinPolicy JoinPolicy { get; private set; }
 
-        public ICollection<GroupMember> Members { get; private set; } = [];
+        public ICollection<GroupMember> Members { get; } = [];
 
         private Group() { }
 

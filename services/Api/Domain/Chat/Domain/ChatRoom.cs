@@ -3,6 +3,7 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Chat.Domain;
 
@@ -12,33 +13,34 @@ public class ChatRoom
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
     public long Id { get; private set; }
 
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
     public ChatRoomKind Kind { get; private set; }
 
     [MaxLength(200)]
-    public string? Title { get; private set; }
+    public string? Title { get; }
 
     [ForeignKey(nameof(PlatformGroup))]
-    public long? PlatformGroupId { get; private set; }
-    public Group? PlatformGroup { get; private set; }
+    public long? PlatformGroupId { get; }
+    public Group? PlatformGroup { get; }
 
     [ForeignKey(nameof(CreatedByUser))]
-    public long CreatedByUserId { get; private set; }
-    public User? CreatedByUser { get; private set; }
+    public long CreatedByUserId { get; }
+    public User? CreatedByUser { get; }
 
     [ForeignKey(nameof(UserLow))]
     public long? UserLowId { get; private set; }
-    public User? UserLow { get; private set; }
+    public User? UserLow { get; }
 
     [ForeignKey(nameof(UserHigh))]
     public long? UserHighId { get; private set; }
-    public User? UserHigh { get; private set; }
+    public User? UserHigh { get; }
 
-    public ICollection<ChatRoomParticipant> Participants { get; private set; } = [];
+    public ICollection<ChatRoomParticipant> Participants { get; } = [];
 
     private ChatRoom() { }
 

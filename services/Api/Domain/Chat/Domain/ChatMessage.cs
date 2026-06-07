@@ -1,6 +1,7 @@
 using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Chat.Domain;
 
@@ -10,20 +11,21 @@ public class ChatMessage
 
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
     public long Id { get; private set; }
 
-    public DateTime SentAt { get; private set; } = DateTime.UtcNow;
+    public DateTime SentAt { get; } = DateTime.UtcNow;
 
     [ForeignKey(nameof(ChatRoom))]
-    public long ChatRoomId { get; private set; }
-    public ChatRoom? ChatRoom { get; private set; }
+    public long ChatRoomId { get; }
+    public ChatRoom? ChatRoom { get; }
 
     [ForeignKey(nameof(Sender))]
-    public long SenderUserId { get; private set; }
-    public User? Sender { get; private set; }
+    public long SenderUserId { get; }
+    public User? Sender { get; }
 
     [MaxLength(MaxBodyLength)]
-    public string Body { get; private set; } = string.Empty;
+    public string Body { get; } = string.Empty;
 
     private ChatMessage() { }
 

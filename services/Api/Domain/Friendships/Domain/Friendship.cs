@@ -2,6 +2,7 @@ using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Api.Domain.Friendships.Domain
 {
@@ -10,18 +11,19 @@ namespace Api.Domain.Friendships.Domain
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [SuppressMessage("Roslynator", "RCS1170", Justification = "Store-generated key; EF requires a writable accessor.")]
         public long Id { get; private set; }
 
-        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; } = DateTime.UtcNow;
 
         [ForeignKey(nameof(UserLow))]
-        public long UserLowId { get; private set; }
-        public User? UserLow { get; private set; }
+        public long UserLowId { get; }
+        public User? UserLow { get; }
 
         [ForeignKey(nameof(UserHigh))]
-        public long UserHighId { get; private set; }
-        public User? UserHigh { get; private set; }
+        public long UserHighId { get; }
+        public User? UserHigh { get; }
 
         private Friendship() { }
 
