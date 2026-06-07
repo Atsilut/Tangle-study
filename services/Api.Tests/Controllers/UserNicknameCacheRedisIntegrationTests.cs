@@ -43,7 +43,7 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         Assert.Equal(userA.Nickname, cachedBeforeUpdate);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(userA.Id, updatedNickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = userA.Id, Nickname = updatedNickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
@@ -80,7 +80,7 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         });
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(user.Id, updatedNickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = user.Id, Nickname = updatedNickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);

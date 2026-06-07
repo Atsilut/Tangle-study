@@ -46,7 +46,7 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
                 "/api/friendships/requests",
                 new FriendRequestCreateRequestDto { AddresseeId = 1 }
             },
-            { HttpMethod.Patch, "/api/users", new UserPatchRequestDto(1, "x") },
+            { HttpMethod.Patch, "/api/users", new UserPatchRequestDto { Id = 1, Nickname = "x" } },
             {
                 HttpMethod.Patch,
                 "/api/users/privacy",

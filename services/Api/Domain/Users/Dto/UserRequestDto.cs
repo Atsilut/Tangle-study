@@ -2,8 +2,6 @@
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
-
 namespace Api.Domain.Users.Dto
 {
     public record UserCreateRequestDto
@@ -38,12 +36,6 @@ namespace Api.Domain.Users.Dto
 
     public record UserPatchRequestDto
     {
-        [SetsRequiredMembers]
-        public UserPatchRequestDto(long id, string nickname)
-        {
-            Id = id;
-            Nickname = nickname;
-        }
         [Required]
         public required long Id { get; init; }
         [Required]

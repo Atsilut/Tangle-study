@@ -52,7 +52,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, newNickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = newNickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
@@ -75,7 +75,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, newNickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = newNickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
@@ -90,7 +90,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         Client.DefaultRequestHeaders.Authorization = null;
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, "new"), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = "new" }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
@@ -105,7 +105,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, created.Nickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = created.Nickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
@@ -125,7 +125,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = existingUser.Nickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
@@ -144,7 +144,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, attacker);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(owner.Id, "hacked"), TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = owner.Id, Nickname = "hacked" }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(patch, HttpStatusCode.Unauthorized, "Unauthorized access");
