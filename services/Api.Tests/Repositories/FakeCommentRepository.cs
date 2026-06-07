@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories
 {
     public class FakeCommentRepository : ICommentRepository
     {
-        private readonly List<Comment> _comments = new();
+        private readonly List<Comment> _comments = [];
         private long _currentId = 1;
 
         public Task CreateCommentAsync(Comment comment)

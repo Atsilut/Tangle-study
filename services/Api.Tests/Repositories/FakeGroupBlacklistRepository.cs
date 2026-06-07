@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeGroupBlacklistRepository : IGroupBlacklistRepository
 {
-    private readonly List<GroupBlacklist> _entries = new();
+    private readonly List<GroupBlacklist> _entries = [];
     private long _nextId = 1;
 
     public Task CreateAsync(GroupBlacklist entry)

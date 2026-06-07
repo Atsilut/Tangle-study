@@ -3,7 +3,7 @@ using System.Reflection;
 
 public static class DependencyInjection
 {
-    private static readonly List<(LayerType Layer, string Message)> _logs = new();
+    private static readonly List<(LayerType Layer, string Message)> _logs = [];
     public enum LayerType
     {
         Service,

@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeGroupRepository : IGroupRepository
 {
-    private readonly List<Group> _groups = new();
+    private readonly List<Group> _groups = [];
     private long _nextId = 1;
 
     public Task CreateGroupAsync(Group group)

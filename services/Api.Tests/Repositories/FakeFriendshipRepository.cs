@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeFriendshipRepository : IFriendshipRepository
 {
-    private readonly List<Friendship> _friendships = new();
+    private readonly List<Friendship> _friendships = [];
     private long _nextId = 1;
 
     public Task CreateFriendshipAsync(Friendship friendship)

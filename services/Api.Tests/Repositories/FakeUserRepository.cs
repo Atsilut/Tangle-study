@@ -6,7 +6,7 @@ namespace Api.Tests.Repositories;
 public sealed class FakeUserRepository : IUserRepository
 {
     private long _nextId = 1;
-    private readonly Dictionary<long, User> _users = new();
+    private readonly Dictionary<long, User> _users = [];
 
     public Task CreateUserAsync(User user)
     {

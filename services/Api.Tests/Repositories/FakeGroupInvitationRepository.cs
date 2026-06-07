@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeGroupInvitationRepository : IGroupInvitationRepository
 {
-    private readonly List<GroupInvitation> _invitations = new();
+    private readonly List<GroupInvitation> _invitations = [];
     private long _nextId = 1;
 
     public Task CreateInvitationAsync(GroupInvitation invitation)

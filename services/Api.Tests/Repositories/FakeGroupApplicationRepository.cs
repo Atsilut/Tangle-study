@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeGroupApplicationRepository : IGroupApplicationRepository
 {
-    private readonly List<GroupApplication> _applications = new();
+    private readonly List<GroupApplication> _applications = [];
     private long _nextId = 1;
 
     public Task CreateApplicationAsync(GroupApplication application)

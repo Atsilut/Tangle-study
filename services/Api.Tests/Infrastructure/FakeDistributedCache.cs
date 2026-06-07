@@ -4,7 +4,7 @@ namespace Api.Tests.Infrastructure;
 
 internal sealed class FakeDistributedCache : IDistributedCache
 {
-    private readonly Dictionary<string, byte[]> _store = new();
+    private readonly Dictionary<string, byte[]> _store = [];
     private readonly object _sync = new();
 
     public byte[]? Get(string key)

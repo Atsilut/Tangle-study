@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeUserBlockRepository : IUserBlockRepository
 {
-    private readonly List<UserBlock> _blocks = new();
+    private readonly List<UserBlock> _blocks = [];
     private long _nextId = 1;
 
     public Task CreateUserBlockAsync(UserBlock userBlock)

@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public sealed class FakeGroupBoardRepository : IGroupBoardRepository
 {
-    private readonly List<GroupBoard> _boards = new();
+    private readonly List<GroupBoard> _boards = [];
     private long _nextId = 1;
 
     public Task CreateAsync(GroupBoard board)

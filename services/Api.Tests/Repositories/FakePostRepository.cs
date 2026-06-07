@@ -5,7 +5,7 @@ namespace Api.Tests.Repositories;
 
 public class FakePostRepository : IPostRepository
 {
-    private readonly List<Post> _posts = new();
+    private readonly List<Post> _posts = [];
     private long _currentId = 1;
 
     public Task CreatePostAsync(Post post)
