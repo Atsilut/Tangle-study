@@ -12,7 +12,7 @@ using Npgsql;
 namespace Api.Domain.Friendships.Service
 {
     [Service]
-    public class FriendRequestService(
+    public partial class FriendRequestService(
         IFriendRequestRepository requestRepo,
         FriendshipService friendshipService,
         UserService userService,
@@ -99,10 +99,7 @@ namespace Api.Domain.Friendships.Service
             if (existingRequest.RequesterId == requesterId)
             {
                 if (existingRequest.IsPending)
-                    _logger.LogInformation(
-                        "Friend request for user pair {RequesterId}, {AddresseeId} already exists and is pending.",
-                        requesterId,
-                        addresseeId);
+                    LogFriendRequestAlreadyPending(_logger, requesterId, addresseeId);
 
                 return SendFriendRequestOutcome.FriendRequestCreated;
             }
@@ -235,5 +232,10 @@ namespace Api.Domain.Friendships.Service
 
             await _repo.DeleteFriendRequestAsync(request);
         }
+
+        [LoggerMessage(
+            Level = LogLevel.Information,
+            Message = "Friend request for user pair {RequesterId}, {AddresseeId} already exists and is pending.")]
+        private static partial void LogFriendRequestAlreadyPending(ILogger logger, long requesterId, long addresseeId);
     }
 }

@@ -3,7 +3,7 @@ using StackExchange.Redis;
 
 namespace Api.Global.Events;
 
-public sealed class RedisEventSubscriberHostedService(
+public sealed partial class RedisEventSubscriberHostedService(
     IConnectionMultiplexer connectionMultiplexer,
     ILogger<RedisEventSubscriberHostedService> logger) : IHostedService
 {
@@ -15,17 +15,11 @@ public sealed class RedisEventSubscriberHostedService(
         var subscriber = _connectionMultiplexer.GetSubscriber();
         await subscriber.SubscribeAsync(
             RedisEventChannels.ChatMessageCreated,
-            (_, message) => _logger.LogInformation(
-                "Received event on {Channel}: {Message}",
-                RedisEventChannels.ChatMessageCreated,
-                message.ToString()));
+            (_, message) => OnRedisEvent(RedisEventChannels.ChatMessageCreated, message));
         await subscriber.SubscribeAsync(
             RedisEventChannels.UserNicknameChanged,
-            (_, message) => _logger.LogInformation(
-                "Received event on {Channel}: {Message}",
-                RedisEventChannels.UserNicknameChanged,
-                message.ToString()));
-        _logger.LogInformation("Redis event subscriber started.");
+            (_, message) => OnRedisEvent(RedisEventChannels.UserNicknameChanged, message));
+        LogRedisEventSubscriberStarted(_logger);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -33,6 +27,24 @@ public sealed class RedisEventSubscriberHostedService(
         var subscriber = _connectionMultiplexer.GetSubscriber();
         await subscriber.UnsubscribeAsync(RedisEventChannels.ChatMessageCreated);
         await subscriber.UnsubscribeAsync(RedisEventChannels.UserNicknameChanged);
-        _logger.LogInformation("Redis event subscriber stopped.");
+        LogRedisEventSubscriberStopped(_logger);
     }
+
+    private void OnRedisEvent(string channel, RedisValue message) =>
+        LogRedisEventReceived(_logger, channel, message);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Received event on {Channel}: {Message}")]
+    private static partial void LogRedisEventReceived(ILogger logger, string channel, RedisValue message);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Redis event subscriber started.")]
+    private static partial void LogRedisEventSubscriberStarted(ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Redis event subscriber stopped.")]
+    private static partial void LogRedisEventSubscriberStopped(ILogger logger);
 }
