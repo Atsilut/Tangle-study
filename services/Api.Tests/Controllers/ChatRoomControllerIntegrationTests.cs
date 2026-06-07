@@ -55,7 +55,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
         var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.Contains("friends", problem!.Detail!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("friends", problem!.Detail, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
