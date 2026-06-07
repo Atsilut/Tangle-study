@@ -106,10 +106,7 @@ namespace Api.Domain.Groups.Service
                 ?? throw new ArgumentException("Target user is not a member of this group.");
 
             var group = await GetGroupOrThrowAsync(request.Id);
-            await _db.ExecuteInTransactionAsync(async () =>
-            {
-                await _membership.TransferOwnershipInternalAsync(request.Id, ownerMember, newOwner);
-            });
+            await _db.ExecuteInTransactionAsync(async () => await _membership.TransferOwnershipInternalAsync(request.Id, ownerMember, newOwner));
 
             var memberCount = await _membership.CountMembersAsync(request.Id);
             return MapToDto(group, memberCount);

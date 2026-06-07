@@ -48,7 +48,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         return found;
     }
 
-    private CommentGetResponseDto? FindCommentByContent(
+    private static CommentGetResponseDto? FindCommentByContent(
         IEnumerable<CommentGetResponseDto> comments,
         string content)
     {
