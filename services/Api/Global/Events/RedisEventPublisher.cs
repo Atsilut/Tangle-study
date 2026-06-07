@@ -22,7 +22,7 @@ public sealed class RedisEventPublisher(
         {
             var subscriber = _connectionMultiplexer.GetSubscriber();
             var serializedPayload = JsonSerializer.Serialize(payload, SerializerOptions);
-            await subscriber.PublishAsync(channel, serializedPayload);
+            await subscriber.PublishAsync(RedisChannel.Literal(channel), serializedPayload);
         }
         catch (Exception ex)
         {

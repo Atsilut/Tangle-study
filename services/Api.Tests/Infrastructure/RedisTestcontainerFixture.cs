@@ -8,8 +8,7 @@ public sealed class RedisTestcontainerFixture : IAsyncLifetime
 
     public RedisTestcontainerFixture()
     {
-        _redis = new RedisBuilder()
-            .WithImage("redis:8.8-alpine")
+        _redis = new RedisBuilder("redis:8.8-alpine")
             .Build();
     }
 

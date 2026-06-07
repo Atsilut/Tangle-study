@@ -14,10 +14,10 @@ public sealed partial class RedisEventSubscriberHostedService(
     {
         var subscriber = _connectionMultiplexer.GetSubscriber();
         await subscriber.SubscribeAsync(
-            RedisEventChannels.ChatMessageCreated,
+            RedisChannel.Literal(RedisEventChannels.ChatMessageCreated),
             (_, message) => OnRedisEvent(RedisEventChannels.ChatMessageCreated, message));
         await subscriber.SubscribeAsync(
-            RedisEventChannels.UserNicknameChanged,
+            RedisChannel.Literal(RedisEventChannels.UserNicknameChanged),
             (_, message) => OnRedisEvent(RedisEventChannels.UserNicknameChanged, message));
         LogRedisEventSubscriberStarted(_logger);
     }
@@ -25,8 +25,8 @@ public sealed partial class RedisEventSubscriberHostedService(
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         var subscriber = _connectionMultiplexer.GetSubscriber();
-        await subscriber.UnsubscribeAsync(RedisEventChannels.ChatMessageCreated);
-        await subscriber.UnsubscribeAsync(RedisEventChannels.UserNicknameChanged);
+        await subscriber.UnsubscribeAsync(RedisChannel.Literal(RedisEventChannels.ChatMessageCreated));
+        await subscriber.UnsubscribeAsync(RedisChannel.Literal(RedisEventChannels.UserNicknameChanged));
         LogRedisEventSubscriberStopped(_logger);
     }
 
