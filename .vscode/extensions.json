@@ -1,0 +1,4 @@
+{
+  "recommendations": ["jakubkozera.csharp-dev-tools"],
+  "unwantedRecommendations": ["anysphere.csharp"]
+}
