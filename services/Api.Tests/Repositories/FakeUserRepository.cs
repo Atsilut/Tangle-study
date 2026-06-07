@@ -51,8 +51,7 @@ public sealed class FakeUserRepository : IUserRepository
 
     public Task DeleteUserAsync(User user)
     {
-        if (user.Id != 0)
-            _users.Remove(user.Id);
+        if (user.Id != 0) _users.Remove(user.Id);
         return Task.CompletedTask;
     }
 }

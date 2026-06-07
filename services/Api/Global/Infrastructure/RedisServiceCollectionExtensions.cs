@@ -39,8 +39,7 @@ public static class RedisServiceCollectionExtensions
             .AddStackExchangeRedis(redisOptions =>
             {
                 redisOptions.Configuration = ConfigurationOptions.Parse(options.ConnectionString);
-                if (!string.IsNullOrWhiteSpace(options.SignalRChannelPrefix))
-                    redisOptions.Configuration.ChannelPrefix = RedisChannel.Literal(options.SignalRChannelPrefix);
+                if (!string.IsNullOrWhiteSpace(options.SignalRChannelPrefix)) redisOptions.Configuration.ChannelPrefix = RedisChannel.Literal(options.SignalRChannelPrefix);
             });
 
         return services;

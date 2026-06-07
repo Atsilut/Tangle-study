@@ -158,8 +158,7 @@ public abstract class FriendshipDomainIntegrationTestBase(
         var res = await Client.GetAsync($"{FriendshipsBase}/me");
         if (!expected)
         {
-            if (res.StatusCode == HttpStatusCode.NoContent)
-                return;
+            if (res.StatusCode == HttpStatusCode.NoContent) return;
             var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
             Assert.DoesNotContain(list ?? [], f => f.OtherUserId == userB.Id);
             return;

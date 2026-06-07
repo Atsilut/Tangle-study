@@ -48,8 +48,7 @@ namespace Api.Domain.Groups.Service
 
             GroupJoinPolicyRules.EnsureCanApply(group.JoinPolicy);
 
-            if (await _membershipService.IsMemberAsync(groupId, applicantId))
-                throw new EntityAlreadyExistsException("You are already a member of this group.");
+            if (await _membershipService.IsMemberAsync(groupId, applicantId)) throw new EntityAlreadyExistsException("You are already a member of this group.");
 
             await _blacklistService.EnsureNotBlacklistedAsync(groupId, applicantId);
 
@@ -82,8 +81,7 @@ namespace Api.Domain.Groups.Service
         {
             return _db.ExecuteInTransactionAsync(async () =>
             {
-                if (await _repo.GetForUserAsync(groupId, applicantId) is not null)
-                    return;
+                if (await _repo.GetForUserAsync(groupId, applicantId) is not null) return;
 
                 await _repo.CreateApplicationAsync(new GroupApplication(groupId, applicantId));
             });
@@ -126,8 +124,7 @@ namespace Api.Domain.Groups.Service
                 ?? throw new EntityNotFoundException("Application not found");
             await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
 
-            if (await _membershipService.IsMemberAsync(application.GroupId, application.ApplicantId))
-                return;
+            if (await _membershipService.IsMemberAsync(application.GroupId, application.ApplicantId)) return;
 
             await _blacklistService.EnsureNotBlacklistedAsync(application.GroupId, application.ApplicantId);
             await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(application.GroupId, application.ApplicantId);
@@ -148,10 +145,8 @@ namespace Api.Domain.Groups.Service
             var userId = GetUserIdFromLogin();
             var application = await _repo.GetByIdAsync(applicationId)
                 ?? throw new EntityNotFoundException("Application not found");
-            if (application.ApplicantId != userId)
-                throw new UnauthorizedAccessException("Only the applicant can cancel this application.");
-            if (!application.IsPending)
-                throw new ArgumentException("Invalid application.");
+            if (application.ApplicantId != userId) throw new UnauthorizedAccessException("Only the applicant can cancel this application.");
+            if (!application.IsPending) throw new ArgumentException("Invalid application.");
 
             await _repo.DeleteApplicationAsync(application);
         }

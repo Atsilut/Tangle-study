@@ -32,8 +32,7 @@ public class ChatRoomService(
         await _access.EnsureCanCreateDirectRoomAsync(userId, request.OtherUserId);
 
         var existing = await _repo.GetDirectChatRoomForUserPairAsync(userId, request.OtherUserId);
-        if (existing is not null)
-            return await MapToGetDtoAsync(existing, includeParticipants: true);
+        if (existing is not null) return await MapToGetDtoAsync(existing, includeParticipants: true);
 
         var room = ChatRoom.CreateDirect(userId, request.OtherUserId, userId);
         await CreateRoomWithParticipantsAsync(
@@ -137,13 +136,11 @@ public class ChatRoomService(
             List<ChatRoomParticipant> participants = [.. room.Participants];
             _access.EnsureCanAddParticipant(room, participants, userId);
 
-            if (participants.Any(p => p.UserId == request.UserId))
-                throw new EntityAlreadyExistsException("User is already a participant in this chat room.");
+            if (participants.Any(p => p.UserId == request.UserId)) throw new EntityAlreadyExistsException("User is already a participant in this chat room.");
 
             await _access.EnsureInviteeCanBeAddedAsync(room, request.UserId, participants);
 
-            if (room.Kind == ChatRoomKind.Direct)
-                room.PromoteDirectToMulti();
+            if (room.Kind == ChatRoomKind.Direct) room.PromoteDirectToMulti();
 
             newParticipant = new ChatRoomParticipant(roomId, request.UserId, ChatRoomParticipantRole.Member);
             _db.ChatRoomParticipants.Add(newParticipant);
@@ -180,10 +177,7 @@ public class ChatRoomService(
             _db.ChatRooms.Add(room);
             await _db.SaveChangesAsync();
 
-            foreach (var (participantUserId, role) in participants)
-            {
-                _db.ChatRoomParticipants.Add(new ChatRoomParticipant(room.Id, participantUserId, role));
-            }
+            foreach (var (participantUserId, role) in participants) _db.ChatRoomParticipants.Add(new ChatRoomParticipant(room.Id, participantUserId, role));
 
             await _db.SaveChangesAsync();
         });
@@ -197,8 +191,7 @@ public class ChatRoomService(
 
     private static void EnsureAtLeastOneOtherParticipant(long creatorId, IReadOnlyList<long> participantIds)
     {
-        if (participantIds.Count < 2 || participantIds.All(id => id == creatorId))
-            throw new ArgumentException("A group chat room must include at least one other participant.");
+        if (participantIds.Count < 2 || participantIds.All(id => id == creatorId)) throw new ArgumentException("A group chat room must include at least one other participant.");
     }
 
     private static List<(long UserId, ChatRoomParticipantRole Role)> BuildMemberOnlyParticipantSpecs(

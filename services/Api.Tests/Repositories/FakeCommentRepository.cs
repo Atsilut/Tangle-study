@@ -12,11 +12,9 @@ namespace Api.Tests.Repositories
         {
             // Manually set the Id using reflection or a test-only constructor
             var idProperty = typeof(Comment).GetProperty("Id");
-            if (idProperty != null && idProperty.CanWrite)
-            {
-                idProperty.SetValue(comment, _currentId++);
-            }
-            else throw new InvalidOperationException("Could not set the Id property on the Comment entity via reflection.");
+            if (idProperty != null && idProperty.CanWrite) idProperty.SetValue(comment, _currentId++);
+            else
+                throw new InvalidOperationException("Could not set the Id property on the Comment entity via reflection.");
             _comments.Add(comment);
             return Task.CompletedTask;
         }
@@ -43,15 +41,13 @@ namespace Api.Tests.Repositories
 
         public Task DetachAuthorFromCommentsAsync(long userId)
         {
-            foreach (var comment in _comments.Where(c => c.UserId == userId))
-                comment.DetachAuthor(userId);
+            foreach (var comment in _comments.Where(c => c.UserId == userId)) comment.DetachAuthor(userId);
             return Task.CompletedTask;
         }
 
         public Task DetachPostFromCommentsAsync(long postId)
         {
-            foreach (var comment in _comments.Where(c => c.PostId == postId))
-                comment.DetachPost(postId);
+            foreach (var comment in _comments.Where(c => c.PostId == postId)) comment.DetachPost(postId);
             return Task.CompletedTask;
         }
 
@@ -63,8 +59,7 @@ namespace Api.Tests.Repositories
 
         public Task DetachParentFromRepliesAsync(long parentCommentId)
         {
-            foreach (var comment in _comments.Where(c => c.ParentId == parentCommentId))
-                comment.DetachParent(parentCommentId);
+            foreach (var comment in _comments.Where(c => c.ParentId == parentCommentId)) comment.DetachParent(parentCommentId);
             return Task.CompletedTask;
         }
 

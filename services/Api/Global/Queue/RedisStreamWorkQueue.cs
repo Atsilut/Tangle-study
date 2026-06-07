@@ -21,8 +21,7 @@ public sealed class RedisStreamWorkQueue(
         TPayload payload,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(streamKey))
-            throw new ArgumentException("Stream key must not be empty.", nameof(streamKey));
+        if (string.IsNullOrWhiteSpace(streamKey)) throw new ArgumentException("Stream key must not be empty.", nameof(streamKey));
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -48,8 +47,7 @@ public sealed class RedisStreamWorkQueue(
     private string BuildStreamKey(string streamKey)
     {
         var prefix = _options.WorkQueueStreamPrefix;
-        if (string.IsNullOrWhiteSpace(prefix))
-            return streamKey;
+        if (string.IsNullOrWhiteSpace(prefix)) return streamKey;
 
         return prefix.EndsWith(':') ? $"{prefix}{streamKey}" : $"{prefix}:{streamKey}";
     }

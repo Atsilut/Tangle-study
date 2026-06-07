@@ -207,12 +207,10 @@ public sealed class ChatHubRealtimeIntegrationTests(
         var received = new TaskCompletionSource<ChatMessageCreatedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         await subscriber.SubscribeAsync(RedisChannel.Literal(RedisEventChannels.ChatMessageCreated), (_, message) =>
         {
-            if (message.IsNullOrEmpty)
-                return;
+            if (message.IsNullOrEmpty) return;
 
             var payload = JsonSerializer.Deserialize<ChatMessageCreatedEvent>(message.ToString(), JsonOptions);
-            if (payload?.ChatRoomId == room.Id && payload.Body == messageBody)
-                received.TrySetResult(payload);
+            if (payload?.ChatRoomId == room.Id && payload.Body == messageBody) received.TrySetResult(payload);
         });
 
         // Act

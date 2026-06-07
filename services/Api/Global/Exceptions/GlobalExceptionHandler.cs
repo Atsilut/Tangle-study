@@ -12,8 +12,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (!TryMap(exception, out var statusCode, out var title))
-            return false;
+        if (!TryMap(exception, out var statusCode, out var title)) return false;
 
         var problemDetails = new ProblemDetails
         {

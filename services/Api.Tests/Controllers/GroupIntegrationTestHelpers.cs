@@ -75,8 +75,7 @@ internal static class GroupIntegrationTestHelpers
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var invitation = new GroupInvitationEntity(groupId, inviterId, inviteeId);
-        if (!isPending)
-            invitation.Ignore();
+        if (!isPending) invitation.Ignore();
         db.GroupInvitations.Add(invitation);
         await db.SaveChangesAsync();
         return invitation;
@@ -91,8 +90,7 @@ internal static class GroupIntegrationTestHelpers
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var application = new GroupApplicationEntity(groupId, applicantId);
-        if (!isPending)
-            application.Ignore();
+        if (!isPending) application.Ignore();
         db.GroupApplications.Add(application);
         await db.SaveChangesAsync();
         return application;

@@ -29,8 +29,7 @@ namespace Api.Domain.UserBlocks.Domain
 
         public UserBlock(long blockerId, long blockedUserId)
         {
-            if (blockerId == blockedUserId)
-                throw new ArgumentException("Cannot block yourself.");
+            if (blockerId == blockedUserId) throw new ArgumentException("Cannot block yourself.");
             BlockerId = blockerId;
             BlockedUserId = blockedUserId;
         }

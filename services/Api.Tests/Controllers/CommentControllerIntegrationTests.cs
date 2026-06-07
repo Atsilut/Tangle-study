@@ -44,8 +44,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var found = FindCommentByContent(all!, req.Content);
         Assert.NotNull(found);
         Assert.Equal(postId, found.PostId);
-        if (parentId.HasValue)
-            Assert.Equal(parentId.Value, found.ParentId);
+        if (parentId.HasValue) Assert.Equal(parentId.Value, found.ParentId);
         return found;
     }
 
@@ -55,11 +54,9 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     {
         foreach (var comment in comments)
         {
-            if (comment.Content == content)
-                return comment;
+            if (comment.Content == content) return comment;
             var inReplies = FindCommentByContent(comment.Replies, content);
-            if (inReplies != null)
-                return inReplies;
+            if (inReplies != null) return inReplies;
         }
         return null;
     }

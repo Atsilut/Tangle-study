@@ -12,11 +12,9 @@ public class FakePostRepository : IPostRepository
     {
         // Manually set the Id using reflection or a test-only constructor
         var idProperty = typeof(Post).GetProperty("Id");
-        if (idProperty != null && idProperty.CanWrite)
-        {
-            idProperty.SetValue(post, _currentId++);
-        }
-        else throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.");
+        if (idProperty != null && idProperty.CanWrite) idProperty.SetValue(post, _currentId++);
+        else
+            throw new InvalidOperationException("Could not set the Id property on the Post entity via reflection.");
         _posts.Add(post);
         return Task.CompletedTask;
     }
@@ -58,8 +56,7 @@ public class FakePostRepository : IPostRepository
 
     public Task DetachAuthorFromPostsAsync(long userId)
     {
-        foreach (var post in _posts.Where(p => p.UserId == userId))
-            post.DetachAuthor(userId);
+        foreach (var post in _posts.Where(p => p.UserId == userId)) post.DetachAuthor(userId);
         return Task.CompletedTask;
     }
 

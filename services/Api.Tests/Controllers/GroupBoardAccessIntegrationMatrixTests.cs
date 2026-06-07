@@ -162,13 +162,10 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Assert
 
         if (expected == GroupExpectedOutcome.Ok)
-        {
             Assert.True(
                 res.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.NoContent,
                 res.StatusCode.ToString());
-        }
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     [Fact]

@@ -19,9 +19,7 @@ namespace Api.Global.Config
                 {
                     var defaultValue = propInfo.GetCustomAttribute<DefaultValueAttribute>()?.Value;
                     if (defaultValue != null)
-                    {
                         property.Value.Example = new OpenApiString(defaultValue.ToString());
-                    }
                 }
             }
         }

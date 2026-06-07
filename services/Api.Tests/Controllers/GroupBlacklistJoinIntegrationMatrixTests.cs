@@ -40,10 +40,8 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
                 new GroupBlacklistCreateRequestDto { UserId = scenario.Stranger.Id });
 
             // Assert
-            if (expected == GroupExpectedOutcome.Ok)
-                await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-            else
-                await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+            if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+            else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
             return;
         }
 
@@ -55,10 +53,8 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/blacklist/{scenario.Stranger.Id}");
 
         // Assert
-        if (expected == GroupExpectedOutcome.Ok)
-            await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
-        else
-            await IntegrationAssertions.AssertStatusAsync(removeRes, OutcomeStatus(expected));
+        if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
+        else await IntegrationAssertions.AssertStatusAsync(removeRes, OutcomeStatus(expected));
     }
 
     [Fact]

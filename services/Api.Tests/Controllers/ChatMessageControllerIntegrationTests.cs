@@ -202,8 +202,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         await AcceptFriendshipAsync(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         await LoginAs(userA);
-        for (var i = 0; i < expectedCount + 5; i++)
-            await PostMessageAsync(room.Id, $"msg {i}");
+        for (var i = 0; i < expectedCount + 5; i++) await PostMessageAsync(room.Id, $"msg {i}");
 
         var url = requestedLimit.HasValue
             ? $"{ChatRoomsBase}/{room.Id}/messages?limit={requestedLimit}"

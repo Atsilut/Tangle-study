@@ -26,8 +26,7 @@ namespace Api.Domain.Friendships.Service
 
         public async Task EnsureFriendshipDoesNotExistForUserPairAsync(long userId, long otherUserId, string? message = null)
         {
-            if (await _repo.ExistsFriendshipForUserPairAsync(userId, otherUserId))
-                throw new EntityAlreadyExistsException(message ?? $"Users {userId} and {otherUserId} are already friends.");
+            if (await _repo.ExistsFriendshipForUserPairAsync(userId, otherUserId)) throw new EntityAlreadyExistsException(message ?? $"Users {userId} and {otherUserId} are already friends.");
         }
 
         public async Task EnsureFriendshipExistsForUserPairAsync(
@@ -35,8 +34,7 @@ namespace Api.Domain.Friendships.Service
             long otherUserId,
             string message = "You must be friends to open a direct chat.")
         {
-            if (await _repo.GetForUserPairAsync(userId, otherUserId) is null)
-                throw new ArgumentException(message);
+            if (await _repo.GetForUserPairAsync(userId, otherUserId) is null) throw new ArgumentException(message);
         }
 
         public async Task CreateFriendshipForUserPairAsync(long userId, long otherUserId)
@@ -50,8 +48,7 @@ namespace Api.Domain.Friendships.Service
         {
             var userId = GetUserIdFromLogin();
             var friendship = await GetFriendshipOrThrowAsync(id);
-            if (!friendship.Involves(userId))
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (!friendship.Involves(userId)) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.DeleteFriendshipAsync(friendship);
         }
@@ -79,8 +76,7 @@ namespace Api.Domain.Friendships.Service
 
         private async Task EnsureCanViewFriendsListAsync(long targetUserId, long viewerId)
         {
-            if (targetUserId == viewerId)
-                return;
+            if (targetUserId == viewerId) return;
 
             var visibility = await _userService.GetFriendsListVisibilityAsync(targetUserId);
             switch (visibility)
@@ -90,8 +86,7 @@ namespace Api.Domain.Friendships.Service
                 case FriendsListVisibility.Private:
                     throw new UnauthorizedAccessException("This user's friends list is private.");
                 case FriendsListVisibility.FriendsOnly:
-                    if (await _repo.GetForUserPairAsync(targetUserId, viewerId) is null)
-                        throw new UnauthorizedAccessException("You must be friends to view this user's friends list.");
+                    if (await _repo.GetForUserPairAsync(targetUserId, viewerId) is null) throw new UnauthorizedAccessException("You must be friends to view this user's friends list.");
                     return;
                 default:
                     throw new ArgumentException("Unknown friends list visibility.", nameof(visibility));

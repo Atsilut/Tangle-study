@@ -31,8 +31,7 @@ namespace Api.Domain.Groups.Service
             List<GroupBoardResponseDto> visible = [];
             foreach (var board in boards)
             {
-                if (!await _access.TryCanViewBoardAsync(groupId, board.Id))
-                    continue;
+                if (!await _access.TryCanViewBoardAsync(groupId, board.Id)) continue;
                 visible.Add(MapToDto(board));
             }
 
@@ -46,8 +45,7 @@ namespace Api.Domain.Groups.Service
 
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
-            if (await _repo.ExistsByNameAsync(groupId, request.Name))
-                throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
+            if (await _repo.ExistsByNameAsync(groupId, request.Name)) throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
 
             var visibility = request.Visibility
                 ?? (group.Visibility == GroupVisibility.Public ? BoardVisibility.ForAll : BoardVisibility.MembersOnly);
@@ -67,8 +65,7 @@ namespace Api.Domain.Groups.Service
             var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
-            if (await _repo.ExistsByNameAsync(groupId, request.Name, boardId))
-                throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
+            if (await _repo.ExistsByNameAsync(groupId, request.Name, boardId)) throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
 
             board.Update(request.Name, request.Visibility, request.Description);
             await _repo.UpdateAsync(board);

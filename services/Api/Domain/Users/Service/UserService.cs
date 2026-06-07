@@ -38,23 +38,20 @@ namespace Api.Domain.Users.Service
 
         public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found", int statusCode = StatusCodes.Status404NotFound)
         {
-            if (!await _repo.ExistsUserByIdAsync(id))
-                throw new EntityNotFoundException(notFoundMessage, statusCode);
+            if (!await _repo.ExistsUserByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
         public async Task<UserGetResponseDto> GetUserByIdOrThrowAsync(long id, string notFoundMessage = "User not found")
         {
             var user = await GetUserByIdAsync(id);
-            if (user == null)
-                throw new EntityNotFoundException(notFoundMessage);
+            if (user == null) throw new EntityNotFoundException(notFoundMessage);
             return user;
         }
 
         private async Task<User> GetUserEntityOrThrowAsync(long id, string notFoundMessage = "User not found")
         {
             var user = await _repo.GetUserByIdAsync(id);
-            if (user == null)
-                throw new EntityNotFoundException(notFoundMessage);
+            if (user == null) throw new EntityNotFoundException(notFoundMessage);
             return user;
         }
 
@@ -92,8 +89,7 @@ namespace Api.Domain.Users.Service
         {
             var userId = GetUserIdFromLogin();
             var user = await _repo.GetUserByIdAsync(userId);
-            if (user is null)
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (user is null) throw new UnauthorizedAccessException("Unauthorized access");
             return user;
         }
 
@@ -105,8 +101,7 @@ namespace Api.Domain.Users.Service
             if (!string.Equals(request.Nickname, user.Nickname, StringComparison.Ordinal))
             {
                 var isNicknameDuplicate = await _repo.ExistsUserByNicknameAsync(request.Nickname);
-                if (isNicknameDuplicate)
-                    throw new EntityAlreadyExistsException($"A user with nickname '{request.Nickname}' already exists.");
+                if (isNicknameDuplicate) throw new EntityAlreadyExistsException($"A user with nickname '{request.Nickname}' already exists.");
             }
 
             var previousNickname = user.Nickname;
@@ -114,7 +109,6 @@ namespace Api.Domain.Users.Service
             await _repo.UpdateUserAsync(user);
             await _nicknameCacheService.InvalidateUserNicknameAsync(user.Id);
             if (!string.Equals(previousNickname, user.Nickname, StringComparison.Ordinal))
-            {
                 await _eventPublisher.PublishAsync(
                     RedisEventChannels.UserNicknameChanged,
                     new UserNicknameChangedEvent(
@@ -122,7 +116,6 @@ namespace Api.Domain.Users.Service
                         user.Nickname,
                         IsDeleted: false,
                         DateTimeOffset.UtcNow));
-            }
             return new UserPatchResponseDto(
                 Nickname: user.Nickname,
                 UpdatedAt: user.UpdatedAt

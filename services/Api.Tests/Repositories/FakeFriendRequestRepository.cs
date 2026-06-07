@@ -36,8 +36,7 @@ public sealed class FakeFriendRequestRepository : IFriendRequestRepository
     public Task<List<FriendRequest>> GetForUserAsync(long userId, bool? isPending = null)
     {
         var query = _requests.Where(r => r.RequesterId == userId || r.AddresseeId == userId);
-        if (isPending.HasValue)
-            query = query.Where(r => r.IsPending == isPending.Value);
+        if (isPending.HasValue) query = query.Where(r => r.IsPending == isPending.Value);
         return Task.FromResult(query.ToList());
     }
 

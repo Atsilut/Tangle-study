@@ -73,12 +73,10 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         var received = new TaskCompletionSource<UserNicknameChangedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         await subscriber.SubscribeAsync(RedisChannel.Literal(RedisEventChannels.UserNicknameChanged), (_, message) =>
         {
-            if (message.IsNullOrEmpty)
-                return;
+            if (message.IsNullOrEmpty) return;
 
             var payload = JsonSerializer.Deserialize<UserNicknameChangedEvent>(message.ToString(), JsonOptions);
-            if (payload?.UserId == user.Id)
-                received.TrySetResult(payload);
+            if (payload?.UserId == user.Id) received.TrySetResult(payload);
         });
 
         // Act

@@ -35,10 +35,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id });
 
         // Assert
-        if (expected == GroupExpectedOutcome.Ok)
-            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<GroupActorRole, InvitationRequestAction, GroupExpectedOutcome> InvitationActionData =>
@@ -96,8 +94,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             if (action is InvitationRequestAction.Accept or InvitationRequestAction.AcceptAsNonInvitee)
                 await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
         }
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<GroupActorRole, ApplicationRequestAction, GroupExpectedOutcome> ApplicationActionData =>
@@ -152,8 +149,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             if (action == ApplicationRequestAction.Approve)
                 await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
         }
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     [Fact]

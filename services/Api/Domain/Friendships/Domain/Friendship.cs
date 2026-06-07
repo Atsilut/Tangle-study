@@ -29,8 +29,7 @@ namespace Api.Domain.Friendships.Domain
 
         public Friendship(long userAId, long userBId)
         {
-            if (userAId == userBId)
-                throw new ArgumentException("Cannot create a friendship with yourself.");
+            if (userAId == userBId) throw new ArgumentException("Cannot create a friendship with yourself.");
             UserLowId = Math.Min(userAId, userBId);
             UserHighId = Math.Max(userAId, userBId);
         }

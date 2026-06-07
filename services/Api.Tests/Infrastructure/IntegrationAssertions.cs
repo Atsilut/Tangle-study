@@ -11,8 +11,7 @@ internal static class IntegrationAssertions
 
     public static async Task AssertStatusAsync(HttpResponseMessage response, HttpStatusCode expected)
     {
-        if (response.StatusCode == expected)
-            return;
+        if (response.StatusCode == expected) return;
 
         var body = await response.Content.ReadAsStringAsync();
         Assert.Fail($"Expected {expected} but got {response.StatusCode}. Body: {body}");

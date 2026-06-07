@@ -34,8 +34,7 @@ namespace Api.Domain.Groups.Service
 
         public async Task EnsureNotBlacklistedAsync(long groupId, long userId, string? message = null)
         {
-            if (await _repo.ExistsAsync(groupId, userId))
-                throw new ArgumentException(message ?? "This user is blacklisted from the group.");
+            if (await _repo.ExistsAsync(groupId, userId)) throw new ArgumentException(message ?? "This user is blacklisted from the group.");
         }
 
         public async Task<GroupBlacklistResponseDto> AddAsync(long groupId, GroupBlacklistCreateRequestDto request)
@@ -45,16 +44,13 @@ namespace Api.Domain.Groups.Service
 
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
-            if (callerId == request.UserId)
-                throw new ArgumentException("Cannot blacklist yourself.");
+            if (callerId == request.UserId) throw new ArgumentException("Cannot blacklist yourself.");
 
             await _userService.EnsureUserExistsAsync(request.UserId, "User not found", StatusCodes.Status400BadRequest);
 
-            if (await _repo.ExistsAsync(groupId, request.UserId))
-                throw new EntityAlreadyExistsException("User is already blacklisted from this group.");
+            if (await _repo.ExistsAsync(groupId, request.UserId)) throw new EntityAlreadyExistsException("User is already blacklisted from this group.");
 
-            if ((await _membershipService.GetMemberAsync(groupId, request.UserId))?.Role == GroupRole.Owner)
-                throw new ArgumentException("Cannot blacklist the group owner. Transfer ownership first.");
+            if ((await _membershipService.GetMemberAsync(groupId, request.UserId))?.Role == GroupRole.Owner) throw new ArgumentException("Cannot blacklist the group owner. Transfer ownership first.");
 
             var entry = new GroupBlacklist(groupId, request.UserId);
             await _db.ExecuteInTransactionAsync(async () =>

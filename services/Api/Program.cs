@@ -57,9 +57,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
                     var path = context.HttpContext.Request.Path;
                     if (!string.IsNullOrEmpty(accessToken)
                         && path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase))
-                    {
                         context.Token = accessToken;
-                    }
 
                     return Task.CompletedTask;
                 },
@@ -79,10 +77,8 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
 var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
-if (redisOptions.Enabled)
-    logger.LogInformation("Redis enabled (cache + SignalR backplane).");
-else
-    logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
+if (redisOptions.Enabled) logger.LogInformation("Redis enabled (cache + SignalR backplane).");
+else logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
 
 if (app.Environment.IsDevelopment())
 {

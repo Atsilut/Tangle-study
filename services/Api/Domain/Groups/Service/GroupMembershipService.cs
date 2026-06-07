@@ -37,18 +37,15 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupMember> EnsureAdminOrOwnerAsync(long groupId, long userId)
         {
             var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is null)
-                throw new UnauthorizedAccessException("Unauthorized access");
-            if (member.Role != GroupRole.Admin && member.Role != GroupRole.Owner)
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (member is null) throw new UnauthorizedAccessException("Unauthorized access");
+            if (member.Role != GroupRole.Admin && member.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
             return member;
         }
 
         public async Task<GroupMember> EnsureOwnerAsync(long groupId, long userId)
         {
             var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is null || member.Role != GroupRole.Owner)
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (member is null || member.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
             return member;
         }
 
@@ -73,8 +70,7 @@ namespace Api.Domain.Groups.Service
         public async Task RemoveMemberInternalAsync(long groupId, long userId)
         {
             var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is not null)
-                await _repo.RemoveMemberAsync(member);
+            if (member is not null) await _repo.RemoveMemberAsync(member);
         }
 
         public async Task HandleUserDeletionAsync(long userId)
@@ -90,10 +86,8 @@ namespace Api.Domain.Groups.Service
                     .ThenBy(m => m.JoinedAt)
                     .FirstOrDefault();
 
-                if (successor is null)
-                    await _groupService.Value.DeleteGroupInternalAsync(owned.GroupId);
-                else
-                    await TransferOwnershipInternalAsync(owned.GroupId, owned, successor);
+                if (successor is null) await _groupService.Value.DeleteGroupInternalAsync(owned.GroupId);
+                else await TransferOwnershipInternalAsync(owned.GroupId, owned, successor);
             }
 
             await _repo.RemoveAllByUserAsync(userId);
@@ -103,8 +97,7 @@ namespace Api.Domain.Groups.Service
         {
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
-            if (group.Visibility == GroupVisibility.Private)
-                await EnsureMemberAsync(groupId, GetUserIdFromLogin());
+            if (group.Visibility == GroupVisibility.Private) await EnsureMemberAsync(groupId, GetUserIdFromLogin());
 
             var members = await _repo.GetMembersByGroupAsync(groupId);
             if (members.Count == 0) return null;
@@ -116,15 +109,12 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await EnsureOwnerAsync(groupId, callerId);
 
-            if (userId == callerId)
-                throw new ArgumentException("Owner cannot change their own role. Use transfer ownership instead.");
-            if (request.Role == GroupRole.Owner)
-                throw new ArgumentException("Owner role cannot be assigned directly. Use transfer ownership.");
+            if (userId == callerId) throw new ArgumentException("Owner cannot change their own role. Use transfer ownership instead.");
+            if (request.Role == GroupRole.Owner) throw new ArgumentException("Owner role cannot be assigned directly. Use transfer ownership.");
 
             var target = await _repo.GetMemberAsync(groupId, userId)
                 ?? throw new ArgumentException("Target user is not a member of this group.");
-            if (target.Role == GroupRole.Owner)
-                throw new ArgumentException("Cannot demote the owner without transferring ownership.");
+            if (target.Role == GroupRole.Owner) throw new ArgumentException("Cannot demote the owner without transferring ownership.");
 
             target.ChangeRole(request.Role);
             await _repo.UpdateMemberAsync(target);
@@ -142,8 +132,7 @@ namespace Api.Domain.Groups.Service
             var target = await _repo.GetMemberAsync(groupId, userId)
                 ?? throw new ArgumentException("Target user is not a member of this group.");
 
-            if (target.Role == GroupRole.Owner)
-                throw new ArgumentException("Owner cannot be removed. Transfer ownership first.");
+            if (target.Role == GroupRole.Owner) throw new ArgumentException("Owner cannot be removed. Transfer ownership first.");
 
             var isSelf = callerId == userId;
             if (isSelf)
@@ -152,10 +141,8 @@ namespace Api.Domain.Groups.Service
                 return;
             }
 
-            if (callerMember.Role == GroupRole.Member)
-                throw new UnauthorizedAccessException("Unauthorized access");
-            if (target.Role == GroupRole.Admin && callerMember.Role != GroupRole.Owner)
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (callerMember.Role == GroupRole.Member) throw new UnauthorizedAccessException("Unauthorized access");
+            if (target.Role == GroupRole.Admin && callerMember.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.RemoveMemberAsync(target);
         }

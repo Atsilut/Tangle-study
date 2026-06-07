@@ -42,8 +42,7 @@ public class ChatMessageService(
         await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);
 
         var pageLimit = NormalizeLimit(limit);
-        if (beforeMessageId is not null)
-            await EnsureBeforeMessageBelongsToRoomAsync(roomId, beforeMessageId.Value);
+        if (beforeMessageId is not null) await EnsureBeforeMessageBelongsToRoomAsync(roomId, beforeMessageId.Value);
 
         var messages = await _repo.GetChatMessagesForRoomAsync(roomId, beforeMessageId, pageLimit);
         if (messages.Count == 0) return null;
@@ -88,8 +87,7 @@ public class ChatMessageService(
 
     private static int NormalizeLimit(int? limit)
     {
-        if (limit is null or < 1)
-            return DefaultPageLimit;
+        if (limit is null or < 1) return DefaultPageLimit;
         return Math.Min(limit.Value, MaxPageLimit);
     }
 
@@ -98,8 +96,7 @@ public class ChatMessageService(
         var anchor = await _repo.GetChatMessageByIdAsync(beforeMessageId)
             ?? throw new EntityNotFoundException("Message not found", StatusCodes.Status400BadRequest);
 
-        if (anchor.ChatRoomId != roomId)
-            throw new ArgumentException("beforeMessageId must refer to a message in this chat room.");
+        if (anchor.ChatRoomId != roomId) throw new ArgumentException("beforeMessageId must refer to a message in this chat room.");
     }
 
     private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message)

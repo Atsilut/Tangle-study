@@ -19,8 +19,7 @@ public class ChatRoomRepository(AppDbContext context) : IChatRoomRepository
     public Task<ChatRoom?> GetChatRoomByIdAsync(long id, bool includeParticipants = false)
     {
         var query = _context.ChatRooms.AsQueryable();
-        if (includeParticipants)
-            query = query.Include(r => r.Participants);
+        if (includeParticipants) query = query.Include(r => r.Participants);
         return query.FirstOrDefaultAsync(r => r.Id == id);
     }
 

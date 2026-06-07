@@ -31,8 +31,7 @@ namespace Api.Domain.UserBlocks.Service
             var blockerId = GetUserIdFromLogin();
             await ValidateBlockPartiesAsync(blockerId, request.BlockedUserId);
 
-            if (await _repo.ExistsUserBlockAsync(blockerId, request.BlockedUserId))
-                throw new EntityAlreadyExistsException($"User {request.BlockedUserId} is already blocked.");
+            if (await _repo.ExistsUserBlockAsync(blockerId, request.BlockedUserId)) throw new EntityAlreadyExistsException($"User {request.BlockedUserId} is already blocked.");
 
             await _repo.CreateUserBlockAsync(new UserBlock(blockerId, request.BlockedUserId));
             await _friendRequestService.Value.HandlePendingFriendRequestOnBlockAsync(blockerId, request.BlockedUserId);
@@ -50,8 +49,7 @@ namespace Api.Domain.UserBlocks.Service
         {
             var userId = GetUserIdFromLogin();
             var block = await GetBlockOrThrowAsync(id);
-            if (block.BlockerId != userId)
-                throw new UnauthorizedAccessException("Unauthorized access");
+            if (block.BlockerId != userId) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _repo.DeleteUserBlockAsync(block);
         }
@@ -61,8 +59,7 @@ namespace Api.Domain.UserBlocks.Service
 
         private async Task ValidateBlockPartiesAsync(long blockerId, long blockedUserId)
         {
-            if (blockerId == blockedUserId)
-                throw new ArgumentException("Cannot block yourself.");
+            if (blockerId == blockedUserId) throw new ArgumentException("Cannot block yourself.");
             await _userService.EnsureUserExistsAsync(blockerId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _userService.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
         }

@@ -32,16 +32,14 @@ namespace Api.Domain.Comments.Service
         private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found", int statusCode = StatusCodes.Status404NotFound)
         {
             var comment = await _repo.GetCommentByIdAsync(id);
-            if (comment == null)
-                throw new EntityNotFoundException(notFoundMessage, statusCode);
+            if (comment == null) throw new EntityNotFoundException(notFoundMessage, statusCode);
             return comment;
         }
 
         private async Task EnsureGroupBoardViewAccessForPostAsync(long postId)
         {
             var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
-            if (groupBoard is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+            if (groupBoard is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
         }
 
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
@@ -55,8 +53,7 @@ namespace Api.Domain.Comments.Service
             if (request.ParentId.HasValue)
             {
                 var parentComment = await GetCommentOrThrowAsync(request.ParentId.Value, "Parent comment not found", StatusCodes.Status400BadRequest);
-                if (parentComment.LogicalPostId != request.PostId)
-                    throw new ArgumentException("Parent comment must belong to the same post");
+                if (parentComment.LogicalPostId != request.PostId) throw new ArgumentException("Parent comment must belong to the same post");
             }
 
             var comment = new Comment(
@@ -71,8 +68,7 @@ namespace Api.Domain.Comments.Service
         {
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) return null;
-            if (comment.PostId is not null)
-                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
             return MapToDto(comment, nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"));
         }
@@ -132,8 +128,7 @@ namespace Api.Domain.Comments.Service
                     continue;
                 }
 
-                if (byId.TryGetValue(comment.ParentId.Value, out var parent))
-                    parent.Replies.Add(dto);
+                if (byId.TryGetValue(comment.ParentId.Value, out var parent)) parent.Replies.Add(dto);
             }
 
             return roots;
@@ -143,10 +138,8 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(request.Id);
-            if (comment.PostId is null && comment.DeletedPostId is not null)
-                throw new ArgumentException("Post is not reachable. Comments are readonly.");
-            if (comment.PostId is not null)
-                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            if (comment.PostId is null && comment.DeletedPostId is not null) throw new ArgumentException("Post is not reachable. Comments are readonly.");
+            if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
             await _repo.UpdateCommentAsync(comment);
@@ -172,8 +165,7 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(id);
-            if (comment.PostId is not null)
-                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _db.ExecuteInTransactionAsync(async () =>
             {

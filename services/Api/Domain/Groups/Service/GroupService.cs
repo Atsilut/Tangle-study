@@ -56,8 +56,7 @@ namespace Api.Domain.Groups.Service
 
         public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "Group not found", int statusCode = StatusCodes.Status404NotFound)
         {
-            if (!await _repo.ExistsGroupByIdAsync(id))
-                throw new EntityNotFoundException(notFoundMessage, statusCode);
+            if (!await _repo.ExistsGroupByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
         public async Task<GroupResponseDto> CreateGroupAsync(GroupCreateRequestDto request)
@@ -82,8 +81,7 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupResponseDto> GetGroupAsync(long id)
         {
             var group = await GetGroupOrThrowAsync(id);
-            if (group.Visibility == GroupVisibility.Private)
-                await _membership.EnsureMemberAsync(id, GetUserIdFromLogin());
+            if (group.Visibility == GroupVisibility.Private) await _membership.EnsureMemberAsync(id, GetUserIdFromLogin());
 
             var memberCount = await _membership.CountMembersAsync(id);
             return MapToDto(group, memberCount);
@@ -106,8 +104,7 @@ namespace Api.Domain.Groups.Service
         {
             var callerId = GetUserIdFromLogin();
             var ownerMember = await _membership.EnsureOwnerAsync(request.Id, callerId);
-            if (request.NewOwnerUserId == callerId)
-                throw new ArgumentException("You already own this group.");
+            if (request.NewOwnerUserId == callerId) throw new ArgumentException("You already own this group.");
 
             var newOwner = await _membership.GetMemberAsync(request.Id, request.NewOwnerUserId)
                 ?? throw new ArgumentException("Target user is not a member of this group.");

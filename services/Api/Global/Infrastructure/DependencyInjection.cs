@@ -28,9 +28,7 @@ public static class DependencyInjection
 
             var repoAttr = type.GetCustomAttribute<RepositoryAttribute>();
             if (repoAttr != null)
-            {
                 Register(services, type, repoAttr.Lifetime, LayerType.Repository);
-            }
         }
 
         services.AddTransient(typeof(Lazy<>), typeof(LazyService<>));
@@ -76,9 +74,7 @@ public static class DependencyInjection
             logger.LogInformation($"===== {group.Key} Layer =====");
 
             foreach (var entry in group)
-            {
                 logger.LogInformation(entry.Message);
-            }
         }
     }
 }

@@ -118,11 +118,9 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
     {
         foreach (var comment in comments)
         {
-            if (comment.Content == content)
-                return comment;
+            if (comment.Content == content) return comment;
             var inReplies = FindCommentByContent(comment.Replies, content);
-            if (inReplies is not null)
-                return inReplies;
+            if (inReplies is not null) return inReplies;
         }
         return null;
     }

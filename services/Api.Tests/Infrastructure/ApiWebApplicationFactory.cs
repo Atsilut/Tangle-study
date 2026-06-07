@@ -41,10 +41,7 @@ public sealed class ApiWebApplicationFactory(
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            if (descriptor is not null)
-            {
-                services.Remove(descriptor);
-            }
+            if (descriptor is not null) services.Remove(descriptor);
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(_connectionString, npgsql =>
@@ -52,7 +49,6 @@ public sealed class ApiWebApplicationFactory(
         });
 
         if (_redisEnabled && !string.IsNullOrWhiteSpace(_redisConnectionString))
-        {
             builder.ConfigureTestServices(services =>
             {
                 RemoveService<IConnectionMultiplexer>(services);
@@ -64,14 +60,11 @@ public sealed class ApiWebApplicationFactory(
                 services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
                 services.AddSingleton<IEventPublisher, RedisEventPublisher>();
             });
-        }
     }
 
     private static void RemoveService<T>(IServiceCollection services)
     {
         foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
-        {
             services.Remove(descriptor);
-        }
     }
 }

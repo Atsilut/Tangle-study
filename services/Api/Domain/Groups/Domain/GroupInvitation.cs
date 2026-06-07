@@ -35,8 +35,7 @@ namespace Api.Domain.Groups.Domain
 
         public GroupInvitation(long groupId, long inviterId, long inviteeId)
         {
-            if (inviterId == inviteeId)
-                throw new ArgumentException("Cannot invite yourself.");
+            if (inviterId == inviteeId) throw new ArgumentException("Cannot invite yourself.");
             GroupId = groupId;
             InviterId = inviterId;
             InviteeId = inviteeId;

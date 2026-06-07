@@ -31,15 +31,13 @@ namespace Api.Domain.Posts.Service
 
         public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found", int statusCode = StatusCodes.Status404NotFound)
         {
-            if (!await _repo.ExistsPostByIdAsync(id))
-                throw new EntityNotFoundException(notFoundMessage, statusCode);
+            if (!await _repo.ExistsPostByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
         private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found")
         {
             var post = await _repo.GetPostByIdAsync(id);
-            if (post == null)
-                throw new EntityNotFoundException(notFoundMessage);
+            if (post == null) throw new EntityNotFoundException(notFoundMessage);
             return post;
         }
 
@@ -50,8 +48,7 @@ namespace Api.Domain.Posts.Service
 
             if (request.GroupId.HasValue || request.GroupBoardId.HasValue)
             {
-                if (!request.GroupId.HasValue || !request.GroupBoardId.HasValue)
-                    throw new ArgumentException("GroupId and GroupBoardId must be provided together for group posts.");
+                if (!request.GroupId.HasValue || !request.GroupBoardId.HasValue) throw new ArgumentException("GroupId and GroupBoardId must be provided together for group posts.");
                 await _groupBoardAccess.EnsureCanWritePostAsync(request.GroupId.Value, request.GroupBoardId.Value);
             }
 
@@ -80,8 +77,7 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetPostByIdAsync(id);
             if (post == null) return null;
 
-            if (post.GroupId is not null && post.GroupBoardId is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
             var user = await _userService.GetUserByIdAsync(post.AuthorUserId);
             return MapToDto(post, user?.Nickname ?? "Deleted User");
@@ -142,8 +138,7 @@ namespace Api.Domain.Posts.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(request.Id);
-            if (post.GroupId is not null && post.GroupBoardId is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException();
             post.Update(request.Title, request.Content);
             await _repo.UpdatePostAsync(post);
@@ -168,8 +163,7 @@ namespace Api.Domain.Posts.Service
         public async Task DeleteAllByGroupAsync(long groupId)
         {
             var postIds = await _repo.GetPostIdsByGroupAsync(groupId);
-            if (postIds.Count > 0)
-                await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
+            if (postIds.Count > 0) await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
             await _repo.DeleteAllByGroupAsync(groupId);
         }
 
@@ -177,8 +171,7 @@ namespace Api.Domain.Posts.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(id);
-            if (post.GroupId is not null && post.GroupBoardId is not null)
-                await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _db.ExecuteInTransactionAsync(async () =>

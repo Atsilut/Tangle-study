@@ -31,10 +31,8 @@ public class ChatMessage
 
     public ChatMessage(long chatRoomId, long senderUserId, string body)
     {
-        if (string.IsNullOrWhiteSpace(body))
-            throw new ArgumentException("Message body cannot be empty.");
-        if (body.Length > MaxBodyLength)
-            throw new ArgumentException($"Message body cannot exceed {MaxBodyLength} characters.");
+        if (string.IsNullOrWhiteSpace(body)) throw new ArgumentException("Message body cannot be empty.");
+        if (body.Length > MaxBodyLength) throw new ArgumentException($"Message body cannot exceed {MaxBodyLength} characters.");
 
         ChatRoomId = chatRoomId;
         SenderUserId = senderUserId;

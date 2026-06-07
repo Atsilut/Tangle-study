@@ -38,8 +38,7 @@ namespace Api.Domain.Friendships.Service
             await ValidateSendRequestPartiesAsync(requesterId, request.AddresseeId);
 
             var existingRequest = await _repo.GetForUserPairAsync(requesterId, request.AddresseeId);
-            if (existingRequest is not null)
-                return await HandleExistingFriendRequestAsync(requesterId, request.AddresseeId, existingRequest);
+            if (existingRequest is not null) return await HandleExistingFriendRequestAsync(requesterId, request.AddresseeId, existingRequest);
 
             try
             {
@@ -57,8 +56,7 @@ namespace Api.Domain.Friendships.Service
         {
             return _db.ExecuteInTransactionAsync(async () =>
             {
-                if (await _repo.GetForUserPairAsync(requesterId, addresseeId) is not null)
-                    return;
+                if (await _repo.GetForUserPairAsync(requesterId, addresseeId) is not null) return;
 
                 await CreateOutgoingFriendRequestAsync(requesterId, addresseeId);
             });
@@ -76,15 +74,13 @@ namespace Api.Domain.Friendships.Service
 
         private async Task ValidateSendRequestPartiesAsync(long requesterId, long addresseeId)
         {
-            if (requesterId == addresseeId)
-                throw new ArgumentException("Cannot send a friend request to yourself.");
+            if (requesterId == addresseeId) throw new ArgumentException("Cannot send a friend request to yourself.");
 
             await _userService.EnsureUserExistsAsync(requesterId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _userService.EnsureUserExistsAsync(addresseeId, "Addressee not found", StatusCodes.Status400BadRequest);
             await _friendshipService.EnsureFriendshipDoesNotExistForUserPairAsync(requesterId, addresseeId);
 
-            if (await _userBlockService.IsBlockedByAsync(requesterId, addresseeId))
-                throw new ArgumentException("Cannot send a friend request to a user you have blocked.");
+            if (await _userBlockService.IsBlockedByAsync(requesterId, addresseeId)) throw new ArgumentException("Cannot send a friend request to a user you have blocked.");
         }
 
         private Task<bool> IsAddresseeBlockingRequesterAsync(long addresseeId, long requesterId) =>
@@ -103,12 +99,10 @@ namespace Api.Domain.Friendships.Service
             if (existingRequest.RequesterId == requesterId)
             {
                 if (existingRequest.IsPending)
-                {
                     _logger.LogInformation(
                         "Friend request for user pair {RequesterId}, {AddresseeId} already exists and is pending.",
                         requesterId,
                         addresseeId);
-                }
 
                 return SendFriendRequestOutcome.FriendRequestCreated;
             }
@@ -140,8 +134,7 @@ namespace Api.Domain.Friendships.Service
         private async Task CreateOutgoingFriendRequestAsync(long requesterId, long addresseeId)
         {
             var friendRequest = new FriendRequest(requesterId, addresseeId);
-            if (await IsAddresseeBlockingRequesterAsync(addresseeId, requesterId))
-                friendRequest.Ignore();
+            if (await IsAddresseeBlockingRequesterAsync(addresseeId, requesterId)) friendRequest.Ignore();
             await _repo.CreateFriendRequestAsync(friendRequest);
         }
 
@@ -183,10 +176,8 @@ namespace Api.Domain.Friendships.Service
         {
             var request = await _repo.GetFriendRequestByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
-            if (request.AddresseeId != addresseeId)
-                throw new UnauthorizedAccessException("Only the addressee can act on this friend request.");
-            if (requirePending && !request.IsPending)
-                throw new ArgumentException("Invalid Friend Request.");
+            if (request.AddresseeId != addresseeId) throw new UnauthorizedAccessException("Only the addressee can act on this friend request.");
+            if (requirePending && !request.IsPending) throw new ArgumentException("Invalid Friend Request.");
             return request;
         }
 
@@ -239,10 +230,8 @@ namespace Api.Domain.Friendships.Service
             var userId = GetUserIdFromLogin();
             var request = await _repo.GetFriendRequestByIdAsync(id)
                 ?? throw new EntityNotFoundException("Friend request not found");
-            if (!request.IsUserInvolved(userId))
-                throw new UnauthorizedAccessException("Unauthorized access");
-            if (!request.IsPending)
-                throw new ArgumentException("Invalid Friend Request.");
+            if (!request.IsUserInvolved(userId)) throw new UnauthorizedAccessException("Unauthorized access");
+            if (!request.IsPending) throw new ArgumentException("Invalid Friend Request.");
 
             await _repo.DeleteFriendRequestAsync(request);
         }

@@ -38,10 +38,8 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
             var dto = await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>();
             Assert.Equal(scenario.RoomId, dto!.Id);
         }
-        else if (expected == ChatExpectedOutcome.Unauthorized)
-            await AssertUnauthorizedAsync(res);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<ChatRoomMatrixKind, ChatActorRole, ChatExpectedOutcome> ListMessagesMatrixData =>
@@ -69,16 +67,12 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok)
-        {
             // Empty room returns 204 for participants — both 200 and 204 are "Ok".
             Assert.True(
                 res.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
                 $"Expected OK/NoContent but got {res.StatusCode}");
-        }
-        else if (expected == ChatExpectedOutcome.Unauthorized)
-            await AssertUnauthorizedAsync(res);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<ChatRoomMatrixKind, ChatActorRole, ChatExpectedOutcome> PostMessageMatrixData =>
@@ -105,12 +99,9 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         var res = await PostMessageAsync(scenario.RoomId, "matrix test");
 
         // Assert
-        if (expected == ChatExpectedOutcome.Ok)
-            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        else if (expected == ChatExpectedOutcome.Unauthorized)
-            await AssertUnauthorizedAsync(res);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        if (expected == ChatExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+        else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<ChatRoomMatrixKind, ChatActorRole, ChatExpectedOutcome> AddParticipantMatrixData =>
@@ -139,14 +130,10 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
             new ChatRoomParticipantAddRequestDto { UserId = scenario.Invitee.Id });
 
         // Assert
-        if (expected == ChatExpectedOutcome.Ok)
-            await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        else if (expected == ChatExpectedOutcome.Unauthorized)
-            await AssertUnauthorizedAsync(res);
-        else if (expected == ChatExpectedOutcome.NotFound)
-            await AssertChatRoomNotFoundAsync(res);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        if (expected == ChatExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+        else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
+        else if (expected == ChatExpectedOutcome.NotFound) await AssertChatRoomNotFoundAsync(res);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 
     public static TheoryData<ChatActorRole, ChatExpectedOutcome> ListGroupRoomsMatrixData =>
@@ -185,14 +172,10 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok)
-        {
             Assert.True(
                 res.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
                 $"Expected OK/NoContent but got {res.StatusCode}");
-        }
-        else if (expected == ChatExpectedOutcome.NotFound)
-            await AssertGroupNotFoundForListAsync(res);
-        else
-            await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else if (expected == ChatExpectedOutcome.NotFound) await AssertGroupNotFoundForListAsync(res);
+        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
     }
 }

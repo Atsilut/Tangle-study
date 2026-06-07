@@ -31,8 +31,7 @@ namespace Api.Domain.Friendships.Domain
 
         public FriendRequest(long requesterId, long addresseeId)
         {
-            if (requesterId == addresseeId)
-                throw new ArgumentException("Cannot send a friend request to yourself.");
+            if (requesterId == addresseeId) throw new ArgumentException("Cannot send a friend request to yourself.");
             RequesterId = requesterId;
             AddresseeId = addresseeId;
         }

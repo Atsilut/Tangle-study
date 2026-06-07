@@ -14,8 +14,7 @@ public sealed class RedisEventPublisher(
 
     public async Task PublishAsync<TPayload>(string channel, TPayload payload, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(channel))
-            throw new ArgumentException("Channel must not be empty.", nameof(channel));
+        if (string.IsNullOrWhiteSpace(channel)) throw new ArgumentException("Channel must not be empty.", nameof(channel));
 
         cancellationToken.ThrowIfCancellationRequested();
 
