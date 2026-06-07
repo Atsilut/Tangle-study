@@ -14,9 +14,9 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
     private async Task<long> GetBlockIdAsync(long blockedUserId)
     {
-        var res = await Client.GetAsync($"{BlocksBase}/me");
+        var res = await Client.GetAsync($"{BlocksBase}/me", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         return list.Single(b => b.BlockedUserId == blockedUserId).Id;
     }
@@ -34,7 +34,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Act
         var res = await Client.PostAsJsonAsync(BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
+            new UserBlockCreateRequestDto { BlockedUserId = blocked.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -50,7 +50,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Act
         var res = await Client.PostAsJsonAsync(BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = user.Id });
+            new UserBlockCreateRequestDto { BlockedUserId = user.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Cannot block yourself.");
@@ -68,7 +68,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Act
         var res = await Client.PostAsJsonAsync(BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = blocked.Id });
+            new UserBlockCreateRequestDto { BlockedUserId = blocked.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
@@ -85,7 +85,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
 
         // Act
         var res = await Client.PostAsJsonAsync(BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = 999999 });
+            new UserBlockCreateRequestDto { BlockedUserId = 999999 }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "User not found");
@@ -104,11 +104,11 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         await BlockUserAsync(blocked.Id);
 
         // Act
-        var res = await Client.GetAsync($"{BlocksBase}/me");
+        var res = await Client.GetAsync($"{BlocksBase}/me", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(blocked.Id, only.BlockedUserId);
@@ -124,7 +124,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         await LoginAs(user);
 
         // Act
-        var res = await Client.GetAsync($"{BlocksBase}/me");
+        var res = await Client.GetAsync($"{BlocksBase}/me", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
@@ -144,11 +144,11 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         var blockId = await GetBlockIdAsync(blocked.Id);
 
         // Act
-        var res = await Client.DeleteAsync($"{BlocksBase}/{blockId}");
+        var res = await Client.DeleteAsync($"{BlocksBase}/{blockId}", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{BlocksBase}/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{BlocksBase}/me", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.DeleteAsync($"{BlocksBase}/{blockId}");
+        var res = await Client.DeleteAsync($"{BlocksBase}/{blockId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
@@ -181,7 +181,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         await LoginAs(blocker);
 
         // Act
-        var res = await Client.DeleteAsync($"{BlocksBase}/999999");
+        var res = await Client.DeleteAsync($"{BlocksBase}/999999", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Block not found");
@@ -198,7 +198,7 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         await BlockUserAsync(addressee.Id);
 
         var blockedSend = await Client.PostAsJsonAsync(RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertProblemDetailAsync(
             blockedSend,
             HttpStatusCode.BadRequest,
@@ -207,10 +207,10 @@ public sealed class UserBlockControllerIntegrationTests(PostgresTestcontainerFix
         var blockId = await GetBlockIdAsync(addressee.Id);
 
         // Act
-        var delete = await Client.DeleteAsync($"{BlocksBase}/{blockId}");
+        var delete = await Client.DeleteAsync($"{BlocksBase}/{blockId}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
         var send = await Client.PostAsJsonAsync(RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+            new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, send.StatusCode);

@@ -28,15 +28,15 @@ public sealed class ChatHubInProcessRealtimeIntegrationTests(PostgresTestcontain
         var received = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
         hubConnection.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => received.TrySetResult(dto));
-        await hubConnection.StartAsync();
-        await hubConnection.InvokeAsync("JoinRoom", room.Id);
+        await hubConnection.StartAsync(TestContext.Current.CancellationToken);
+        await hubConnection.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken);
 
         // Act
         var createRes = await PostMessageAsync(room.Id, "In-process realtime");
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var pushed = await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var pushed = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal("In-process realtime", pushed.Body);
         Assert.Equal(room.Id, pushed.ChatRoomId);
         Assert.Equal(userA.Id, pushed.SenderUserId);

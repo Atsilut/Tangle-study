@@ -38,22 +38,22 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         await using var scope = Factory.Services.CreateAsyncScope();
         var cache = scope.ServiceProvider.GetRequiredService<IDistributedCache>();
         var nicknameCacheKey = $"users:nickname:{userA.Id}";
-        var cachedBeforeUpdate = await cache.GetStringAsync(nicknameCacheKey);
+        var cachedBeforeUpdate = await cache.GetStringAsync(nicknameCacheKey, TestContext.Current.CancellationToken);
         Assert.False(string.IsNullOrWhiteSpace(cachedBeforeUpdate));
         Assert.Equal(userA.Nickname, cachedBeforeUpdate);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(userA.Id, updatedNickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(userA.Id, updatedNickname), TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
-        var cachedAfterUpdate = await cache.GetStringAsync(nicknameCacheKey);
+        var cachedAfterUpdate = await cache.GetStringAsync(nicknameCacheKey, TestContext.Current.CancellationToken);
         Assert.Null(cachedAfterUpdate);
 
         await LoginAs(userB);
-        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages");
+        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
-        var messages = await listRes.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>();
+        var messages = await listRes.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(messages);
         Assert.Contains(messages, m => m.SenderUserId == userA.Id && m.SenderNickname == updatedNickname);
     }
@@ -80,11 +80,11 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         });
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(user.Id, updatedNickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(user.Id, updatedNickname), TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
-        var published = await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var published = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal(user.Id, published.UserId);
         Assert.Equal(updatedNickname, published.Nickname);
         Assert.False(published.IsDeleted);

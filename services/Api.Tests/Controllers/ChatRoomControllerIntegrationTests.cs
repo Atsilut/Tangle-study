@@ -50,11 +50,11 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/direct",
-            new ChatRoomDirectCreateRequestDto { OtherUserId = stranger.Id });
+            new ChatRoomDirectCreateRequestDto { OtherUserId = stranger.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.Contains("friends", problem!.Detail, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -73,7 +73,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/direct",
-            new ChatRoomDirectCreateRequestDto { OtherUserId = userB.Id });
+            new ChatRoomDirectCreateRequestDto { OtherUserId = userB.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailContainsAsync(res, "block");
@@ -91,7 +91,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/direct",
-            new ChatRoomDirectCreateRequestDto { OtherUserId = userA.Id });
+            new ChatRoomDirectCreateRequestDto { OtherUserId = userA.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
@@ -111,7 +111,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(userA);
         await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{firstRoom.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = userC.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = userC.Id }, TestContext.Current.CancellationToken);
 
         // Act
         var secondRoom = await GetOrCreateDirectRoomAsync(userA, userB.Id);
@@ -138,13 +138,13 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(userB);
         var addRes = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{room.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = userD.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = userD.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, addRes.StatusCode);
         await LoginAs(userA);
-        var getRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}");
-        var updated = await getRes.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>();
+        var getRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}", TestContext.Current.CancellationToken);
+        var updated = await getRes.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.Equal(3, updated!.Participants.Count);
         Assert.Contains(updated.Participants, p => p.UserId == userD.Id);
         Assert.All(updated.Participants, p => Assert.Equal(ChatRoomParticipantRole.Member, p.Role));
@@ -162,7 +162,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/multi",
-            new ChatRoomMultiCreateRequestDto { ParticipantUserIds = [] });
+            new ChatRoomMultiCreateRequestDto { ParticipantUserIds = [] }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
@@ -182,7 +182,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/multi",
-            new ChatRoomMultiCreateRequestDto { ParticipantUserIds = [userB.Id] });
+            new ChatRoomMultiCreateRequestDto { ParticipantUserIds = [userB.Id] }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailContainsAsync(res, "block");
@@ -206,12 +206,12 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var addRes = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{directRoom.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = userC.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = userC.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, addRes.StatusCode);
-        var room = await (await Client.GetAsync($"{ChatRoomsBase}/{directRoom.Id}"))
-            .Content.ReadFromJsonAsync<ChatRoomGetResponseDto>();
+        var room = await (await Client.GetAsync($"{ChatRoomsBase}/{directRoom.Id}", TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.Equal(ChatRoomKind.Multi, room!.Kind);
         Assert.Equal(3, room.Participants.Count);
         Assert.All(room.Participants, p => Assert.Equal(ChatRoomParticipantRole.Member, p.Role));
@@ -232,7 +232,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{room.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = userB.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = userB.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
@@ -254,7 +254,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/chat-rooms");
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/chat-rooms", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -297,7 +297,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(member);
         var denied = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{room.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = invitee.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = invitee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(denied, HttpStatusCode.Unauthorized);
@@ -306,7 +306,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(owner);
         var allowed = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{room.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = invitee.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = invitee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
@@ -330,7 +330,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{room.Id}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = outsider.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = outsider.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailContainsAsync(res, "member of this group");
@@ -372,7 +372,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}");
+        var res = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
@@ -388,7 +388,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         await LoginAs(userA);
 
         // Act
-        var res = await Client.GetAsync($"{ChatRoomsBase}/99999999");
+        var res = await Client.GetAsync($"{ChatRoomsBase}/99999999", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -411,7 +411,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(leaveRes, HttpStatusCode.NoContent);
-        var getRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}");
+        var getRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.Unauthorized);
 
         // Act

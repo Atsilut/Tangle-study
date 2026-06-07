@@ -41,7 +41,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             : $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members";
 
         // Act
-        var res = await Client.GetAsync(path);
+        var res = await Client.GetAsync(path, TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok)
@@ -49,12 +49,12 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
             if (operation == GroupReadOperation.GetGroup)
             {
-                var dto = await res.Content.ReadFromJsonAsync<GroupResponseDto>();
+                var dto = await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken);
                 Assert.Equal(group.Id, dto!.Id);
             }
             else
             {
-                var members = await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>();
+                var members = await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>(TestContext.Current.CancellationToken);
                 Assert.NotNull(members);
                 Assert.True(members!.Count >= 1);
             }
@@ -102,14 +102,14 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 Name = expected == GroupExpectedOutcome.Ok ? "Updated" : "x",
                 Description = "desc",
                 Visibility = GroupVisibility.Public,
-            }),
-            GroupManagementAction.Delete => await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}"),
+            }, TestContext.Current.CancellationToken),
+            GroupManagementAction.Delete => await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken),
             GroupManagementAction.TransferToMember => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id }),
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id }, TestContext.Current.CancellationToken),
             GroupManagementAction.TransferToSelf => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Owner.Id }),
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Owner.Id }, TestContext.Current.CancellationToken),
             GroupManagementAction.TransferToStranger => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id }),
+                new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Stranger.Id }, TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
         };
 
@@ -126,7 +126,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 {
                     await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
                     await scenario.LoginAsAsync(GroupActorRole.Owner);
-                    var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+                    var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
                     await AssertGroupNotFoundAsync(get);
                 }
                 else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
@@ -176,7 +176,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
 
         // Act
         var res = await Client.DeleteAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{targetUserId}");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{targetUserId}", TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok)
@@ -218,13 +218,13 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         // Act
         var res = await Client.PatchAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{targetUserId}",
-            new GroupMemberRolePatchRequestDto { Role = newRole });
+            new GroupMemberRolePatchRequestDto { Role = newRole }, TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok)
         {
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-            var body = await res.Content.ReadFromJsonAsync<GroupMemberResponseDto>();
+            var body = await res.Content.ReadFromJsonAsync<GroupMemberResponseDto>(TestContext.Current.CancellationToken);
             Assert.Equal(newRole, body!.Role);
         }
         else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
@@ -240,7 +240,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
 
         // Act
         var res = await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",
-            new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id });
+            new GroupTransferOwnershipRequestDto { Id = group.Id, NewOwnerUserId = scenario.Member.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -257,12 +257,12 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
-        var res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        var res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
-        var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
         await AssertGroupNotFoundAsync(get);
     }
 }

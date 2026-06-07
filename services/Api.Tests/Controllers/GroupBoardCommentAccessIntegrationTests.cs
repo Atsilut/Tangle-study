@@ -25,7 +25,7 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
 
         await scenario.LoginAsAsync(GroupActorRole.Owner);
         var removeRes = await Client.DeleteAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
         await scenario.AssertMemberAbsentAsync(group.Id, scenario.Member.Id);
         await scenario.LoginAsAsync(GroupActorRole.Member);
@@ -33,17 +33,17 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         // Act
         var updateRes = await Client.PatchAsJsonAsync(
             "/api/comments",
-            new CommentPatchRequestDto { Id = comment.Id, Content = "updated after removal" });
-        var deleteRes = await Client.DeleteAsync($"/api/comments/{comment.Id}");
+            new CommentPatchRequestDto { Id = comment.Id, Content = "updated after removal" }, TestContext.Current.CancellationToken);
+        var deleteRes = await Client.DeleteAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(updateRes, HttpStatusCode.Unauthorized);
         await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.Unauthorized);
 
         await scenario.LoginAsAsync(GroupActorRole.Owner);
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
-        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.Equal(commentContent, dto!.Content);
     }
 
@@ -61,16 +61,16 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
 
         await scenario.LoginAsAsync(GroupActorRole.Owner);
         var removeRes = await Client.DeleteAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members/{scenario.Member.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
         // Act
-        var getByIdRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var getByPostRes = await Client.GetAsync($"/api/comments/post/{postId}");
+        var getByIdRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var getByPostRes = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
         var createRes = await Client.PostAsJsonAsync(
             "/api/comments",
-            new CommentCreateRequestDto { PostId = postId, Content = "new after removal" });
+            new CommentCreateRequestDto { PostId = postId, Content = "new after removal" }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(getByIdRes, HttpStatusCode.Unauthorized);
@@ -90,22 +90,22 @@ public sealed class GroupBoardCommentAccessIntegrationTests(PostgresTestcontaine
         var title = $"post_{Guid.NewGuid():N}";
         var createPostRes = await Client.PostAsJsonAsync(
             postsBase,
-            new GroupBoardPostCreateRequestDto { Title = title, Content = "body" });
+            new GroupBoardPostCreateRequestDto { Title = title, Content = "body" }, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createPostRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync(postsBase);
+        var listRes = await Client.GetAsync(postsBase, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
-        var posts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var posts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var post = posts!.Single(p => p.Title == title);
 
         var createCommentRes = await Client.PostAsJsonAsync(
             "/api/comments",
-            new CommentCreateRequestDto { PostId = post.Id, Content = commentContent });
+            new CommentCreateRequestDto { PostId = post.Id, Content = commentContent }, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createCommentRes, HttpStatusCode.Created);
 
-        var getCommentsRes = await Client.GetAsync($"/api/comments/post/{post.Id}");
+        var getCommentsRes = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getCommentsRes, HttpStatusCode.OK);
-        var commentTree = await getCommentsRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var commentTree = await getCommentsRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         var comment = FindCommentByContent(commentTree!, commentContent);
         Assert.NotNull(comment);
 

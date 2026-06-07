@@ -23,9 +23,9 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
         // Assert
         Assert.Equal(1, group.MemberCount);
 
-        var membersRes = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members");
+        var membersRes = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/members", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(membersRes, HttpStatusCode.OK);
-        var members = await membersRes.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>();
+        var members = await membersRes.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(members);
         var single = Assert.Single(members);
         Assert.Equal(GroupRole.Owner, single.Role);

@@ -26,11 +26,11 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
     private async Task<UserGetResponseDto> CreateAndGetUser(UserCreateRequestDto? req = null)
     {
         req ??= CreateUserRequest();
-        var create = await Client.PostAsJsonAsync("/api/join", req);
+        var create = await Client.PostAsJsonAsync("/api/join", req, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(create, HttpStatusCode.Created);
 
-        var getAll = await Client.GetAsync("/api/users");
-        var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>();
+        var getAll = await Client.GetAsync("/api/users", TestContext.Current.CancellationToken);
+        var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>(TestContext.Current.CancellationToken);
         return all!.First(u => u.Email == req.Email);
     }
 
@@ -44,7 +44,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         var duplicateReq = CreateUserRequest(email: created.Email);
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/join", duplicateReq);
+        var res = await Client.PostAsJsonAsync("/api/join", duplicateReq, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
@@ -64,12 +64,12 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
-        var loginResult = await res.Content.ReadFromJsonAsync<LoginResponseDto>();
+        var loginResult = await res.Content.ReadFromJsonAsync<LoginResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(loginResult);
     }
 
@@ -86,7 +86,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
@@ -105,7 +105,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/login", req);
+        var res = await Client.PostAsJsonAsync("/api/login", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);

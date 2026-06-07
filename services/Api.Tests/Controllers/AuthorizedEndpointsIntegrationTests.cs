@@ -89,12 +89,12 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
     private Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, object? body) =>
         method.Method switch
         {
-            "POST" when body is not null => Client.PostAsJsonAsync(url, body),
-            "POST" => Client.PostAsync(url, null),
-            "GET" => Client.GetAsync(url),
-            "PATCH" when body is not null => Client.PatchAsJsonAsync(url, body),
+            "POST" when body is not null => Client.PostAsJsonAsync(url, body, TestContext.Current.CancellationToken),
+            "POST" => Client.PostAsync(url, null, TestContext.Current.CancellationToken),
+            "GET" => Client.GetAsync(url, TestContext.Current.CancellationToken),
+            "PATCH" when body is not null => Client.PatchAsJsonAsync(url, body, TestContext.Current.CancellationToken),
             "PATCH" => Client.PatchAsync(url, null),
-            "DELETE" => Client.DeleteAsync(url),
+            "DELETE" => Client.DeleteAsync(url, TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(method), method, "Unsupported HTTP method."),
         };
 }

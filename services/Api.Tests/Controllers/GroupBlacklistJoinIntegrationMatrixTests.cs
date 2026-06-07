@@ -37,7 +37,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
             // Act
             var res = await Client.PostAsJsonAsync(
                 $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/blacklist",
-                new GroupBlacklistCreateRequestDto { UserId = scenario.Stranger.Id });
+                new GroupBlacklistCreateRequestDto { UserId = scenario.Stranger.Id }, TestContext.Current.CancellationToken);
 
             // Assert
             if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
@@ -50,7 +50,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
 
         // Act
         var removeRes = await Client.DeleteAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/blacklist/{scenario.Stranger.Id}");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/blacklist/{scenario.Stranger.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
@@ -69,7 +69,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
@@ -84,7 +84,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Open);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+        await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null, TestContext.Current.CancellationToken);
         await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
 
         // Act
@@ -108,7 +108,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null);
+        var res = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -125,7 +125,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/blacklist",
-            new GroupBlacklistCreateRequestDto { UserId = scenario.Owner.Id });
+            new GroupBlacklistCreateRequestDto { UserId = scenario.Owner.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);

@@ -40,7 +40,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         {
             // Act
             var joinRes = await Client.PostAsync(
-                $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+                $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null, TestContext.Current.CancellationToken);
 
             // Assert
             if (expected == JoinPolicyRouteOutcome.MemberAdded)
@@ -58,7 +58,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
 
         // Act
         var applyRes = await Client.PostAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null, TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == JoinPolicyRouteOutcome.ApplicationCreated)
@@ -86,7 +86,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
-        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
@@ -104,7 +104,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
 
         // Act
         var res = await Client.PostAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
@@ -123,7 +123,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null);
+        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/join", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -144,7 +144,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
 
         // Act
         var res = await Client.PostAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null);
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -159,7 +159,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/99999/join", null);
+        var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/99999/join", null, TestContext.Current.CancellationToken);
 
         // Assert
         await AssertGroupNotFoundAsync(res);

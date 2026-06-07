@@ -16,13 +16,13 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
 
         // Act
-        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}");
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
         await AssertGroupNotFoundAsync(getGroup);
     }
 
@@ -35,7 +35,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
 
         // Act
-        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}");
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
@@ -56,14 +56,14 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Member);
 
         // Act
-        var delete = await Client.DeleteAsync($"/api/users/{scenario.Member.Id}");
+        var delete = await Client.DeleteAsync($"/api/users/{scenario.Member.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         await GroupIntegrationTestHelpers.LoginAsAsync(Client, scenario.Owner);
         await scenario.AssertMemberAbsentAsync(group.Id, scenario.Member.Id);
-        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}");
+        var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getGroup, HttpStatusCode.OK);
     }
 }

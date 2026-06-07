@@ -10,21 +10,22 @@ public static class AppDbContextTestExtensions
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.ChatMessages.ExecuteDeleteAsync();
-        await db.ChatRoomParticipants.ExecuteDeleteAsync();
-        await db.ChatRooms.ExecuteDeleteAsync();
-        await db.FriendRequests.ExecuteDeleteAsync();
-        await db.UserBlocks.ExecuteDeleteAsync();
-        await db.Friendships.ExecuteDeleteAsync();
-        await db.GroupMembers.ExecuteDeleteAsync();
-        await db.GroupApplications.ExecuteDeleteAsync();
-        await db.GroupInvitations.ExecuteDeleteAsync();
-        await db.GroupBlacklists.ExecuteDeleteAsync();
-        await db.Comments.ExecuteDeleteAsync();
-        await db.Posts.ExecuteDeleteAsync();
-        await db.GroupBoards.ExecuteDeleteAsync();
-        await db.Groups.ExecuteDeleteAsync();
-        await db.Users.ExecuteDeleteAsync();
+        var ct = TestContext.Current.CancellationToken;
+        await db.ChatMessages.ExecuteDeleteAsync(ct);
+        await db.ChatRoomParticipants.ExecuteDeleteAsync(ct);
+        await db.ChatRooms.ExecuteDeleteAsync(ct);
+        await db.FriendRequests.ExecuteDeleteAsync(ct);
+        await db.UserBlocks.ExecuteDeleteAsync(ct);
+        await db.Friendships.ExecuteDeleteAsync(ct);
+        await db.GroupMembers.ExecuteDeleteAsync(ct);
+        await db.GroupApplications.ExecuteDeleteAsync(ct);
+        await db.GroupInvitations.ExecuteDeleteAsync(ct);
+        await db.GroupBlacklists.ExecuteDeleteAsync(ct);
+        await db.Comments.ExecuteDeleteAsync(ct);
+        await db.Posts.ExecuteDeleteAsync(ct);
+        await db.GroupBoards.ExecuteDeleteAsync(ct);
+        await db.Groups.ExecuteDeleteAsync(ct);
+        await db.Users.ExecuteDeleteAsync(ct);
         db.ChangeTracker.Clear();
     }
 }

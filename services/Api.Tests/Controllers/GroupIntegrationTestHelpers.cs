@@ -41,15 +41,16 @@ internal static class GroupIntegrationTestHelpers
             Description = "test group",
             Visibility = visibility,
             JoinPolicy = joinPolicy,
-        });
+        }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<GroupResponseDto>())!;
+        return (await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
     public static async Task BlockUserAsync(HttpClient client, long blockedUserId)
     {
         var res = await client.PostAsJsonAsync("/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = blockedUserId });
+            new UserBlockCreateRequestDto { BlockedUserId = blockedUserId },
+            TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
@@ -62,7 +63,7 @@ internal static class GroupIntegrationTestHelpers
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.GroupMembers.Add(new GroupMember(groupId, userId, role));
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     public static async Task<GroupInvitationEntity> SeedInvitationAsync(
@@ -77,7 +78,7 @@ internal static class GroupIntegrationTestHelpers
         var invitation = new GroupInvitationEntity(groupId, inviterId, inviteeId);
         if (!isPending) invitation.Ignore();
         db.GroupInvitations.Add(invitation);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         return invitation;
     }
 
@@ -92,7 +93,7 @@ internal static class GroupIntegrationTestHelpers
         var application = new GroupApplicationEntity(groupId, applicantId);
         if (!isPending) application.Ignore();
         db.GroupApplications.Add(application);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         return application;
     }
 
@@ -106,7 +107,7 @@ internal static class GroupIntegrationTestHelpers
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var board = new GroupBoardEntity(groupId, name, visibility);
         db.GroupBoards.Add(board);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         return board;
     }
 }

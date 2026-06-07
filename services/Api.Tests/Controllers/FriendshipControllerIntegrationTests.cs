@@ -27,16 +27,16 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await SendFriendRequestAsync(pending.Id);
 
         await LoginAs(friend);
-        await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         await LoginAs(me);
 
         // Act
-        var res = await Client.GetAsync($"{FriendshipsBase}/me");
+        var res = await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(friend.Id, only.OtherUserId);
@@ -56,11 +56,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         Assert.Equal(friend.Id, Assert.Single(list).OtherUserId);
     }
@@ -79,11 +79,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("You must be friends to view this user's friends list.", problem.Detail);
     }
@@ -103,11 +103,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(friend);
 
         // Act
-        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         Assert.Equal(2, list.Count);
     }
@@ -125,11 +125,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(friend);
 
         // Act
-        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}");
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("This user's friends list is private.", problem.Detail);
     }
@@ -148,12 +148,12 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         var friendshipId = (await GetAcceptedFriendAsync(b.Id)).Id;
 
         // Act
-        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}");
+        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
-        var friends = await Client.GetAsync($"{FriendshipsBase}/me");
+        var friends = await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(friends, HttpStatusCode.NoContent);
     }
 
@@ -172,11 +172,11 @@ public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFi
         await LoginAs(stranger);
 
         // Act
-        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}");
+        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Unauthorized access", problem.Detail);
     }

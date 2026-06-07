@@ -24,7 +24,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var req = new PostCreateRequestDto { Title = title, Content = content };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/posts", req);
+        var res = await Client.PostAsJsonAsync("/api/posts", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
@@ -42,7 +42,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var req = new PostCreateRequestDto { Title = title, Content = content };
         // Act
-        var res = await Client.PostAsJsonAsync("/api/posts", req);
+        var res = await Client.PostAsJsonAsync("/api/posts", req, TestContext.Current.CancellationToken);
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
     }
@@ -64,18 +64,18 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string contentSuffix2 = " 222";
         var createReq1 = new PostCreateRequestDto { Title = title + titleSuffix1, Content = content + contentSuffix1 };
         var createReq2 = new PostCreateRequestDto { Title = title + titleSuffix2, Content = content + contentSuffix2 };
-        var createRes1 = await Client.PostAsJsonAsync("/api/posts", createReq1);
+        var createRes1 = await Client.PostAsJsonAsync("/api/posts", createReq1, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes1, HttpStatusCode.Created);
-        var createRes2 = await Client.PostAsJsonAsync("/api/posts", createReq2);
+        var createRes2 = await Client.PostAsJsonAsync("/api/posts", createReq2, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes2, HttpStatusCode.Created);
 
         // Act
-        var res = await Client.GetAsync("/api/posts");
+        var res = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
 
-        var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.Equal(2, list!.Count);
         Assert.Contains(list, p => p.Title == title + titleSuffix1 && p.Content == content + contentSuffix1);
         Assert.Contains(list, p => p.Title == title + titleSuffix2 && p.Content == content + contentSuffix2);
@@ -88,7 +88,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         // (empty database from test fixture)
 
         // Act
-        var res = await Client.GetAsync("/api/posts");
+        var res = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -104,17 +104,17 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string title = "test title";
         const string content = "test content";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync("/api/posts");
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
-        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var created = allPosts!.Single(post => post.Title == title);
 
         // Act
-        var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
@@ -133,7 +133,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long missingPostId = 999999999999;
 
         // Act
-        var res = await Client.GetAsync($"/api/posts/{missingPostId}");
+        var res = await Client.GetAsync($"/api/posts/{missingPostId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -149,7 +149,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string title = "nickname lookup title";
         const string content = "nickname lookup content";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
         Client.DefaultRequestHeaders.Authorization = null;
@@ -157,12 +157,12 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var encodedNickname = Uri.EscapeDataString(user.Nickname);
 
         // Act
-        var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}");
+        var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
 
-        var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var list = await getRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var post = Assert.Single(list);
         Assert.Equal(title, post.Title);
@@ -180,7 +180,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var encodedNickname = Uri.EscapeDataString(user.Nickname);
 
         // Act
-        var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}");
+        var getRes = await Client.GetAsync($"/api/posts/nickname/{encodedNickname}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NoContent);
@@ -193,7 +193,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string unknownNicknamePath = "DefinitelyNoSuchUserNickname99999";
 
         // Act
-        var getRes = await Client.GetAsync("/api/posts/nickname/" + unknownNicknamePath);
+        var getRes = await Client.GetAsync("/api/posts/nickname/" + unknownNicknamePath, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NoContent);
@@ -211,11 +211,11 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var createReq = new PostCreateRequestDto { Title = originalTitle, Content = originalBody };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync("/api/posts");
-        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var created = allPosts!.Single(p => p.Title == originalTitle);
         var updatedAtBefore = created.UpdatedAt;
 
@@ -229,10 +229,10 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         };
 
         // Act
-        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
-        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>();
-        var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq, TestContext.Current.CancellationToken);
+        var patchDto = await patchRes.Content.ReadFromJsonAsync<PostPatchResponseDto>(TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
@@ -260,11 +260,11 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string title = "owners post";
         const string content = "hands off";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync("/api/posts");
-        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var created = allPosts!.Single(p => p.Title == title);
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, nonOwner);
@@ -278,7 +278,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         };
 
         // Act
-        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
+        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
@@ -287,8 +287,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             "Attempted to perform an unauthorized operation.");
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
-        var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(dto);
         Assert.Equal(title, dto.Title);
         Assert.NotEqual(newTitle, dto.Title);
@@ -313,7 +313,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         };
 
         // Act
-        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq);
+        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(patchRes, HttpStatusCode.NotFound, "Post not found");
@@ -331,16 +331,16 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var createReq = new PostCreateRequestDto { Title = deleteTitle, Content = deleteContent };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync("/api/posts");
-        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var created = allPosts!.Single(p => p.Title == deleteTitle);
 
         // Act
-        var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}");
-        var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NoContent);
@@ -359,25 +359,25 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const string title = "do not delete me";
         const string content = "still here";
         var createReq = new PostCreateRequestDto { Title = title, Content = content };
-        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq);
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        var listRes = await Client.GetAsync("/api/posts");
-        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var created = allPosts!.Single(p => p.Title == title);
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, other);
 
         // Act
-        var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}");
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(deleteRes, HttpStatusCode.Unauthorized, "Unauthorized access");
 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
-        var getRes = await Client.GetAsync($"/api/posts/{created.Id}");
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
-        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>();
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(dto);
         Assert.Equal(title, dto.Title);
         Assert.Equal(content, dto.Content);
@@ -393,7 +393,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
 
         // Act
-        var deleteRes = await Client.DeleteAsync($"/api/posts/{missingPostId}");
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{missingPostId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(deleteRes, HttpStatusCode.NotFound, "Post not found");

@@ -23,7 +23,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
 
         // Act
-        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -42,7 +42,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         Client.DefaultRequestHeaders.Authorization = null;
 
         // Act
-        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
@@ -57,7 +57,7 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
 
         // Act
-        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = 999999 });
+        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = 999999 }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Addressee not found");
@@ -72,11 +72,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
 
         // Act
-        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+        var res = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot send a friend request to yourself.", problem.Detail);
     }
@@ -89,11 +89,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(requester);
-        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
         // Act
-        var dup = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var dup = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, dup.StatusCode);
@@ -107,20 +107,20 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var requester = await CreateUserForTest(testMethodName, 1);
         var addressee = await CreateUserForTest(testMethodName, 2);
         await LoginAs(requester);
-        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var first = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
         await LoginAs(addressee);
 
         // Act
-        var reciprocal = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+        var reciprocal = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, reciprocal.StatusCode);
         await LoginAs(addressee);
         Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
 
-        var pending = await Client.GetAsync($"{RequestsBase}/pending");
+        var pending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
     }
 
@@ -133,17 +133,17 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var addressee = await CreateUserForTest(testMethodName, 2);
         var requestId = await SendFriendRequestAndGetOutgoingIdAsync(requester, addressee);
         await LoginAs(addressee);
-        var ignore = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
+        var ignore = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, ignore.StatusCode);
 
         // Act
         var reciprocal = await Client.PostAsJsonAsync(RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+            new FriendRequestCreateRequestDto { AddresseeId = requester.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, reciprocal.StatusCode);
         Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     // --- GET ---
@@ -158,18 +158,18 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         var incoming = await CreateUserForTest(testMethodName, 3);
 
         await LoginAs(me);
-        await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = outgoing.Id });
+        await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = outgoing.Id }, TestContext.Current.CancellationToken);
         await LoginAs(incoming);
-        await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = me.Id });
+        await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = me.Id }, TestContext.Current.CancellationToken);
 
         await LoginAs(me);
 
         // Act
-        var res = await Client.GetAsync($"{RequestsBase}/pending");
+        var res = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var list = await res.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         Assert.Equal(2, list.Count);
         Assert.Contains(list, p => p.OtherUserId == outgoing.Id && !p.IsIncoming);
@@ -190,14 +190,14 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         await LoginAs(addressee);
         Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
 
-        var pending = await Client.GetAsync($"{RequestsBase}/pending");
+        var pending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
     }
 
@@ -214,15 +214,15 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await BlockUserAsync(requester.Id);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot form a friendship while a block exists between you and this user.", problem.Detail);
         await LoginAs(addressee);
-        var friends = await Client.GetAsync($"{FriendshipsBase}/me");
+        var friends = await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, friends.StatusCode);
     }
 
@@ -239,12 +239,12 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await BlockUserAsync(requester.Id);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
         await LoginAs(addressee);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -258,23 +258,23 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         await LoginAs(requester);
         await BlockUserAsync(addressee.Id);
-        var blocks = await Client.GetAsync("/api/users/blocks/me");
-        var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>();
+        var blocks = await Client.GetAsync("/api/users/blocks/me", TestContext.Current.CancellationToken);
+        var blockList = await blocks.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>(TestContext.Current.CancellationToken);
         var blockId = Assert.Single(blockList!).Id;
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"/api/users/blocks/{blockId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"/api/users/blocks/{blockId}", TestContext.Current.CancellationToken)).StatusCode);
 
         // Act
         await LoginAs(addressee);
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Friend request not found", problem.Detail);
         await LoginAs(addressee);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -289,11 +289,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Only the addressee can act on this friend request.", problem.Detail);
     }
@@ -312,42 +312,42 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var ignore = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null);
+        var ignore = await Client.PostAsync($"{RequestsBase}/{requestId}/ignore", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, ignore.StatusCode);
-        var addresseePending = await Client.GetAsync($"{RequestsBase}/pending");
+        var addresseePending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, addresseePending.StatusCode);
 
-        var ignored = await Client.GetAsync($"{RequestsBase}/ignored");
+        var ignored = await Client.GetAsync($"{RequestsBase}/ignored", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, ignored.StatusCode);
-        var ignoredList = await ignored.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var ignoredList = await ignored.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(ignoredList);
         Assert.Contains(ignoredList, d => d.Id == requestId && !d.IsPending);
 
         await LoginAs(requester);
-        var requesterPending = await Client.GetAsync($"{RequestsBase}/pending");
+        var requesterPending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, requesterPending.StatusCode);
-        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(requesterList);
         var outgoing = Assert.Single(requesterList);
         Assert.True(outgoing.IsPending);
         Assert.Equal(addressee.Id, outgoing.OtherUserId);
 
-        var resend = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var resend = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, resend.StatusCode);
 
         await LoginAs(addressee);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
-        var ignoredAfterResend = await Client.GetAsync($"{RequestsBase}/ignored");
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
+        var ignoredAfterResend = await Client.GetAsync($"{RequestsBase}/ignored", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, ignoredAfterResend.StatusCode);
-        var ignoredAfterResendList = await ignoredAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var ignoredAfterResendList = await ignoredAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.Contains(ignoredAfterResendList!, d => d.Id == requestId && !d.IsPending);
 
         await LoginAs(requester);
-        var requesterPendingAfterResend = await Client.GetAsync($"{RequestsBase}/pending");
+        var requesterPendingAfterResend = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, requesterPendingAfterResend.StatusCode);
-        var requesterListAfterResend = await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var requesterListAfterResend = await requesterPendingAfterResend.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(requesterListAfterResend);
         var outgoingAfterResend = Assert.Single(requesterListAfterResend);
         Assert.True(outgoingAfterResend.IsPending);
@@ -365,11 +365,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await BlockUserAsync(addressee.Id);
 
         // Act
-        var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, send.StatusCode);
-        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot send a friend request to a user you have blocked.", problem.Detail);
     }
@@ -386,26 +386,26 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
         await BlockUserAsync(requester.Id);
 
-        var addresseePending = await Client.GetAsync($"{RequestsBase}/pending");
+        var addresseePending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, addresseePending.StatusCode);
 
         await LoginAs(requester);
 
         // Act
-        var resend = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id });
+        var resend = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = addressee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, resend.StatusCode);
-        var requesterPending = await Client.GetAsync($"{RequestsBase}/pending");
+        var requesterPending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, requesterPending.StatusCode);
-        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>();
+        var requesterList = await requesterPending.Content.ReadFromJsonAsync<List<FriendRequestGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(requesterList);
         var outgoing = Assert.Single(requesterList);
         Assert.True(outgoing.IsPending);
         Assert.Equal(addressee.Id, outgoing.OtherUserId);
 
         await LoginAs(addressee);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -419,11 +419,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await BlockUserAsync(requester.Id);
 
         // Act
-        var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+        var send = await Client.PostAsJsonAsync(RequestsBase, new FriendRequestCreateRequestDto { AddresseeId = requester.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, send.StatusCode);
-        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot send a friend request to a user you have blocked.", problem.Detail);
     }
@@ -439,13 +439,13 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(requester);
 
         // Act
-        var cancel = await Client.DeleteAsync($"{RequestsBase}/{requestId}");
+        var cancel = await Client.DeleteAsync($"{RequestsBase}/{requestId}", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, cancel.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
         await LoginAs(addressee);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -460,11 +460,11 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var res = await Client.DeleteAsync($"{RequestsBase}/{requestId}/reject");
+        var res = await Client.DeleteAsync($"{RequestsBase}/{requestId}/reject", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
-        var pending = await Client.GetAsync($"{RequestsBase}/pending");
+        var pending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
     }
 
@@ -482,15 +482,15 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
 
         // Act
         var send = await Client.PostAsJsonAsync(RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = requester.Id });
+            new FriendRequestCreateRequestDto { AddresseeId = requester.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, send.StatusCode);
-        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await send.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot send a friend request to a user you have blocked.", problem.Detail);
         await LoginAs(requester);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -505,12 +505,12 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal(requester.Id, (await GetAcceptedFriendAsync(requester.Id)).OtherUserId);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -525,13 +525,13 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var res = await Client.DeleteAsync($"{RequestsBase}/{requestId}/reject");
+        var res = await Client.DeleteAsync($"{RequestsBase}/{requestId}/reject", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
         await LoginAs(requester);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -547,14 +547,14 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(addressee);
 
         // Act
-        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null);
+        var res = await Client.PostAsync($"{RequestsBase}/{requestId}/accept", content: null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal("Cannot form a friendship while a block exists between you and this user.", problem.Detail);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -568,12 +568,12 @@ public sealed class FriendRequestControllerIntegrationTests(PostgresTestcontaine
         await LoginAs(deleter);
 
         // Act
-        var delete = await Client.DeleteAsync($"/api/users/{deleter.Id}");
+        var delete = await Client.DeleteAsync($"/api/users/{deleter.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
         await LoginAs(other);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken)).StatusCode);
     }
 }

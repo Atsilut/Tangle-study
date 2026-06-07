@@ -32,7 +32,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/invitations",
-            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id });
+            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
@@ -77,11 +77,11 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         HttpResponseMessage res = action switch
         {
             InvitationRequestAction.Accept or InvitationRequestAction.AcceptAsNonInvitee =>
-                await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null),
-            InvitationRequestAction.Reject => await Client.PostAsync($"/api/invitations/{invitation.Id}/reject", null),
-            InvitationRequestAction.Ignore => await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null),
+                await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null, TestContext.Current.CancellationToken),
+            InvitationRequestAction.Reject => await Client.PostAsync($"/api/invitations/{invitation.Id}/reject", null, TestContext.Current.CancellationToken),
+            InvitationRequestAction.Ignore => await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken),
             InvitationRequestAction.Cancel or InvitationRequestAction.CancelAsNonInviterAdmin =>
-                await Client.DeleteAsync($"/api/invitations/{invitation.Id}"),
+                await Client.DeleteAsync($"/api/invitations/{invitation.Id}", TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
         };
 
@@ -131,12 +131,12 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         HttpResponseMessage res = action switch
         {
             ApplicationRequestAction.Approve or ApplicationRequestAction.ApproveAsApplicant => await Client.PostAsync(
-                $"/api/applications/{application.Id}/approve", null),
+                $"/api/applications/{application.Id}/approve", null, TestContext.Current.CancellationToken),
             ApplicationRequestAction.Reject => await Client.PostAsync(
-                $"/api/applications/{application.Id}/reject", null),
+                $"/api/applications/{application.Id}/reject", null, TestContext.Current.CancellationToken),
             ApplicationRequestAction.Ignore => await Client.PostAsync(
-                $"/api/applications/{application.Id}/ignore", null),
-            ApplicationRequestAction.Cancel => await Client.DeleteAsync($"/api/applications/{application.Id}"),
+                $"/api/applications/{application.Id}/ignore", null, TestContext.Current.CancellationToken),
+            ApplicationRequestAction.Cancel => await Client.DeleteAsync($"/api/applications/{application.Id}", TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null),
         };
 
@@ -162,11 +162,11 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
-        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications");
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
         Assert.Single(list!);
         Assert.Equal(scenario.Stranger.Id, list[0].ApplicantId);
     }
@@ -181,13 +181,13 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.GetAsync("/api/applications/me");
+        var res = await Client.GetAsync("/api/applications/me", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(res.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent);
         if (res.StatusCode == HttpStatusCode.OK)
         {
-            var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>();
+            var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
             Assert.Contains(list!, dto => dto.GroupId == group.Id && !dto.IsIncoming);
         }
     }
@@ -206,14 +206,14 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Act
         var invite = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/invitations",
-            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id });
+            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(invite, HttpStatusCode.OK);
         await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
 
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        var mine = await Client.GetAsync("/api/invitations/me");
+        var mine = await Client.GetAsync("/api/invitations/me", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(mine, HttpStatusCode.NoContent);
     }
 
@@ -229,11 +229,11 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.GetAsync("/api/invitations/me");
+        var res = await Client.GetAsync("/api/invitations/me", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
         var only = Assert.Single(list!);
         Assert.Equal(group.Id, only.GroupId);
     }
@@ -248,8 +248,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var ignore = await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null);
-        var accept = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null);
+        var ignore = await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken);
+        var accept = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(ignore, HttpStatusCode.NoContent);
@@ -265,17 +265,17 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null);
+        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
         var resend = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/invitations",
-            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id });
+            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(resend, HttpStatusCode.Created);
-        var dto = await resend.Content.ReadFromJsonAsync<GroupInvitationCreateResponseDto>();
+        var dto = await resend.Content.ReadFromJsonAsync<GroupInvitationCreateResponseDto>(TestContext.Current.CancellationToken);
         Assert.True(dto!.IsPending);
         Assert.Equal(invitation.Id, dto.Id);
     }
@@ -288,7 +288,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.GetAsync("/api/invitations/ignored");
+        var res = await Client.GetAsync("/api/invitations/ignored", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -302,14 +302,14 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null);
+        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken);
 
         // Act
-        var res = await Client.GetAsync("/api/invitations/ignored");
+        var res = await Client.GetAsync("/api/invitations/ignored", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
         var only = Assert.Single(list!);
         Assert.Equal(invitation.Id, only.Id);
         Assert.False(only.IsPending);
@@ -324,15 +324,15 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
-        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null);
+        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
-        var res = await Client.GetAsync("/api/invitations/me");
+        var res = await Client.GetAsync("/api/invitations/me", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupInvitationCreateResponseDto>>(TestContext.Current.CancellationToken);
         var only = Assert.Single(list!);
         Assert.True(only.IsPending);
         Assert.False(only.IsIncoming);
@@ -350,7 +350,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         // Act
         var invite = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/invitations",
-            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id });
+            new GroupInvitationCreateRequestDto { InviteeId = scenario.Stranger.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(invite, HttpStatusCode.BadRequest);
@@ -365,10 +365,10 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
         await GroupIntegrationTestHelpers.BlockUserAsync(Client, scenario.Owner.Id);
-        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null);
+        await Client.PostAsync($"/api/invitations/{invitation.Id}/ignore", null, TestContext.Current.CancellationToken);
 
         // Act
-        var accept = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null);
+        var accept = await Client.PostAsync($"/api/invitations/{invitation.Id}/accept", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(accept, HttpStatusCode.BadRequest);
@@ -386,8 +386,8 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         await scenario.LoginAsAsync(GroupActorRole.Owner);
 
         // Act
-        var ignore = await Client.PostAsync($"/api/applications/{application.Id}/ignore", null);
-        var approve = await Client.PostAsync($"/api/applications/{application.Id}/approve", null);
+        var ignore = await Client.PostAsync($"/api/applications/{application.Id}/ignore", null, TestContext.Current.CancellationToken);
+        var approve = await Client.PostAsync($"/api/applications/{application.Id}/approve", null, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(ignore, HttpStatusCode.NoContent);
@@ -403,15 +403,15 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
-        await Client.PostAsync($"/api/applications/{application.Id}/ignore", null);
+        await Client.PostAsync($"/api/applications/{application.Id}/ignore", null, TestContext.Current.CancellationToken);
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.GetAsync("/api/applications/me");
+        var res = await Client.GetAsync("/api/applications/me", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
         var only = Assert.Single(list!);
         Assert.True(only.IsPending);
         Assert.False(only.IsIncoming);
@@ -427,7 +427,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
 
         // Act
         var res = await Client.GetAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications/ignored");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications/ignored", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -441,15 +441,15 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
         await scenario.LoginAsAsync(GroupActorRole.Owner);
-        await Client.PostAsync($"/api/applications/{application.Id}/ignore", null);
+        await Client.PostAsync($"/api/applications/{application.Id}/ignore", null, TestContext.Current.CancellationToken);
 
         // Act
         var res = await Client.GetAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications/ignored");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/applications/ignored", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>();
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
         var only = Assert.Single(list!);
         Assert.Equal(application.Id, only.Id);
         Assert.False(only.IsPending);

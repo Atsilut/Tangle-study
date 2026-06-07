@@ -14,7 +14,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new UnauthorizedAccessException("Unauthorized access");
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(handled);
@@ -30,7 +30,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new EntityNotFoundException("Block not found");
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(handled);
@@ -46,7 +46,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new ArgumentException("Cannot block yourself.");
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(handled);
@@ -62,7 +62,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new EntityNotFoundException("User not found", StatusCodes.Status400BadRequest);
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(handled);
@@ -78,7 +78,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new EntityAlreadyExistsException("A user with nickname 'taken' already exists.");
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(handled);
@@ -94,7 +94,7 @@ public sealed class GlobalExceptionHandlerTests
         var exception = new InvalidOperationException("unexpected");
 
         // Act
-        var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(handled);

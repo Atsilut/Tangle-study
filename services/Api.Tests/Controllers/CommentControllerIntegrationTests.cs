@@ -18,10 +18,10 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             Title = $"{testMethodName} Post Title " + index.ToString(),
             Content = $"{testMethodName} Post Content " + index.ToString()
         };
-        var create = await Client.PostAsJsonAsync("/api/posts", req);
+        var create = await Client.PostAsJsonAsync("/api/posts", req, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(create, HttpStatusCode.Created);
-        var getAll = await Client.GetAsync("/api/posts");
-        var all = await getAll.Content.ReadFromJsonAsync<List<PostGetResponseDto>>();
+        var getAll = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var all = await getAll.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         return all!.Single(p => p.Title == req.Title && p.Content == req.Content && p.AuthorId == userId);
     }
 
@@ -37,10 +37,10 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             Content = $"{testMethodName} Test " + index.ToString(),
             ParentId = parentId
         };
-        var create = await Client.PostAsJsonAsync("/api/comments", req);
+        var create = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(create, HttpStatusCode.Created);
-        var getAll = await Client.GetAsync($"/api/comments/post/{postId}");
-        var all = await getAll.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var getAll = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
+        var all = await getAll.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         var found = FindCommentByContent(all!, req.Content);
         Assert.NotNull(found);
         Assert.Equal(postId, found.PostId);
@@ -78,7 +78,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
@@ -97,7 +97,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             Content = content
         };
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
@@ -117,7 +117,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Post not found");
@@ -142,7 +142,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
@@ -165,12 +165,12 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        var getByPostRes = await Client.GetAsync($"/api/comments/post/{post.Id}");
-        var commentTree = await getByPostRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var getByPostRes = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
+        var commentTree = await getByPostRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(commentTree);
         var rootDto = commentTree.Single(c => c.Id == rootComment.Id);
         Assert.Single(rootDto.Replies);
@@ -195,7 +195,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Parent comment not found");
@@ -219,7 +219,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PostAsJsonAsync("/api/comments", req);
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
@@ -240,11 +240,11 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var comment2 = await CreateCommentForTest(testMethodName, post.Id, 2);
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var comments = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var comments = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(comments);
         Assert.Equal(2, comments.Count);
         Assert.Equal(comment1.Content, comments[0].Content);
@@ -265,11 +265,11 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         await CreateCommentForTest(testMethodName, post.Id, index: 4);
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var commentTree = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var commentTree = await res.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(commentTree);
         Assert.Equal(2, commentTree.Count);
 
@@ -295,7 +295,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         const long missingPostId = 9999; // Assuming this post has been deleted while commenting
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/post/{missingPostId}");
+        var res = await Client.GetAsync($"/api/comments/post/{missingPostId}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Post not found");
@@ -311,7 +311,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var post = await CreatePostForTest(testMethodName, user.Id);
         
         // Act
-        var res = await Client.GetAsync($"/api/comments/post/{post.Id}");
+        var res = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -329,8 +329,8 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var reply = await CreateCommentForTest(testMethodName, post.Id, index: 2, parentId: root.Id);
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/{reply.Id}");
-        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var res = await Client.GetAsync($"/api/comments/{reply.Id}", TestContext.Current.CancellationToken);
+        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -351,8 +351,8 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var res = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var dto = await res.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -369,7 +369,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         const long missingCommentId = 9999; // Assuming this comment has been deleted while commenting
         
         // Act
-        var res = await Client.GetAsync($"/api/comments/{missingCommentId}");
+        var res = await Client.GetAsync($"/api/comments/{missingCommentId}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -391,14 +391,14 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var commentLesser = await CreateCommentForTest(testMethodName, post2.Id, 11);
 
         // Act
-        var resActive = await Client.GetAsync($"/api/comments/user/{activeUser.Id}");
-        var resLesser = await Client.GetAsync($"/api/comments/user/{lessUser.Id}");
+        var resActive = await Client.GetAsync($"/api/comments/user/{activeUser.Id}", TestContext.Current.CancellationToken);
+        var resLesser = await Client.GetAsync($"/api/comments/user/{lessUser.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(resActive, HttpStatusCode.OK);
         await IntegrationAssertions.AssertStatusAsync(resLesser, HttpStatusCode.OK);
-        var commentsActive = await resActive.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var commentsLesser = await resLesser.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var commentsActive = await resActive.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        var commentsLesser = await resLesser.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(commentsActive);
         Assert.NotNull(commentsLesser);
         Assert.Equal(2, commentsActive.Count);
@@ -429,15 +429,15 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
 
         // Act
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, author);
-        var resAuthor = await Client.GetAsync($"/api/comments/user/{author.Id}");
-        var resOther = await Client.GetAsync($"/api/comments/user/{otherUser.Id}");
+        var resAuthor = await Client.GetAsync($"/api/comments/user/{author.Id}", TestContext.Current.CancellationToken);
+        var resOther = await Client.GetAsync($"/api/comments/user/{otherUser.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(resAuthor, HttpStatusCode.OK);
         await IntegrationAssertions.AssertStatusAsync(resOther, HttpStatusCode.OK);
 
-        var authorComments = await resAuthor.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
-        var otherComments = await resOther.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>();
+        var authorComments = await resAuthor.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        var otherComments = await resOther.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(authorComments);
         Assert.NotNull(otherComments);
 
@@ -472,7 +472,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         const long missingUserId = 9999; // Assuming this user has been deleted while commenting
 
         // Act
-        var res = await Client.GetAsync($"/api/comments/user/{missingUserId}");
+        var res = await Client.GetAsync($"/api/comments/user/{missingUserId}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "User not found");
@@ -487,7 +487,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
        
         // Act
-        var res = await Client.GetAsync($"/api/comments/user/{user.Id}");
+        var res = await Client.GetAsync($"/api/comments/user/{user.Id}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -513,10 +513,10 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PatchAsJsonAsync("/api/comments", req);
-        var resDto = await res.Content.ReadFromJsonAsync<CommentPatchResponseDto>();
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var res = await Client.PatchAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
+        var resDto = await res.Content.ReadFromJsonAsync<CommentPatchResponseDto>(TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -550,9 +550,9 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PatchAsJsonAsync("/api/comments", req);
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var res = await Client.PatchAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
@@ -579,16 +579,16 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        await Client.DeleteAsync($"/api/posts/{post.Id}");
-        var res = await Client.PatchAsJsonAsync("/api/comments", req);
+        await Client.DeleteAsync($"/api/posts/{post.Id}", TestContext.Current.CancellationToken);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
             res,
             HttpStatusCode.BadRequest,
             "Post is not reachable. Comments are readonly.");
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(dto);
         Assert.Equal(comment.Content, dto.Content);
         Assert.Null(dto.PostId);
@@ -612,7 +612,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
         
         // Act
-        var res = await Client.PatchAsJsonAsync("/api/comments", req);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Comment not found");
@@ -631,8 +631,8 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var comment = await CreateCommentForTest(testMethodName, post.Id);
         
         // Act
-        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
@@ -652,9 +652,9 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, nonOwner);
         
         // Act
-        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
-        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>(TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");
@@ -673,13 +673,13 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var comment = await CreateCommentForTest(testMethodName, post.Id);
 
         // Act
-        var deletePostRes = await Client.DeleteAsync($"/api/posts/{post.Id}");
-        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}");
+        var deletePostRes = await Client.DeleteAsync($"/api/posts/{post.Id}", TestContext.Current.CancellationToken);
+        var res = await Client.DeleteAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(deletePostRes, HttpStatusCode.NoContent);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
-        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
+        var getRes = await Client.GetAsync($"/api/comments/{comment.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NotFound);
     }
 
@@ -694,7 +694,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         const long nonExistentCommentId = 9999; // Assuming this comment has been deleted while commenting
         
         // Act
-        var res = await Client.DeleteAsync($"/api/comments/{nonExistentCommentId}");
+        var res = await Client.DeleteAsync($"/api/comments/{nonExistentCommentId}", TestContext.Current.CancellationToken);
         
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Comment not found");

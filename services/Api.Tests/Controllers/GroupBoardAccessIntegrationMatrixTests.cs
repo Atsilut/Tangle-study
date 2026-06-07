@@ -61,10 +61,10 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
 
         // Act
         var listRes = await Client.GetAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts");
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts", TestContext.Current.CancellationToken);
         var writeRes = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
-            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" });
+            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" }, TestContext.Current.CancellationToken);
 
         // Assert
         // Board post endpoints require authentication; anonymous callers always get 401.
@@ -149,13 +149,13 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Act
         HttpResponseMessage res = operation switch
         {
-            BoardCrudOperation.Create => await Client.PostAsJsonAsync(boardsBase, new GroupBoardCreateRequestDto { Name = "created" }),
+            BoardCrudOperation.Create => await Client.PostAsJsonAsync(boardsBase, new GroupBoardCreateRequestDto { Name = "created" }, TestContext.Current.CancellationToken),
             BoardCrudOperation.Update => await Client.PatchAsJsonAsync($"{boardsBase}/{board.Id}", new GroupBoardPatchRequestDto
             {
                 Name = "Updated",
                 Visibility = BoardVisibility.AdminOnly,
-            }),
-            BoardCrudOperation.Delete => await Client.DeleteAsync($"{boardsBase}/{board.Id}"),
+            }, TestContext.Current.CancellationToken),
+            BoardCrudOperation.Delete => await Client.DeleteAsync($"{boardsBase}/{board.Id}", TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null),
         };
 
@@ -180,11 +180,11 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         await scenario.LoginAsAsync(GroupActorRole.Member);
 
         // Act
-        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards");
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>();
+        var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>(TestContext.Current.CancellationToken);
         Assert.Equal(2, listed!.Count);
         Assert.Contains(listed, b => b.Name == "MembersOnly");
         Assert.Contains(listed, b => b.Name == "ForAll");
@@ -201,11 +201,11 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         await scenario.LoginAsAsync(GroupActorRole.Stranger);
 
         // Act
-        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards");
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>();
+        var listed = await res.Content.ReadFromJsonAsync<List<GroupBoardResponseDto>>(TestContext.Current.CancellationToken);
         Assert.Single(listed!);
         Assert.Equal("ForAll", listed[0].Name);
     }
@@ -222,7 +222,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards",
-            new GroupBoardCreateRequestDto { Name = "Dup" });
+            new GroupBoardCreateRequestDto { Name = "Dup" }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);

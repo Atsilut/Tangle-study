@@ -29,13 +29,13 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         await LoginAsActorAsync(scenario, actor);
 
         // Act
-        var res = await Client.GetAsync($"{ChatRoomsBase}/{scenario.RoomId}");
+        var res = await Client.GetAsync($"{ChatRoomsBase}/{scenario.RoomId}", TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok)
         {
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-            var dto = await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>();
+            var dto = await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken);
             Assert.Equal(scenario.RoomId, dto!.Id);
         }
         else if (expected == ChatExpectedOutcome.Unauthorized) await AssertUnauthorizedAsync(res);
@@ -63,7 +63,7 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         await LoginAsActorAsync(scenario, actor);
 
         // Act
-        var res = await Client.GetAsync($"{ChatRoomsBase}/{scenario.RoomId}/messages");
+        var res = await Client.GetAsync($"{ChatRoomsBase}/{scenario.RoomId}/messages", TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok)
@@ -127,7 +127,7 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         // Act
         var res = await Client.PostAsJsonAsync(
             $"{ChatRoomsBase}/{scenario.RoomId}/participants",
-            new ChatRoomParticipantAddRequestDto { UserId = scenario.Invitee.Id });
+            new ChatRoomParticipantAddRequestDto { UserId = scenario.Invitee.Id }, TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
@@ -168,7 +168,7 @@ public sealed class ChatRoomAccessIntegrationMatrixTests(PostgresTestcontainerFi
         await LoginAs(actorUser);
 
         // Act
-        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/chat-rooms");
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/chat-rooms", TestContext.Current.CancellationToken);
 
         // Assert
         if (expected == ChatExpectedOutcome.Ok)

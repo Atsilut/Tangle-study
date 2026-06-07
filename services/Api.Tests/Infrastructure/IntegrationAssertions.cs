@@ -13,7 +13,7 @@ internal static class IntegrationAssertions
     {
         if (response.StatusCode == expected) return;
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Fail($"Expected {expected} but got {response.StatusCode}. Body: {body}");
     }
 
@@ -21,7 +21,7 @@ internal static class IntegrationAssertions
         HttpResponseMessage response,
         string expectedSubstring)
     {
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Contains(expectedSubstring, problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
@@ -32,7 +32,7 @@ internal static class IntegrationAssertions
         string expectedDetail)
     {
         await AssertStatusAsync(response, expectedStatus);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
         Assert.NotNull(problem);
         Assert.Equal(expectedDetail, problem!.Detail);
     }

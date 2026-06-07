@@ -143,7 +143,7 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
         await LoginAs(userB);
 
         // Act
-        var res = await Client.GetAsync($"{RequestsBase}/pending");
+        var res = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);

@@ -40,15 +40,15 @@ public sealed class ChatHubRealtimeIntegrationTests(
         var received = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
         hubConnection.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => received.TrySetResult(dto));
-        await hubConnection.StartAsync();
-        await hubConnection.InvokeAsync("JoinRoom", room.Id);
+        await hubConnection.StartAsync(TestContext.Current.CancellationToken);
+        await hubConnection.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken);
 
         // Act
         var createRes = await PostMessageAsync(room.Id, "Realtime hello");
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var pushed = await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var pushed = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal("Realtime hello", pushed.Body);
         Assert.Equal(room.Id, pushed.ChatRoomId);
         Assert.Equal(userA.Id, pushed.SenderUserId);
@@ -72,8 +72,8 @@ public sealed class ChatHubRealtimeIntegrationTests(
         var receivedByB = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         var hubB = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, tokenB);
         hubB.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => receivedByB.TrySetResult(dto));
-        await hubB.StartAsync();
-        await hubB.InvokeAsync("JoinRoom", room.Id);
+        await hubB.StartAsync(TestContext.Current.CancellationToken);
+        await hubB.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken);
 
         // Act
         await LoginAs(userA);
@@ -81,7 +81,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var pushed = await receivedByB.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var pushed = await receivedByB.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal("Hello from A", pushed.Body);
         Assert.Equal(room.Id, pushed.ChatRoomId);
         Assert.Equal(userA.Id, pushed.SenderUserId);
@@ -103,11 +103,11 @@ public sealed class ChatHubRealtimeIntegrationTests(
         await LoginAs(stranger);
         var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
-        await hubConnection.StartAsync();
+        await hubConnection.StartAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<HubException>(() =>
-            hubConnection.InvokeAsync("JoinRoom", room.Id));
+            hubConnection.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken));
 
         await hubConnection.DisposeAsync();
     }
@@ -128,13 +128,13 @@ public sealed class ChatHubRealtimeIntegrationTests(
         var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
         var received = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         hubConnection.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => received.TrySetResult(dto));
-        await hubConnection.StartAsync();
+        await hubConnection.StartAsync(TestContext.Current.CancellationToken);
 
         // Act
         await PostMessageAsync(room.Id, "Should not arrive");
 
         // Assert
-        await Task.WhenAny(received.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        await Task.WhenAny(received.Task, Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
         Assert.False(received.Task.IsCompleted, "MessageCreated should not be received when client has not joined the room group");
 
         await hubConnection.DisposeAsync();
@@ -218,7 +218,7 @@ public sealed class ChatHubRealtimeIntegrationTests(
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var published = await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var published = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal(room.Id, published.ChatRoomId);
         Assert.Equal(userA.Id, published.SenderUserId);
         Assert.Equal(messageBody, published.Body);
