@@ -34,12 +34,8 @@ namespace Api.Domain.Posts.Service
             if (!await _repo.ExistsPostByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
-        private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found")
-        {
-            var post = await _repo.GetPostByIdAsync(id);
-            if (post == null) throw new EntityNotFoundException(notFoundMessage);
-            return post;
-        }
+        private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found") =>
+            await _repo.GetPostByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
         public async Task CreatePostAsync(PostCreateRequestDto request)
         {

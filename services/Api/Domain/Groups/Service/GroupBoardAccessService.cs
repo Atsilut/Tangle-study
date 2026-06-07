@@ -26,10 +26,7 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupBoard> GetBoardOrThrowAsync(long groupId, long boardId, string notFoundMessage = "Board not found")
         {
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
-
-            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
-            if (board is null) throw new EntityNotFoundException(notFoundMessage);
-            return board;
+            return await _repo.GetByGroupAndIdAsync(groupId, boardId) ?? throw new EntityNotFoundException(notFoundMessage);
         }
 
         public async Task<bool> TryCanViewBoardAsync(long groupId, long boardId)

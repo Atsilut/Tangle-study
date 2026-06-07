@@ -29,12 +29,8 @@ namespace Api.Domain.Comments.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
-        private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found", int statusCode = StatusCodes.Status404NotFound)
-        {
-            var comment = await _repo.GetCommentByIdAsync(id);
-            if (comment == null) throw new EntityNotFoundException(notFoundMessage, statusCode);
-            return comment;
-        }
+        private async Task<Comment> GetCommentOrThrowAsync(long id, string notFoundMessage = "Comment not found", int statusCode = StatusCodes.Status404NotFound) =>
+            await _repo.GetCommentByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage, statusCode);
 
         private async Task EnsureGroupBoardViewAccessForPostAsync(long postId)
         {

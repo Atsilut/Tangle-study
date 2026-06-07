@@ -45,8 +45,8 @@ public class ChatRoomAccessService(
 
     public void EnsureRoomOwner(IReadOnlyList<ChatRoomParticipant> participants, long userId)
     {
-        var participant = participants.FirstOrDefault(p => p.UserId == userId);
-        if (participant is null) throw new EntityNotFoundException("Chat room not found");
+        var participant = participants.FirstOrDefault(p => p.UserId == userId)
+            ?? throw new EntityNotFoundException("Chat room not found");
         if (!participant.IsOwner) throw new UnauthorizedAccessException("Unauthorized access");
     }
 

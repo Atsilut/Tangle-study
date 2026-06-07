@@ -41,19 +41,11 @@ namespace Api.Domain.Users.Service
             if (!await _repo.ExistsUserByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
-        public async Task<UserGetResponseDto> GetUserByIdOrThrowAsync(long id, string notFoundMessage = "User not found")
-        {
-            var user = await GetUserByIdAsync(id);
-            if (user == null) throw new EntityNotFoundException(notFoundMessage);
-            return user;
-        }
+        public async Task<UserGetResponseDto> GetUserByIdOrThrowAsync(long id, string notFoundMessage = "User not found") =>
+            await GetUserByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
-        private async Task<User> GetUserEntityOrThrowAsync(long id, string notFoundMessage = "User not found")
-        {
-            var user = await _repo.GetUserByIdAsync(id);
-            if (user == null) throw new EntityNotFoundException(notFoundMessage);
-            return user;
-        }
+        private async Task<User> GetUserEntityOrThrowAsync(long id, string notFoundMessage = "User not found") =>
+            await _repo.GetUserByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
         public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
@@ -88,9 +80,7 @@ namespace Api.Domain.Users.Service
         public async Task<User> GetLoggedInUserEntityOrThrowAsync()
         {
             var userId = GetUserIdFromLogin();
-            var user = await _repo.GetUserByIdAsync(userId);
-            if (user is null) throw new UnauthorizedAccessException("Unauthorized access");
-            return user;
+            return await _repo.GetUserByIdAsync(userId) ?? throw new UnauthorizedAccessException("Unauthorized access");
         }
 
         public async Task<UserPatchResponseDto> UpdateUserDetailAsync(UserPatchRequestDto request)

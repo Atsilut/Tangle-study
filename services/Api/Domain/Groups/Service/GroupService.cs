@@ -36,12 +36,8 @@ namespace Api.Domain.Groups.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
-        public async Task<Group> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found")
-        {
-            var group = await _repo.GetGroupByIdAsync(id);
-            if (group is null) throw new EntityNotFoundException(notFoundMessage);
-            return group;
-        }
+        public async Task<Group> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found") =>
+            await _repo.GetGroupByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
         public async Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids)
         {

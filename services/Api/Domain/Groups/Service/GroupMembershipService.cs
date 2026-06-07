@@ -30,22 +30,22 @@ namespace Api.Domain.Groups.Service
 
         public async Task EnsureMemberAsync(long groupId, long userId, string notFoundMessage = "Group not found")
         {
-            var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is null) throw new EntityNotFoundException(notFoundMessage);
+            _ = await _repo.GetMemberAsync(groupId, userId) ?? throw new EntityNotFoundException(notFoundMessage);
         }
 
         public async Task<GroupMember> EnsureAdminOrOwnerAsync(long groupId, long userId)
         {
-            var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is null) throw new UnauthorizedAccessException("Unauthorized access");
+            var member = await _repo.GetMemberAsync(groupId, userId)
+                ?? throw new UnauthorizedAccessException("Unauthorized access");
             if (member.Role != GroupRole.Admin && member.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
             return member;
         }
 
         public async Task<GroupMember> EnsureOwnerAsync(long groupId, long userId)
         {
-            var member = await _repo.GetMemberAsync(groupId, userId);
-            if (member is null || member.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
+            var member = await _repo.GetMemberAsync(groupId, userId)
+                ?? throw new UnauthorizedAccessException("Unauthorized access");
+            if (member.Role != GroupRole.Owner) throw new UnauthorizedAccessException("Unauthorized access");
             return member;
         }
 
