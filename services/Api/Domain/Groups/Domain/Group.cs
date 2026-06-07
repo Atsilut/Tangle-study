@@ -17,7 +17,7 @@ namespace Api.Domain.Groups.Domain
         public GroupVisibility Visibility { get; private set; }
         public GroupJoinPolicy JoinPolicy { get; private set; }
 
-        public ICollection<GroupMember> Members { get; private set; } = new List<GroupMember>();
+        public ICollection<GroupMember> Members { get; private set; } = [];
 
         private Group() { }
 

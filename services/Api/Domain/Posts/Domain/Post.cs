@@ -34,7 +34,7 @@ namespace Api.Domain.Posts.Domain
 
         public GroupBoard? GroupBoard { get; private set; }
 
-        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+        public ICollection<Comment> Comments { get; private set; } = [];
 
         public long AuthorUserId => UserId ?? DeletedUserId!.Value;
 

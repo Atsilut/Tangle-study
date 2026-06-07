@@ -218,7 +218,7 @@ namespace Api.Domain.Groups.Service
             var userId = GetUserIdFromLogin();
             var pending = await _repo.GetPendingIncomingForInviteeAsync(userId);
             var ignoredOutgoing = await _repo.GetIgnoredOutgoingForInviterAsync(userId);
-            var invitations = pending.Concat(ignoredOutgoing).ToList();
+            List<GroupInvitation> invitations = [.. pending, .. ignoredOutgoing];
             if (invitations.Count == 0) return null;
             return await MapInvitationsAsync(invitations, userId);
         }
@@ -237,7 +237,7 @@ namespace Api.Domain.Groups.Service
 
         private async Task<GroupInvitationCreateResponseDto> MapToDtoAsync(GroupInvitation invitation, long viewerId)
         {
-            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(new[] { invitation.GroupId });
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([invitation.GroupId]);
             var otherUserId = invitation.InviteeId == viewerId ? invitation.InviterId : invitation.InviteeId;
             var nickname = (await _userService.GetUserByIdAsync(otherUserId))?.Nickname ?? "Deleted User";
             return Map(
@@ -256,7 +256,7 @@ namespace Api.Domain.Groups.Service
                 .Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherUserIds);
 
-            return invitations
+            return [.. invitations
                 .Select(i =>
                 {
                     var otherUserId = i.InviteeId == viewerId ? i.InviterId : i.InviteeId;
@@ -265,8 +265,7 @@ namespace Api.Domain.Groups.Service
                         groupNames.GetValueOrDefault(i.GroupId, "Unknown group"),
                         viewerId,
                         nicknames.GetValueOrDefault(otherUserId, "Deleted User"));
-                })
-                .ToList();
+                })];
         }
 
         private static GroupInvitationCreateResponseDto Map(

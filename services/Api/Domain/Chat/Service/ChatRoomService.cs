@@ -89,7 +89,7 @@ public class ChatRoomService(
         var userId = GetUserIdFromLogin();
         var rooms = await _repo.GetChatRoomsForUserAsync(userId);
         if (rooms.Count == 0) return null;
-        return rooms.Select(MapToSummaryDto).ToList();
+        return [.. rooms.Select(MapToSummaryDto)];
     }
 
     public async Task<List<ChatRoomSummaryGetResponseDto>?> GetPlatformGroupRoomsAsync(long platformGroupId)
@@ -99,7 +99,7 @@ public class ChatRoomService(
 
         var rooms = await _repo.GetChatRoomsForPlatformGroupAsync(platformGroupId);
         if (rooms.Count == 0) return null;
-        return rooms.Select(MapToSummaryDto).ToList();
+        return [.. rooms.Select(MapToSummaryDto)];
     }
 
     public async Task<ChatRoomGetResponseDto> GetRoomByIdAsync(long roomId)
@@ -115,7 +115,7 @@ public class ChatRoomService(
     public async Task EnsureUserIsParticipantAsync(long roomId, long userId)
     {
         var room = await GetRoomWithParticipantsOrThrowAsync(roomId);
-        _access.EnsureParticipantInRoom(room.Participants.ToList(), userId);
+        _access.EnsureParticipantInRoom([.. room.Participants], userId);
     }
 
     public Task TouchRoomUpdatedAtAsync(long roomId) => _repo.TouchChatRoomUpdatedAtAsync(roomId);
@@ -134,7 +134,7 @@ public class ChatRoomService(
                 .FirstOrDefaultAsync(r => r.Id == roomId)
                 ?? throw new EntityNotFoundException("Chat room not found");
 
-            var participants = room.Participants.ToList();
+            List<ChatRoomParticipant> participants = [.. room.Participants];
             _access.EnsureCanAddParticipant(room, participants, userId);
 
             if (participants.Any(p => p.UserId == request.UserId))
@@ -192,7 +192,7 @@ public class ChatRoomService(
     private static List<long> NormalizeParticipantIds(long creatorId, IReadOnlyList<long> requestedIds)
     {
         var ids = new HashSet<long>(requestedIds) { creatorId };
-        return ids.ToList();
+        return [.. ids];
     }
 
     private static void EnsureAtLeastOneOtherParticipant(long creatorId, IReadOnlyList<long> participantIds)
@@ -203,28 +203,26 @@ public class ChatRoomService(
 
     private static List<(long UserId, ChatRoomParticipantRole Role)> BuildMemberOnlyParticipantSpecs(
         IReadOnlyList<long> participantIds) =>
-        participantIds.Select(id => (id, ChatRoomParticipantRole.Member)).ToList();
+        [.. participantIds.Select(id => (id, ChatRoomParticipantRole.Member))];
 
     private static List<(long UserId, ChatRoomParticipantRole Role)> BuildPlatformGroupParticipantSpecs(
         long creatorId,
         IReadOnlyList<long> participantIds) =>
-        participantIds
-            .Select(id => (id, id == creatorId ? ChatRoomParticipantRole.Owner : ChatRoomParticipantRole.Member))
-            .ToList();
+        [.. participantIds
+            .Select(id => (id, id == creatorId ? ChatRoomParticipantRole.Owner : ChatRoomParticipantRole.Member))];
 
     private static ChatRoomSummaryGetResponseDto MapToSummaryDto(ChatRoom room) =>
         new(room.Id, room.Kind, room.Title, room.PlatformGroupId, room.UpdatedAt);
 
     private async Task<ChatRoomGetResponseDto> MapToGetDtoAsync(ChatRoom room, bool includeParticipants)
     {
-        var participants = includeParticipants
-            ? room.Participants.ToList()
+        List<ChatRoomParticipant> participants = includeParticipants
+            ? [.. room.Participants]
             : [];
 
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(participants.Select(p => p.UserId));
-        var participantDtos = participants
-            .Select(p => MapParticipantToDto(p, nicknames.GetValueOrDefault(p.UserId, "Deleted User")))
-            .ToList();
+        List<ChatRoomParticipantGetResponseDto> participantDtos = [.. participants
+            .Select(p => MapParticipantToDto(p, nicknames.GetValueOrDefault(p.UserId, "Deleted User")))];
 
         return new ChatRoomGetResponseDto(
             room.Id,

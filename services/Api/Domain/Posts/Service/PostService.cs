@@ -71,9 +71,8 @@ namespace Api.Domain.Posts.Service
             if (posts.Count == 0) return null;
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
-            return posts
-                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")))
-                .ToList();
+            return [.. posts
+                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")))];
         }
 
         public async Task<PostGetResponseDto?> GetPostByIdAsync(long id)
@@ -105,9 +104,8 @@ namespace Api.Domain.Posts.Service
             if (posts.Count == 0) return null;
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
-            return posts
-                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")))
-                .ToList();
+            return [.. posts
+                .Select(post => MapToDto(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")))];
         }
 
         public async Task<PostGetResponseDto?> GetGroupBoardPostByIdAsync(long groupId, long boardId, long postId)
@@ -127,7 +125,7 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetPostsByUserIdAsync(user.Id);
             if (posts.Count == 0) return null;
 
-            return posts.Select(post => MapToDto(post, user.Nickname)).ToList();
+            return [.. posts.Select(post => MapToDto(post, user.Nickname))];
         }
 
         private static PostGetResponseDto MapToDto(Post post, string authorNickname) => new(

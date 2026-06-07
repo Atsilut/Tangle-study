@@ -38,7 +38,7 @@ public class ChatRoom
     public long? UserHighId { get; private set; }
     public User? UserHigh { get; private set; }
 
-    public ICollection<ChatRoomParticipant> Participants { get; private set; } = new List<ChatRoomParticipant>();
+    public ICollection<ChatRoomParticipant> Participants { get; private set; } = [];
 
     private ChatRoom() { }
 

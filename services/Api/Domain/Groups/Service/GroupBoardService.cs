@@ -28,7 +28,7 @@ namespace Api.Domain.Groups.Service
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
             var boards = await _repo.GetByGroupAsync(groupId);
-            var visible = new List<GroupBoardResponseDto>();
+            List<GroupBoardResponseDto> visible = [];
             foreach (var board in boards)
             {
                 if (!await _access.TryCanViewBoardAsync(groupId, board.Id))

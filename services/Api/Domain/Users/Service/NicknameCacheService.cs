@@ -14,12 +14,15 @@ public class NicknameCacheService(IUserRepository repo, IDistributedCache cache)
 
     public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds)
     {
-        var distinctUserIds = userIds.Distinct().ToList();
+        List<long> distinctUserIds = [.. userIds.Distinct()];
         if (distinctUserIds.Count == 0)
-            return new Dictionary<long, string>();
+        {
+            Dictionary<long, string> empty = [];
+            return empty;
+        }
 
         var result = new Dictionary<long, string>(distinctUserIds.Count);
-        var missingUserIds = new List<long>();
+        List<long> missingUserIds = [];
 
         foreach (var userId in distinctUserIds)
         {

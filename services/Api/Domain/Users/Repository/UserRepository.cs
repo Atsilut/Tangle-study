@@ -20,9 +20,12 @@ namespace Api.Domain.Users.Repository
 
         public Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids)
         {
-            var idList = ids.Distinct().ToList();
+            List<long> idList = [.. ids.Distinct()];
             if (idList.Count == 0)
-                return Task.FromResult<IReadOnlyDictionary<long, string>>(new Dictionary<long, string>());
+            {
+                Dictionary<long, string> empty = [];
+                return Task.FromResult<IReadOnlyDictionary<long, string>>(empty);
+            }
 
             return QueryNicknamesByIdsAsync(idList);
         }

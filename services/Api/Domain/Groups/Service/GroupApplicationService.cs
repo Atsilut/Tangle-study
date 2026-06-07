@@ -180,7 +180,7 @@ namespace Api.Domain.Groups.Service
             var applicantId = GetUserIdFromLogin();
             var pending = await _repo.GetPendingForApplicantAsync(applicantId);
             var ignoredOutgoing = await _repo.GetIgnoredOutgoingForApplicantAsync(applicantId);
-            var applications = pending.Concat(ignoredOutgoing).ToList();
+            List<GroupApplication> applications = [.. pending, .. ignoredOutgoing];
             if (applications.Count == 0) return null;
             return await MapApplicationsForApplicantAsync(applications, applicantId);
         }
@@ -192,20 +192,19 @@ namespace Api.Domain.Groups.Service
         private async Task<List<GroupApplicationResponseDto>> MapApplicationsForReviewerAsync(
             IReadOnlyList<GroupApplication> applications)
         {
-            if (applications.Count == 0) return new List<GroupApplicationResponseDto>();
+            if (applications.Count == 0) return [];
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(applications.Select(a => a.ApplicantId));
-            return applications
-                .Select(a => MapForReviewer(a, nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))
-                .ToList();
+            return [.. applications
+                .Select(a => MapForReviewer(a, nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))];
         }
 
         private async Task<List<GroupApplicationResponseDto>> MapApplicationsForApplicantAsync(
             IReadOnlyList<GroupApplication> applications, long applicantId)
         {
-            var nicknames = await _userService.GetNicknamesByUserIdsAsync(new[] { applicantId });
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync([applicantId]);
             var nickname = nicknames.GetValueOrDefault(applicantId, "Deleted User");
-            return applications.Select(a => MapForApplicant(a, applicantId, nickname)).ToList();
+            return [.. applications.Select(a => MapForApplicant(a, applicantId, nickname))];
         }
 
         private async Task<GroupApplicationResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)

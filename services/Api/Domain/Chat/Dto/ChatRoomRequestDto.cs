@@ -19,7 +19,7 @@ public record ChatRoomMultiCreateRequestDto
     [Required]
     [MinLength(1)]
     [SwaggerSchema(Description = "User ids to include besides yourself (you are added automatically as owner)")]
-    public IReadOnlyList<long> ParticipantUserIds { get; init; } = Array.Empty<long>();
+    public IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
 }
 
 public record ChatRoomPlatformGroupCreateRequestDto
@@ -30,7 +30,7 @@ public record ChatRoomPlatformGroupCreateRequestDto
     [Required]
     [MinLength(1)]
     [SwaggerSchema(Description = "Initial participants (must be members of the platform group; you are added automatically as owner)")]
-    public IReadOnlyList<long> ParticipantUserIds { get; init; } = Array.Empty<long>();
+    public IReadOnlyList<long> ParticipantUserIds { get; init; } = [];
 }
 
 public record ChatRoomParticipantAddRequestDto

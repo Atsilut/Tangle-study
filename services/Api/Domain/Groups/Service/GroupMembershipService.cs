@@ -171,11 +171,10 @@ namespace Api.Domain.Groups.Service
         private async Task<List<GroupMemberResponseDto>> MapManyAsync(IReadOnlyList<GroupMember> members)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(members.Select(m => m.UserId));
-            return members
+            return [.. members
                 .OrderByDescending(m => m.Role)
                 .ThenBy(m => m.JoinedAt)
-                .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.UserId, "Deleted User")))
-                .ToList();
+                .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.UserId, "Deleted User")))];
         }
     }
 }

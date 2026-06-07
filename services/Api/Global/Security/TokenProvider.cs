@@ -17,11 +17,11 @@ namespace Api.Global.Security
 
         public string GenerateToken(long userId)
         {
-            var claims = new List<Claim>
-            {
+            Claim[] claims =
+            [
                 new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString())
-            };
+            ];
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

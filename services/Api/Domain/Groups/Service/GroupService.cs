@@ -45,7 +45,7 @@ namespace Api.Domain.Groups.Service
 
         public async Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids)
         {
-            var names = new Dictionary<long, string>();
+            Dictionary<long, string> names = [];
             foreach (var id in ids.Distinct())
             {
                 var group = await _repo.GetGroupByIdAsync(id);

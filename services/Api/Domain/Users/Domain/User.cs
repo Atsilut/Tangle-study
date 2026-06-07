@@ -19,8 +19,8 @@ namespace Api.Domain.Users.Domain
         public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
         public FriendsListVisibility FriendsListVisibility { get; private set; } = FriendsListVisibility.Private;
 
-        public ICollection<Post> Posts { get; private set; } = new List<Post>();
-        public ICollection<Comment> Comments { get; private set; } = new List<Comment>();
+        public ICollection<Post> Posts { get; private set; } = [];
+        public ICollection<Comment> Comments { get; private set; } = [];
 
         private User() { }
 

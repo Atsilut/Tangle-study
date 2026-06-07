@@ -96,7 +96,7 @@ namespace Api.Domain.Comments.Service
             }
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            return comments.Select(c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"))).ToList();
+            return [.. comments.Select(c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User")))];
         }
 
         private static CommentGetResponseDto MapToDto(Comment comment, string authorNickname) => new()
@@ -121,7 +121,7 @@ namespace Api.Domain.Comments.Service
             var byId = comments.ToDictionary(
                 c => c.Id,
                 c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User")));
-            var roots = new List<CommentGetResponseDto>();
+            List<CommentGetResponseDto> roots = [];
 
             foreach (var comment in comments.OrderBy(c => c.CreatedAt))
             {

@@ -112,9 +112,8 @@ public class ChatMessageService(
     {
         var senderIds = messages.Select(m => m.SenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
-        return messages
-            .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.SenderUserId, "Deleted User")))
-            .ToList();
+        return [.. messages
+            .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.SenderUserId, "Deleted User")))];
     }
 
     private static ChatMessageGetResponseDto MapToDto(ChatMessage message, string senderNickname) =>

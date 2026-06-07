@@ -111,8 +111,8 @@ namespace Api.Domain.Friendships.Service
             var otherIds = friendships.Select(f => f.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);
 
-            return friendships.Select(f =>
-                MapToDto(f, viewerId, nicknames.GetValueOrDefault(f.OtherPartyId(viewerId), "Deleted User"))).ToList();
+            return [.. friendships.Select(f =>
+                MapToDto(f, viewerId, nicknames.GetValueOrDefault(f.OtherPartyId(viewerId), "Deleted User")))];
         }
     }
 }

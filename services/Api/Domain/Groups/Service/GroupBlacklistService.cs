@@ -85,12 +85,11 @@ namespace Api.Domain.Groups.Service
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
 
             var entries = await _repo.GetByGroupAsync(groupId);
-            if (entries.Count == 0) return new List<GroupBlacklistResponseDto>();
+            if (entries.Count == 0) return [];
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(entries.Select(e => e.UserId));
-            return entries
-                .Select(e => MapToDto(e, nicknames.GetValueOrDefault(e.UserId, "Deleted User")))
-                .ToList();
+            return [.. entries
+                .Select(e => MapToDto(e, nicknames.GetValueOrDefault(e.UserId, "Deleted User")))];
         }
 
         public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);

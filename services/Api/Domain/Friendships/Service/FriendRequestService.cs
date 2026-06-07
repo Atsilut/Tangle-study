@@ -196,7 +196,7 @@ namespace Api.Domain.Friendships.Service
             var pending = await _repo.GetForUserAsync(userId, isPending: true);
             var ignoredOutgoing = (await _repo.GetForUserAsync(userId, isPending: false))
                 .Where(r => r.RequesterId == userId);
-            var requests = pending.Concat(ignoredOutgoing).ToList();
+            List<FriendRequest> requests = [.. pending, .. ignoredOutgoing];
             if (requests.Count == 0) return null;
             return await MapRequestsAsync(requests, userId);
         }
@@ -204,9 +204,8 @@ namespace Api.Domain.Friendships.Service
         public async Task<List<FriendRequestGetResponseDto>?> GetIgnoredIncomingAsync()
         {
             var userId = GetUserIdFromLogin();
-            var requests = (await _repo.GetForUserAsync(userId, isPending: false))
-                .Where(r => r.AddresseeId == userId)
-                .ToList();
+            List<FriendRequest> requests = [.. (await _repo.GetForUserAsync(userId, isPending: false))
+                .Where(r => r.AddresseeId == userId)];
             if (requests.Count == 0) return null;
             return await MapRequestsAsync(requests, userId);
         }
@@ -216,8 +215,8 @@ namespace Api.Domain.Friendships.Service
             var otherIds = requests.Select(r => r.OtherPartyId(viewerId)).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(otherIds);
 
-            return requests.Select(r =>
-                MapRequestToDto(r, viewerId, nicknames.GetValueOrDefault(r.OtherPartyId(viewerId), "Deleted User"))).ToList();
+            return [.. requests.Select(r =>
+                MapRequestToDto(r, viewerId, nicknames.GetValueOrDefault(r.OtherPartyId(viewerId), "Deleted User")))];
         }
 
         private FriendRequestGetResponseDto MapRequestToDto(FriendRequest request, long viewerId, string otherUserNickname) =>

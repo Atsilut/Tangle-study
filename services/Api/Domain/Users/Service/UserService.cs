@@ -61,7 +61,7 @@ namespace Api.Domain.Users.Service
         public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
             var users = await _repo.GetAllUsersAsync();
-            return users.Select(MapToDto).ToList();
+            return [.. users.Select(MapToDto)];
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)

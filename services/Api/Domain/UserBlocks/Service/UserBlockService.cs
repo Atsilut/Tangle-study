@@ -80,8 +80,8 @@ namespace Api.Domain.UserBlocks.Service
             var blockedUserIds = blocks.Select(b => b.BlockedUserId).Distinct();
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(blockedUserIds);
 
-            return blocks.Select(b =>
-                MapToDto(b, nicknames.GetValueOrDefault(b.BlockedUserId, "Deleted User"))).ToList();
+            return [.. blocks.Select(b =>
+                MapToDto(b, nicknames.GetValueOrDefault(b.BlockedUserId, "Deleted User")))];
         }
     }
 }
