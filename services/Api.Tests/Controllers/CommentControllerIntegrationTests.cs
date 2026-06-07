@@ -516,7 +516,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req);
         var resDto = await res.Content.ReadFromJsonAsync<CommentPatchResponseDto>();
         var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
@@ -553,7 +553,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
 
         // Act
-        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req);
         var getRes = await Client.GetAsync($"/api/comments/{comment.Id}");
         var dto = await getRes.Content.ReadFromJsonAsync<CommentGetResponseDto>();
 
@@ -583,7 +583,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
 
         // Act
         await Client.DeleteAsync($"/api/posts/{post.Id}");
-        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req);
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
@@ -615,7 +615,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         };
         
         // Act
-        var res = await Client.PatchAsJsonAsync($"/api/comments", req);
+        var res = await Client.PatchAsJsonAsync("/api/comments", req);
         
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Comment not found");

@@ -52,7 +52,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
-        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
@@ -75,7 +75,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, newNickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, newNickname));
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.Unauthorized);
@@ -105,7 +105,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, created.Nickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, created.Nickname));
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
@@ -125,7 +125,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
-        var patch = await Client.PatchAsJsonAsync($"/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
+        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto(created.Id, existingUser.Nickname));
 
         // Assert
         await IntegrationAssertions.AssertProblemDetailAsync(
