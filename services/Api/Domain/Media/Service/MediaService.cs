@@ -174,6 +174,20 @@ public sealed class MediaService(
     public async Task ReportProcessedAsync(long id, MediaProcessedRequestDto request)
     {
         var asset = await GetMediaAssetOrThrowAsync(id);
+        if (asset.ProcessingStatus == MediaProcessingStatus.Ready)
+        {
+            if (!string.IsNullOrWhiteSpace(request.FailureReason))
+                throw new ArgumentException("Cannot mark a ready media asset as failed.");
+            return;
+        }
+
+        if (asset.ProcessingStatus == MediaProcessingStatus.Failed)
+        {
+            if (string.IsNullOrWhiteSpace(request.FailureReason))
+                throw new ArgumentException("Cannot mark a failed media asset as ready.");
+            return;
+        }
+
         if (asset.ProcessingStatus != MediaProcessingStatus.Processing)
             throw new ArgumentException($"Media asset is not processing (status: {asset.ProcessingStatus}).");
 

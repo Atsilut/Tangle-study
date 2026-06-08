@@ -84,6 +84,78 @@ public sealed class MediaServiceUnitTests
     }
 
     [Fact]
+    public async Task ReportProcessedAsync_IsIdempotent_WhenAssetAlreadyReady()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+        asset.MarkProcessing();
+        asset.MarkReady("processed/1/video.mp4", 400);
+        await db.SaveChangesAsync();
+
+        // Act
+        await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
+        {
+            ProcessedObjectKey = "processed/1/video.mp4",
+            StoredSizeBytes = 400,
+        });
+
+        // Assert
+        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(MediaProcessingStatus.Ready, updated.ProcessingStatus);
+        Assert.Equal("processed/1/video.mp4", updated.ProcessedObjectKey);
+        Assert.Equal(400, updated.StoredSizeBytes);
+    }
+
+    [Fact]
+    public async Task ReportProcessedAsync_IsIdempotent_WhenAssetAlreadyFailed()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+        asset.MarkProcessing();
+        asset.MarkFailed("compression failed");
+        await db.SaveChangesAsync();
+
+        // Act
+        await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
+        {
+            FailureReason = "compression failed again",
+        });
+
+        // Assert
+        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(MediaProcessingStatus.Failed, updated.ProcessingStatus);
+        Assert.Equal("compression failed", updated.FailureReason);
+    }
+
+    [Fact]
+    public async Task ReportProcessedAsync_RejectsFailureCallback_WhenAssetAlreadyReady()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+        asset.MarkProcessing();
+        asset.MarkReady("processed/1/video.mp4", 400);
+        await db.SaveChangesAsync();
+
+        // Act + Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
+        {
+            FailureReason = "late failure",
+        }));
+        Assert.Contains("ready", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ReportProcessedAsync_MarksAssetFailed_WhenFailureReasonProvided()
     {
         // Arrange
