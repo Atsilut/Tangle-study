@@ -53,6 +53,20 @@ fn value_to_str(value: &Value) -> Result<&str> {
     }
 }
 
+/// Whether a handler error represents a poison-pill stream entry that should be acked, not retried.
+pub fn is_malformed_entry(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        let message = cause.to_string();
+        message.contains("stream entry missing")
+            || message.contains("decode `type` field")
+            || message.contains("decode `payload` field")
+            || message.contains("expected string field")
+            || message.contains("field is not valid utf-8")
+            || message.contains("unexpected job type")
+            || message.contains("deserialize payload")
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -86,6 +100,56 @@ mod tests {
         assert_eq!(job.sender_user_id, 3);
         assert_eq!(job.body, "hi");
         assert_eq!(job.sent_at, "2026-01-01T00:00:00+00:00");
+    }
+
+    #[test]
+    fn malformed_entry_detects_missing_type_field() {
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map: HashMap::new(),
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
+    }
+
+    #[test]
+    fn malformed_entry_detects_non_string_field_type() {
+        let mut map = HashMap::new();
+        map.insert("type".to_owned(), Value::Int(1));
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(br#"{"messageId":1}"#.to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map,
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
+    }
+
+    #[test]
+    fn malformed_entry_detects_invalid_json_payload() {
+        let mut map = HashMap::new();
+        map.insert(
+            "type".to_owned(),
+            Value::BulkString(b"chat.message.created".to_vec()),
+        );
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(b"not-json".to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map,
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
     }
 
     #[test]

@@ -8,6 +8,7 @@ use crate::api_callback;
 use crate::config::Config;
 use crate::dlq;
 use crate::handlers;
+use crate::message;
 use crate::retry;
 
 /// Ensures the consumer group exists (idempotent). New groups read from the start of the stream (`0`).
@@ -212,7 +213,7 @@ async fn process_entry(
             );
         }
         Err(err) => {
-            if is_malformed_stream_entry(&err) {
+            if message::is_malformed_entry(&err) {
                 warn!(
                     stream = %stream,
                     message_id = %message_id,
@@ -285,12 +286,3 @@ fn is_busygroup(err: &RedisError) -> bool {
     err.code() == Some("BUSYGROUP")
 }
 
-fn is_malformed_stream_entry(err: &anyhow::Error) -> bool {
-    err.chain().any(|cause| {
-        let message = cause.to_string();
-        message.contains("stream entry missing")
-            || message.contains("deserialize payload")
-            || message.contains("unexpected job type")
-            || message.contains("field is not valid utf-8")
-    })
-}
