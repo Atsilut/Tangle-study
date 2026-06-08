@@ -10,7 +10,11 @@ use crate::job::MediaUploadedJob;
 use crate::processing;
 use crate::storage::BlobStorage;
 
-pub async fn handle(job: &MediaUploadedJob, config: &Config) -> Result<()> {
+pub async fn handle(
+    job: &MediaUploadedJob,
+    config: &Config,
+    http: &reqwest::Client,
+) -> Result<()> {
     if config.azure_storage_connection_string.trim().is_empty() {
         bail!("AZURE_STORAGE_CONNECTION_STRING is not configured");
     }
@@ -19,7 +23,6 @@ pub async fn handle(job: &MediaUploadedJob, config: &Config) -> Result<()> {
         &config.azure_storage_connection_string,
         &config.media_container_name,
     )?;
-    let http = reqwest::Client::new();
     let work_dir = tempdir().context("create temp work directory")?;
     let input_path = work_dir.path().join("input.bin");
     let output_path = work_dir.path().join("processed.bin");

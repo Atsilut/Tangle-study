@@ -23,6 +23,10 @@ pub struct Config {
     pub log_json: bool,
     pub api_base_url: String,
     pub worker_callback_secret: String,
+    pub callback_timeout_ms: u64,
+    pub callback_connect_timeout_ms: u64,
+    pub callback_max_retries: u32,
+    pub callback_retry_base_ms: u64,
     pub azure_storage_connection_string: String,
     pub media_container_name: String,
 }
@@ -55,6 +59,10 @@ impl Config {
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
             api_base_url: env_var("API_BASE_URL", "http://127.0.0.1:5000")?,
             worker_callback_secret: env_var("WORKER_CALLBACK_SECRET", "")?,
+            callback_timeout_ms: env_var_parse("WORKER_CALLBACK_TIMEOUT_MS", 30_000)?,
+            callback_connect_timeout_ms: env_var_parse("WORKER_CALLBACK_CONNECT_TIMEOUT_MS", 10_000)?,
+            callback_max_retries: env_var_parse("WORKER_CALLBACK_MAX_RETRIES", 3)?,
+            callback_retry_base_ms: env_var_parse("WORKER_CALLBACK_RETRY_BASE_MS", 500)?,
             azure_storage_connection_string: env_var("AZURE_STORAGE_CONNECTION_STRING", "")?,
             media_container_name: env_var("MEDIA_CONTAINER_NAME", "tangle-media")?,
         })
@@ -127,6 +135,10 @@ mod tests {
             log_json: false,
             api_base_url: String::new(),
             worker_callback_secret: String::new(),
+            callback_timeout_ms: 30_000,
+            callback_connect_timeout_ms: 10_000,
+            callback_max_retries: 3,
+            callback_retry_base_ms: 500,
             azure_storage_connection_string: String::new(),
             media_container_name: "tangle-media".to_owned(),
         };
