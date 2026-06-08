@@ -9,6 +9,10 @@ use crate::config::Config;
 
 pub const CALLBACK_HEADER: &str = "X-Worker-Callback-Secret";
 
+/// Matches API `MediaProcessedRequestDto.FailureReason` `[StringLength(2000)]`.
+const MAX_FAILURE_REASON_LEN: usize = 2000;
+const TRUNCATION_ELLIPSIS: &str = "…";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MediaProcessedRequest<'a> {
@@ -47,10 +51,11 @@ pub async fn report_failure(
     media_asset_id: i64,
     failure_reason: &str,
 ) -> Result<()> {
+    let failure_reason = truncate_failure_reason(failure_reason);
     let body = MediaProcessedRequest {
         processed_object_key: None,
         stored_size_bytes: None,
-        failure_reason: Some(failure_reason),
+        failure_reason: Some(failure_reason.as_str()),
     };
     send_callback(client, config, media_asset_id, &body).await
 }
@@ -136,4 +141,34 @@ fn status_code_from_message(message: &str) -> Option<StatusCode> {
     let rest = message.strip_prefix(prefix)?;
     let status_token = rest.split(':').next()?.trim();
     status_token.parse().ok()
+}
+
+fn truncate_failure_reason(reason: &str) -> String {
+    if reason.chars().count() <= MAX_FAILURE_REASON_LEN {
+        return reason.to_owned();
+    }
+
+    let keep = MAX_FAILURE_REASON_LEN.saturating_sub(TRUNCATION_ELLIPSIS.chars().count());
+    let truncated: String = reason.chars().take(keep).collect();
+    format!("{truncated}{TRUNCATION_ELLIPSIS}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_failure_reason_leaves_short_reasons_unchanged() {
+        let reason = "compression failed";
+        assert_eq!(truncate_failure_reason(reason), reason);
+    }
+
+    #[test]
+    fn truncate_failure_reason_caps_at_api_limit() {
+        let reason = "x".repeat(2500);
+        let truncated = truncate_failure_reason(&reason);
+
+        assert!(truncated.chars().count() <= MAX_FAILURE_REASON_LEN);
+        assert!(truncated.ends_with(TRUNCATION_ELLIPSIS));
+    }
 }
