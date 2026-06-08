@@ -49,6 +49,14 @@ namespace Api.Domain.Users.Service
             if (!await _repo.ExistsUserByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
+        public async Task EnsureUsersExistAsync(
+            IReadOnlyCollection<long> ids,
+            string notFoundMessage = "User not found",
+            int statusCode = StatusCodes.Status404NotFound)
+        {
+            if (!await _repo.AllUsersExistByIdsAsync(ids)) throw new EntityNotFoundException(notFoundMessage, statusCode);
+        }
+
         public async Task<UserGetResponseDto> GetUserByIdOrThrowAsync(long id, string notFoundMessage = "User not found") =>
             await GetUserByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 

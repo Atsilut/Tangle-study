@@ -129,9 +129,9 @@ Update the **Status** column when a fix group lands.
 | G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.FilterViewableBoardsAsync` | Board list | fixed |
 | G-2 | Groups | `GroupRepository.GetGroupNamesByIdsAsync` | Invitation list | fixed |
 | G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | fixed |
-| C-1 | Chat | `ChatRoomAccessService.EnsureCanCreatePlatformGroupRoomAsync` | Create platform room | open |
-| C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | open |
-| C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | open |
+| C-1 | Chat | `ChatRoomAccessService.EnsureCanCreatePlatformGroupRoomAsync` | Create platform room | fixed |
+| C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | fixed |
+| C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | fixed |
 | U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | N Redis GET/SET per user (DB fallback batched) | open |
 | CM-1 | Comments | `CommentService.MapToDtoAsync` | Single-comment GET only | open |
 

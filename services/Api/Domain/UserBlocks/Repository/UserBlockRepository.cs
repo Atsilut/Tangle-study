@@ -20,6 +20,15 @@ namespace Api.Domain.UserBlocks.Repository
             _context.UserBlocks.AnyAsync(b =>
                 b.BlockerId == blockerId && b.BlockedUserId == blockedUserId);
 
+        public Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds)
+        {
+            if (otherUserIds.Count == 0) return Task.FromResult(false);
+
+            return _context.UserBlocks.AnyAsync(b =>
+                (b.BlockerId == userId && otherUserIds.Contains(b.BlockedUserId))
+                || (otherUserIds.Contains(b.BlockerId) && b.BlockedUserId == userId));
+        }
+
         public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
             _context.UserBlocks.FindAsync(id).AsTask();
 

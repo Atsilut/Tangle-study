@@ -21,6 +21,11 @@ public sealed class FakeUserBlockRepository : IUserBlockRepository
         Task.FromResult(_blocks.Any(b =>
             b.BlockerId == blockerId && b.BlockedUserId == blockedUserId));
 
+    public Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds) =>
+        Task.FromResult(otherUserIds.Any(otherUserId =>
+            _blocks.Any(b => b.BlockerId == userId && b.BlockedUserId == otherUserId)
+            || _blocks.Any(b => b.BlockerId == otherUserId && b.BlockedUserId == userId)));
+
     public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
         Task.FromResult(_blocks.FirstOrDefault(b => b.Id == id));
 

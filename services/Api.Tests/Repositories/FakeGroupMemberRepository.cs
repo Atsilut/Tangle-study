@@ -20,6 +20,11 @@ public sealed class FakeGroupMemberRepository : IGroupMemberRepository
     public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
         Task.FromResult(_members.FirstOrDefault(m => m.GroupId == groupId && m.UserId == userId));
 
+    public Task<List<GroupMember>> GetMembersByUserIdsAsync(long groupId, IReadOnlyCollection<long> userIds) =>
+        Task.FromResult(_members
+            .Where(m => m.GroupId == groupId && userIds.Contains(m.UserId))
+            .ToList());
+
     public Task<List<GroupMember>> GetMembersByGroupAsync(long groupId) =>
         Task.FromResult(_members.Where(m => m.GroupId == groupId).ToList());
 

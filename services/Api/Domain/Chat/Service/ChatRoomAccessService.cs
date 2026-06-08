@@ -63,7 +63,9 @@ public class ChatRoomAccessService(
     {
         await _userService.EnsureUserExistsAsync(inviteeUserId, "User not found", StatusCodes.Status400BadRequest);
 
-        foreach (var participant in participants) await EnsureNoBlockBetweenUsersAsync(inviteeUserId, participant.UserId);
+        await _userBlockService.EnsureNoBlockBetweenUserAndOthersAsync(
+            inviteeUserId,
+            participants.Select(p => p.UserId).ToList());
 
         if (room.Kind == ChatRoomKind.PlatformGroup)
         {
@@ -90,22 +92,26 @@ public class ChatRoomAccessService(
         await _groupService.EnsureGroupExistsAsync(platformGroupId);
         await _groupMembershipService.EnsureMemberAsync(platformGroupId, creatorUserId);
 
-        foreach (var participantId in participantUserIds)
-        {
-            if (participantId == creatorUserId) continue;
-            await _userService.EnsureUserExistsAsync(participantId, "User not found", StatusCodes.Status400BadRequest);
-            await EnsureNoBlockBetweenUsersAsync(creatorUserId, participantId);
-            if (await _groupMembershipService.GetMemberAsync(platformGroupId, participantId) is null) throw new ArgumentException("All participants must be members of this group");
-        }
+        var otherParticipantIds = OtherParticipantIds(creatorUserId, participantUserIds);
+        if (otherParticipantIds.Count == 0) return;
+
+        await _userService.EnsureUsersExistAsync(otherParticipantIds, "User not found", StatusCodes.Status400BadRequest);
+        await _userBlockService.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
+        await _groupMembershipService.EnsureMembersAsync(
+            platformGroupId,
+            otherParticipantIds,
+            "All participants must be members of this group");
     }
 
     public async Task EnsureCanCreateMultiRoomAsync(long creatorUserId, IReadOnlyCollection<long> participantUserIds)
     {
-        foreach (var participantId in participantUserIds)
-        {
-            if (participantId == creatorUserId) continue;
-            await _userService.EnsureUserExistsAsync(participantId, "User not found", StatusCodes.Status400BadRequest);
-            await EnsureNoBlockBetweenUsersAsync(creatorUserId, participantId);
-        }
+        var otherParticipantIds = OtherParticipantIds(creatorUserId, participantUserIds);
+        if (otherParticipantIds.Count == 0) return;
+
+        await _userService.EnsureUsersExistAsync(otherParticipantIds, "User not found", StatusCodes.Status400BadRequest);
+        await _userBlockService.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
     }
+
+    private static List<long> OtherParticipantIds(long creatorUserId, IReadOnlyCollection<long> participantUserIds) =>
+        [.. participantUserIds.Where(id => id != creatorUserId).Distinct()];
 }

@@ -57,6 +57,15 @@ namespace Api.Domain.UserBlocks.Service
         public Task<bool> IsBlockedByAsync(long blockerId, long blockedUserId) =>
             _repo.ExistsUserBlockAsync(blockerId, blockedUserId);
 
+        public Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds) =>
+            _repo.AnyBlockExistsBetweenUserAndOthersAsync(userId, otherUserIds);
+
+        public async Task EnsureNoBlockBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds)
+        {
+            if (await AnyBlockExistsBetweenUserAndOthersAsync(userId, otherUserIds))
+                throw new ArgumentException("Cannot chat while a block exists between you and this user.");
+        }
+
         private async Task ValidateBlockPartiesAsync(long blockerId, long blockedUserId)
         {
             if (blockerId == blockedUserId) throw new ArgumentException("Cannot block yourself.");

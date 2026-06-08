@@ -9,6 +9,7 @@ namespace Api.Domain.Users.Repository
         public Task<IReadOnlyDictionary<long, string>> GetNicknamesByIdsAsync(IEnumerable<long> ids);
         public Task<User?> GetUserByIdAsync(long id);
         public Task<bool> ExistsUserByIdAsync(long id);
+        public Task<bool> AllUsersExistByIdsAsync(IReadOnlyCollection<long> ids);
         public Task<User?> GetUserByEmailAsync(string email);
         public Task<bool> ExistsUserByEmailAsync(string email);
         public Task<User?> GetUserByNicknameAsync(string nickname);

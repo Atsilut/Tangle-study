@@ -39,6 +39,16 @@ namespace Api.Domain.Users.Repository
 
         public Task<bool> ExistsUserByIdAsync(long id) =>
             _context.Users.AnyAsync(u => u.Id == id);
+
+        public async Task<bool> AllUsersExistByIdsAsync(IReadOnlyCollection<long> ids)
+        {
+            List<long> idList = [.. ids.Distinct()];
+            if (idList.Count == 0) return true;
+
+            var count = await _context.Users.CountAsync(u => idList.Contains(u.Id));
+            return count == idList.Count;
+        }
+
         public Task<User?> GetUserByEmailAsync(string email) 
             => _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 

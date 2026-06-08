@@ -19,6 +19,14 @@ namespace Api.Domain.Groups.Repository
         public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
             _context.GroupMembers.FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId);
 
+        public Task<List<GroupMember>> GetMembersByUserIdsAsync(long groupId, IReadOnlyCollection<long> userIds)
+        {
+            if (userIds.Count == 0) return Task.FromResult<List<GroupMember>>([]);
+            return _context.GroupMembers
+                .Where(m => m.GroupId == groupId && userIds.Contains(m.UserId))
+                .ToListAsync();
+        }
+
         public Task<List<GroupMember>> GetMembersByGroupAsync(long groupId) =>
             _context.GroupMembers.Where(m => m.GroupId == groupId).ToListAsync();
 

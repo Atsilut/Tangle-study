@@ -25,6 +25,17 @@ namespace Api.Domain.Groups.Service
         public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
             _repo.GetMemberAsync(groupId, userId);
 
+        public Task<List<GroupMember>> GetMembersByUserIdsAsync(long groupId, IReadOnlyCollection<long> userIds) =>
+            _repo.GetMembersByUserIdsAsync(groupId, userIds);
+
+        public async Task EnsureMembersAsync(long groupId, IReadOnlyCollection<long> userIds, string errorMessage)
+        {
+            if (userIds.Count == 0) return;
+
+            var members = await _repo.GetMembersByUserIdsAsync(groupId, userIds);
+            if (members.Count != userIds.Distinct().Count()) throw new ArgumentException(errorMessage);
+        }
+
         public async Task<bool> IsMemberAsync(long groupId, long userId) =>
             await _repo.GetMemberAsync(groupId, userId) is not null;
 
