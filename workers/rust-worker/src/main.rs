@@ -5,6 +5,7 @@ mod dlq;
 mod handlers;
 mod job;
 mod message;
+mod probe;
 mod processing;
 mod retry;
 mod storage;
