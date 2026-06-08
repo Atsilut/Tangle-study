@@ -12,6 +12,8 @@ public static class MediaServiceCollectionExtensions
         services.AddSingleton<MediaLimitPolicy>();
 
         var options = configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
+        EnsureLimitsConfigured(options);
+
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             if (options.Enabled)

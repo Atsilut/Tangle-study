@@ -6,6 +6,7 @@ using Api.Domain.Users.Service;
 using Api.Global.Config;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
+using Api.Global.Queue;
 using Microsoft.Extensions.Options;
 
 namespace Api.Domain.Media.Service;
@@ -16,6 +17,7 @@ public sealed class MediaService(
     IMediaStorage mediaStorage,
     MediaLimitPolicy limitPolicy,
     UserService userService,
+    IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
     IHttpContextAccessor httpContextAccessor)
 {
@@ -25,6 +27,7 @@ public sealed class MediaService(
     private readonly IMediaStorage _mediaStorage = mediaStorage;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly UserService _userService = userService;
+    private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
@@ -136,6 +139,36 @@ public sealed class MediaService(
             presigned.ExpiresAt,
             _limitPolicy.GetIngressLimit(request.IntendedContext, kind),
             storageLimits.PerFileBytes);
+    }
+
+    public async Task<MediaAssetGetResponseDto> CompleteUploadAsync(long id)
+    {
+        EnsureMediaEnabled();
+        var userId = GetUserIdFromLogin();
+        var asset = await GetMediaAssetOrThrowAsync(id);
+        if (asset.UploaderId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (asset.ProcessingStatus != MediaProcessingStatus.PendingUpload)
+            throw new ArgumentException($"Upload cannot be completed while status is {asset.ProcessingStatus}.");
+
+        if (!await _mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey))
+            throw new ArgumentException("Uploaded file was not found in storage.");
+
+        asset.MarkProcessing();
+        await _repo.SaveChangesAsync();
+
+        var targetMaxBytes = _limitPolicy.GetStorageLimits(asset.IntendedContext, asset.Kind).PerFileBytes;
+        await _workQueue.EnqueueAsync(
+            WorkQueueStreams.MediaUploaded,
+            new MediaUploadedJob(
+                asset.Id,
+                asset.IntendedContext.ToString(),
+                asset.Kind.ToString(),
+                asset.MimeType,
+                asset.OriginalObjectKey,
+                asset.OriginalSizeBytes,
+                targetMaxBytes));
+
+        return MapToDto(asset);
     }
 
     internal static string BuildObjectKey(long userId, string fileName)

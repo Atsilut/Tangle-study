@@ -23,6 +23,11 @@ public sealed class MediaController(MediaService service) : ControllerBase
     public async Task<ActionResult<MediaUploadInitResponseDto>> InitUpload([FromBody] MediaUploadInitRequestDto request) =>
         Ok(await _service.InitUploadAsync(request));
 
+    [HttpPost("{id:long}/complete")]
+    [SwaggerOperation(Summary = "Confirm a direct-to-storage upload and enqueue processing")]
+    public async Task<ActionResult<MediaAssetGetResponseDto>> CompleteUpload([FromRoute] long id) =>
+        Ok(await _service.CompleteUploadAsync(id));
+
     [HttpDelete("{id:long}")]
     [SwaggerOperation(Summary = "Delete an unlinked media asset owned by the current user")]
     public async Task<IActionResult> DeleteUnlinked([FromRoute] long id)
