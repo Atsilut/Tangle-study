@@ -7,7 +7,6 @@ use tracing::{error, info, warn};
 use crate::config::Config;
 use crate::dlq;
 use crate::handlers;
-use crate::message;
 use crate::retry;
 
 /// Ensures the consumer group exists (idempotent). New groups read from the start of the stream (`0`).
@@ -186,58 +185,58 @@ async fn process_entry(
 ) -> Result<()> {
     let message_id = entry.id.as_str();
 
-    match message::decode_chat_message_created(&config.stream_key, entry) {
-        Ok(job) => match handlers::dispatch_chat_message_created(&job).await {
-            Ok(()) => {
-                ack(conn, stream, &config.consumer_group, message_id).await?;
-                info!(
-                    stream = %stream,
-                    message_id = %message_id,
-                    chat_message_id = job.message_id,
-                    times_delivered = times_delivered,
-                    "processed and acked message"
-                );
-            }
-            Err(err) => {
-                if retry::is_terminal(times_delivered, config.max_attempts) {
-                    dlq::publish_exhausted(
-                        conn,
-                        config,
-                        stream,
-                        Some(entry),
-                        message_id,
-                        times_delivered,
-                        &err,
-                    )
-                    .await?;
-                    ack(conn, stream, &config.consumer_group, message_id).await?;
-                } else {
-                    let retry_after_ms = retry::backoff_delay_ms(
-                        times_delivered,
-                        config.retry_base_ms,
-                        config.retry_max_ms,
-                        config.retry_jitter_pct,
-                        message_id,
-                    );
-                    error!(
-                        stream = %stream,
-                        message_id = %message_id,
-                        times_delivered = times_delivered,
-                        retry_after_ms = retry_after_ms,
-                        error = %err,
-                        "handler failed; message left in pending entries list for retry"
-                    );
-                }
-            }
-        },
-        Err(err) => {
-            warn!(
+    match handlers::dispatch_entry(config, entry).await {
+        Ok(()) => {
+            ack(conn, stream, &config.consumer_group, message_id).await?;
+            info!(
                 stream = %stream,
                 message_id = %message_id,
-                error = %err,
-                "skipping malformed message; acking to avoid poison-pill loop"
+                stream_key = %config.stream_key,
+                times_delivered = times_delivered,
+                "processed and acked message"
             );
-            ack(conn, stream, &config.consumer_group, message_id).await?;
+        }
+        Err(err) => {
+            if is_malformed_stream_entry(&err) {
+                warn!(
+                    stream = %stream,
+                    message_id = %message_id,
+                    error = %err,
+                    "skipping malformed message; acking to avoid poison-pill loop"
+                );
+                ack(conn, stream, &config.consumer_group, message_id).await?;
+                return Ok(());
+            }
+
+            if retry::is_terminal(times_delivered, config.max_attempts) {
+                dlq::publish_exhausted(
+                    conn,
+                    config,
+                    stream,
+                    Some(entry),
+                    message_id,
+                    times_delivered,
+                    &err,
+                )
+                .await?;
+                ack(conn, stream, &config.consumer_group, message_id).await?;
+            } else {
+                let retry_after_ms = retry::backoff_delay_ms(
+                    times_delivered,
+                    config.retry_base_ms,
+                    config.retry_max_ms,
+                    config.retry_jitter_pct,
+                    message_id,
+                );
+                error!(
+                    stream = %stream,
+                    message_id = %message_id,
+                    times_delivered = times_delivered,
+                    retry_after_ms = retry_after_ms,
+                    error = %err,
+                    "handler failed; message left in pending entries list for retry"
+                );
+            }
         }
     }
 
@@ -269,4 +268,14 @@ async fn ack(
 
 fn is_busygroup(err: &RedisError) -> bool {
     err.code() == Some("BUSYGROUP")
+}
+
+fn is_malformed_stream_entry(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        let message = cause.to_string();
+        message.contains("stream entry missing")
+            || message.contains("deserialize payload")
+            || message.contains("unexpected job type")
+            || message.contains("field is not valid utf-8")
+    })
 }

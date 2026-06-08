@@ -21,6 +21,10 @@ pub struct Config {
     pub replay_dry_run: bool,
     pub replay_delete: bool,
     pub log_json: bool,
+    pub api_base_url: String,
+    pub worker_callback_secret: String,
+    pub azure_storage_connection_string: String,
+    pub media_container_name: String,
 }
 
 impl Config {
@@ -49,6 +53,10 @@ impl Config {
             replay_dry_run: env_var_parse("WORKER_REPLAY_DRY_RUN", false)?,
             replay_delete: env_var_parse("WORKER_REPLAY_DELETE", true)?,
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
+            api_base_url: env_var("API_BASE_URL", "http://127.0.0.1:5000")?,
+            worker_callback_secret: env_var("WORKER_CALLBACK_SECRET", "")?,
+            azure_storage_connection_string: env_var("AZURE_STORAGE_CONNECTION_STRING", "")?,
+            media_container_name: env_var("MEDIA_CONTAINER_NAME", "tangle-media")?,
         })
     }
 
@@ -117,6 +125,10 @@ mod tests {
             replay_dry_run: false,
             replay_delete: true,
             log_json: false,
+            api_base_url: String::new(),
+            worker_callback_secret: String::new(),
+            azure_storage_connection_string: String::new(),
+            media_container_name: "tangle-media".to_owned(),
         };
 
         assert_eq!(

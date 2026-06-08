@@ -2,24 +2,13 @@ use anyhow::{bail, Context, Result};
 use redis::streams::StreamId;
 use redis::Value;
 
-use crate::job::ChatMessageCreatedJob;
+use crate::job::{ChatMessageCreatedJob, MediaUploadedJob};
 
 pub fn decode_chat_message_created(
     expected_type: &str,
     entry: &StreamId,
 ) -> Result<ChatMessageCreatedJob> {
-    let job_type = entry
-        .map
-        .get("type")
-        .context("stream entry missing `type` field")?;
-    let payload = entry
-        .map
-        .get("payload")
-        .context("stream entry missing `payload` field")?;
-
-    let job_type = value_to_str(job_type).context("decode `type` field")?;
-    let payload = value_to_str(payload).context("decode `payload` field")?;
-
+    let (job_type, payload) = extract_envelope_fields(entry)?;
     if job_type != expected_type {
         bail!(
             "unexpected job type {job_type:?}, expected {expected_type:?} (entry id {})",
@@ -27,16 +16,21 @@ pub fn decode_chat_message_created(
         );
     }
 
-    serde_json::from_str(payload)
+    serde_json::from_str(&payload)
         .with_context(|| format!("deserialize payload for entry {}", entry.id))
 }
 
-fn value_to_str(value: &Value) -> Result<&str> {
-    match value {
-        Value::BulkString(bytes) => std::str::from_utf8(bytes).context("field is not valid utf-8"),
-        Value::SimpleString(text) => Ok(text.as_str()),
-        _ => bail!("expected string field, got {value:?}"),
+pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
+    let (job_type, payload) = extract_envelope_fields(entry)?;
+    if job_type != expected_type {
+        bail!(
+            "unexpected job type {job_type:?}, expected {expected_type:?} (entry id {})",
+            entry.id
+        );
     }
+
+    serde_json::from_str(&payload)
+        .with_context(|| format!("deserialize payload for entry {}", entry.id))
 }
 
 /// Returns `(type, payload)` from a stream entry envelope.
@@ -51,9 +45,17 @@ pub fn extract_envelope_fields(entry: &StreamId) -> Result<(String, String)> {
         .context("stream entry missing `payload` field")?;
 
     Ok((
-        value_to_str(job_type)?.to_owned(),
-        value_to_str(payload)?.to_owned(),
+        value_to_str(job_type).context("decode `type` field")?.to_owned(),
+        value_to_str(payload).context("decode `payload` field")?.to_owned(),
     ))
+}
+
+fn value_to_str(value: &Value) -> Result<&str> {
+    match value {
+        Value::BulkString(bytes) => std::str::from_utf8(bytes).context("field is not valid utf-8"),
+        Value::SimpleString(text) => Ok(text.as_str()),
+        _ => bail!("expected string field, got {value:?}"),
+    }
 }
 
 #[cfg(test)]
@@ -89,5 +91,32 @@ mod tests {
         assert_eq!(job.sender_user_id, 3);
         assert_eq!(job.body, "hi");
         assert_eq!(job.sent_at, "2026-01-01T00:00:00+00:00");
+    }
+
+    #[test]
+    fn decodes_media_uploaded_payload() {
+        let mut map = HashMap::new();
+        map.insert(
+            "type".to_owned(),
+            Value::BulkString(b"media.uploaded".to_vec()),
+        );
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(
+                br#"{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":2147483648}"#
+                    .to_vec(),
+            ),
+        );
+
+        let entry = StreamId {
+            id: "2-0".to_owned(),
+            map,
+        };
+
+        let job = decode_media_uploaded("media.uploaded", &entry).unwrap();
+        assert_eq!(job.media_asset_id, 9);
+        assert_eq!(job.intended_context, "Post");
+        assert_eq!(job.kind, "Video");
+        assert_eq!(job.target_max_bytes, 2_147_483_648);
     }
 }

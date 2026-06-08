@@ -70,6 +70,7 @@ services:
       Media__ConnectionString: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLmF5gPCXx4scIIpCimMY4evDMb2v50pPsdZ1Oi4K;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
       Media__PublicBlobEndpoint: "http://127.0.0.1:10000/devstoreaccount1"
       Media__ContainerName: "tangle-media"
+      Media__WorkerCallbackSecret: "dev-media-worker-secret"
     ports:
       - "5000:8080"
     depends_on:
@@ -110,6 +111,30 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  rust-worker-media:
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: workers/rust-worker/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_STREAM_PREFIX: "tangle:queue:"
+      WORKER_STREAM_KEY: media.uploaded
+      WORKER_CONSUMER_GROUP: tangle-workers
+      API_BASE_URL: http://api:8080
+      WORKER_CALLBACK_SECRET: dev-media-worker-secret
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLmF5gPCXx4scIIpCimMY4evDMb2v50pPsdZ1Oi4K;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      MEDIA_CONTAINER_NAME: tangle-media
+      RUST_LOG: info
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+      azurite:
+        condition: service_started
     restart: unless-stopped
 
   test:
