@@ -66,7 +66,7 @@ internal static class DomainServiceTestFactory
         var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
         var distributedCache = new FakeDistributedCache();
-        var nicknameCacheService = new NicknameCacheService(userRepository, distributedCache);
+        var nicknameCacheService = CreateNicknameCacheService(userRepository, distributedCache);
         var eventPublisher = new NoOpEventPublisher();
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -275,6 +275,21 @@ internal static class DomainServiceTestFactory
             groupBoardRepository,
             groupBoardAccessService,
             groupBoardService);
+    }
+
+    internal static NicknameCacheService CreateNicknameCacheService(
+        FakeUserRepository userRepository,
+        FakeDistributedCache cache)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions();
+        services.Configure<RedisOptions>(options => options.InstanceName = "tangle:");
+        var serviceProvider = services.BuildServiceProvider();
+        return new NicknameCacheService(
+            userRepository,
+            cache,
+            serviceProvider,
+            serviceProvider.GetRequiredService<IOptions<RedisOptions>>());
     }
 
     private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>

@@ -125,14 +125,14 @@ Update the **Status** column when a fix group lands.
 | P-1 | Posts | `PostService.MapManyAsync` | Post list GETs | fixed |
 | P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | fixed |
 | M-1 | Media | `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync` | Post list + group delete | fixed |
-| M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (up to 4× per asset) | open |
+| M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (parallel, max 8 concurrent) | fixed |
 | G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.FilterViewableBoardsAsync` | Board list | fixed |
 | G-2 | Groups | `GroupRepository.GetGroupNamesByIdsAsync` | Invitation list | fixed |
 | G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | fixed |
 | C-1 | Chat | `ChatRoomAccessService.EnsureCanCreatePlatformGroupRoomAsync` | Create platform room | fixed |
 | C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | fixed |
 | C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | fixed |
-| U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | N Redis GET/SET per user (DB fallback batched) | open |
+| U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | Redis MGET/pipeline; parallel cache I/O fallback | fixed |
 | CM-1 | Comments | `CommentService.MapToDtoAsync` | Single-comment GET only | open |
 
 **Clean (no action):** Friendships and UserBlocks list paths; `ChatMessageService` list mapping; `GetAllUsersAsync`.

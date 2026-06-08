@@ -181,20 +181,31 @@ public sealed class MediaService(
             pair => pair.Value is null ? null : MapToDto(pair.Value));
     }
 
+    private const int MaxConcurrentBlobDeletes = 8;
+
     private async Task DeleteBlobStorageForAssetsAsync(IReadOnlyList<MediaAsset> assets)
     {
         if (_serviceProvider.GetService<IMediaStorage>() is not IMediaStorage mediaStorage)
             return;
 
-        foreach (var asset in assets)
-        {
-            if (await mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey))
-                await mediaStorage.DeleteObjectAsync(asset.OriginalObjectKey);
+        await Parallel.ForEachAsync(
+            assets,
+            new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentBlobDeletes },
+            async (asset, cancellationToken) =>
+                await DeleteBlobStorageForAssetAsync(mediaStorage, asset, cancellationToken));
+    }
 
-            if (!string.IsNullOrWhiteSpace(asset.ProcessedObjectKey)
-                && await mediaStorage.ObjectExistsAsync(asset.ProcessedObjectKey))
-                await mediaStorage.DeleteObjectAsync(asset.ProcessedObjectKey);
-        }
+    private static async Task DeleteBlobStorageForAssetAsync(
+        IMediaStorage mediaStorage,
+        MediaAsset asset,
+        CancellationToken cancellationToken)
+    {
+        if (await mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey, cancellationToken))
+            await mediaStorage.DeleteObjectAsync(asset.OriginalObjectKey, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(asset.ProcessedObjectKey)
+            && await mediaStorage.ObjectExistsAsync(asset.ProcessedObjectKey, cancellationToken))
+            await mediaStorage.DeleteObjectAsync(asset.ProcessedObjectKey, cancellationToken);
     }
 
     public async Task<MediaUploadInitResponseDto> InitUploadAsync(MediaUploadInitRequestDto request)

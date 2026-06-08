@@ -455,7 +455,7 @@ public sealed class MediaServiceUnitTests
         });
         var http = new FakeHttpContextAccessor("1");
         var userRepository = new FakeUserRepository();
-        var nicknameCache = new NicknameCacheService(userRepository, new FakeDistributedCache());
+        var nicknameCache = DomainServiceTestFactory.CreateNicknameCacheService(userRepository, new FakeDistributedCache());
         var userService = new UserService(
             userRepository,
             db,
