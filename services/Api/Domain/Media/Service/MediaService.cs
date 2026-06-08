@@ -65,10 +65,7 @@ public sealed class MediaService(
     {
         if (postIds.Count == 0) return;
 
-        List<MediaAsset> assets = [];
-        foreach (var postId in postIds)
-            assets.AddRange(await _repo.GetMediaAssetsByPostIdAsync(postId));
-
+        var assets = await _repo.GetMediaAssetsByPostIdsAsync(postIds);
         await DeleteBlobStorageForAssetsAsync(assets);
     }
 
@@ -135,6 +132,19 @@ public sealed class MediaService(
     {
         var assets = await _repo.GetMediaAssetsByPostIdAsync(postId);
         return assets.Select(MapToDto).ToList();
+    }
+
+    internal async Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(
+        IReadOnlyCollection<long> postIds)
+    {
+        if (postIds.Count == 0) return new Dictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>();
+
+        var assets = await _repo.GetMediaAssetsByPostIdsAsync(postIds);
+        return assets
+            .GroupBy(asset => asset.PostId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<MediaAssetGetResponseDto>)[.. group.Select(MapToDto)]);
     }
 
     internal async Task<MediaAssetGetResponseDto?> GetMediaForCommentAsync(long commentId)

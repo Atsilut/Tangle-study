@@ -1,5 +1,6 @@
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Media.Dto;
 using Api.Domain.Media.Service;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
@@ -133,21 +134,25 @@ namespace Api.Domain.Posts.Service
             IReadOnlyList<Post> posts,
             IReadOnlyDictionary<long, string> nicknames)
         {
-            List<PostGetResponseDto> results = [];
-            foreach (var post in posts)
-            {
-                results.Add(await MapToDtoAsync(
-                    post,
-                    nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User")));
-            }
+            var mediaByPostId = await _mediaService.Value.GetMediaByPostIdsAsync(posts.Select(p => p.Id).ToList());
 
-            return results;
+            return [.. posts.Select(post => MapToDto(
+                post,
+                nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User"),
+                mediaByPostId.GetValueOrDefault(post.Id) ?? []))];
         }
 
         private async Task<PostGetResponseDto> MapToDtoAsync(Post post, string authorNickname)
         {
             var media = await _mediaService.Value.GetMediaForPostAsync(post.Id);
-            return new PostGetResponseDto(
+            return MapToDto(post, authorNickname, media);
+        }
+
+        private static PostGetResponseDto MapToDto(
+            Post post,
+            string authorNickname,
+            IReadOnlyList<MediaAssetGetResponseDto> media) =>
+            new(
                 post.Id,
                 post.Title,
                 post.Content,
@@ -156,7 +161,6 @@ namespace Api.Domain.Posts.Service
                 post.AuthorUserId,
                 authorNickname,
                 media);
-        }
 
         public async Task<PostPatchResponseDto> UpdatePostAsync(PostPatchRequestDto request)
         {

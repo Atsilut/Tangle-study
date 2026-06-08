@@ -22,6 +22,14 @@ public sealed class MediaAssetRepository(AppDbContext context) : IMediaAssetRepo
     public Task<List<MediaAsset>> GetMediaAssetsByPostIdAsync(long postId) =>
         _context.MediaAssets.Where(m => m.PostId == postId).ToListAsync();
 
+    public Task<List<MediaAsset>> GetMediaAssetsByPostIdsAsync(IReadOnlyCollection<long> postIds)
+    {
+        if (postIds.Count == 0) return Task.FromResult<List<MediaAsset>>([]);
+        return _context.MediaAssets
+            .Where(m => m.PostId != null && postIds.Contains(m.PostId.Value))
+            .ToListAsync();
+    }
+
     public async Task<MediaAsset?> GetMediaAssetByCommentIdAsync(long commentId)
     {
         var assets = await _context.MediaAssets.Where(m => m.CommentId == commentId).ToListAsync();

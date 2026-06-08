@@ -122,9 +122,9 @@ Update the **Status** column when a fix group lands.
 
 | ID | Domain | Location | Trigger | Status |
 |----|--------|----------|---------|--------|
-| P-1 | Posts | `PostService.MapManyAsync` | Post list GETs | open |
-| P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | open |
-| M-1 | Media | Missing `GetMediaAssetsByPostIdsAsync` | Root cause of P-1, P-2 | open |
+| P-1 | Posts | `PostService.MapManyAsync` | Post list GETs | fixed |
+| P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | fixed |
+| M-1 | Media | `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync` | Post list + group delete | fixed |
 | M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (up to 4× per asset) | open |
 | G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.TryCanViewBoardAsync` | Board list | open |
 | G-2 | Groups | `GroupService.GetGroupNamesByIdsAsync` | Invitation list | open |

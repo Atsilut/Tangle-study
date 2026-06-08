@@ -10,6 +10,8 @@ public interface IMediaAssetRepository
 
     public Task<List<MediaAsset>> GetMediaAssetsByPostIdAsync(long postId);
 
+    public Task<List<MediaAsset>> GetMediaAssetsByPostIdsAsync(IReadOnlyCollection<long> postIds);
+
     public Task<MediaAsset?> GetMediaAssetByCommentIdAsync(long commentId);
 
     public Task<IReadOnlyDictionary<long, MediaAsset?>> GetMediaAssetByCommentIdsAsync(IReadOnlyCollection<long> commentIds);

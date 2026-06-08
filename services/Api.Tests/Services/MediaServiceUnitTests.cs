@@ -271,6 +271,88 @@ public sealed class MediaServiceUnitTests
     }
 
     [Fact]
+    public async Task GetMediaByPostIdsAsync_ReturnsMediaGroupedByPostId()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+        var user = new User("poster@example.com", "hash", "poster");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var postOneFirst = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "a.jpg", "raw/a.jpg", 10);
+        postOneFirst.LinkToPost(1);
+        postOneFirst.MarkReady("processed/a.jpg", 8);
+        var postOneSecond = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "b.jpg", "raw/b.jpg", 10);
+        postOneSecond.LinkToPost(1);
+        postOneSecond.MarkReady("processed/b.jpg", 8);
+        var postTwo = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "c.jpg", "raw/c.jpg", 10);
+        postTwo.LinkToPost(2);
+        postTwo.MarkReady("processed/c.jpg", 8);
+        db.MediaAssets.AddRange(postOneFirst, postOneSecond, postTwo);
+        await db.SaveChangesAsync();
+
+        // Act
+        var mediaByPostId = await service.GetMediaByPostIdsAsync([1, 2, 99]);
+
+        // Assert
+        Assert.Equal(2, mediaByPostId.Count);
+        Assert.Equal(2, mediaByPostId[1].Count);
+        Assert.Single(mediaByPostId[2]);
+        Assert.False(mediaByPostId.ContainsKey(99));
+    }
+
+    [Fact]
+    public async Task GetMediaByPostIdsAsync_ReturnsEmptyDictionary_WhenNoPostIds()
+    {
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+
+        var mediaByPostId = await service.GetMediaByPostIdsAsync([]);
+
+        Assert.Empty(mediaByPostId);
+    }
+
+    [Fact]
+    public async Task DeleteBlobStorageForPostsAsync_RemovesMediaForAllPostsInOneBatch()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var user = new User("tester@example.com", "hash", "tester");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var postOneMedia = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "one.jpg", "raw/post/one/original.jpg", 100);
+        postOneMedia.LinkToPost(1);
+        postOneMedia.MarkReady("raw/post/one/processed.jpg", 80);
+        var postTwoMedia = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "two.jpg", "raw/post/two/original.jpg", 100);
+        postTwoMedia.LinkToPost(2);
+        postTwoMedia.MarkReady("raw/post/two/processed.jpg", 80);
+        db.MediaAssets.AddRange(postOneMedia, postTwoMedia);
+        await db.SaveChangesAsync();
+
+        storage.SeedObject("raw/post/one/original.jpg");
+        storage.SeedObject("raw/post/one/processed.jpg");
+        storage.SeedObject("raw/post/two/original.jpg");
+        storage.SeedObject("raw/post/two/processed.jpg");
+
+        // Act
+        await service.DeleteBlobStorageForPostsAsync([1, 2]);
+
+        // Assert
+        Assert.Equal(
+            [
+                "raw/post/one/original.jpg",
+                "raw/post/one/processed.jpg",
+                "raw/post/two/original.jpg",
+                "raw/post/two/processed.jpg",
+            ],
+            storage.GetDeletedObjectKeys());
+    }
+
+    [Fact]
     public async Task GetMediaForCommentAsync_ThrowsWhenMultipleAssetsLinked()
     {
         // Arrange
