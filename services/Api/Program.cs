@@ -29,7 +29,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCustomDependencies();
 
 builder.Configuration
-    .AddYamlFile("security.yml", optional: false, reloadOnChange: true);
+    .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
+    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<TokenProvider>();
 

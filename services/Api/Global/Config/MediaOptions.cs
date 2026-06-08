@@ -20,29 +20,15 @@ public sealed class MediaOptions
 
     public string ContainerName { get; set; } = "tangle-media";
 
-    public double IngressMultiplier { get; set; } = 3;
+    public double IngressMultiplier { get; set; }
 
     public string WorkerCallbackSecret { get; set; } = string.Empty;
 
-    public MediaContextLimitOptions Post { get; set; } = new()
-    {
-        VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
-        VideoTotalBytes = 10L * 1024 * 1024 * 1024,
-        ImagePerFileBytes = 150L * 1024 * 1024,
-        ImageTotalBytes = 3L * 1024 * 1024 * 1024,
-    };
+    public MediaContextLimitOptions Post { get; set; } = new();
 
-    public MediaContextLimitOptions Comment { get; set; } = new()
-    {
-        VideoPerFileBytes = 150L * 1024 * 1024,
-        ImagePerFileBytes = 75L * 1024 * 1024,
-    };
+    public MediaContextLimitOptions Comment { get; set; } = new();
 
-    public MediaContextLimitOptions ChatMessage { get; set; } = new()
-    {
-        VideoPerFileBytes = 150L * 1024 * 1024,
-        ImagePerFileBytes = 75L * 1024 * 1024,
-    };
+    public MediaContextLimitOptions ChatMessage { get; set; } = new();
 }
 
 public sealed class MediaContextLimitOptions

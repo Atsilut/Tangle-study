@@ -33,7 +33,7 @@ public sealed class MediaLimitPolicy(IOptions<MediaOptions> options)
     public long GetIngressLimit(MediaIntendedContext context, MediaKind kind) =>
         checked((long)(GetStorageLimits(context, kind).PerFileBytes * GetIngressMultiplier()));
 
-    public double GetIngressMultiplier() => Math.Clamp(_options.IngressMultiplier, 3d, 5d);
+    public double GetIngressMultiplier() => _options.IngressMultiplier;
 
     public void EnsureWithinIngressLimit(MediaIntendedContext context, MediaKind kind, long declaredSizeBytes)
     {

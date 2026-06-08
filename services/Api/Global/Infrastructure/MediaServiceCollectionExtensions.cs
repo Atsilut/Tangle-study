@@ -22,7 +22,30 @@ public static class MediaServiceCollectionExtensions
             return services;
         }
 
+        EnsureLimitsConfigured(options);
         services.AddSingleton<IMediaStorage, AzureBlobMediaStorage>();
         return services;
+    }
+
+    private static void EnsureLimitsConfigured(MediaOptions options)
+    {
+        if (options.IngressMultiplier <= 0)
+            throw new InvalidOperationException(
+                "Media:IngressMultiplier must be greater than zero. Configure it in media-limits.yml.");
+
+        EnsureContextLimitsConfigured("Post", options.Post);
+        EnsureContextLimitsConfigured("Comment", options.Comment);
+        EnsureContextLimitsConfigured("ChatMessage", options.ChatMessage);
+    }
+
+    private static void EnsureContextLimitsConfigured(string contextName, MediaContextLimitOptions limits)
+    {
+        if (limits.VideoPerFileBytes <= 0)
+            throw new InvalidOperationException(
+                $"Media:{contextName}:VideoPerFileBytes must be greater than zero. Configure it in media-limits.yml.");
+
+        if (limits.ImagePerFileBytes <= 0)
+            throw new InvalidOperationException(
+                $"Media:{contextName}:ImagePerFileBytes must be greater than zero. Configure it in media-limits.yml.");
     }
 }
