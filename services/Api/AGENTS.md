@@ -81,3 +81,75 @@ Services throw typed exceptions; `GlobalExceptionHandler` maps them to HTTP stat
 - Private `MapToDto` / `MapToResponseDto` in services (not public unless consumed outside the assembly — prefer keeping private).
 - Manual mapping only (no AutoMapper).
 - Enrich GET DTOs with related data via other **services** (e.g. nicknames from `UserService`).
+
+## N+1 queries
+
+Repositories return flat entities; services batch-enrich via other services. Lazy loading is **not** enabled (`UseLazyLoadingProxies` is not configured). N+1 bugs here are **loops that `await` per-item service/repo calls**, not accidental navigation-property loads.
+
+### Rule
+
+In `MapManyAsync` and other list endpoints, **batch all enrichment before the loop**. Never `await` a per-item service or repository call inside `foreach`.
+
+```csharp
+// Good — batch first, sync map
+var nicknames = await _userService.GetNicknamesByUserIdsAsync(items.Select(i => i.AuthorUserId));
+var mediaById = await _mediaService.GetMediaByCommentIdsAsync(items.Select(i => i.Id).ToList());
+return [.. items.Select(i => MapToDto(i, nicknames[...], mediaById.GetValueOrDefault(i.Id)))];
+
+// Bad — N round trips
+foreach (var item in items)
+    results.Add(await MapToDtoAsync(item, ...)); // awaits DB inside loop
+```
+
+Single-item GET (`GetPostByIdAsync`, `GetCommentByIdAsync`) may use one enrichment call per field — that is not N+1.
+
+Prefer batch `WHERE ... IN (...)` over JOINs for cross-aggregate enrichment. JOIN saves at most one round trip; batch `IN` fixes query count. Do not use lazy loading — it hides queries and bypasses `NicknameCacheService` / `MediaService` boundaries.
+
+Use explicit `Include` only when the graph is one aggregate and always needed together (e.g. `ChatRoom.Participants` in `ChatRoomRepository`).
+
+### Reference implementations
+
+| Pattern | File |
+|---------|------|
+| List + nicknames + media batch | `CommentService.BuildCommentTreeAsync` |
+| List + nicknames + media batch | `ChatMessageService.MapManyAsync` |
+| Batch lookup by IDs | `UserRepository.GetNicknamesByIdsAsync` |
+| Batch media by FK | `MediaAssetRepository.GetMediaAssetByCommentIdsAsync` |
+
+### Inventory
+
+Update the **Status** column when a fix group lands.
+
+| ID | Domain | Location | Trigger | Status |
+|----|--------|----------|---------|--------|
+| P-1 | Posts | `PostService.MapManyAsync` | Post list GETs | open |
+| P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | open |
+| M-1 | Media | Missing `GetMediaAssetsByPostIdsAsync` | Root cause of P-1, P-2 | open |
+| M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (up to 4× per asset) | open |
+| G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.TryCanViewBoardAsync` | Board list | open |
+| G-2 | Groups | `GroupService.GetGroupNamesByIdsAsync` | Invitation list | open |
+| G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | open |
+| C-1 | Chat | `ChatRoomAccessService.EnsureCanCreatePlatformGroupRoomAsync` | Create platform room | open |
+| C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | open |
+| C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | open |
+| U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | N Redis GET/SET per user (DB fallback batched) | open |
+| CM-1 | Comments | `CommentService.MapToDtoAsync` | Single-comment GET only | open |
+
+**Clean (no action):** Friendships and UserBlocks list paths; `ChatMessageService` list mapping; `GetAllUsersAsync`.
+
+### Fix groups
+
+Fix together; suggested order is 1 → 2 → 3, then 4 only if profiling warrants it.
+
+| Group | Issues | Fix summary |
+|-------|--------|-------------|
+| **1 — Post media** | M-1, P-1, P-2 | Add `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync`; refactor `PostService.MapManyAsync` and `DeleteBlobStorageForPostsAsync`. Copy comment/chat batch in `MediaAssetRepository`. |
+| **2 — Groups** | G-1, G-2, (G-3) | `FilterViewableBoardsAsync` (load group + member once); repo `GetGroupNamesByIdsAsync` with `WHERE Id IN (...)`; optional `GetMembersByGroupIdsAsync` on user delete. |
+| **3 — Chat validation** | C-1, C-2, C-3 | Batch block/exists/membership helpers on `UserBlockService`, `UserService`, `GroupMembershipService`; refactor `ChatRoomAccessService` loops. Preserve error messages. |
+| **4 — Infra (optional)** | U-1, M-2 | Redis pipeline / MGET for nicknames; bounded parallel blob deletes. Not EF N+1. |
+
+| Dimension | Group 1 | Group 2 | Group 3 | Group 4 |
+|-----------|---------|---------|---------|---------|
+| Layer | Missing repo batch | Redundant re-fetch in auth loop | Per-pair checks in loops | External I/O |
+| HTTP impact | Hot read feeds | Board / invitation lists | Room create / add | All nickname reads |
+| Risk | Low | Medium (auth equivalence) | Medium (error semantics) | Low priority |
