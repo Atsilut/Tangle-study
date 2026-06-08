@@ -7,7 +7,7 @@ use crate::encode_plan::{
     self, build_image_plan, build_quality_bump_image_plan, build_quality_bump_video_plan,
     build_video_plan, exceeds_hard_cap, EncodePlan, FIRST_TARGET_RATIO, SECOND_TARGET_RATIO,
 };
-use crate::job::MediaUploadedJob;
+use crate::job::{MediaKind, MediaUploadedJob};
 use crate::probe::{self, DEFAULT_FEASIBILITY_RATIO, MediaProbe};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +25,11 @@ pub enum EncodeNextStep {
     Failed,
 }
 
+enum PlanSpec {
+    TargetRatio(f64),
+    QualityBump { actual_bytes: u64 },
+}
+
 pub async fn process_media(job: &MediaUploadedJob, input: &Path, output: &Path) -> Result<u64> {
     let input_size = file_size(input).await?;
 
@@ -40,8 +45,9 @@ pub async fn process_media(job: &MediaUploadedJob, input: &Path, output: &Path) 
         DEFAULT_FEASIBILITY_RATIO,
     )?;
 
+    let kind = job.media_kind()?;
     compress_with_probe(
-        &job.kind,
+        kind,
         &media_probe,
         input_size,
         input,
@@ -52,141 +58,80 @@ pub async fn process_media(job: &MediaUploadedJob, input: &Path, output: &Path) 
 }
 
 async fn compress_with_probe(
-    kind: &str,
+    kind: MediaKind,
     media_probe: &MediaProbe,
     input_size: u64,
     input: &Path,
     output: &Path,
     target_max_bytes: i64,
 ) -> Result<u64> {
-    let first_plan = build_plan(
-        kind,
-        media_probe,
-        input_size,
-        target_max_bytes,
-        FIRST_TARGET_RATIO,
-        input,
-        output,
-    )?;
-    let first_size = run_plan(&first_plan).await?;
+    let mut stage = EncodeStage::First;
+    let mut previous_size: Option<u64> = None;
 
-    match next_step_after_encode(EncodeStage::First, first_size, target_max_bytes) {
-        EncodeNextStep::Done => return Ok(first_size),
-        EncodeNextStep::QualityBump => {
-            let bump_plan = build_bump_plan(
-                kind,
-                media_probe,
-                input_size,
-                target_max_bytes,
-                first_size,
-                input,
-                output,
-            )?;
-            let bump_size = run_plan(&bump_plan).await?;
+    loop {
+        let spec = match stage {
+            EncodeStage::First => PlanSpec::TargetRatio(FIRST_TARGET_RATIO),
+            EncodeStage::QualityBump => PlanSpec::QualityBump {
+                actual_bytes: previous_size.expect("quality bump requires prior encode size"),
+            },
+            EncodeStage::Second => PlanSpec::TargetRatio(SECOND_TARGET_RATIO),
+        };
 
-            match next_step_after_encode(EncodeStage::QualityBump, bump_size, target_max_bytes) {
-                EncodeNextStep::Done => Ok(bump_size),
-                EncodeNextStep::SecondAttempt => {
-                    run_second_attempt(
-                        kind,
-                        media_probe,
-                        input_size,
-                        input,
-                        output,
-                        target_max_bytes,
-                    )
-                    .await
+        let plan = build_encode_plan(
+            kind,
+            spec,
+            media_probe,
+            input_size,
+            target_max_bytes,
+            input,
+            output,
+        )?;
+        let size = run_plan(&plan).await?;
+        previous_size = Some(size);
+
+        match next_step_after_encode(stage, size, target_max_bytes) {
+            EncodeNextStep::Done => return Ok(size),
+            EncodeNextStep::QualityBump => stage = EncodeStage::QualityBump,
+            EncodeNextStep::SecondAttempt => stage = EncodeStage::Second,
+            EncodeNextStep::Failed => {
+                if stage == EncodeStage::Second {
+                    bail!("media could not be compressed below {target_max_bytes} bytes");
                 }
-                EncodeNextStep::QualityBump | EncodeNextStep::Failed => {
-                    bail!("unexpected processing state after quality bump")
-                }
+                bail!("unexpected processing state after {stage:?} encode");
             }
-        }
-        EncodeNextStep::SecondAttempt => {
-            run_second_attempt(
-                kind,
-                media_probe,
-                input_size,
-                input,
-                output,
-                target_max_bytes,
-            )
-            .await
-        }
-        EncodeNextStep::Failed => bail!("unexpected processing state after first encode"),
-    }
-}
-
-async fn run_second_attempt(
-    kind: &str,
-    media_probe: &MediaProbe,
-    input_size: u64,
-    input: &Path,
-    output: &Path,
-    target_max_bytes: i64,
-) -> Result<u64> {
-    let plan = build_plan(
-        kind,
-        media_probe,
-        input_size,
-        target_max_bytes,
-        SECOND_TARGET_RATIO,
-        input,
-        output,
-    )?;
-    let size = run_plan(&plan).await?;
-
-    match next_step_after_encode(EncodeStage::Second, size, target_max_bytes) {
-        EncodeNextStep::Done => Ok(size),
-        EncodeNextStep::Failed => {
-            bail!("media could not be compressed below {target_max_bytes} bytes")
-        }
-        EncodeNextStep::QualityBump | EncodeNextStep::SecondAttempt => {
-            bail!("unexpected processing state after second encode")
         }
     }
 }
 
 pub fn next_step_after_encode(stage: EncodeStage, actual: u64, limit: i64) -> EncodeNextStep {
-    match stage {
-        EncodeStage::First => {
-            if exceeds_hard_cap(actual, limit) {
-                EncodeNextStep::SecondAttempt
-            } else if encode_plan::is_under_quality_floor(actual, limit) {
-                EncodeNextStep::QualityBump
-            } else {
-                EncodeNextStep::Done
-            }
-        }
-        EncodeStage::QualityBump => {
-            if exceeds_hard_cap(actual, limit) {
-                EncodeNextStep::SecondAttempt
-            } else {
-                EncodeNextStep::Done
-            }
-        }
-        EncodeStage::Second => {
-            if exceeds_hard_cap(actual, limit) {
-                EncodeNextStep::Failed
-            } else {
-                EncodeNextStep::Done
-            }
-        }
+    if exceeds_hard_cap(actual, limit) {
+        return match stage {
+            EncodeStage::Second => EncodeNextStep::Failed,
+            _ => EncodeNextStep::SecondAttempt,
+        };
     }
+
+    if stage == EncodeStage::First && encode_plan::is_under_quality_floor(actual, limit) {
+        return EncodeNextStep::QualityBump;
+    }
+
+    EncodeNextStep::Done
 }
 
-fn build_plan(
-    kind: &str,
+fn build_encode_plan(
+    kind: MediaKind,
+    spec: PlanSpec,
     media_probe: &MediaProbe,
     input_size: u64,
     target_max_bytes: i64,
-    target_ratio: f64,
     input: &Path,
     output: &Path,
 ) -> Result<EncodePlan> {
-    match kind.to_ascii_lowercase().as_str() {
-        "video" => build_video_plan(media_probe, target_max_bytes, target_ratio, input, output),
-        "image" => build_image_plan(
+    match (kind, spec) {
+        (MediaKind::Video, PlanSpec::TargetRatio(target_ratio)) => {
+            build_video_plan(media_probe, target_max_bytes, target_ratio, input, output)
+        }
+        (MediaKind::Image, PlanSpec::TargetRatio(target_ratio)) => build_image_plan(
             media_probe,
             input_size,
             target_max_bytes,
@@ -194,28 +139,16 @@ fn build_plan(
             input,
             output,
         ),
-        other => bail!("unsupported media kind {other}"),
-    }
-}
-
-fn build_bump_plan(
-    kind: &str,
-    media_probe: &MediaProbe,
-    input_size: u64,
-    target_max_bytes: i64,
-    actual_bytes: u64,
-    input: &Path,
-    output: &Path,
-) -> Result<EncodePlan> {
-    match kind.to_ascii_lowercase().as_str() {
-        "video" => build_quality_bump_video_plan(
-            media_probe,
-            target_max_bytes,
-            actual_bytes,
-            input,
-            output,
-        ),
-        "image" => build_quality_bump_image_plan(
+        (MediaKind::Video, PlanSpec::QualityBump { actual_bytes }) => {
+            build_quality_bump_video_plan(
+                media_probe,
+                target_max_bytes,
+                actual_bytes,
+                input,
+                output,
+            )
+        }
+        (MediaKind::Image, PlanSpec::QualityBump { actual_bytes }) => build_quality_bump_image_plan(
             media_probe,
             input_size,
             target_max_bytes,
@@ -223,7 +156,6 @@ fn build_bump_plan(
             input,
             output,
         ),
-        other => bail!("unsupported media kind {other}"),
     }
 }
 

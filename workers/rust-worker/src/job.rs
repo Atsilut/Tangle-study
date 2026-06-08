@@ -1,4 +1,21 @@
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MediaKind {
+    Video,
+    Image,
+}
+
+impl MediaKind {
+    pub fn parse(kind: &str) -> Result<Self> {
+        match kind.to_ascii_lowercase().as_str() {
+            "video" => Ok(Self::Video),
+            "image" => Ok(Self::Image),
+            other => bail!("unsupported media kind {other}"),
+        }
+    }
+}
 
 /// Matches `Api.Global.Queue.ChatMessageCreatedJob` (System.Text.Json web defaults).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -22,4 +39,10 @@ pub struct MediaUploadedJob {
     pub original_object_key: String,
     pub original_size_bytes: i64,
     pub target_max_bytes: i64,
+}
+
+impl MediaUploadedJob {
+    pub fn media_kind(&self) -> Result<MediaKind> {
+        MediaKind::parse(&self.kind)
+    }
 }

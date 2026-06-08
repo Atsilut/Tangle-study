@@ -180,17 +180,19 @@ fn quality_bump_bitrate_scale(actual_bytes: u64, limit: i64) -> f64 {
     (QUALITY_BUMP_TARGET_RATIO / actual_ratio).clamp(1.0, 2.0)
 }
 
+fn video_bitrate_from_args(args: &[String]) -> Option<u64> {
+    args.windows(2)
+        .find_map(|pair| pair[0].eq("-b:v").then(|| pair[1].parse().ok()))
+        .flatten()
+}
+
 fn scale_video_bitrate_in_plan(plan: &mut EncodePlan, scale: f64) {
     if (scale - 1.0).abs() < f64::EPSILON {
         return;
     }
 
-    let video_bps = plan
-        .args
-        .windows(2)
-        .find_map(|pair| pair[0].eq("-b:v").then(|| pair[1].parse::<u64>().ok()))
-        .flatten()
-        .expect("video encode plan must include -b:v");
+    let video_bps =
+        video_bitrate_from_args(&plan.args).expect("video encode plan must include -b:v");
 
     let scaled = ((video_bps as f64) * scale).round() as u64;
     let max_rate = ((scaled as f64) * 1.2).round() as u64;
@@ -406,18 +408,8 @@ mod tests {
 
         assert!(bump.planned_budget_bytes > first.planned_budget_bytes);
 
-        let first_video_bps = first
-            .args
-            .windows(2)
-            .find_map(|pair| pair[0].eq("-b:v").then(|| pair[1].parse::<u64>().ok()))
-            .flatten()
-            .unwrap();
-        let bump_video_bps = bump
-            .args
-            .windows(2)
-            .find_map(|pair| pair[0].eq("-b:v").then(|| pair[1].parse::<u64>().ok()))
-            .flatten()
-            .unwrap();
+        let first_video_bps = video_bitrate_from_args(&first.args).unwrap();
+        let bump_video_bps = video_bitrate_from_args(&bump.args).unwrap();
         assert!(bump_video_bps > first_video_bps);
     }
 
