@@ -4,6 +4,7 @@ mod consumer;
 mod dlq;
 mod handlers;
 mod job;
+mod encode_plan;
 mod message;
 mod probe;
 mod processing;
