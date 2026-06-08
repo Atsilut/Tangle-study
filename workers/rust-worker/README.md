@@ -118,7 +118,26 @@ src/
 
 ## Tests
 
+Unit tests (decode, encode planning, callback URLs):
+
 ```bash
 cd workers/rust-worker
 cargo test
+```
+
+### Automated media pipeline harness (API + worker)
+
+Full end-to-end path through Redis, Azurite, ffmpeg, and the API callback — not covered by `cargo test` alone:
+
+```bash
+./scripts/run-media-harness.sh
+```
+
+From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.
+
+Against an already-running stack on the host:
+
+```bash
+export TANGLE_HARNESS_API_BASE_URL=http://127.0.0.1:5000
+docker compose --profile test run --rm test test services/Api.Tests/Api.Tests.csproj -c Release --filter "Category=Harness"
 ```

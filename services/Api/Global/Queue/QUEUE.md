@@ -41,6 +41,16 @@ Workers should:
 
 The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`. Metrics are still planned.
 
+## End-to-end harness (`media.uploaded`)
+
+Automated cross-language smoke (API + Azurite + `rust-worker-media`, no fakes):
+
+```bash
+./scripts/run-media-harness.sh
+```
+
+Runs opt-in xUnit tests (`Category=Harness`) against a live Compose stack. Validates upload-init → blob PUT → complete → worker ffmpeg → `PATCH /internal/media/{id}/processed` → asset `Ready`. Fast integration tests in `Api.Tests` still use `FakeMediaStorage` and a simulated callback.
+
 ## Relation to pub/sub and SignalR
 
 | Mechanism | Purpose |
