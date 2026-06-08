@@ -8,19 +8,14 @@ pub fn decode_chat_message_created(
     expected_type: &str,
     entry: &StreamId,
 ) -> Result<ChatMessageCreatedJob> {
-    let (job_type, payload) = extract_envelope_fields(entry)?;
-    if job_type != expected_type {
-        bail!(
-            "unexpected job type {job_type:?}, expected {expected_type:?} (entry id {})",
-            entry.id
-        );
-    }
-
-    serde_json::from_str(&payload)
-        .with_context(|| format!("deserialize payload for entry {}", entry.id))
+    decode_job(expected_type, entry)
 }
 
 pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
+    decode_job(expected_type, entry)
+}
+
+fn decode_job<T: serde::de::DeserializeOwned>(expected_type: &str, entry: &StreamId) -> Result<T> {
     let (job_type, payload) = extract_envelope_fields(entry)?;
     if job_type != expected_type {
         bail!(
