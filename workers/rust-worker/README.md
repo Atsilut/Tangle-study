@@ -18,21 +18,26 @@ cargo run
 From the repository root:
 
 ```bash
-docker compose --profile workers build rust-worker
-docker compose --profile workers up rust-worker
+docker compose --profile workers build rust-worker rust-worker-media
+docker compose --profile workers up rust-worker rust-worker-media
 ```
 
-With the default stack (`docker compose up`), start Redis and the API first so jobs can be enqueued; the worker only needs Redis.
+- `rust-worker` — consumes `chat.message.created` (stub handler today)
+- `rust-worker-media` — consumes `media.uploaded` (download → encode → upload → API callback)
+
+With the default stack (`docker compose up`), start Redis, the API, and Azurite first so jobs can be enqueued. The chat worker only needs Redis; the media worker also needs the API, Azure/Azurite, and a matching `WORKER_CALLBACK_SECRET` (see `Media__WorkerCallbackSecret` on the API).
 
 ## Configuration
+
+### Queue and consumer
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection URL |
 | `WORKER_STREAM_PREFIX` | `tangle:queue:` | Prefix for stream keys (matches API `Redis:WorkQueueStreamPrefix`) |
-| `WORKER_STREAM_KEY` | `chat.message.created` | Stream key suffix |
+| `WORKER_STREAM_KEY` | `chat.message.created` | Stream key suffix; one worker process per key |
 | `WORKER_CONSUMER_GROUP` | `tangle-workers` | Redis consumer group name |
-| `WORKER_CONSUMER_NAME` | `tangle-worker-{pid}` | Consumer name within the group |
+| `WORKER_CONSUMER_NAME` | `tangle-worker-{hostname}-{pid}` | Consumer name within the group |
 | `WORKER_BLOCK_MS` | `5000` | `XREADGROUP` block timeout (ms) |
 | `WORKER_BATCH_COUNT` | `10` | Max entries per read |
 | `WORKER_MAX_ATTEMPTS` | `5` | Max deliveries before publishing to the DLQ stream and acking the source message |
@@ -45,6 +50,21 @@ With the default stack (`docker compose up`), start Redis and the API first so j
 | `WORKER_REPLAY_DELETE` | `true` | Remove DLQ entry after successful replay |
 | `WORKER_LOG_JSON` | `false` | Emit JSON logs |
 | `RUST_LOG` | `info` | `tracing` filter (e.g. `tangle_worker=debug`) |
+
+### Media worker (`WORKER_STREAM_KEY=media.uploaded`)
+
+Required in consumer mode (validated at startup). Not required for `cargo run -- replay`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_BASE_URL` | `http://127.0.0.1:5000` | Base URL for `PATCH /internal/media/{id}/processed` |
+| `WORKER_CALLBACK_SECRET` | *(empty)* | Shared secret sent as `X-Worker-Callback-Secret`; must match API `Media__WorkerCallbackSecret` |
+| `AZURE_STORAGE_CONNECTION_STRING` | *(empty)* | Azure Blob connection string (Azurite in local compose) |
+| `MEDIA_CONTAINER_NAME` | `tangle-media` | Blob container for originals and processed output |
+| `WORKER_CALLBACK_TIMEOUT_MS` | `30000` | HTTP request timeout for API callbacks (ms) |
+| `WORKER_CALLBACK_CONNECT_TIMEOUT_MS` | `10000` | HTTP connect timeout for API callbacks (ms) |
+| `WORKER_CALLBACK_MAX_RETRIES` | `3` | Callback attempts before the job is left in the PEL for full retry |
+| `WORKER_CALLBACK_RETRY_BASE_MS` | `500` | Base backoff between callback retries (ms) |
 
 ## Consumer behavior
 
@@ -77,15 +97,23 @@ Optional env: `WORKER_REPLAY_COUNT`, `WORKER_REPLAY_DRY_RUN=true`, `WORKER_REPLA
 
 ```
 src/
-  main.rs       # entrypoint, redis health check
-  config.rs     # env configuration
-  consumer.rs   # XREADGROUP loop and XACK
-  message.rs    # stream field decoding
-  job.rs        # payload types (API contract)
-  handlers/     # per-job-type processors
-  retry.rs      # backoff helpers
-  dlq.rs        # dead-letter publishing
-  telemetry.rs  # logging setup
+  main.rs                          # entrypoint; consumer or replay mode
+  config.rs                        # env configuration and startup validation
+  consumer.rs                      # XREADGROUP loop, retry, ack, DLQ handoff
+  message.rs                       # stream envelope decode; malformed-entry detection
+  job.rs                           # payload types (API contract)
+  handlers/
+    mod.rs                         # dispatch by WORKER_STREAM_KEY
+    chat_message_created.rs        # chat.message.created (stub)
+    media_uploaded.rs              # media.uploaded pipeline orchestration
+  processing.rs                    # ffmpeg encode stage machine
+  encode_plan.rs                   # ffmpeg argument planning
+  probe.rs                         # ffprobe metadata and feasibility checks
+  storage.rs                       # Azure Blob download/upload
+  api_callback.rs                  # PATCH callback to API (success/failure)
+  retry.rs                         # PEL backoff and eligibility
+  dlq.rs                           # dead-letter publish and replay
+  telemetry.rs                     # tracing subscriber setup
 ```
 
 ## Tests
