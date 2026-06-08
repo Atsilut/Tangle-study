@@ -22,6 +22,19 @@ namespace Api.Domain.Groups.Repository
         public Task<List<GroupMember>> GetMembersByGroupAsync(long groupId) =>
             _context.GroupMembers.Where(m => m.GroupId == groupId).ToListAsync();
 
+        public async Task<IReadOnlyDictionary<long, List<GroupMember>>> GetMembersByGroupIdsAsync(IReadOnlyCollection<long> groupIds)
+        {
+            if (groupIds.Count == 0) return new Dictionary<long, List<GroupMember>>();
+
+            var members = await _context.GroupMembers
+                .Where(m => groupIds.Contains(m.GroupId))
+                .ToListAsync();
+
+            return members
+                .GroupBy(member => member.GroupId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+        }
+
         public Task<List<GroupMember>> GetMembershipsByUserAsync(long userId) =>
             _context.GroupMembers.Where(m => m.UserId == userId).ToListAsync();
 

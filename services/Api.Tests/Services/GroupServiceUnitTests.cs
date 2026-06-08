@@ -33,6 +33,37 @@ public sealed class GroupServiceUnitTests
     }
 
     [Fact]
+    public async Task GetGroupNamesByIdsAsync_ReturnsNamesForExistingGroups()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
+        var first = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
+        {
+            Name = "First",
+            Description = "d",
+            Visibility = GroupVisibility.Public,
+        });
+        var second = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
+        {
+            Name = "Second",
+            Description = "d",
+            Visibility = GroupVisibility.Public,
+        });
+
+        // Act
+        var names = await graph.GroupService.GetGroupNamesByIdsAsync([first.Id, second.Id, 999]);
+
+        // Assert
+        Assert.Equal(2, names.Count);
+        Assert.Equal("First", names[first.Id]);
+        Assert.Equal("Second", names[second.Id]);
+        Assert.False(names.ContainsKey(999));
+    }
+
+    [Fact]
     public async Task GetGroup_ThrowsNotFound_WhenPrivateAndNotMember()
     {
         // Arrange

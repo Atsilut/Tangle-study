@@ -126,9 +126,9 @@ Update the **Status** column when a fix group lands.
 | P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | fixed |
 | M-1 | Media | `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync` | Post list + group delete | fixed |
 | M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (up to 4× per asset) | open |
-| G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.TryCanViewBoardAsync` | Board list | open |
-| G-2 | Groups | `GroupService.GetGroupNamesByIdsAsync` | Invitation list | open |
-| G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | open |
+| G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.FilterViewableBoardsAsync` | Board list | fixed |
+| G-2 | Groups | `GroupRepository.GetGroupNamesByIdsAsync` | Invitation list | fixed |
+| G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | fixed |
 | C-1 | Chat | `ChatRoomAccessService.EnsureCanCreatePlatformGroupRoomAsync` | Create platform room | open |
 | C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | open |
 | C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | open |

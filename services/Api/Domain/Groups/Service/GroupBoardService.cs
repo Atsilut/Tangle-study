@@ -28,14 +28,9 @@ namespace Api.Domain.Groups.Service
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
             var boards = await _repo.GetByGroupAsync(groupId);
-            List<GroupBoardResponseDto> visible = [];
-            foreach (var board in boards)
-            {
-                if (!await _access.TryCanViewBoardAsync(groupId, board.Id)) continue;
-                visible.Add(MapToDto(board));
-            }
+            var visible = await _access.FilterViewableBoardsAsync(groupId, boards);
 
-            return visible;
+            return [.. visible.Select(MapToDto)];
         }
 
         public async Task<GroupBoardResponseDto> CreateAsync(long groupId, GroupBoardCreateRequestDto request)

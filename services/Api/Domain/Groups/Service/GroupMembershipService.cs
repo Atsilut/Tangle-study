@@ -83,10 +83,14 @@ namespace Api.Domain.Groups.Service
         public async Task HandleUserDeletionAsync(long userId)
         {
             var memberships = await _repo.GetMembershipsByUserAsync(userId);
+            var ownedGroups = memberships.Where(m => m.Role == GroupRole.Owner).ToList();
+            var membersByGroupId = ownedGroups.Count == 0
+                ? new Dictionary<long, List<GroupMember>>()
+                : await _repo.GetMembersByGroupIdsAsync(ownedGroups.Select(m => m.GroupId).ToList());
 
-            foreach (var owned in memberships.Where(m => m.Role == GroupRole.Owner))
+            foreach (var owned in ownedGroups)
             {
-                var members = await _repo.GetMembersByGroupAsync(owned.GroupId);
+                var members = membersByGroupId[owned.GroupId];
                 var successor = members
                     .Where(m => m.UserId != userId)
                     .OrderByDescending(m => m.Role)

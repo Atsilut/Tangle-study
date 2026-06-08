@@ -39,16 +39,8 @@ namespace Api.Domain.Groups.Service
         public async Task<Group> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found") =>
             await _repo.GetGroupByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
-        public async Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids)
-        {
-            Dictionary<long, string> names = [];
-            foreach (var id in ids.Distinct())
-            {
-                var group = await _repo.GetGroupByIdAsync(id);
-                if (group is not null) names[id] = group.Name;
-            }
-            return names;
-        }
+        public Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids) =>
+            _repo.GetGroupNamesByIdsAsync(ids);
 
         public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "Group not found", int statusCode = StatusCodes.Status404NotFound)
         {

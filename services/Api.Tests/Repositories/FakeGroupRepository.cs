@@ -20,6 +20,12 @@ public sealed class FakeGroupRepository : IGroupRepository
     public Task<Group?> GetGroupByIdAsync(long id) =>
         Task.FromResult(_groups.FirstOrDefault(g => g.Id == id));
 
+    public Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids) =>
+        Task.FromResult<IReadOnlyDictionary<long, string>>(
+            _groups
+                .Where(g => ids.Contains(g.Id))
+                .ToDictionary(g => g.Id, g => g.Name));
+
     public Task<bool> ExistsGroupByIdAsync(long id) =>
         Task.FromResult(_groups.Any(g => g.Id == id));
 

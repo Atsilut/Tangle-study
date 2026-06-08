@@ -29,6 +29,24 @@ namespace Api.Domain.Groups.Service
             return await _repo.GetByGroupAndIdAsync(groupId, boardId) ?? throw new EntityNotFoundException(notFoundMessage);
         }
 
+        public async Task<IReadOnlyList<GroupBoard>> FilterViewableBoardsAsync(
+            long groupId,
+            IReadOnlyList<GroupBoard> boards)
+        {
+            if (boards.Count == 0) return boards;
+
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+            var (userId, member) = await GetViewerContextAsync(group);
+
+            List<GroupBoard> visible = [];
+            foreach (var board in boards)
+            {
+                if (CanViewBoard(group, board, userId, member)) visible.Add(board);
+            }
+
+            return visible;
+        }
+
         public async Task<bool> TryCanViewBoardAsync(long groupId, long boardId)
         {
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
@@ -36,7 +54,8 @@ namespace Api.Domain.Groups.Service
             var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
             if (board is null) return false;
 
-            return await CanViewBoardInternalAsync(group, board);
+            var (userId, member) = await GetViewerContextAsync(group);
+            return CanViewBoard(group, board, userId, member);
         }
 
         public async Task EnsureCanViewBoardAsync(long groupId, long boardId)
@@ -46,20 +65,26 @@ namespace Api.Domain.Groups.Service
             var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
-            if (!await CanViewBoardInternalAsync(group, board))
+            var (userId, member) = await GetViewerContextAsync(group);
+            if (!CanViewBoard(group, board, userId, member))
                 throw new UnauthorizedAccessException("Unauthorized access");
         }
 
-        private async Task<bool> CanViewBoardInternalAsync(Group group, GroupBoard board)
+        private async Task<(long? UserId, GroupMember? Member)> GetViewerContextAsync(Group group)
+        {
+            var userId = TryGetUserIdFromLogin();
+            if (userId is null) return (null, null);
+
+            var member = await _membershipService.GetMemberAsync(group.Id, userId.Value);
+            return (userId, member);
+        }
+
+        private static bool CanViewBoard(Group group, GroupBoard board, long? userId, GroupMember? member)
         {
             if (board.Visibility == BoardVisibility.ForAll && group.Visibility == GroupVisibility.Public)
                 return true;
 
-            var userId = TryGetUserIdFromLogin();
-            if (userId is null) return false;
-
-            var member = await _membershipService.GetMemberAsync(group.Id, userId.Value);
-            if (member is null) return false;
+            if (userId is null || member is null) return false;
 
             if (board.Visibility is BoardVisibility.MembersOnly or BoardVisibility.ForAll)
                 return true;
