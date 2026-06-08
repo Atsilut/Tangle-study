@@ -2,6 +2,7 @@ using Api.Domain.Media;
 using Api.Domain.Media.Storage;
 using Api.Global.Config;
 using Api.Global.Security;
+using Azure.Storage.Blobs;
 
 namespace Api.Global.Infrastructure;
 
@@ -16,7 +17,8 @@ public static class MediaServiceCollectionExtensions
         var options = configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
         EnsureLimitsConfigured(options);
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        var connectionString = configuration[$"{MediaOptions.SectionName}:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
             if (options.Enabled)
                 throw new InvalidOperationException(
@@ -24,6 +26,20 @@ public static class MediaServiceCollectionExtensions
                     "Start Azurite (docker compose up azurite) and set the connection string.");
 
             return services;
+        }
+
+        try
+        {
+            _ = AzureBlobMediaStorage.CreateServiceClient(connectionString);
+        }
+        catch (Exception ex)
+        {
+            var preview = connectionString.Length > 48
+                ? connectionString[..48] + "..."
+                : connectionString;
+            throw new InvalidOperationException(
+                $"Media:ConnectionString is set but could not be parsed for Azure Blob Storage (length={connectionString.Length}, preview={preview}).",
+                ex);
         }
 
         services.AddSingleton<IMediaStorage, AzureBlobMediaStorage>();

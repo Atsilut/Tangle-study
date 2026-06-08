@@ -1,4 +1,5 @@
 using Api.Global.Config;
+using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -15,8 +16,51 @@ public sealed class AzureBlobMediaStorage : IMediaStorage
     public AzureBlobMediaStorage(IOptions<MediaOptions> options)
     {
         _options = options.Value;
-        _serviceClient = new BlobServiceClient(_options.ConnectionString);
+        _serviceClient = CreateServiceClient(_options.ConnectionString);
         _containerClient = _serviceClient.GetBlobContainerClient(_options.ContainerName);
+    }
+
+    internal static BlobServiceClient CreateServiceClient(string connectionString)
+    {
+        var trimmed = connectionString.Trim();
+        try
+        {
+            return new BlobServiceClient(trimmed);
+        }
+        catch (FormatException)
+        {
+            if (TryCreateServiceClientFromParts(trimmed, out var client))
+                return client;
+            throw;
+        }
+    }
+
+    private static bool TryCreateServiceClientFromParts(string connectionString, out BlobServiceClient client)
+    {
+        client = null!;
+        try
+        {
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var segment in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var separator = segment.IndexOf('=');
+                if (separator <= 0) continue;
+                values[segment[..separator].Trim()] = segment[(separator + 1)..].Trim();
+            }
+
+            if (!values.TryGetValue("AccountName", out var accountName)
+                || !values.TryGetValue("AccountKey", out var accountKey)
+                || !values.TryGetValue("BlobEndpoint", out var blobEndpoint))
+                return false;
+
+            var credential = new StorageSharedKeyCredential(accountName, accountKey);
+            client = new BlobServiceClient(new Uri(blobEndpoint.TrimEnd('/')), credential);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<PresignedUpload> CreatePresignedUploadAsync(

@@ -45,7 +45,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tangle -d tangledb"]
       interval: 5s
@@ -58,19 +58,11 @@ services:
       context: .
       dockerfile: services/Api/Dockerfile
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=tangledb;Username=tangle;Password=tangletangle123;Pooling=true"
-      Redis__Enabled: "true"
-      Redis__ConnectionString: "redis:6379"
       Redis__InstanceName: "tangle:"
       Redis__SignalRChannelPrefix: "tangle:signalr:"
       Redis__WorkQueueStreamPrefix: "tangle:queue:"
-      Media__Enabled: "true"
-      Media__ConnectionString: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLmF5gPCXx4scIIpCimMY4evDMb2v50pPsdZ1Oi4K;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
-      Media__PublicBlobEndpoint: "http://127.0.0.1:10000/devstoreaccount1"
-      Media__ContainerName: "tangle-media"
-      Media__WorkerCallbackSecret: "dev-media-worker-secret"
     ports:
       - "5000:8080"
     depends_on:
@@ -80,6 +72,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/swagger/v1/swagger.json || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
 
   # Build, EF migrations, and other dotnet CLI work (no local .nuget / .dotnet-tools).
@@ -114,7 +112,7 @@ services:
     restart: unless-stopped
 
   rust-worker-media:
-    profiles: ["workers"]
+    profiles: ["workers", "harness"]
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile
@@ -125,7 +123,7 @@ services:
       WORKER_CONSUMER_GROUP: tangle-workers
       API_BASE_URL: http://api:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret
-      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLmF5gPCXx4scIIpCimMY4evDMb2v50pPsdZ1Oi4K;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
       MEDIA_CONTAINER_NAME: tangle-media
       RUST_LOG: info
     depends_on:
@@ -136,6 +134,41 @@ services:
       azurite:
         condition: service_started
     restart: unless-stopped
+
+  harness:
+    profiles: ["harness"]
+    image: tangle-sdk:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+    working_dir: /src
+    environment:
+      <<: *dotnet-env
+      TANGLE_HARNESS_API_BASE_URL: http://api:8080
+    volumes:
+      - .:/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+      api:
+        condition: service_healthy
+      rust-worker-media:
+        condition: service_started
+    command:
+      [
+        "test",
+        "services/Api.Tests/Api.Tests.csproj",
+        "-c",
+        "Release",
+        "--filter",
+        "Category=Harness",
+        "--verbosity",
+        "normal",
+      ]
 
   test:
     profiles: ["test"]

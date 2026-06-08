@@ -21,6 +21,18 @@ namespace Api.Tests.Services;
 public sealed class MediaServiceUnitTests
 {
     [Fact]
+    public void CreateServiceClient_ParsesAzuriteConnectionString()
+    {
+        const string connectionString =
+            "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;";
+
+        var client = AzureBlobMediaStorage.CreateServiceClient(connectionString);
+
+        Assert.Equal("devstoreaccount1", client.AccountName);
+        Assert.StartsWith("http://azurite:10000/devstoreaccount1", client.Uri.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BuildObjectKey_IncludesUserIdAndSafeFileName()
     {
         // Act
