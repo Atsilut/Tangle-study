@@ -10,4 +10,3 @@ pub struct ChatMessageCreatedJob {
     pub body: String,
     pub sent_at: String,
 }
-

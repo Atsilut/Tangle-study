@@ -73,7 +73,7 @@ mod tests {
         map.insert(
             "payload".to_owned(),
             Value::BulkString(
-                br#"{"messageId":1,"chatRoomId":2,"senderUserId":3,"body":"hi","sentAt":"2026-01-01T00:00:00Z"}"#
+                br#"{"messageId":1,"chatRoomId":2,"senderUserId":3,"body":"hi","sentAt":"2026-01-01T00:00:00+00:00"}"#
                     .to_vec(),
             ),
         );
@@ -88,5 +88,6 @@ mod tests {
         assert_eq!(job.chat_room_id, 2);
         assert_eq!(job.sender_user_id, 3);
         assert_eq!(job.body, "hi");
+        assert_eq!(job.sent_at, "2026-01-01T00:00:00+00:00");
     }
 }
