@@ -4,6 +4,7 @@ using Api.Domain.Groups.Service;
 using Api.Domain.Media;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
+using Api.Domain.Media.Storage;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
@@ -12,6 +13,7 @@ using Api.Global.Db;
 using Api.Global.Events;
 using Api.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -122,7 +124,7 @@ internal static class DomainServiceTestFactory
 
         mediaService = new MediaService(
             new MediaAssetRepository(db),
-            new FakeMediaStorage(),
+            CreateMediaStorageProvider(new FakeMediaStorage()),
             new MediaLimitPolicy(mediaOptions),
             userService,
             new FakeWorkQueue(),
@@ -274,4 +276,9 @@ internal static class DomainServiceTestFactory
             groupBoardAccessService,
             groupBoardService);
     }
+
+    private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>
+        new ServiceCollection()
+            .AddSingleton<IMediaStorage>(storage)
+            .BuildServiceProvider();
 }

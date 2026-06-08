@@ -26,7 +26,6 @@ public static class MediaServiceCollectionExtensions
             return services;
         }
 
-        EnsureLimitsConfigured(options);
         services.AddSingleton<IMediaStorage, AzureBlobMediaStorage>();
         return services;
     }

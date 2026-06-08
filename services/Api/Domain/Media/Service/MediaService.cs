@@ -7,6 +7,7 @@ using Api.Global.Config;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 using Api.Global.Queue;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Api.Domain.Media.Service;
@@ -14,7 +15,7 @@ namespace Api.Domain.Media.Service;
 [Service]
 public sealed class MediaService(
     IMediaAssetRepository repo,
-    IMediaStorage mediaStorage,
+    IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
     UserService userService,
     IWorkQueue workQueue,
@@ -24,7 +25,7 @@ public sealed class MediaService(
     private static readonly TimeSpan PresignedUploadExpiry = TimeSpan.FromHours(1);
 
     private readonly IMediaAssetRepository _repo = repo;
-    private readonly IMediaStorage _mediaStorage = mediaStorage;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly UserService _userService = userService;
     private readonly IWorkQueue _workQueue = workQueue;
@@ -172,14 +173,17 @@ public sealed class MediaService(
 
     private async Task DeleteBlobStorageForAssetsAsync(IReadOnlyList<MediaAsset> assets)
     {
+        if (_serviceProvider.GetService<IMediaStorage>() is not IMediaStorage mediaStorage)
+            return;
+
         foreach (var asset in assets)
         {
-            if (await _mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey))
-                await _mediaStorage.DeleteObjectAsync(asset.OriginalObjectKey);
+            if (await mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey))
+                await mediaStorage.DeleteObjectAsync(asset.OriginalObjectKey);
 
             if (!string.IsNullOrWhiteSpace(asset.ProcessedObjectKey)
-                && await _mediaStorage.ObjectExistsAsync(asset.ProcessedObjectKey))
-                await _mediaStorage.DeleteObjectAsync(asset.ProcessedObjectKey);
+                && await mediaStorage.ObjectExistsAsync(asset.ProcessedObjectKey))
+                await mediaStorage.DeleteObjectAsync(asset.ProcessedObjectKey);
         }
     }
 
@@ -205,7 +209,7 @@ public sealed class MediaService(
 
         await _repo.CreateMediaAssetAsync(asset);
 
-        var presigned = await _mediaStorage.CreatePresignedUploadAsync(
+        var presigned = await RequireMediaStorage().CreatePresignedUploadAsync(
             objectKey,
             request.MimeType,
             PresignedUploadExpiry);
@@ -228,7 +232,7 @@ public sealed class MediaService(
         if (asset.ProcessingStatus != MediaProcessingStatus.PendingUpload)
             throw new ArgumentException($"Upload cannot be completed while status is {asset.ProcessingStatus}.");
 
-        if (!await _mediaStorage.ObjectExistsAsync(asset.OriginalObjectKey))
+        if (!await RequireMediaStorage().ObjectExistsAsync(asset.OriginalObjectKey))
             throw new ArgumentException("Uploaded file was not found in storage.");
 
         asset.MarkProcessing();
@@ -300,6 +304,15 @@ public sealed class MediaService(
     private void EnsureMediaEnabled()
     {
         if (!_mediaOptions.Enabled) throw new InvalidOperationException("Media uploads are disabled.");
+    }
+
+    private IMediaStorage RequireMediaStorage()
+    {
+        EnsureMediaEnabled();
+        return _serviceProvider.GetService<IMediaStorage>()
+            ?? throw new InvalidOperationException(
+                "Media:ConnectionString is not configured. " +
+                "Start Azurite (docker compose up azurite) and set the connection string.");
     }
 
     private async Task<MediaAsset> GetMediaAssetOrThrowAsync(long id) =>

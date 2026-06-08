@@ -3,6 +3,7 @@ using Api.Domain.Media.Domain;
 using Api.Domain.Media.Dto;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
+using Api.Domain.Media.Storage;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Service;
 using Api.Global.Config;
@@ -12,6 +13,7 @@ using Api.Global.Queue;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Api.Tests.Services;
@@ -375,13 +377,18 @@ public sealed class MediaServiceUnitTests
 
         return new MediaService(
             new MediaAssetRepository(db),
-            storage,
+            CreateMediaStorageProvider(storage),
             new MediaLimitPolicy(mediaOptions),
             userService,
             workQueue,
             mediaOptions,
             http);
     }
+
+    private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>
+        new ServiceCollection()
+            .AddSingleton<IMediaStorage>(storage)
+            .BuildServiceProvider();
 
     private static async Task<MediaAsset> SeedReadyPostAssetAsync(
         AppDbContext db,
