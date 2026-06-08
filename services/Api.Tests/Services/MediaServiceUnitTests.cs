@@ -1,5 +1,6 @@
 using Api.Domain.Media;
 using Api.Domain.Media.Domain;
+using Api.Domain.Media.Dto;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
 using Api.Domain.Users.Domain;
@@ -7,6 +8,7 @@ using Api.Domain.Users.Service;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Events;
+using Api.Global.Queue;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +28,99 @@ public sealed class MediaServiceUnitTests
         Assert.StartsWith("raw/42/", key, StringComparison.Ordinal);
         Assert.EndsWith("/video.mp4", key, StringComparison.Ordinal);
         Assert.DoesNotContain("..", key, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CompleteUploadAsync_EnqueuesMediaUploadedJob_WithTargetMaxFromLimits()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var workQueue = new FakeWorkQueue();
+        var service = CreateMediaService(db, storage, workQueue);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+
+        // Act
+        var result = await service.CompleteUploadAsync(asset.Id);
+
+        // Assert
+        Assert.Equal(MediaProcessingStatus.Processing, result.ProcessingStatus);
+        var job = Assert.Single(workQueue.GetEnqueuedJobs());
+        Assert.Equal(WorkQueueStreams.MediaUploaded, job.StreamKey);
+        var payload = Assert.IsType<MediaUploadedJob>(job.Payload);
+        Assert.Equal(asset.Id, payload.MediaAssetId);
+        Assert.Equal(nameof(MediaIntendedContext.Post), payload.IntendedContext);
+        Assert.Equal(nameof(MediaKind.Video), payload.Kind);
+        Assert.Equal("video/mp4", payload.MimeType);
+        Assert.Equal("raw/1/video.mp4", payload.OriginalObjectKey);
+        Assert.Equal(500, payload.OriginalSizeBytes);
+        Assert.Equal(2L * 1024 * 1024 * 1024, payload.TargetMaxBytes);
+    }
+
+    [Fact]
+    public async Task ReportProcessedAsync_MarksAssetReady_WhenWithinStorageLimit()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+        asset.MarkProcessing();
+        await db.SaveChangesAsync();
+
+        // Act
+        await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
+        {
+            ProcessedObjectKey = "processed/1/video.mp4",
+            StoredSizeBytes = 400,
+        });
+
+        // Assert
+        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(MediaProcessingStatus.Ready, updated.ProcessingStatus);
+        Assert.Equal("processed/1/video.mp4", updated.ProcessedObjectKey);
+        Assert.Equal(400, updated.StoredSizeBytes);
+    }
+
+    [Fact]
+    public async Task ReportProcessedAsync_MarksAssetFailed_WhenFailureReasonProvided()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
+        asset.MarkProcessing();
+        await db.SaveChangesAsync();
+
+        // Act
+        await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
+        {
+            FailureReason = "compression failed",
+        });
+
+        // Assert
+        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(MediaProcessingStatus.Failed, updated.ProcessingStatus);
+        Assert.Equal("compression failed", updated.FailureReason);
+    }
+
+    [Fact]
+    public async Task CompleteUploadAsync_RejectsWhenBlobMissing()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var workQueue = new FakeWorkQueue();
+        var service = CreateMediaService(db, storage, workQueue);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/missing.mp4", seedBlob: false);
+
+        // Act + Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.CompleteUploadAsync(asset.Id));
+        Assert.Contains("not found in storage", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(workQueue.GetEnqueuedJobs());
     }
 
     [Fact]
@@ -51,9 +146,34 @@ public sealed class MediaServiceUnitTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
 
-    private static MediaService CreateMediaService(AppDbContext db, FakeMediaStorage storage)
+    private static MediaService CreateMediaService(
+        AppDbContext db,
+        FakeMediaStorage storage,
+        FakeWorkQueue? workQueue = null)
     {
-        var mediaOptions = Options.Create(new MediaOptions { Enabled = true });
+        workQueue ??= new FakeWorkQueue();
+        var mediaOptions = Options.Create(new MediaOptions
+        {
+            Enabled = true,
+            IngressMultiplier = 3,
+            Post = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
+                VideoTotalBytes = 10L * 1024 * 1024 * 1024,
+                ImagePerFileBytes = 150L * 1024 * 1024,
+                ImageTotalBytes = 3L * 1024 * 1024 * 1024,
+            },
+            Comment = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+            ChatMessage = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+        });
         var http = new FakeHttpContextAccessor("1");
         var userRepository = new FakeUserRepository();
         var nicknameCache = new NicknameCacheService(userRepository, new FakeDistributedCache());
@@ -75,8 +195,36 @@ public sealed class MediaServiceUnitTests
             storage,
             new MediaLimitPolicy(mediaOptions),
             userService,
+            workQueue,
             mediaOptions,
             http);
+    }
+
+    private static async Task<MediaAsset> SeedPendingUploadAsync(
+        AppDbContext db,
+        FakeMediaStorage storage,
+        long userId,
+        string objectKey,
+        bool seedBlob = true)
+    {
+        var user = new User($"user{userId}@example.com", "hash", $"user{userId}");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var asset = MediaAsset.CreatePendingUpload(
+            user.Id,
+            MediaIntendedContext.Post,
+            MediaKind.Video,
+            "video/mp4",
+            "video.mp4",
+            objectKey,
+            500);
+        db.MediaAssets.Add(asset);
+        await db.SaveChangesAsync();
+
+        if (seedBlob) storage.SeedObject(objectKey);
+
+        return asset;
     }
 
     private static async Task SeedPostAndCommentMediaAsync(AppDbContext db, FakeMediaStorage storage)

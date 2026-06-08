@@ -84,7 +84,28 @@ internal static class DomainServiceTestFactory
         GroupService groupService = null!;
         GroupBoardService groupBoardService = null!;
 
-        var mediaOptions = Options.Create(new MediaOptions { Enabled = true });
+        var mediaOptions = Options.Create(new MediaOptions
+        {
+            Enabled = true,
+            IngressMultiplier = 3,
+            Post = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
+                VideoTotalBytes = 10L * 1024 * 1024 * 1024,
+                ImagePerFileBytes = 150L * 1024 * 1024,
+                ImageTotalBytes = 3L * 1024 * 1024 * 1024,
+            },
+            Comment = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+            ChatMessage = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+        });
 
         var userService = new UserService(
             userRepository,
@@ -104,6 +125,7 @@ internal static class DomainServiceTestFactory
             new FakeMediaStorage(),
             new MediaLimitPolicy(mediaOptions),
             userService,
+            new FakeWorkQueue(),
             mediaOptions,
             http);
 

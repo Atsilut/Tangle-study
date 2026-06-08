@@ -8,7 +8,29 @@ namespace Api.Tests.Services;
 public sealed class MediaLimitPolicyTests
 {
     private static MediaLimitPolicy CreatePolicy(double ingressMultiplier = 3) =>
-        new(Options.Create(new MediaOptions { IngressMultiplier = ingressMultiplier }));
+        new(Options.Create(CreateTestMediaOptions(ingressMultiplier)));
+
+    private static MediaOptions CreateTestMediaOptions(double ingressMultiplier = 3) => new()
+    {
+        IngressMultiplier = ingressMultiplier,
+        Post = new MediaContextLimitOptions
+        {
+            VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
+            VideoTotalBytes = 10L * 1024 * 1024 * 1024,
+            ImagePerFileBytes = 150L * 1024 * 1024,
+            ImageTotalBytes = 3L * 1024 * 1024 * 1024,
+        },
+        Comment = new MediaContextLimitOptions
+        {
+            VideoPerFileBytes = 150L * 1024 * 1024,
+            ImagePerFileBytes = 75L * 1024 * 1024,
+        },
+        ChatMessage = new MediaContextLimitOptions
+        {
+            VideoPerFileBytes = 150L * 1024 * 1024,
+            ImagePerFileBytes = 75L * 1024 * 1024,
+        },
+    };
 
     [Theory]
     [InlineData("video/mp4", MediaKind.Video)]
@@ -46,7 +68,7 @@ public sealed class MediaLimitPolicyTests
     }
 
     [Fact]
-    public void GetIngressLimit_UsesMultiplierAndClamps()
+    public void GetIngressLimit_UsesConfiguredMultiplier()
     {
         // Arrange
         var policy = CreatePolicy(ingressMultiplier: 4);
@@ -58,16 +80,17 @@ public sealed class MediaLimitPolicyTests
         Assert.Equal(75L * 1024 * 1024 * 4, ingress);
     }
 
-    [Fact]
-    public void GetIngressMultiplier_ClampsToConfiguredRange()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void GetIngressMultiplier_UsesConfiguredValue(double ingressMultiplier)
     {
         // Arrange
-        var low = new MediaLimitPolicy(Options.Create(new MediaOptions { IngressMultiplier = 1 }));
-        var high = new MediaLimitPolicy(Options.Create(new MediaOptions { IngressMultiplier = 10 }));
+        var policy = CreatePolicy(ingressMultiplier);
 
         // Act + Assert
-        Assert.Equal(3d, low.GetIngressMultiplier());
-        Assert.Equal(5d, high.GetIngressMultiplier());
+        Assert.Equal(ingressMultiplier, policy.GetIngressMultiplier());
     }
 
     [Fact]
