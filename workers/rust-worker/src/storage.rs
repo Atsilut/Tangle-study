@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use azure_storage::ConnectionString;
 use azure_storage::CloudLocation;
 use azure_storage_blobs::prelude::*;
+use futures::stream::StreamExt;
+use tokio::io::AsyncWriteExt;
 
 pub struct BlobStorage {
     container_client: ContainerClient,
@@ -38,13 +40,23 @@ impl BlobStorage {
     }
 
     pub async fn download_to_file(&self, object_key: &str, path: &Path) -> Result<()> {
-        let data = self
-            .container_client
-            .blob_client(object_key)
-            .get_content()
+        let blob_client = self.container_client.blob_client(object_key);
+        let mut stream = blob_client.get().into_stream();
+        let mut file = tokio::fs::File::create(path)
             .await
-            .context("download blob content")?;
-        tokio::fs::write(path, data).await?;
+            .with_context(|| format!("create file {}", path.display()))?;
+
+        while let Some(response) = stream.next().await {
+            let mut body = response.context("download blob content")?.data;
+            while let Some(chunk) = body.next().await {
+                let chunk = chunk.context("download blob content")?;
+                file.write_all(&chunk)
+                    .await
+                    .with_context(|| format!("write blob chunk to {}", path.display()))?;
+            }
+        }
+
+        file.flush().await?;
         Ok(())
     }
 
