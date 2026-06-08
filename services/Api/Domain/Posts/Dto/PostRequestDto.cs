@@ -23,6 +23,9 @@ namespace Api.Domain.Posts.Dto
 
         [SwaggerSchema(Description = "Group board Id (optional; for group posts)")]
         public long? GroupBoardId { get; init; }
+
+        [SwaggerSchema(Description = "Ready media asset IDs to attach (post context; multiple allowed)")]
+        public long[]? MediaAssetIds { get; init; }
     }
 
     public record PostPatchRequestDto

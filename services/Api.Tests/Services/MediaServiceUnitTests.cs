@@ -196,6 +196,117 @@ public sealed class MediaServiceUnitTests
     }
 
     [Fact]
+    public async Task LinkToPostAsync_LinksReadyAssetsToPost()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+        var asset = await SeedReadyPostAssetAsync(db, storedSizeBytes: 1_000);
+
+        // Act
+        await service.LinkToPostAsync(postId: 99, uploaderUserId: asset.UploaderId!.Value, [asset.Id]);
+
+        // Assert
+        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(99, updated.PostId);
+    }
+
+    [Fact]
+    public async Task LinkToPostAsync_RejectsWhenVideoTotalExceeded()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+        const long maxPerFile = 2L * 1024 * 1024 * 1024;
+        var assets = new List<MediaAsset>
+        {
+            await SeedReadyPostAssetAsync(db, kind: MediaKind.Video, storedSizeBytes: maxPerFile),
+        };
+        for (var i = 0; i < 5; i++)
+        {
+            assets.Add(await SeedReadyPostAssetAsync(
+                db,
+                uploaderId: assets[0].UploaderId,
+                kind: MediaKind.Video,
+                storedSizeBytes: maxPerFile,
+                createUser: false));
+        }
+
+        // Act + Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.LinkToPostAsync(
+                postId: 99,
+                uploaderUserId: assets[0].UploaderId!.Value,
+                assets.Select(asset => asset.Id).ToList()));
+        Assert.Contains("total video storage limit", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetMediaForCommentAsync_ReturnsNull_WhenNoMediaLinked()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+
+        // Act
+        var media = await service.GetMediaForCommentAsync(commentId: 42);
+
+        // Assert
+        Assert.Null(media);
+    }
+
+    [Fact]
+    public async Task GetMediaForCommentAsync_ThrowsWhenMultipleAssetsLinked()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+        var user = new User("dup@example.com", "hash", "dup");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var first = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Comment, MediaKind.Image, "image/jpeg", "a.jpg", "raw/a.jpg", 10);
+        first.LinkToComment(5);
+        first.MarkReady("processed/a.jpg", 8);
+        var second = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Comment, MediaKind.Image, "image/jpeg", "b.jpg", "raw/b.jpg", 10);
+        second.LinkToComment(5);
+        second.MarkReady("processed/b.jpg", 8);
+        db.MediaAssets.AddRange(first, second);
+        await db.SaveChangesAsync();
+
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetMediaForCommentAsync(5));
+    }
+
+    [Fact]
+    public async Task LinkToCommentAsync_RejectsWhenAssetNotReady()
+    {
+        // Arrange
+        var db = CreateInMemoryDb();
+        var service = CreateMediaService(db, new FakeMediaStorage());
+        var user = new User("commenter@example.com", "hash", "commenter");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var asset = MediaAsset.CreatePendingUpload(
+            user.Id,
+            MediaIntendedContext.Comment,
+            MediaKind.Image,
+            "image/jpeg",
+            "comment.jpg",
+            "raw/comment/pending.jpg",
+            100);
+        db.MediaAssets.Add(asset);
+        await db.SaveChangesAsync();
+
+        // Act + Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.LinkToCommentAsync(commentId: 10, uploaderUserId: user.Id, asset.Id));
+        Assert.Contains("ready", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task DeleteBlobStorageForPostAsync_RemovesOnlyPostLinkedMedia()
     {
         // Arrange
@@ -272,19 +383,45 @@ public sealed class MediaServiceUnitTests
             http);
     }
 
+    private static async Task<MediaAsset> SeedReadyPostAssetAsync(
+        AppDbContext db,
+        long? uploaderId = null,
+        MediaKind kind = MediaKind.Video,
+        long storedSizeBytes = 400,
+        bool createUser = true)
+    {
+        var asset = await SeedPendingUploadAsync(
+            db,
+            new FakeMediaStorage(),
+            uploaderId ?? 1,
+            $"raw/{uploaderId ?? 1}/{kind.ToString().ToLowerInvariant()}.bin",
+            seedBlob: false,
+            createUser: createUser);
+        asset.MarkProcessing();
+        asset.MarkReady($"processed/{asset.UploaderId}/{kind.ToString().ToLowerInvariant()}.bin", storedSizeBytes);
+        await db.SaveChangesAsync();
+        return asset;
+    }
+
     private static async Task<MediaAsset> SeedPendingUploadAsync(
         AppDbContext db,
         FakeMediaStorage storage,
         long userId,
         string objectKey,
-        bool seedBlob = true)
+        bool seedBlob = true,
+        bool createUser = true)
     {
-        var user = new User($"user{userId}@example.com", "hash", $"user{userId}");
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        long uploaderId = userId;
+        if (createUser)
+        {
+            var user = new User($"user{userId}@example.com", "hash", $"user{userId}");
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+            uploaderId = user.Id;
+        }
 
         var asset = MediaAsset.CreatePendingUpload(
-            user.Id,
+            uploaderId,
             MediaIntendedContext.Post,
             MediaKind.Video,
             "video/mp4",

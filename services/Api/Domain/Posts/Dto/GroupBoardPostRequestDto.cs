@@ -17,5 +17,8 @@ namespace Api.Domain.Posts.Dto
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Group post content")]
         public required string Content { get; init; }
+
+        [SwaggerSchema(Description = "Ready media asset IDs to attach (post context; multiple allowed)")]
+        public long[]? MediaAssetIds { get; init; }
     }
 }

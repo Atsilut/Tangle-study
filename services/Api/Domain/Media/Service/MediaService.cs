@@ -73,24 +73,102 @@ public sealed class MediaService(
 
     internal async Task DeleteBlobStorageForCommentAsync(long commentId)
     {
-        var assets = await _repo.GetMediaAssetsByCommentIdAsync(commentId);
-        await DeleteBlobStorageForAssetsAsync(assets);
+        var asset = await _repo.GetMediaAssetByCommentIdAsync(commentId);
+        if (asset is not null) await DeleteBlobStorageForAssetsAsync([asset]);
     }
 
     internal async Task DeleteBlobStorageForCommentsAsync(IReadOnlyCollection<long> commentIds)
     {
-        var assets = await _repo.GetMediaAssetsByCommentIdsAsync(commentIds);
+        var assetsByCommentId = await _repo.GetMediaAssetByCommentIdsAsync(commentIds);
+        var assets = assetsByCommentId.Values.Where(asset => asset is not null).Cast<MediaAsset>().ToList();
         await DeleteBlobStorageForAssetsAsync(assets);
     }
 
     internal async Task DeleteBlobStorageForChatMessageAsync(long chatMessageId)
     {
-        var assets = await _repo.GetMediaAssetsByChatMessageIdAsync(chatMessageId);
-        await DeleteBlobStorageForAssetsAsync(assets);
+        var asset = await _repo.GetMediaAssetByChatMessageIdAsync(chatMessageId);
+        if (asset is not null) await DeleteBlobStorageForAssetsAsync([asset]);
     }
 
     internal Task DetachUploaderFromDeletedUserAsync(long uploaderId) =>
         _repo.DetachUploaderFromMediaAssetsAsync(uploaderId);
+
+    internal async Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds)
+    {
+        if (mediaAssetIds is null || mediaAssetIds.Count == 0) return;
+
+        EnsureMediaEnabled();
+        if (mediaAssetIds.Distinct().Count() != mediaAssetIds.Count)
+            throw new ArgumentException("Duplicate media asset IDs are not allowed.");
+
+        var assets = await LoadOwnedReadyAssetsAsync(mediaAssetIds, uploaderUserId, MediaIntendedContext.Post);
+        ValidatePostTotalsMedia(assets);
+
+        foreach (var asset in assets)
+            asset.LinkToPost(postId);
+
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId)
+    {
+        if (mediaAssetId is null) return;
+
+        EnsureMediaEnabled();
+        var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, uploaderUserId, MediaIntendedContext.Comment);
+        asset.LinkToComment(commentId);
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId)
+    {
+        if (mediaAssetId is null) return;
+
+        EnsureMediaEnabled();
+        var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, senderUserId, MediaIntendedContext.ChatMessage);
+        asset.LinkToChatMessage(chatMessageId);
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task<IReadOnlyList<MediaAssetGetResponseDto>> GetMediaForPostAsync(long postId)
+    {
+        var assets = await _repo.GetMediaAssetsByPostIdAsync(postId);
+        return assets.Select(MapToDto).ToList();
+    }
+
+    internal async Task<MediaAssetGetResponseDto?> GetMediaForCommentAsync(long commentId)
+    {
+        var asset = await _repo.GetMediaAssetByCommentIdAsync(commentId);
+        return asset is null ? null : MapToDto(asset);
+    }
+
+    internal async Task<IReadOnlyDictionary<long, MediaAssetGetResponseDto?>> GetMediaByCommentIdsAsync(
+        IReadOnlyCollection<long> commentIds)
+    {
+        if (commentIds.Count == 0) return new Dictionary<long, MediaAssetGetResponseDto?>();
+
+        var assetsByCommentId = await _repo.GetMediaAssetByCommentIdsAsync(commentIds);
+        return assetsByCommentId.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value is null ? null : MapToDto(pair.Value));
+    }
+
+    internal async Task<MediaAssetGetResponseDto?> GetMediaForChatMessageAsync(long chatMessageId)
+    {
+        var asset = await _repo.GetMediaAssetByChatMessageIdAsync(chatMessageId);
+        return asset is null ? null : MapToDto(asset);
+    }
+
+    internal async Task<IReadOnlyDictionary<long, MediaAssetGetResponseDto?>> GetMediaByChatMessageIdsAsync(
+        IReadOnlyCollection<long> chatMessageIds)
+    {
+        if (chatMessageIds.Count == 0) return new Dictionary<long, MediaAssetGetResponseDto?>();
+
+        var assetsByMessageId = await _repo.GetMediaAssetByChatMessageIdsAsync(chatMessageIds);
+        return assetsByMessageId.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value is null ? null : MapToDto(pair.Value));
+    }
 
     private async Task DeleteBlobStorageForAssetsAsync(IReadOnlyList<MediaAsset> assets)
     {
@@ -234,6 +312,74 @@ public sealed class MediaService(
         if (asset.UploaderId == userId) return asset;
 
         throw new UnauthorizedAccessException("Unauthorized access");
+    }
+
+    private async Task<List<MediaAsset>> LoadOwnedReadyAssetsAsync(
+        IReadOnlyList<long> mediaAssetIds,
+        long uploaderUserId,
+        MediaIntendedContext expectedContext)
+    {
+        var assets = await _repo.GetMediaAssetsByIdsAsync(mediaAssetIds);
+        if (assets.Count != mediaAssetIds.Count)
+            throw new EntityNotFoundException("One or more media assets were not found");
+
+        var assetsById = assets.ToDictionary(asset => asset.Id);
+        var orderedAssets = new List<MediaAsset>(mediaAssetIds.Count);
+        foreach (var id in mediaAssetIds)
+            orderedAssets.Add(assetsById[id]);
+
+        foreach (var asset in orderedAssets)
+            EnsureOwnedReadyForContext(asset, uploaderUserId, expectedContext);
+
+        return orderedAssets;
+    }
+
+    private async Task<MediaAsset> LoadSingleOwnedReadyAssetAsync(
+        long mediaAssetId,
+        long uploaderUserId,
+        MediaIntendedContext expectedContext)
+    {
+        var asset = await GetMediaAssetOrThrowAsync(mediaAssetId);
+        EnsureOwnedReadyForContext(asset, uploaderUserId, expectedContext);
+        return asset;
+    }
+
+    private void EnsureOwnedReadyForContext(MediaAsset asset, long uploaderUserId, MediaIntendedContext expectedContext)
+    {
+        if (asset.UploaderId != uploaderUserId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (asset.IntendedContext != expectedContext)
+            throw new ArgumentException($"Media asset {asset.Id} was uploaded for {asset.IntendedContext}, not {expectedContext}.");
+        if (asset.IsLinked) throw new ArgumentException($"Media asset {asset.Id} is already linked to content.");
+        if (asset.ProcessingStatus != MediaProcessingStatus.Ready)
+            throw new ArgumentException($"Media asset {asset.Id} must be ready before it can be attached.");
+        if (asset.StoredSizeBytes is not > 0)
+            throw new ArgumentException($"Media asset {asset.Id} is missing processed size metadata.");
+
+        var perFileLimit = _limitPolicy.GetStorageLimits(expectedContext, asset.Kind).PerFileBytes;
+        if (asset.StoredSizeBytes > perFileLimit)
+            throw new ArgumentException($"Media asset {asset.Id} exceeds the per-file storage limit for {expectedContext} {asset.Kind}.");
+    }
+
+    private void ValidatePostTotalsMedia(IReadOnlyList<MediaAsset> assets)
+    {
+        long videoTotal = 0;
+        long imageTotal = 0;
+        var videoLimits = _limitPolicy.GetStorageLimits(MediaIntendedContext.Post, MediaKind.Video);
+        var imageLimits = _limitPolicy.GetStorageLimits(MediaIntendedContext.Post, MediaKind.Image);
+
+        foreach (var asset in assets)
+        {
+            var size = asset.StoredSizeBytes!.Value;
+            if (asset.Kind == MediaKind.Video)
+                videoTotal = checked(videoTotal + size);
+            else
+                imageTotal = checked(imageTotal + size);
+        }
+
+        if (videoLimits.TotalBytes is not null && videoTotal > videoLimits.TotalBytes)
+            throw new ArgumentException("Attached post videos exceed the configured total video storage limit.");
+        if (imageLimits.TotalBytes is not null && imageTotal > imageLimits.TotalBytes)
+            throw new ArgumentException("Attached post images exceed the configured total image storage limit.");
     }
 
     private static MediaAssetGetResponseDto MapToDto(MediaAsset asset) =>

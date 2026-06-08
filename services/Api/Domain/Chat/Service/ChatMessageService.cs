@@ -1,5 +1,6 @@
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
+using Api.Domain.Media.Dto;
 using Api.Domain.Chat.Realtime;
 using Api.Domain.Chat.Repository;
 using Api.Domain.Media.Service;
@@ -67,7 +68,11 @@ public class ChatMessageService(
             StatusCodes.Status400BadRequest);
 
         var message = new ChatMessage(roomId, senderUserId, request.Body);
-        await _repo.CreateChatMessageAsync(message);
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            await _repo.CreateChatMessageAsync(message);
+            await _mediaService.Value.LinkToChatMessageAsync(message.Id, senderUserId, request.MediaAssetId);
+        });
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
         var dto = await MapToDtoAsync(message);
@@ -126,26 +131,38 @@ public class ChatMessageService(
         if (anchor.ChatRoomId != roomId) throw new ArgumentException("beforeMessageId must refer to a message in this chat room.");
     }
 
-    private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message)
-    {
-        var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
-        return MapToDto(message, nicknames.GetValueOrDefault(message.LogicalSenderUserId, "Deleted User"));
-    }
-
     private async Task<List<ChatMessageGetResponseDto>> MapManyAsync(IReadOnlyList<ChatMessage> messages)
     {
         var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
+        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync(messages.Select(m => m.Id).ToList());
         return [.. messages
-            .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User")))];
+            .Select(m => MapToDto(
+                m,
+                nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
+                mediaByMessageId.GetValueOrDefault(m.Id)))];
     }
 
-    private static ChatMessageGetResponseDto MapToDto(ChatMessage message, string senderNickname) =>
+    private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message)
+    {
+        var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
+        var media = await _mediaService.Value.GetMediaForChatMessageAsync(message.Id);
+        return MapToDto(
+            message,
+            nicknames.GetValueOrDefault(message.LogicalSenderUserId, "Deleted User"),
+            media);
+    }
+
+    private static ChatMessageGetResponseDto MapToDto(
+        ChatMessage message,
+        string senderNickname,
+        MediaAssetGetResponseDto? media) =>
         new(
             message.Id,
             message.ChatRoomId,
             message.LogicalSenderUserId,
             senderNickname,
             message.Body,
-            message.SentAt);
+            message.SentAt,
+            media);
 }

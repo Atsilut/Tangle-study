@@ -1,5 +1,6 @@
 using Api.Domain.Comments.Domain;
 using Api.Domain.Comments.Dto;
+using Api.Domain.Media.Dto;
 using Api.Domain.Comments.Repository;
 using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
@@ -60,7 +61,11 @@ namespace Api.Domain.Comments.Service
                 userId: userId,
                 postId: request.PostId,
                 parentId: request.ParentId);
-            await _repo.CreateCommentAsync(comment);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _repo.CreateCommentAsync(comment);
+                await _mediaService.Value.LinkToCommentAsync(comment.Id, userId, request.MediaAssetId);
+            });
         }
 
         public async Task<CommentGetResponseDto?> GetCommentByIdAsync(long id)
@@ -69,7 +74,7 @@ namespace Api.Domain.Comments.Service
             if (comment == null) return null;
             if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
-            return MapToDto(comment, nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"));
+            return await MapToDtoAsync(comment, nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"));
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
@@ -91,10 +96,23 @@ namespace Api.Domain.Comments.Service
             }
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            return [.. comments.Select(c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User")))];
+            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync(comments.Select(c => c.Id).ToList());
+            return [.. comments.Select(c => MapToDto(
+                c,
+                nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"),
+                mediaByCommentId.GetValueOrDefault(c.Id)))];
         }
 
-        private static CommentGetResponseDto MapToDto(Comment comment, string authorNickname) => new()
+        private async Task<CommentGetResponseDto> MapToDtoAsync(Comment comment, string authorNickname)
+        {
+            var media = await _mediaService.Value.GetMediaForCommentAsync(comment.Id);
+            return MapToDto(comment, authorNickname, media);
+        }
+
+        private static CommentGetResponseDto MapToDto(
+            Comment comment,
+            string authorNickname,
+            MediaAssetGetResponseDto? media) => new()
         {
             Id = comment.Id,
             Content = comment.Content,
@@ -107,15 +125,20 @@ namespace Api.Domain.Comments.Service
             ParentId = comment.ParentId,
             DeletedParentId = comment.DeletedParentId,
             CreatedAt = comment.CreatedAt,
-            UpdatedAt = comment.UpdatedAt
+            UpdatedAt = comment.UpdatedAt,
+            Media = media,
         };
 
         private async Task<List<CommentGetResponseDto>> BuildCommentTreeAsync(IReadOnlyList<Comment> comments)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
+            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync(comments.Select(c => c.Id).ToList());
             var byId = comments.ToDictionary(
                 c => c.Id,
-                c => MapToDto(c, nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User")));
+                c => MapToDto(
+                    c,
+                    nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"),
+                    mediaByCommentId.GetValueOrDefault(c.Id)));
             List<CommentGetResponseDto> roots = [];
 
             foreach (var comment in comments.OrderBy(c => c.CreatedAt))

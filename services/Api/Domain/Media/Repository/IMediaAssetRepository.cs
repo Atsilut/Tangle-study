@@ -6,13 +6,17 @@ public interface IMediaAssetRepository
 {
     public Task<MediaAsset?> GetMediaAssetByIdAsync(long id);
 
+    public Task<List<MediaAsset>> GetMediaAssetsByIdsAsync(IReadOnlyCollection<long> ids);
+
     public Task<List<MediaAsset>> GetMediaAssetsByPostIdAsync(long postId);
 
-    public Task<List<MediaAsset>> GetMediaAssetsByCommentIdAsync(long commentId);
+    public Task<MediaAsset?> GetMediaAssetByCommentIdAsync(long commentId);
 
-    public Task<List<MediaAsset>> GetMediaAssetsByCommentIdsAsync(IReadOnlyCollection<long> commentIds);
+    public Task<IReadOnlyDictionary<long, MediaAsset?>> GetMediaAssetByCommentIdsAsync(IReadOnlyCollection<long> commentIds);
 
-    public Task<List<MediaAsset>> GetMediaAssetsByChatMessageIdAsync(long chatMessageId);
+    public Task<MediaAsset?> GetMediaAssetByChatMessageIdAsync(long chatMessageId);
+
+    public Task<IReadOnlyDictionary<long, MediaAsset?>> GetMediaAssetByChatMessageIdsAsync(IReadOnlyCollection<long> chatMessageIds);
 
     public Task DetachUploaderFromMediaAssetsAsync(long uploaderId);
 
