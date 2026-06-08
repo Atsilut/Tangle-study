@@ -14,4 +14,7 @@ public interface IChatRoomRepository
     public Task AddChatRoomParticipantAsync(ChatRoomParticipant participant);
     public Task RemoveChatRoomParticipantAsync(ChatRoomParticipant participant);
     public Task TouchChatRoomUpdatedAtAsync(long chatRoomId);
+    public Task DetachCreatedByFromRoomsAsync(long userId);
+    public Task PromoteDirectRoomsForDeletedUserAsync(long userId);
+    public Task RemoveAllParticipantsForUserAsync(long userId);
 }

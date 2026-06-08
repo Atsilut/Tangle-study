@@ -2,7 +2,9 @@ using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
 using Api.Domain.Chat.Realtime;
 using Api.Domain.Chat.Repository;
+using Api.Domain.Media.Service;
 using Api.Domain.Users.Service;
+using Api.Global.Db;
 using Api.Global.Events;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -13,8 +15,10 @@ namespace Api.Domain.Chat.Service;
 [Service]
 public class ChatMessageService(
     IChatMessageRepository repo,
+    AppDbContext db,
     ChatRoomService chatRoomService,
     UserService userService,
+    Lazy<MediaService> mediaService,
     IChatRealtimeNotifier realtime,
     IEventPublisher eventPublisher,
     IWorkQueue workQueue,
@@ -24,6 +28,8 @@ public class ChatMessageService(
     public const int MaxPageLimit = 100;
 
     private readonly IChatMessageRepository _repo = repo;
+    private readonly AppDbContext _db = db;
+    private readonly Lazy<MediaService> _mediaService = mediaService;
     private readonly ChatRoomService _chatRoomService = chatRoomService;
     private readonly UserService _userService = userService;
     private readonly IChatRealtimeNotifier _realtime = realtime;
@@ -71,7 +77,7 @@ public class ChatMessageService(
             new ChatMessageCreatedEvent(
                 message.Id,
                 message.ChatRoomId,
-                message.SenderUserId,
+                senderUserId,
                 message.Body,
                 message.SentAt));
         await _workQueue.EnqueueAsync(
@@ -79,10 +85,31 @@ public class ChatMessageService(
             new ChatMessageCreatedJob(
                 message.Id,
                 message.ChatRoomId,
-                message.SenderUserId,
+                senderUserId,
                 message.Body,
                 message.SentAt));
         return dto;
+    }
+
+    public Task DetachSenderFromDeletedUserAsync(long userId) =>
+        _repo.DetachSenderFromMessagesAsync(userId);
+
+    public async Task DeleteMessageAsync(long roomId, long messageId)
+    {
+        await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);
+
+        var userId = GetUserIdFromLogin();
+        var message = await _repo.GetChatMessageByIdAsync(messageId)
+            ?? throw new EntityNotFoundException("Message not found");
+
+        if (message.ChatRoomId != roomId) throw new ArgumentException("Message does not belong to this chat room.");
+        if (message.SenderUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            await _mediaService.Value.DeleteBlobStorageForChatMessageAsync(messageId);
+            await _repo.DeleteChatMessageAsync(message);
+        });
     }
 
     private static int NormalizeLimit(int? limit)
@@ -101,23 +128,23 @@ public class ChatMessageService(
 
     private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message)
     {
-        var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.SenderUserId]);
-        return MapToDto(message, nicknames.GetValueOrDefault(message.SenderUserId, "Deleted User"));
+        var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
+        return MapToDto(message, nicknames.GetValueOrDefault(message.LogicalSenderUserId, "Deleted User"));
     }
 
     private async Task<List<ChatMessageGetResponseDto>> MapManyAsync(IReadOnlyList<ChatMessage> messages)
     {
-        var senderIds = messages.Select(m => m.SenderUserId).Distinct();
+        var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
         return [.. messages
-            .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.SenderUserId, "Deleted User")))];
+            .Select(m => MapToDto(m, nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User")))];
     }
 
     private static ChatMessageGetResponseDto MapToDto(ChatMessage message, string senderNickname) =>
         new(
             message.Id,
             message.ChatRoomId,
-            message.SenderUserId,
+            message.LogicalSenderUserId,
             senderNickname,
             message.Body,
             message.SentAt);

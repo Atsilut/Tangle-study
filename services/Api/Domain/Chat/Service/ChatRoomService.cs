@@ -119,6 +119,13 @@ public class ChatRoomService(
 
     public Task TouchRoomUpdatedAtAsync(long roomId) => _repo.TouchChatRoomUpdatedAtAsync(roomId);
 
+    public async Task DetachUserFromDeletedUserAsync(long userId)
+    {
+        await _repo.PromoteDirectRoomsForDeletedUserAsync(userId);
+        await _repo.DetachCreatedByFromRoomsAsync(userId);
+        await _repo.RemoveAllParticipantsForUserAsync(userId);
+    }
+
     public async Task<ChatRoomParticipantGetResponseDto> AddParticipantAsync(
         long roomId,
         ChatRoomParticipantAddRequestDto request)
@@ -226,7 +233,7 @@ public class ChatRoomService(
             room.Kind,
             room.Title,
             room.PlatformGroupId,
-            room.CreatedByUserId,
+            room.LogicalCreatedByUserId,
             room.CreatedAt,
             room.UpdatedAt,
             participantDtos);

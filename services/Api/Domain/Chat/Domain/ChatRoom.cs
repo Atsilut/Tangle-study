@@ -27,8 +27,13 @@ public class ChatRoom
     public Group? PlatformGroup { get; private set; }
 
     [ForeignKey(nameof(CreatedByUser))]
-    public long CreatedByUserId { get; private set; }
+    public long? CreatedByUserId { get; private set; }
+
+    public long? DeletedCreatedByUserId { get; private set; }
+
     public User? CreatedByUser { get; private set; }
+
+    public long LogicalCreatedByUserId => CreatedByUserId ?? DeletedCreatedByUserId!.Value;
 
     [ForeignKey(nameof(UserLow))]
     public long? UserLowId { get; private set; }
@@ -81,6 +86,13 @@ public class ChatRoom
         new(ChatRoomKind.PlatformGroup, createdByUserId, title, platformGroupId, userLowId: null, userHighId: null);
 
     public void TouchUpdatedAt() => UpdatedAt = DateTime.UtcNow;
+
+    public void DetachCreatedBy(long userId)
+    {
+        DeletedCreatedByUserId = userId;
+        CreatedByUserId = null;
+        TouchUpdatedAt();
+    }
 
     /// <summary>
     /// Converts a 1:1 room into a multi-user room so more participants can be added.

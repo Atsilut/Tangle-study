@@ -73,4 +73,25 @@ public class ChatRoomRepository(AppDbContext context) : IChatRoomRepository
         room.TouchUpdatedAt();
         await _context.SaveChangesAsync();
     }
+
+    public async Task DetachCreatedByFromRoomsAsync(long userId)
+    {
+        var rooms = await _context.ChatRooms.Where(r => r.CreatedByUserId == userId).ToListAsync();
+        foreach (var room in rooms)
+            room.DetachCreatedBy(userId);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task PromoteDirectRoomsForDeletedUserAsync(long userId)
+    {
+        var rooms = await _context.ChatRooms
+            .Where(r => r.Kind == ChatRoomKind.Direct && (r.UserLowId == userId || r.UserHighId == userId))
+            .ToListAsync();
+        foreach (var room in rooms)
+            room.PromoteDirectToMulti();
+        await _context.SaveChangesAsync();
+    }
+
+    public Task RemoveAllParticipantsForUserAsync(long userId) =>
+        _context.ChatRoomParticipants.Where(p => p.UserId == userId).ExecuteDeleteAsync();
 }
