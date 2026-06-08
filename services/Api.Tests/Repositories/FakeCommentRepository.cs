@@ -51,6 +51,15 @@ namespace Api.Tests.Repositories
             return Task.CompletedTask;
         }
 
+        public Task<List<long>> GetCommentIdsByPostIdsAsync(IReadOnlyCollection<long> postIds)
+        {
+            if (postIds.Count == 0) return Task.FromResult<List<long>>([]);
+            return Task.FromResult(_comments
+                .Where(c => c.PostId is not null && postIds.Contains(c.PostId.Value))
+                .Select(c => c.Id)
+                .ToList());
+        }
+
         public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
         {
             _comments.RemoveAll(c => c.PostId is not null && postIds.Contains(c.PostId.Value));

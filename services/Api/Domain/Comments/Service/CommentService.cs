@@ -1,6 +1,7 @@
-﻿using Api.Domain.Comments.Domain;
+using Api.Domain.Comments.Domain;
 using Api.Domain.Comments.Dto;
 using Api.Domain.Comments.Repository;
+using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Domain.Groups.Service;
@@ -17,10 +18,12 @@ namespace Api.Domain.Comments.Service
         IHttpContextAccessor httpContextAccessor,
         PostService postService,
         GroupBoardAccessService groupBoardAccess,
-        UserService userService)
+        UserService userService,
+        Lazy<MediaService> mediaService)
     {
         private readonly ICommentRepository _repo = repo;
         private readonly AppDbContext _db = db;
+        private readonly Lazy<MediaService> _mediaService = mediaService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly PostService _postService = postService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
@@ -151,8 +154,16 @@ namespace Api.Domain.Comments.Service
         public Task DetachCommentsFromDeletedPostAsync(long postId) =>
             _repo.DetachPostFromCommentsAsync(postId);
 
-        public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds) =>
-            _repo.DeleteAllForPostIdsAsync(postIds);
+        public async Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
+        {
+            if (postIds.Count == 0) return;
+
+            var commentIds = await _repo.GetCommentIdsByPostIdsAsync(postIds);
+            if (commentIds.Count > 0)
+                await _mediaService.Value.DeleteBlobStorageForCommentsAsync(commentIds);
+
+            await _repo.DeleteAllForPostIdsAsync(postIds);
+        }
 
         public Task DetachAuthorFromDeletedUserAsync(long userId) =>
             _repo.DetachAuthorFromCommentsAsync(userId);
@@ -166,6 +177,7 @@ namespace Api.Domain.Comments.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.DetachParentFromRepliesAsync(id);
+                await _mediaService.Value.DeleteBlobStorageForCommentAsync(id);
                 await _repo.DeleteCommentAsync(comment);
             });
         }

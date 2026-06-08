@@ -1,5 +1,6 @@
-﻿using Api.Domain.Comments.Service;
+using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Media.Service;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;
@@ -15,6 +16,7 @@ namespace Api.Domain.Posts.Service
         IPostRepository repo,
         AppDbContext db,
         Lazy<CommentService> commentService,
+        Lazy<MediaService> mediaService,
         IHttpContextAccessor httpContextAccessor,
         UserService userService,
         GroupBoardAccessService groupBoardAccess)
@@ -22,6 +24,7 @@ namespace Api.Domain.Posts.Service
         private readonly IPostRepository _repo = repo;
         private readonly AppDbContext _db = db;
         private readonly Lazy<CommentService> _commentService = commentService;
+        private readonly Lazy<MediaService> _mediaService = mediaService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly UserService _userService = userService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
@@ -159,7 +162,12 @@ namespace Api.Domain.Posts.Service
         public async Task DeleteAllByGroupAsync(long groupId)
         {
             var postIds = await _repo.GetPostIdsByGroupAsync(groupId);
-            if (postIds.Count > 0) await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
+            if (postIds.Count > 0)
+            {
+                await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
+                await _mediaService.Value.DeleteBlobStorageForPostsAsync(postIds);
+            }
+
             await _repo.DeleteAllByGroupAsync(groupId);
         }
 
@@ -173,6 +181,7 @@ namespace Api.Domain.Posts.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
+                await _mediaService.Value.DeleteBlobStorageForPostAsync(id);
                 await _repo.DeletePostAsync(post);
             });
         }
