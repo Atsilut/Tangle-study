@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Api.Domain.Media.Dto;
 
 namespace Api.Domain.Comments.Dto
 {
@@ -34,6 +35,8 @@ namespace Api.Domain.Comments.Dto
         public required DateTime UpdatedAt { get; set; }
 
         public List<CommentGetResponseDto> Replies { get; set; } = [];
+
+        public MediaAssetGetResponseDto? Media { get; set; }
     }
 
     public record CommentPatchResponseDto

@@ -1,6 +1,6 @@
 use std::env;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 /// Worker configuration loaded from environment variables.
 #[derive(Debug, Clone)]
@@ -21,6 +21,14 @@ pub struct Config {
     pub replay_dry_run: bool,
     pub replay_delete: bool,
     pub log_json: bool,
+    pub api_base_url: String,
+    pub worker_callback_secret: String,
+    pub callback_timeout_ms: u64,
+    pub callback_connect_timeout_ms: u64,
+    pub callback_max_retries: u32,
+    pub callback_retry_base_ms: u64,
+    pub azure_storage_connection_string: String,
+    pub media_container_name: String,
 }
 
 impl Config {
@@ -49,6 +57,14 @@ impl Config {
             replay_dry_run: env_var_parse("WORKER_REPLAY_DRY_RUN", false)?,
             replay_delete: env_var_parse("WORKER_REPLAY_DELETE", true)?,
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
+            api_base_url: env_var("API_BASE_URL", "http://127.0.0.1:5000")?,
+            worker_callback_secret: env_var("WORKER_CALLBACK_SECRET", "")?,
+            callback_timeout_ms: env_var_parse("WORKER_CALLBACK_TIMEOUT_MS", 30_000)?,
+            callback_connect_timeout_ms: env_var_parse("WORKER_CALLBACK_CONNECT_TIMEOUT_MS", 10_000)?,
+            callback_max_retries: env_var_parse("WORKER_CALLBACK_MAX_RETRIES", 3)?,
+            callback_retry_base_ms: env_var_parse("WORKER_CALLBACK_RETRY_BASE_MS", 500)?,
+            azure_storage_connection_string: env_var("AZURE_STORAGE_CONNECTION_STRING", "")?,
+            media_container_name: env_var("MEDIA_CONTAINER_NAME", "tangle-media")?,
         })
     }
 
@@ -67,6 +83,32 @@ impl Config {
     pub fn dlq_stream_key(&self) -> String {
         format!("{}{}", self.full_stream_key(), self.dlq_stream_suffix)
     }
+
+    /// Validates stream key and, when running the consumer, stream-specific required env vars.
+    pub fn validate(&self, consumer: bool) -> Result<()> {
+        match self.stream_key.as_str() {
+            "chat.message.created" => Ok(()),
+            "media.uploaded" => {
+                if consumer {
+                    require_non_empty(
+                        &self.azure_storage_connection_string,
+                        "AZURE_STORAGE_CONNECTION_STRING",
+                    )?;
+                    require_non_empty(&self.worker_callback_secret, "WORKER_CALLBACK_SECRET")?;
+                    require_non_empty(&self.api_base_url, "API_BASE_URL")?;
+                }
+                Ok(())
+            }
+            other => bail!("unsupported worker stream key {other}"),
+        }
+    }
+}
+
+fn require_non_empty(value: &str, name: &str) -> Result<()> {
+    if value.trim().is_empty() {
+        bail!("{name} is not configured");
+    }
+    Ok(())
 }
 
 fn env_var(key: &str, default: &str) -> Result<String> {
@@ -98,12 +140,11 @@ where
 mod tests {
     use super::*;
 
-    #[test]
-    fn full_stream_key_uses_prefix() {
-        let config = Config {
+    fn test_config(stream_key: &str) -> Config {
+        Config {
             redis_url: String::new(),
             stream_prefix: "tangle:queue:".to_owned(),
-            stream_key: "chat.message.created".to_owned(),
+            stream_key: stream_key.to_owned(),
             consumer_group: String::new(),
             consumer_name: String::new(),
             block_ms: 0,
@@ -117,7 +158,52 @@ mod tests {
             replay_dry_run: false,
             replay_delete: true,
             log_json: false,
-        };
+            api_base_url: "http://127.0.0.1:5000".to_owned(),
+            worker_callback_secret: "secret".to_owned(),
+            callback_timeout_ms: 30_000,
+            callback_connect_timeout_ms: 10_000,
+            callback_max_retries: 3,
+            callback_retry_base_ms: 500,
+            azure_storage_connection_string: "UseDevelopmentStorage=true".to_owned(),
+            media_container_name: "tangle-media".to_owned(),
+        }
+    }
+
+    #[test]
+    fn validate_accepts_chat_consumer_without_media_env() {
+        let mut config = test_config("chat.message.created");
+        config.azure_storage_connection_string.clear();
+        config.worker_callback_secret.clear();
+        config.validate(true).unwrap();
+    }
+
+    #[test]
+    fn validate_requires_media_env_for_media_consumer() {
+        let mut config = test_config("media.uploaded");
+        config.azure_storage_connection_string.clear();
+
+        let err = config.validate(true).unwrap_err();
+        assert!(err.to_string().contains("AZURE_STORAGE_CONNECTION_STRING"));
+    }
+
+    #[test]
+    fn validate_allows_media_replay_without_media_env() {
+        let mut config = test_config("media.uploaded");
+        config.azure_storage_connection_string.clear();
+        config.worker_callback_secret.clear();
+        config.validate(false).unwrap();
+    }
+
+    #[test]
+    fn validate_rejects_unsupported_stream_key() {
+        let config = test_config("unknown.stream");
+        let err = config.validate(true).unwrap_err();
+        assert!(err.to_string().contains("unsupported worker stream key"));
+    }
+
+    #[test]
+    fn full_stream_key_uses_prefix() {
+        let config = test_config("chat.message.created");
 
         assert_eq!(
             config.full_stream_key(),

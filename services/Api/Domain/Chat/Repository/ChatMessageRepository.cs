@@ -38,4 +38,18 @@ public class ChatMessageRepository(AppDbContext context) : IChatMessageRepositor
         messages.Reverse();
         return messages;
     }
+
+    public Task DeleteChatMessageAsync(ChatMessage message)
+    {
+        _context.ChatMessages.Remove(message);
+        return _context.SaveChangesAsync();
+    }
+
+    public async Task DetachSenderFromMessagesAsync(long senderUserId)
+    {
+        var messages = await _context.ChatMessages.Where(m => m.SenderUserId == senderUserId).ToListAsync();
+        foreach (var message in messages)
+            message.DetachSender(senderUserId);
+        await _context.SaveChangesAsync();
+    }
 }

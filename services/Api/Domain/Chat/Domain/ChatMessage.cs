@@ -19,8 +19,13 @@ public class ChatMessage
     public ChatRoom? ChatRoom { get; private set; }
 
     [ForeignKey(nameof(Sender))]
-    public long SenderUserId { get; private set; }
+    public long? SenderUserId { get; private set; }
+
+    public long? DeletedSenderUserId { get; private set; }
+
     public User? Sender { get; private set; }
+
+    public long LogicalSenderUserId => SenderUserId ?? DeletedSenderUserId!.Value;
 
     [MaxLength(MaxBodyLength)]
     public string Body { get; private set; } = string.Empty;
@@ -35,5 +40,11 @@ public class ChatMessage
         ChatRoomId = chatRoomId;
         SenderUserId = senderUserId;
         Body = body;
+    }
+
+    public void DetachSender(long senderUserId)
+    {
+        DeletedSenderUserId = senderUserId;
+        SenderUserId = null;
     }
 }

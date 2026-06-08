@@ -1,3 +1,4 @@
+using Api.Domain.Media.Storage;
 using Api.Global.Db;
 using Api.Global.Events;
 using Api.Global.Queue;
@@ -15,11 +16,15 @@ namespace Api.Tests.Infrastructure;
 public sealed class ApiWebApplicationFactory(
     string connectionString,
     bool redisEnabled = false,
-    string? redisConnectionString = null) : WebApplicationFactory<Program>
+    string? redisConnectionString = null,
+    bool mediaEnabled = false) : WebApplicationFactory<Program>
 {
+    public const string TestWorkerCallbackSecret = "test-media-worker-secret";
+
     private readonly string _connectionString = connectionString;
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
+    private readonly bool _mediaEnabled = mediaEnabled;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -35,7 +40,16 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:InstanceName"] = "tangle:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
+                ["Media:Enabled"] = _mediaEnabled ? "true" : "false",
+                ["Media:ConnectionString"] = _mediaEnabled ? "UseDevelopmentStorage=true" : "",
+                ["Media:WorkerCallbackSecret"] = _mediaEnabled ? TestWorkerCallbackSecret : "",
             });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            RemoveService<IMediaStorage>(services);
+            services.AddSingleton<IMediaStorage, FakeMediaStorage>();
         });
 
         builder.ConfigureServices(services =>

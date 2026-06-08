@@ -1,10 +1,15 @@
+mod api_callback;
 mod config;
 mod consumer;
 mod dlq;
 mod handlers;
 mod job;
+mod encode_plan;
 mod message;
+mod probe;
+mod processing;
 mod retry;
+mod storage;
 mod telemetry;
 
 use anyhow::Context;
@@ -17,6 +22,10 @@ use crate::config::Config;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::from_env().context("load worker configuration")?;
+    let replay_mode = std::env::args().nth(1).as_deref() == Some("replay");
+    config
+        .validate(!replay_mode)
+        .context("validate worker configuration")?;
     telemetry::init(&config).context("initialize telemetry")?;
 
     let client = Client::open(config.redis_url.as_str()).context("open redis client")?;
@@ -29,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         .context("redis PING")?;
     info!(pong = %pong, "redis connected");
 
-    if std::env::args().nth(1).as_deref() == Some("replay") {
+    if replay_mode {
         info!(
             dlq_stream = %config.dlq_stream_key(),
             target_stream = %config.full_stream_key(),

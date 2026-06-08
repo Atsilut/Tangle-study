@@ -38,7 +38,10 @@ namespace Api.Migrations
                     b.Property<long>("ChatRoomId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("SenderUserId")
+                    b.Property<long?>("DeletedSenderUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SenderUserId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("SentAt")
@@ -64,7 +67,10 @@ namespace Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<long>("CreatedByUserId")
+                    b.Property<long?>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DeletedCreatedByUserId")
                         .HasColumnType("bigint");
 
                     b.Property<int>("Kind")
@@ -457,6 +463,86 @@ namespace Api.Migrations
                     b.ToTable("GroupMembers");
                 });
 
+            modelBuilder.Entity("Api.Domain.Media.Domain.MediaAsset", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ChatMessageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CommentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("DeletedUploaderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("IntendedContext")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("OriginalObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<long>("OriginalSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PostId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProcessedObjectKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<int>("ProcessingStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("StoredSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("UploaderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatMessageId");
+
+                    b.HasIndex("CommentId");
+
+                    b.HasIndex("PostId");
+
+                    b.HasIndex("UploaderId");
+
+                    b.ToTable("MediaAssets");
+                });
+
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
                 {
                     b.Property<long>("Id")
@@ -580,8 +666,7 @@ namespace Api.Migrations
                     b.HasOne("Api.Domain.Users.Domain.User", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("ChatRoom");
 
@@ -593,8 +678,7 @@ namespace Api.Migrations
                     b.HasOne("Api.Domain.Users.Domain.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("Api.Domain.Groups.Domain.Group", "PlatformGroup")
                         .WithMany()
@@ -604,12 +688,12 @@ namespace Api.Migrations
                     b.HasOne("Api.Domain.Users.Domain.User", "UserHigh")
                         .WithMany()
                         .HasForeignKey("UserHighId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("Api.Domain.Users.Domain.User", "UserLow")
                         .WithMany()
                         .HasForeignKey("UserLowId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("CreatedByUser");
 
@@ -631,7 +715,7 @@ namespace Api.Migrations
                     b.HasOne("Api.Domain.Users.Domain.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("ChatRoom");
@@ -794,6 +878,37 @@ namespace Api.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Api.Domain.Media.Domain.MediaAsset", b =>
+                {
+                    b.HasOne("Api.Domain.Chat.Domain.ChatMessage", "ChatMessage")
+                        .WithMany()
+                        .HasForeignKey("ChatMessageId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Api.Domain.Comments.Domain.Comment", "Comment")
+                        .WithMany()
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Api.Domain.Posts.Domain.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Api.Domain.Users.Domain.User", "Uploader")
+                        .WithMany()
+                        .HasForeignKey("UploaderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("ChatMessage");
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Uploader");
                 });
 
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>

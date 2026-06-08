@@ -7,6 +7,9 @@ Producer-only foundation for phase 4 Rust workers. Chat and the API work without
 | Stream key (`WorkQueueStreams`) | Payload | Enqueued when |
 |--------------------------------|---------|---------------|
 | `chat.message.created` | `ChatMessageCreatedJob` | After a chat message is persisted (`ChatMessageService`) |
+| `media.uploaded` | `MediaUploadedJob` | After upload is confirmed in blob storage (`MediaService.CompleteUploadAsync`) |
+
+`MediaUploadedJob` fields: `mediaAssetId`, `intendedContext`, `kind`, `mimeType`, `originalObjectKey`, `originalSizeBytes`, `targetMaxBytes`. `targetMaxBytes` is the per-file **storage** cap from [`media-limits.yml`](../../media-limits.yml) (not the ingress cap).
 
 Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `tangle:queue:`).
 

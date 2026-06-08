@@ -6,3 +6,12 @@ public sealed record ChatMessageCreatedJob(
     long SenderUserId,
     string Body,
     DateTimeOffset SentAt);
+
+public sealed record MediaUploadedJob(
+    long MediaAssetId,
+    string IntendedContext,
+    string Kind,
+    string MimeType,
+    string OriginalObjectKey,
+    long OriginalSizeBytes,
+    long TargetMaxBytes);

@@ -19,6 +19,9 @@ namespace Api.Domain.Comments.Dto
 
         [SwaggerSchema(Description = "Parent Comment Id (optional)")]
         public long? ParentId { get; init; }
+
+        [SwaggerSchema(Description = "Ready media asset ID to attach (comment context; single file only)")]
+        public long? MediaAssetId { get; init; }
     }
 
     public record CommentPatchRequestDto

@@ -44,6 +44,15 @@ namespace Api.Domain.Comments.Repository
             await _context.SaveChangesAsync();
         }
 
+        public Task<List<long>> GetCommentIdsByPostIdsAsync(IReadOnlyCollection<long> postIds)
+        {
+            if (postIds.Count == 0) return Task.FromResult<List<long>>([]);
+            return _context.Comments
+                .Where(c => c.PostId != null && postIds.Contains(c.PostId.Value))
+                .Select(c => c.Id)
+                .ToListAsync();
+        }
+
         public Task DeleteAllForPostIdsAsync(IReadOnlyCollection<long> postIds)
         {
             if (postIds.Count == 0) return Task.CompletedTask;

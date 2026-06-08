@@ -1,5 +1,7 @@
-﻿using Api.Domain.Comments.Service;
+﻿using Api.Domain.Chat.Service;
+using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
@@ -18,6 +20,9 @@ namespace Api.Domain.Users.Service
         AppDbContext db,
         Lazy<PostService> postService,
         Lazy<CommentService> commentService,
+        Lazy<MediaService> mediaService,
+        Lazy<ChatMessageService> chatMessageService,
+        Lazy<ChatRoomService> chatRoomService,
         Lazy<GroupMembershipService> groupMembershipService,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
@@ -28,6 +33,9 @@ namespace Api.Domain.Users.Service
         private readonly AppDbContext _db = db;
         private readonly Lazy<PostService> _postService = postService;
         private readonly Lazy<CommentService> _commentService = commentService;
+        private readonly Lazy<MediaService> _mediaService = mediaService;
+        private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
+        private readonly Lazy<ChatRoomService> _chatRoomService = chatRoomService;
         private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
@@ -137,6 +145,9 @@ namespace Api.Domain.Users.Service
             {
                 await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
                 await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
+                await _mediaService.Value.DetachUploaderFromDeletedUserAsync(id);
+                await _chatMessageService.Value.DetachSenderFromDeletedUserAsync(id);
+                await _chatRoomService.Value.DetachUserFromDeletedUserAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });

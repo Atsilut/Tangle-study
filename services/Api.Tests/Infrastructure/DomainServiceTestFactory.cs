@@ -1,14 +1,21 @@
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Media;
+using Api.Domain.Media.Repository;
+using Api.Domain.Media.Service;
+using Api.Domain.Media.Storage;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
+using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Events;
 using Api.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Api.Tests.Infrastructure;
 
@@ -67,6 +74,7 @@ internal static class DomainServiceTestFactory
 
         PostService postService = null!;
         CommentService commentService = null!;
+        MediaService mediaService = null!;
         FriendshipService friendshipService = null!;
         FriendRequestService friendRequestService = null!;
         GroupMembershipService groupMembershipService = null!;
@@ -78,15 +86,50 @@ internal static class DomainServiceTestFactory
         GroupService groupService = null!;
         GroupBoardService groupBoardService = null!;
 
+        var mediaOptions = Options.Create(new MediaOptions
+        {
+            Enabled = true,
+            IngressMultiplier = 3,
+            Post = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
+                VideoTotalBytes = 10L * 1024 * 1024 * 1024,
+                ImagePerFileBytes = 150L * 1024 * 1024,
+                ImageTotalBytes = 3L * 1024 * 1024 * 1024,
+            },
+            Comment = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+            ChatMessage = new MediaContextLimitOptions
+            {
+                VideoPerFileBytes = 150L * 1024 * 1024,
+                ImagePerFileBytes = 75L * 1024 * 1024,
+            },
+        });
+
         var userService = new UserService(
             userRepository,
             db,
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
+            new Lazy<MediaService>(() => mediaService),
+            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
+            new Lazy<Api.Domain.Chat.Service.ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
             http,
             nicknameCacheService,
             eventPublisher);
+
+        mediaService = new MediaService(
+            new MediaAssetRepository(db),
+            CreateMediaStorageProvider(new FakeMediaStorage()),
+            new MediaLimitPolicy(mediaOptions),
+            userService,
+            new FakeWorkQueue(),
+            mediaOptions,
+            http);
 
         groupMembershipService = new GroupMembershipService(
             groupMemberRepository,
@@ -104,6 +147,7 @@ internal static class DomainServiceTestFactory
             postRepository,
             db,
             new Lazy<CommentService>(() => commentService),
+            new Lazy<MediaService>(() => mediaService),
             http,
             userService,
             groupBoardAccessService);
@@ -114,7 +158,8 @@ internal static class DomainServiceTestFactory
             http,
             postService,
             groupBoardAccessService,
-            userService);
+            userService,
+            new Lazy<MediaService>(() => mediaService));
 
         friendshipService = new FriendshipService(
             friendshipRepository,
@@ -231,4 +276,9 @@ internal static class DomainServiceTestFactory
             groupBoardAccessService,
             groupBoardService);
     }
+
+    private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>
+        new ServiceCollection()
+            .AddSingleton<IMediaStorage>(storage)
+            .BuildServiceProvider();
 }

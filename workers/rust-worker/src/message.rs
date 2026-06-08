@@ -2,24 +2,23 @@ use anyhow::{bail, Context, Result};
 use redis::streams::StreamId;
 use redis::Value;
 
-use crate::job::ChatMessageCreatedJob;
+use crate::job::{ChatMessageCreatedJob, MediaUploadedJob};
 
 pub fn decode_chat_message_created(
     expected_type: &str,
     entry: &StreamId,
 ) -> Result<ChatMessageCreatedJob> {
-    let job_type = entry
-        .map
-        .get("type")
-        .context("stream entry missing `type` field")?;
-    let payload = entry
-        .map
-        .get("payload")
-        .context("stream entry missing `payload` field")?;
+    decode_job(expected_type, entry)
+}
 
-    let job_type = value_to_str(job_type).context("decode `type` field")?;
-    let payload = value_to_str(payload).context("decode `payload` field")?;
+pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
+    let job: MediaUploadedJob = decode_job(expected_type, entry)?;
+    job.validate()?;
+    Ok(job)
+}
 
+fn decode_job<T: serde::de::DeserializeOwned>(expected_type: &str, entry: &StreamId) -> Result<T> {
+    let (job_type, payload) = extract_envelope_fields(entry)?;
     if job_type != expected_type {
         bail!(
             "unexpected job type {job_type:?}, expected {expected_type:?} (entry id {})",
@@ -27,16 +26,8 @@ pub fn decode_chat_message_created(
         );
     }
 
-    serde_json::from_str(payload)
+    serde_json::from_str(&payload)
         .with_context(|| format!("deserialize payload for entry {}", entry.id))
-}
-
-fn value_to_str(value: &Value) -> Result<&str> {
-    match value {
-        Value::BulkString(bytes) => std::str::from_utf8(bytes).context("field is not valid utf-8"),
-        Value::SimpleString(text) => Ok(text.as_str()),
-        _ => bail!("expected string field, got {value:?}"),
-    }
 }
 
 /// Returns `(type, payload)` from a stream entry envelope.
@@ -51,9 +42,32 @@ pub fn extract_envelope_fields(entry: &StreamId) -> Result<(String, String)> {
         .context("stream entry missing `payload` field")?;
 
     Ok((
-        value_to_str(job_type)?.to_owned(),
-        value_to_str(payload)?.to_owned(),
+        value_to_str(job_type).context("decode `type` field")?.to_owned(),
+        value_to_str(payload).context("decode `payload` field")?.to_owned(),
     ))
+}
+
+fn value_to_str(value: &Value) -> Result<&str> {
+    match value {
+        Value::BulkString(bytes) => std::str::from_utf8(bytes).context("field is not valid utf-8"),
+        Value::SimpleString(text) => Ok(text.as_str()),
+        _ => bail!("expected string field, got {value:?}"),
+    }
+}
+
+/// Whether a handler error represents a poison-pill stream entry that should be acked, not retried.
+pub fn is_malformed_entry(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        let message = cause.to_string();
+        message.contains("stream entry missing")
+            || message.contains("decode `type` field")
+            || message.contains("decode `payload` field")
+            || message.contains("expected string field")
+            || message.contains("field is not valid utf-8")
+            || message.contains("unexpected job type")
+            || message.contains("deserialize payload")
+            || message.contains("target_max_bytes must be greater than zero")
+    })
 }
 
 #[cfg(test)]
@@ -89,5 +103,110 @@ mod tests {
         assert_eq!(job.sender_user_id, 3);
         assert_eq!(job.body, "hi");
         assert_eq!(job.sent_at, "2026-01-01T00:00:00+00:00");
+    }
+
+    #[test]
+    fn malformed_entry_detects_missing_type_field() {
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map: HashMap::new(),
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
+    }
+
+    #[test]
+    fn malformed_entry_detects_non_string_field_type() {
+        let mut map = HashMap::new();
+        map.insert("type".to_owned(), Value::Int(1));
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(br#"{"messageId":1}"#.to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map,
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
+    }
+
+    #[test]
+    fn malformed_entry_detects_invalid_json_payload() {
+        let mut map = HashMap::new();
+        map.insert(
+            "type".to_owned(),
+            Value::BulkString(b"chat.message.created".to_vec()),
+        );
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(b"not-json".to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "1-0".to_owned(),
+            map,
+        };
+
+        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
+        assert!(is_malformed_entry(&err));
+    }
+
+    #[test]
+    fn decodes_media_uploaded_payload() {
+        let mut map = HashMap::new();
+        map.insert(
+            "type".to_owned(),
+            Value::BulkString(b"media.uploaded".to_vec()),
+        );
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(
+                br#"{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":2147483648}"#
+                    .to_vec(),
+            ),
+        );
+
+        let entry = StreamId {
+            id: "2-0".to_owned(),
+            map,
+        };
+
+        let job = decode_media_uploaded("media.uploaded", &entry).unwrap();
+        assert_eq!(job.media_asset_id, 9);
+        assert_eq!(job.intended_context, "Post");
+        assert_eq!(job.kind, "Video");
+        assert_eq!(job.target_max_bytes, 2_147_483_648);
+    }
+
+    #[test]
+    fn malformed_entry_detects_non_positive_target_max_bytes() {
+        for target_max_bytes in [0, -1] {
+            let mut map = HashMap::new();
+            map.insert(
+                "type".to_owned(),
+                Value::BulkString(b"media.uploaded".to_vec()),
+            );
+            map.insert(
+                "payload".to_owned(),
+                Value::BulkString(
+                    format!(
+                        r#"{{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":{target_max_bytes}}}"#
+                    )
+                    .into_bytes(),
+                ),
+            );
+
+            let entry = StreamId {
+                id: "2-0".to_owned(),
+                map,
+            };
+
+            let err = decode_media_uploaded("media.uploaded", &entry).unwrap_err();
+            assert!(is_malformed_entry(&err), "targetMaxBytes={target_max_bytes}");
+        }
     }
 }

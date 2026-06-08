@@ -199,35 +199,17 @@ pub async fn run_replay(conn: &mut ConnectionManager, config: &Config) -> Result
 }
 
 fn parse_dlq_entry(entry: &StreamId) -> Result<(String, String)> {
-    let job_type = field_as_string(entry, FIELD_TYPE)
-        .context("DLQ entry missing `type`")?
-        .trim()
-        .to_owned();
-    let payload = field_as_string(entry, FIELD_PAYLOAD)
-        .context("DLQ entry missing `payload`")?
-        .to_owned();
+    let (job_type, payload) = message::extract_envelope_fields(entry)
+        .with_context(|| format!("parse DLQ entry {}", entry.id))?;
 
-    if job_type.is_empty() {
+    if job_type.trim().is_empty() {
         bail!("DLQ entry {} has empty `type`; cannot replay", entry.id);
     }
     if payload.is_empty() {
         bail!("DLQ entry {} has empty `payload`; cannot replay", entry.id);
     }
 
-    Ok((job_type, payload))
-}
-
-fn field_as_string(entry: &StreamId, field: &str) -> Result<String> {
-    let value = entry
-        .map
-        .get(field)
-        .with_context(|| format!("DLQ entry missing `{field}`"))?;
-
-    match value {
-        Value::BulkString(bytes) => Ok(String::from_utf8(bytes.clone()).context("invalid utf-8")?),
-        Value::SimpleString(text) => Ok(text.clone()),
-        _ => bail!("DLQ field `{field}` is not a string"),
-    }
+    Ok((job_type.trim().to_owned(), payload))
 }
 
 fn unix_ms_now() -> u128 {

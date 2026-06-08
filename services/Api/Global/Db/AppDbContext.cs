@@ -6,6 +6,7 @@ using Api.Domain.Friendships.Domain;
 using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Chat.Domain;
+using Api.Domain.Media.Domain;
 
 namespace Api.Global.Db
 {
@@ -26,6 +27,7 @@ namespace Api.Global.Db
         public DbSet<ChatRoom> ChatRooms { get; set; }
         public DbSet<ChatRoomParticipant> ChatRoomParticipants { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<MediaAsset> MediaAssets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -183,21 +185,22 @@ namespace Api.Global.Db
                 .HasOne(r => r.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(r => r.CreatedByUserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<ChatRoom>()
                 .HasOne(r => r.UserLow)
                 .WithMany()
                 .HasForeignKey(r => r.UserLowId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<ChatRoom>()
                 .HasOne(r => r.UserHigh)
                 .WithMany()
                 .HasForeignKey(r => r.UserHighId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<ChatRoom>()
                 .ToTable(t => t.HasCheckConstraint(
@@ -229,7 +232,7 @@ namespace Api.Global.Db
                 .HasOne(p => p.User)
                 .WithMany()
                 .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<ChatMessage>()
                 .HasOne(m => m.ChatRoom)
@@ -241,7 +244,39 @@ namespace Api.Global.Db
                 .HasOne(m => m.Sender)
                 .WithMany()
                 .HasForeignKey(m => m.SenderUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<MediaAsset>()
+                .HasOne(m => m.Uploader)
+                .WithMany()
+                .HasForeignKey(m => m.UploaderId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<MediaAsset>()
+                .HasOne(m => m.Post)
+                .WithMany()
+                .HasForeignKey(m => m.PostId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MediaAsset>()
+                .HasOne(m => m.Comment)
+                .WithMany()
+                .HasForeignKey(m => m.CommentId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MediaAsset>()
+                .HasOne(m => m.ChatMessage)
+                .WithMany()
+                .HasForeignKey(m => m.ChatMessageId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MediaAsset>()
+                .HasIndex(m => m.UploaderId);
         }
     }
 }

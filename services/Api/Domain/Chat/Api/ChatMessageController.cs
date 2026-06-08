@@ -34,4 +34,12 @@ public class ChatMessageController(ChatMessageService service) : ControllerBase
         var response = await _service.CreateMessageAsync(roomId, request);
         return Created($"/api/chat/rooms/{roomId}/messages/{response.Id}", response);
     }
+
+    [HttpDelete("{messageId:long}")]
+    [SwaggerOperation(Summary = "Delete a chat message (sender only)")]
+    public async Task<IActionResult> Delete([FromRoute] long roomId, [FromRoute] long messageId)
+    {
+        await _service.DeleteMessageAsync(roomId, messageId);
+        return NoContent();
+    }
 }

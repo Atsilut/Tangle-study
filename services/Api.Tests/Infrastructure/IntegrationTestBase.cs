@@ -15,9 +15,14 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
         bool redisEnabled = false,
-        string? redisConnectionString = null)
+        string? redisConnectionString = null,
+        bool mediaEnabled = false)
     {
-        Factory = new ApiWebApplicationFactory(postgres.ConnectionString, redisEnabled, redisConnectionString);
+        Factory = new ApiWebApplicationFactory(
+            postgres.ConnectionString,
+            redisEnabled,
+            redisConnectionString,
+            mediaEnabled);
         Client = Factory.CreateClient();
     }
 
