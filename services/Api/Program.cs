@@ -67,6 +67,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
+builder.Services.AddTangleMedia(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -79,6 +80,10 @@ DependencyInjection.PrintLogs(logger);
 var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
 if (redisOptions.Enabled) logger.LogInformation("Redis enabled (cache + SignalR backplane).");
 else logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
+
+var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Value;
+if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
+else logger.LogInformation("Media uploads disabled.");
 
 if (app.Environment.IsDevelopment())
 {
