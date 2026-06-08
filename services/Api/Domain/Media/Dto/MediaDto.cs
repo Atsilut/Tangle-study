@@ -48,3 +48,18 @@ public sealed record MediaUploadInitResponseDto(
     DateTime ExpiresAt,
     long IngressLimitBytes,
     long StorageLimitBytes);
+
+public sealed record MediaProcessedRequestDto
+{
+    [StringLength(1024)]
+    [SwaggerSchema(Description = "Blob key for the processed object; required on success")]
+    public string? ProcessedObjectKey { get; init; }
+
+    [Range(1, long.MaxValue)]
+    [SwaggerSchema(Description = "Processed file size in bytes; required on success")]
+    public long? StoredSizeBytes { get; init; }
+
+    [StringLength(2000)]
+    [SwaggerSchema(Description = "When set, marks the asset as failed instead of ready")]
+    public string? FailureReason { get; init; }
+}

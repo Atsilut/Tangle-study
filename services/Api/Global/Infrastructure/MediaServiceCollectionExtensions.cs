@@ -1,6 +1,7 @@
 using Api.Domain.Media;
 using Api.Domain.Media.Storage;
 using Api.Global.Config;
+using Api.Global.Security;
 
 namespace Api.Global.Infrastructure;
 
@@ -10,6 +11,7 @@ public static class MediaServiceCollectionExtensions
     {
         services.Configure<MediaOptions>(configuration.GetSection(MediaOptions.SectionName));
         services.AddSingleton<MediaLimitPolicy>();
+        services.AddScoped<WorkerCallbackAuthorizationFilter>();
 
         var options = configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
         EnsureLimitsConfigured(options);

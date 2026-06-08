@@ -171,6 +171,32 @@ public sealed class MediaService(
         return MapToDto(asset);
     }
 
+    public async Task ReportProcessedAsync(long id, MediaProcessedRequestDto request)
+    {
+        var asset = await GetMediaAssetOrThrowAsync(id);
+        if (asset.ProcessingStatus != MediaProcessingStatus.Processing)
+            throw new ArgumentException($"Media asset is not processing (status: {asset.ProcessingStatus}).");
+
+        if (!string.IsNullOrWhiteSpace(request.FailureReason))
+        {
+            asset.MarkFailed(request.FailureReason.Trim());
+            await _repo.SaveChangesAsync();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ProcessedObjectKey))
+            throw new ArgumentException("ProcessedObjectKey is required when reporting success.");
+        if (request.StoredSizeBytes is not > 0)
+            throw new ArgumentException("StoredSizeBytes must be greater than zero when reporting success.");
+
+        var storageLimit = _limitPolicy.GetStorageLimits(asset.IntendedContext, asset.Kind).PerFileBytes;
+        if (request.StoredSizeBytes > storageLimit)
+            throw new ArgumentException("Stored size exceeds the configured storage limit.");
+
+        asset.MarkReady(request.ProcessedObjectKey.Trim(), request.StoredSizeBytes.Value);
+        await _repo.SaveChangesAsync();
+    }
+
     internal static string BuildObjectKey(long userId, string fileName)
     {
         var safeName = Path.GetFileName(fileName);
