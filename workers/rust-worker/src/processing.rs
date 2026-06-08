@@ -173,14 +173,23 @@ async fn run_plan(plan: &EncodePlan) -> Result<u64> {
 
 async fn run_ffmpeg(args: &[String]) -> Result<()> {
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let status = Command::new("ffmpeg")
+    let output = Command::new("ffmpeg")
         .args(&arg_refs)
-        .status()
+        .output()
         .await
         .context("spawn ffmpeg")?;
 
-    if !status.success() {
-        bail!("ffmpeg exited with status {status}");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.trim().is_empty() {
+            bail!("ffmpeg exited with status {}: {stderr}", output.status);
+        } else {
+            bail!(
+                "ffmpeg exited with status {}: stderr: {stderr}; stdout: {stdout}",
+                output.status
+            );
+        }
     }
 
     Ok(())
