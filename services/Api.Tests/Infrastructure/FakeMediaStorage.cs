@@ -30,5 +30,7 @@ internal sealed class FakeMediaStorage : IMediaStorage
 
     public void SeedObject(string objectKey) => _objects.Add(objectKey);
 
+    public void RemoveObject(string objectKey) => _objects.Remove(objectKey);
+
     public IReadOnlyList<string> GetDeletedObjectKeys() => _deletedObjectKeys;
 }
