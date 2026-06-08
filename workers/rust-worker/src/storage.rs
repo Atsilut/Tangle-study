@@ -5,7 +5,10 @@ use azure_storage::ConnectionString;
 use azure_storage::CloudLocation;
 use azure_storage_blobs::prelude::*;
 use futures::stream::StreamExt;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// Azure block blob max is 4000 MiB; 4 MiB keeps memory bounded while limiting round trips.
+const UPLOAD_BLOCK_SIZE: usize = 4 * 1024 * 1024;
 
 pub struct BlobStorage {
     container_client: ContainerClient,
@@ -61,13 +64,49 @@ impl BlobStorage {
     }
 
     pub async fn upload_file(&self, object_key: &str, path: &Path, content_type: &str) -> Result<()> {
-        let data = tokio::fs::read(path).await?;
-        self.container_client
-            .blob_client(object_key)
-            .put_block_blob(data)
+        let blob_client = self.container_client.blob_client(object_key);
+        let mut file = tokio::fs::File::open(path)
+            .await
+            .with_context(|| format!("open file {}", path.display()))?;
+
+        let mut block_list = BlockList::default();
+        let mut buffer = vec![0u8; UPLOAD_BLOCK_SIZE];
+        let mut block_index = 0u32;
+
+        loop {
+            let bytes_read = file
+                .read(&mut buffer)
+                .await
+                .with_context(|| format!("read file chunk from {}", path.display()))?;
+            if bytes_read == 0 {
+                break;
+            }
+
+            let block_id = format!("block{block_index:06}");
+            blob_client
+                .put_block(block_id.clone(), buffer[..bytes_read].to_vec())
+                .await
+                .context("upload blob block")?;
+            block_list
+                .blocks
+                .push(BlobBlockType::new_uncommitted(block_id));
+            block_index += 1;
+        }
+
+        if block_list.blocks.is_empty() {
+            blob_client
+                .put_block_blob(Vec::<u8>::new())
+                .content_type(content_type.to_owned())
+                .await
+                .context("upload processed blob")?;
+            return Ok(());
+        }
+
+        blob_client
+            .put_block_list(block_list)
             .content_type(content_type.to_owned())
             .await
-            .context("upload processed blob")?;
+            .context("commit uploaded blob blocks")?;
         Ok(())
     }
 }
