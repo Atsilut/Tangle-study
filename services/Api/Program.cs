@@ -86,7 +86,7 @@ var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Val
 if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
 else logger.LogInformation("Media uploads disabled.");
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(options =>
