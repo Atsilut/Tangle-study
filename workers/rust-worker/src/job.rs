@@ -42,6 +42,13 @@ pub struct MediaUploadedJob {
 }
 
 impl MediaUploadedJob {
+    pub fn validate(&self) -> Result<()> {
+        if self.target_max_bytes <= 0 {
+            bail!("target_max_bytes must be greater than zero");
+        }
+        Ok(())
+    }
+
     pub fn media_kind(&self) -> Result<MediaKind> {
         MediaKind::parse(&self.kind)
     }

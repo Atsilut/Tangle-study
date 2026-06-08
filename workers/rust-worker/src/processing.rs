@@ -31,6 +31,8 @@ enum PlanSpec {
 }
 
 pub async fn process_media(job: &MediaUploadedJob, input: &Path, output: &Path) -> Result<u64> {
+    job.validate()?;
+
     let input_size = file_size(input).await?;
 
     if input_size <= job.target_max_bytes as u64 {

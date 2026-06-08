@@ -12,7 +12,9 @@ pub fn decode_chat_message_created(
 }
 
 pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
-    decode_job(expected_type, entry)
+    let job: MediaUploadedJob = decode_job(expected_type, entry)?;
+    job.validate()?;
+    Ok(job)
 }
 
 fn decode_job<T: serde::de::DeserializeOwned>(expected_type: &str, entry: &StreamId) -> Result<T> {
@@ -64,6 +66,7 @@ pub fn is_malformed_entry(err: &anyhow::Error) -> bool {
             || message.contains("field is not valid utf-8")
             || message.contains("unexpected job type")
             || message.contains("deserialize payload")
+            || message.contains("target_max_bytes must be greater than zero")
     })
 }
 
@@ -177,5 +180,33 @@ mod tests {
         assert_eq!(job.intended_context, "Post");
         assert_eq!(job.kind, "Video");
         assert_eq!(job.target_max_bytes, 2_147_483_648);
+    }
+
+    #[test]
+    fn malformed_entry_detects_non_positive_target_max_bytes() {
+        for target_max_bytes in [0, -1] {
+            let mut map = HashMap::new();
+            map.insert(
+                "type".to_owned(),
+                Value::BulkString(b"media.uploaded".to_vec()),
+            );
+            map.insert(
+                "payload".to_owned(),
+                Value::BulkString(
+                    format!(
+                        r#"{{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":{target_max_bytes}}}"#
+                    )
+                    .into_bytes(),
+                ),
+            );
+
+            let entry = StreamId {
+                id: "2-0".to_owned(),
+                map,
+            };
+
+            let err = decode_media_uploaded("media.uploaded", &entry).unwrap_err();
+            assert!(is_malformed_entry(&err), "targetMaxBytes={target_max_bytes}");
+        }
     }
 }
