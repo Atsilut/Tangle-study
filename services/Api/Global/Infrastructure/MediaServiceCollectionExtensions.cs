@@ -12,9 +12,13 @@ public static class MediaServiceCollectionExtensions
         services.AddSingleton<MediaLimitPolicy>();
 
         var options = configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
-        if (!options.Enabled || string.IsNullOrWhiteSpace(options.ConnectionString))
+        if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
-            services.AddSingleton<IMediaStorage, NoOpMediaStorage>();
+            if (options.Enabled)
+                throw new InvalidOperationException(
+                    "Media:Enabled is true but Media:ConnectionString is not configured. " +
+                    "Start Azurite (docker compose up azurite) and set the connection string.");
+
             return services;
         }
 

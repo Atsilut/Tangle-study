@@ -26,6 +26,15 @@ services:
       retries: 10
       start_period: 5s
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    restart: unless-stopped
+    command: azurite --blobHost 0.0.0.0 --location /data
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-data:/data
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -57,9 +66,15 @@ services:
       Redis__InstanceName: "tangle:"
       Redis__SignalRChannelPrefix: "tangle:signalr:"
       Redis__WorkQueueStreamPrefix: "tangle:queue:"
+      Media__Enabled: "true"
+      Media__ConnectionString: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLmF5gPCXx4scIIpCimMY4evDMb2v50pPsdZ1Oi4K;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      Media__PublicBlobEndpoint: "http://127.0.0.1:10000/devstoreaccount1"
+      Media__ContainerName: "tangle-media"
     ports:
       - "5000:8080"
     depends_on:
+      azurite:
+        condition: service_started
       db:
         condition: service_healthy
       redis:
@@ -127,5 +142,6 @@ services:
       ]
 
 volumes:
+  azurite-data:
   db-data:
   redis-data:

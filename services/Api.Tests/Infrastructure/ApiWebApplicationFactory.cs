@@ -1,3 +1,4 @@
+using Api.Domain.Media.Storage;
 using Api.Global.Db;
 using Api.Global.Events;
 using Api.Global.Queue;
@@ -35,7 +36,14 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:InstanceName"] = "tangle:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
+                ["Media:Enabled"] = "false",
             });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            RemoveService<IMediaStorage>(services);
+            services.AddSingleton<IMediaStorage, FakeMediaStorage>();
         });
 
         builder.ConfigureServices(services =>
