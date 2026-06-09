@@ -63,6 +63,8 @@ services:
       Redis__InstanceName: "tangle:"
       Redis__SignalRChannelPrefix: "tangle:signalr:"
       Redis__WorkQueueStreamPrefix: "tangle:queue:"
+      Metrics__RequireAuth: "true"
+      Metrics__Secret: "dev-metrics-secret"
     ports:
       - "5000:8080"
     depends_on:
@@ -73,7 +75,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/swagger/v1/swagger.json || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -88,6 +90,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus

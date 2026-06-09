@@ -43,6 +43,8 @@ public sealed class ApiWebApplicationFactory(
                 ["Media:Enabled"] = _mediaEnabled ? "true" : "false",
                 ["Media:ConnectionString"] = _mediaEnabled ? "UseDevelopmentStorage=true" : "",
                 ["Media:WorkerCallbackSecret"] = _mediaEnabled ? TestWorkerCallbackSecret : "",
+                ["Metrics:RequireAuth"] = "false",
+                ["Metrics:Secret"] = "",
             });
         });
 

@@ -10,6 +10,13 @@ public sealed class MetricsIntegrationTests(PostgresTestcontainerFixture postgre
     : IntegrationTestBase(postgres)
 {
     [Fact]
+    public async Task Health_ReturnsOk_WhenDependenciesAreHealthy()
+    {
+        var response = await Client.GetAsync("/health", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Metrics_ReturnsOk_WithPrometheusHttpMetrics()
     {
         await Client.GetAsync("/api/users", TestContext.Current.CancellationToken);
@@ -45,7 +52,7 @@ public sealed class MetricsIntegrationTests(PostgresTestcontainerFixture postgre
 
         // Act
         var response = await Client.PatchAsJsonAsync(
-            "/api/users/1",
+            "/api/users",
             new UserPatchRequestDto { Id = 1, Nickname = "metrics-test" },
             TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(response, HttpStatusCode.Unauthorized);

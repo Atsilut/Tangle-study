@@ -4,6 +4,7 @@ using Api.Global.Db;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 using Api.Global.Security;
+using Api.Global.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -33,6 +34,7 @@ builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.AddSingleton<TokenProvider>();
 
 builder.Services
@@ -74,6 +76,18 @@ builder.Services.AddTangleMedia(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+
+var healthChecksBuilder = builder.Services.AddHealthChecks()
+    .AddNpgSql(defaultConnection, name: "postgres");
+
+var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
+if (redisConfig?.Enabled is true && !string.IsNullOrWhiteSpace(redisConfig.ConnectionString))
+    healthChecksBuilder.AddRedis(redisConfig.ConnectionString, name: "redis");
+
+healthChecksBuilder.ForwardToPrometheus();
+
 var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
@@ -96,6 +110,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
         options.RoutePrefix = "api";
     });
 
+using static Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults;
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -115,8 +130,11 @@ app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseMiddleware<MetricsAuthMiddleware>();
+
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHealthChecks("/health");
 app.MapMetrics();
 
 app.Run();

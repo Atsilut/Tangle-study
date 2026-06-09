@@ -1,0 +1,24 @@
+groups:
+  - name: tangle_api
+    interval: 15s
+    rules:
+      - record: tangle:api_request_rate
+        expr: sum(rate(http_requests_received_total{job="api"}[5m]))
+
+      - record: tangle:api_5xx_ratio
+        expr: |
+          sum(rate(http_requests_received_total{job="api", code=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_received_total{job="api"}[5m]))
+
+      - record: tangle:api_other_4xx_ratio
+        expr: |
+          sum(rate(http_requests_received_total{job="api", code=~"4..", code!~"401|403|409"}[5m]))
+          /
+          sum(rate(http_requests_received_total{job="api"}[5m]))
+
+      - record: tangle:api_5xx_rate_by_controller
+        expr: sum by (controller) (rate(http_requests_received_total{job="api", code=~"5.."}[5m]))
+
+      - record: tangle:api_request_duration_p95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="api"}[5m])) by (le))
