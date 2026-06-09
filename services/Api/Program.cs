@@ -108,9 +108,9 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
     db.Database.Migrate();
 }
 
-app.UseExceptionHandler();
-
 app.UseHttpMetrics();
+
+app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseAuthorization();

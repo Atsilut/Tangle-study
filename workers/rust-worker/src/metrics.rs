@@ -35,6 +35,14 @@ pub fn init(port: u16) -> Result<()> {
     Ok(())
 }
 
+pub fn record_callback_request(code: &str) {
+    counter!(
+        "tangle_worker_callback_requests_total",
+        "code" => code.to_owned()
+    )
+    .increment(1);
+}
+
 pub fn record_job_processed(stream_key: &str, outcome: JobOutcome) {
     counter!(
         "tangle_worker_jobs_processed_total",
