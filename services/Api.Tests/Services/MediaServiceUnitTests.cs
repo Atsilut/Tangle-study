@@ -80,7 +80,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, storage);
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
         asset.MarkProcessing();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
@@ -90,7 +90,7 @@ public sealed class MediaServiceUnitTests
         });
 
         // Assert
-        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(MediaProcessingStatus.Ready, updated.ProcessingStatus);
         Assert.Equal("processed/1/video.mp4", updated.ProcessedObjectKey);
@@ -107,7 +107,7 @@ public sealed class MediaServiceUnitTests
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
         asset.MarkProcessing();
         asset.MarkReady("processed/1/video.mp4", 400);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
@@ -117,7 +117,7 @@ public sealed class MediaServiceUnitTests
         });
 
         // Assert
-        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(MediaProcessingStatus.Ready, updated.ProcessingStatus);
         Assert.Equal("processed/1/video.mp4", updated.ProcessedObjectKey);
@@ -134,7 +134,7 @@ public sealed class MediaServiceUnitTests
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
         asset.MarkProcessing();
         asset.MarkFailed("compression failed");
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
@@ -143,7 +143,7 @@ public sealed class MediaServiceUnitTests
         });
 
         // Assert
-        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(MediaProcessingStatus.Failed, updated.ProcessingStatus);
         Assert.Equal("compression failed", updated.FailureReason);
@@ -159,7 +159,7 @@ public sealed class MediaServiceUnitTests
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
         asset.MarkProcessing();
         asset.MarkReady("processed/1/video.mp4", 400);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act + Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
@@ -178,7 +178,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, storage);
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
         asset.MarkProcessing();
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await service.ReportProcessedAsync(asset.Id, new MediaProcessedRequestDto
@@ -187,7 +187,7 @@ public sealed class MediaServiceUnitTests
         });
 
         // Assert
-        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(MediaProcessingStatus.Failed, updated.ProcessingStatus);
         Assert.Equal("compression failed", updated.FailureReason);
@@ -221,7 +221,7 @@ public sealed class MediaServiceUnitTests
         await service.LinkToPostAsync(postId: 99, uploaderUserId: asset.UploaderId!.Value, [asset.Id]);
 
         // Assert
-        var updated = await db.MediaAssets.FindAsync(asset.Id);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(99, updated.PostId);
     }
@@ -278,7 +278,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, new FakeMediaStorage());
         var user = new User("poster@example.com", "hash", "poster");
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var postOneFirst = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "a.jpg", "raw/a.jpg", 10);
         postOneFirst.LinkToPost(1);
@@ -290,7 +290,7 @@ public sealed class MediaServiceUnitTests
         postTwo.LinkToPost(2);
         postTwo.MarkReady("processed/c.jpg", 8);
         db.MediaAssets.AddRange(postOneFirst, postOneSecond, postTwo);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var mediaByPostId = await service.GetMediaByPostIdsAsync([1, 2, 99]);
@@ -322,7 +322,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, storage);
         var user = new User("tester@example.com", "hash", "tester");
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var postOneMedia = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Post, MediaKind.Image, "image/jpeg", "one.jpg", "raw/post/one/original.jpg", 100);
         postOneMedia.LinkToPost(1);
@@ -331,7 +331,7 @@ public sealed class MediaServiceUnitTests
         postTwoMedia.LinkToPost(2);
         postTwoMedia.MarkReady("raw/post/two/processed.jpg", 80);
         db.MediaAssets.AddRange(postOneMedia, postTwoMedia);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         storage.SeedObject("raw/post/one/original.jpg");
         storage.SeedObject("raw/post/one/processed.jpg");
@@ -360,7 +360,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, new FakeMediaStorage());
         var user = new User("dup@example.com", "hash", "dup");
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var first = MediaAsset.CreatePendingUpload(user.Id, MediaIntendedContext.Comment, MediaKind.Image, "image/jpeg", "a.jpg", "raw/a.jpg", 10);
         first.LinkToComment(5);
@@ -369,7 +369,7 @@ public sealed class MediaServiceUnitTests
         second.LinkToComment(5);
         second.MarkReady("processed/b.jpg", 8);
         db.MediaAssets.AddRange(first, second);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetMediaForCommentAsync(5));
@@ -383,7 +383,7 @@ public sealed class MediaServiceUnitTests
         var service = CreateMediaService(db, new FakeMediaStorage());
         var user = new User("commenter@example.com", "hash", "commenter");
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var asset = MediaAsset.CreatePendingUpload(
             user.Id,
@@ -394,7 +394,7 @@ public sealed class MediaServiceUnitTests
             "raw/comment/pending.jpg",
             100);
         db.MediaAssets.Add(asset);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act + Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -500,7 +500,7 @@ public sealed class MediaServiceUnitTests
             createUser: createUser);
         asset.MarkProcessing();
         asset.MarkReady($"processed/{asset.UploaderId}/{kind.ToString().ToLowerInvariant()}.bin", storedSizeBytes);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         return asset;
     }
 
@@ -517,7 +517,7 @@ public sealed class MediaServiceUnitTests
         {
             var user = new User($"user{userId}@example.com", "hash", $"user{userId}");
             db.Users.Add(user);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             uploaderId = user.Id;
         }
 
@@ -530,7 +530,7 @@ public sealed class MediaServiceUnitTests
             objectKey,
             500);
         db.MediaAssets.Add(asset);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         if (seedBlob) storage.SeedObject(objectKey);
 
@@ -541,7 +541,7 @@ public sealed class MediaServiceUnitTests
     {
         var user = new User("tester@example.com", "hash", "tester");
         db.Users.Add(user);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var postMedia = MediaAsset.CreatePendingUpload(
             user.Id,
@@ -566,7 +566,7 @@ public sealed class MediaServiceUnitTests
         commentMedia.MarkReady("raw/comment/processed.jpg", 80);
 
         db.MediaAssets.AddRange(postMedia, commentMedia);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         storage.SeedObject("raw/post/original.jpg");
         storage.SeedObject("raw/post/processed.jpg");
