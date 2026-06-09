@@ -1,6 +1,6 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker. The target is **domain-aligned microservices** (Phase 9) after Phases 5–7 complete: thin monitoring, React web client, and location in the monolith.
+Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker and an optional **Prometheus / Grafana** monitoring profile. The target is **domain-aligned microservices** (Phase 9) after Phases 6–7 complete: React web client and location in the monolith.
 
 Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../services/Api/AGENTS.md).
 
@@ -17,12 +17,17 @@ flowchart TB
   PG[(PostgreSQL)]
   Redis[(Redis)]
   Worker["rust-worker (optional)"]
+  Prom["Prometheus (optional)"]
+  Graf["Grafana (optional)"]
 
   Clients --> API
   API --> PG
   API --> Redis
   Redis --> Worker
   Worker -.->|"future: write results"| PG
+  API -->|"GET /metrics"| Prom
+  Worker -->|"GET /metrics"| Prom
+  Prom --> Graf
 ```
 
 ### In-process boundaries
@@ -45,6 +50,14 @@ See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md) and [rust-worker README](.
 
 Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR backplane allows multiple API replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md) and [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
+### Observability
+
+Thin Prometheus + Grafana stack under [`infra/`](../infra/). The API exposes `/metrics` via `prometheus-net` (HTTP request rate, latency, status codes; `tangle_workqueue_enqueue_total` when Redis is enabled). Rust workers expose `/metrics` on `WORKER_METRICS_PORT` (default `9090`) with job counters and queue depth gauges.
+
+Start with `docker compose --profile monitoring up` (add `--profile workers` for worker scrape targets). Details: [infra/README.md](../infra/README.md).
+
+Distributed tracing (OpenTelemetry) is not implemented yet.
+
 ### Docker Compose (default)
 
 | Service | Role |
@@ -53,6 +66,8 @@ Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR bac
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
 | `rust-worker` | Optional (`--profile workers`) |
+| `prometheus` | Optional (`--profile monitoring`) |
+| `grafana` | Optional (`--profile monitoring`) |
 
 ---
 
@@ -140,7 +155,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts
 /tools          ← planned Go CLI / load testing
-/infra          ← planned Prometheus / Grafana
+/infra          ← Prometheus / Grafana ([infra/README.md](../infra/README.md))
 /docs           ← architecture and migration docs (this folder)
 ```
 

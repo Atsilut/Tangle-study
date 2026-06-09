@@ -54,7 +54,7 @@ DB    Redis        Queue (Streams)
          ▼
    Real-time Events
 
-Monitoring (planned):
+Monitoring:
 API / Workers → Prometheus → Grafana
 ```
 
@@ -216,7 +216,7 @@ Central index: [docs/README.md](docs/README.md)
 | 2 | Real-time chat (SignalR) — [CHAT.md](services/Api/Domain/Chat/CHAT.md) | Done |
 | 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
 | 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | Done (`chat.message.created` worker handler is an intentional stub; delivery is SignalR) |
-| 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Planned |
+| 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web) — auth scaffold, then map UI after Phase 7 | Planned |
 | 7 | Location / Memory Map in monolith — [SERVICE_BOUNDARIES.md#location-service](docs/SERVICE_BOUNDARIES.md#location-service) | Planned |
 | 8 | MSA prep — cross-service contracts during Phase 7; document events in [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Planned |
@@ -303,6 +303,19 @@ docker compose --profile workers up rust-worker
 ```
 
 Requires Redis (e.g. `docker compose up redis` or the full stack). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
+
+### Monitoring (optional)
+
+Prometheus and Grafana use the Compose `monitoring` profile. See [infra/README.md](infra/README.md).
+
+```bash
+docker compose --profile monitoring up --build
+docker compose --profile monitoring --profile workers up --build
+```
+
+- Grafana: http://localhost:3000 (admin / admin)
+- Prometheus: http://localhost:9090
+- API metrics: http://localhost:5000/metrics (unauthenticated; for scrape only)
 
 ### Cleanup local SDK artifacts
 

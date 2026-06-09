@@ -1,6 +1,6 @@
 # Monitoring infrastructure
 
-Thin Prometheus + Grafana stack for Phase 5 observability. Scrapes metrics from the API and Rust workers; does not run by default.
+Thin Prometheus + Grafana stack (Phase 5). Scrapes metrics from the API and Rust workers. Does not run by default.
 
 ## Layout
 
@@ -32,7 +32,8 @@ docker compose --profile monitoring --profile workers up --build
 |---------|-----|-------|
 | Grafana | http://localhost:3000 | Login: `admin` / `admin` (dev default) |
 | Prometheus | http://localhost:9090 | Targets page shows scrape health |
-| API metrics | http://localhost:5000/metrics | Raw Prometheus text (after API instrumentation) |
+| API metrics | http://localhost:5000/metrics | Unauthenticated Prometheus text |
+| Worker metrics | in-container `:9090/metrics` | Scraped by Prometheus on the Compose network |
 
 ## Scrape targets
 

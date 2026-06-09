@@ -39,7 +39,16 @@ Workers should:
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
 
-The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`. Metrics are still planned.
+The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`.
+
+## Metrics (Phase 5)
+
+| Component | Endpoint | Metrics |
+|-----------|----------|---------|
+| API | `GET /metrics` | `http_requests_*` (prometheus-net); `tangle_workqueue_enqueue_total{stream}` when Redis is enabled |
+| rust-worker | `GET /metrics` on `WORKER_METRICS_PORT` (default `9090`) | `tangle_worker_jobs_processed_total`, `tangle_worker_pending_messages`, `tangle_worker_dlq_length` |
+
+Prometheus scrape config: [`infra/prometheus/prometheus.yml`](../../../../infra/prometheus/prometheus.yml). Grafana dashboard: [infra/README.md](../../../../infra/README.md).
 
 ## End-to-end harness (`media.uploaded`)
 
