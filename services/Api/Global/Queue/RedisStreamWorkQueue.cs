@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Api.Global.Config;
+using Api.Global.Telemetry;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -36,6 +37,7 @@ public sealed partial class RedisStreamWorkQueue(
                     new NameValueEntry("type", streamKey),
                     new NameValueEntry("payload", serializedPayload),
                 ]);
+            WorkQueueMetrics.EnqueueTotal.WithLabels(streamKey).Inc();
             LogJobEnqueued(_logger, redisStreamKey);
         }
         catch (Exception ex)
