@@ -95,6 +95,29 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
+    depends_on:
+      - postgres-exporter
+      - redis-exporter
+
+  postgres-exporter:
+    profiles: ["monitoring"]
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://tangle:tangletangle123@db:5432/tangledb?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis-exporter:
+    profiles: ["monitoring"]
+    image: oliver006/redis_exporter:v1.67.0
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
 
   grafana:
     profiles: ["monitoring"]

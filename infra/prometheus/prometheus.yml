@@ -24,3 +24,11 @@ scrape_configs:
     static_configs:
       - targets: ["rust-worker-media:9090"]
     metrics_path: /metrics
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
