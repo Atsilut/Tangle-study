@@ -252,7 +252,7 @@ public sealed class MediaServiceUnitTests
             service.LinkToPostAsync(
                 postId: 99,
                 uploaderUserId: assets[0].UploaderId!.Value,
-                assets.Select(asset => asset.Id).ToList()));
+                [.. assets.Select(asset => asset.Id)]));
         Assert.Contains("total video storage limit", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 

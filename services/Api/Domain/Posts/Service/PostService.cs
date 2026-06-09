@@ -134,7 +134,7 @@ namespace Api.Domain.Posts.Service
             IReadOnlyList<Post> posts,
             IReadOnlyDictionary<long, string> nicknames)
         {
-            var mediaByPostId = await _mediaService.Value.GetMediaByPostIdsAsync(posts.Select(p => p.Id).ToList());
+            var mediaByPostId = await _mediaService.Value.GetMediaByPostIdsAsync([.. posts.Select(p => p.Id)]);
 
             return [.. posts.Select(post => MapToDto(
                 post,

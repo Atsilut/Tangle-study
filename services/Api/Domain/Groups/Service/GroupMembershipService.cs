@@ -97,7 +97,7 @@ namespace Api.Domain.Groups.Service
             var ownedGroups = memberships.Where(m => m.Role == GroupRole.Owner).ToList();
             var membersByGroupId = ownedGroups.Count == 0
                 ? new Dictionary<long, List<GroupMember>>()
-                : await _repo.GetMembersByGroupIdsAsync(ownedGroups.Select(m => m.GroupId).ToList());
+                : await _repo.GetMembersByGroupIdsAsync([.. ownedGroups.Select(m => m.GroupId)]);
 
             foreach (var owned in ownedGroups)
             {

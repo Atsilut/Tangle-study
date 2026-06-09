@@ -131,7 +131,7 @@ public sealed class MediaService(
     internal async Task<IReadOnlyList<MediaAssetGetResponseDto>> GetMediaForPostAsync(long postId)
     {
         var assets = await _repo.GetMediaAssetsByPostIdAsync(postId);
-        return assets.Select(MapToDto).ToList();
+        return [.. assets.Select(MapToDto)];
     }
 
     internal async Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(

@@ -29,7 +29,7 @@ public sealed class MediaIntegrationTests(
         // Arrange
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
-        var ingressLimit = MediaIntegrationTestHelpers.PostVideoPerFileBytes * MediaIntegrationTestHelpers.IngressMultiplier;
+        const long ingressLimit = MediaIntegrationTestHelpers.PostVideoPerFileBytes * MediaIntegrationTestHelpers.IngressMultiplier;
         var req = new MediaUploadInitRequestDto
         {
             IntendedContext = MediaIntendedContext.Post,

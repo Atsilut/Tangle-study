@@ -65,7 +65,7 @@ public class ChatRoomAccessService(
 
         await _userBlockService.EnsureNoBlockBetweenUserAndOthersAsync(
             inviteeUserId,
-            participants.Select(p => p.UserId).ToList());
+            [.. participants.Select(p => p.UserId)]);
 
         if (room.Kind == ChatRoomKind.PlatformGroup)
         {

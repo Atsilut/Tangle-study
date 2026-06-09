@@ -96,7 +96,7 @@ namespace Api.Domain.Comments.Service
             }
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync(comments.Select(c => c.Id).ToList());
+            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
             return [.. comments.Select(c => MapToDto(
                 c,
                 nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"),
@@ -132,7 +132,7 @@ namespace Api.Domain.Comments.Service
         private async Task<List<CommentGetResponseDto>> BuildCommentTreeAsync(IReadOnlyList<Comment> comments)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync(comments.Select(c => c.Id).ToList());
+            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
             var byId = comments.ToDictionary(
                 c => c.Id,
                 c => MapToDto(

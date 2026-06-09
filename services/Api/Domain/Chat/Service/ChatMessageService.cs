@@ -135,7 +135,7 @@ public class ChatMessageService(
     {
         var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
-        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync(messages.Select(m => m.Id).ToList());
+        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
         return [.. messages
             .Select(m => MapToDto(
                 m,
