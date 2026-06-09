@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::dlq;
 use crate::handlers;
 use crate::message;
+use crate::metrics::{self, JobOutcome};
 use crate::retry;
 
 /// Ensures the consumer group exists (idempotent). New groups read from the start of the stream (`0`).
@@ -78,6 +79,7 @@ async fn read_and_process_batch(
 ) -> Result<()> {
     read_new_messages(conn, config, http).await?;
     reclaim_pending_retries(conn, config, http).await?;
+    metrics::refresh_queue_gauges(conn, config).await?;
     Ok(())
 }
 
@@ -141,6 +143,7 @@ async fn reclaim_pending_retries(
             )
             .await?;
             ack(conn, &stream, &config.consumer_group, &item.id).await?;
+            metrics::record_job_processed(&config.stream_key, JobOutcome::Dlq);
             continue;
         }
 
@@ -204,6 +207,7 @@ async fn process_entry(
     match handlers::dispatch_entry(config, entry, http).await {
         Ok(()) => {
             ack(conn, stream, &config.consumer_group, message_id).await?;
+            metrics::record_job_processed(&config.stream_key, JobOutcome::Success);
             info!(
                 stream = %stream,
                 message_id = %message_id,
@@ -221,6 +225,7 @@ async fn process_entry(
                     "skipping malformed message; acking to avoid poison-pill loop"
                 );
                 ack(conn, stream, &config.consumer_group, message_id).await?;
+                metrics::record_job_processed(&config.stream_key, JobOutcome::Malformed);
                 return Ok(());
             }
 
@@ -236,7 +241,9 @@ async fn process_entry(
                 )
                 .await?;
                 ack(conn, stream, &config.consumer_group, message_id).await?;
+                metrics::record_job_processed(&config.stream_key, JobOutcome::Dlq);
             } else {
+                metrics::record_job_processed(&config.stream_key, JobOutcome::Failure);
                 let retry_after_ms = retry::backoff_delay_ms(
                     times_delivered,
                     config.retry_base_ms,

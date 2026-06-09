@@ -29,6 +29,7 @@ pub struct Config {
     pub callback_retry_base_ms: u64,
     pub azure_storage_connection_string: String,
     pub media_container_name: String,
+    pub metrics_port: u16,
 }
 
 impl Config {
@@ -65,6 +66,7 @@ impl Config {
             callback_retry_base_ms: env_var_parse("WORKER_CALLBACK_RETRY_BASE_MS", 500)?,
             azure_storage_connection_string: env_var("AZURE_STORAGE_CONNECTION_STRING", "")?,
             media_container_name: env_var("MEDIA_CONTAINER_NAME", "tangle-media")?,
+            metrics_port: env_var_parse("WORKER_METRICS_PORT", 9090_u16)?,
         })
     }
 
@@ -166,6 +168,7 @@ mod tests {
             callback_retry_base_ms: 500,
             azure_storage_connection_string: "UseDevelopmentStorage=true".to_owned(),
             media_container_name: "tangle-media".to_owned(),
+            metrics_port: 9090,
         }
     }
 

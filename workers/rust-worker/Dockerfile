@@ -11,4 +11,5 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /build/target/release/tangle-worker /app/tangle-worker
+EXPOSE 9090
 ENTRYPOINT ["/app/tangle-worker"]
