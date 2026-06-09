@@ -1,6 +1,6 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker. The target is **domain-aligned microservices** after Phases 4–6 complete.
+Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker. The target is **domain-aligned microservices** (Phase 9) after Phases 5–7 complete: thin monitoring, React web client, and location in the monolith.
 
 Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../services/Api/AGENTS.md).
 
@@ -135,7 +135,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 ```
 /services
   /Api          ← monolith today; shrinks during Phase 9
-/clients        ← planned (React, MAUI)
+/clients/web    ← planned React client (Phase 6); MAUI optional later
 /workers
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts
@@ -155,4 +155,4 @@ Solution file (`Tangle.slnx`) currently includes only `Api` and `Api.Tests`. Wor
 - No distributed tracing (OpenTelemetry planned in Future Considerations).
 - No service mesh.
 
-These are intentional; the monolith lets you finish Phases 4–5 without premature operational complexity.
+These are intentional. The monolith keeps deploy-and-run simple while Phases 5–7 land; MSA extraction (Phase 9) starts only after that vertical slice works. See [README.md](../README.md#development-phases).

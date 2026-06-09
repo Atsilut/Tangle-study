@@ -2,7 +2,7 @@
 
 When and how to decompose the Api monolith into domain-aligned microservices.
 
-**Prerequisites:** complete Phases 4–6 first. **Do not start extraction until monitoring is in place.**
+**Prerequisites:** complete Phases 5–7 first. **Do not start extraction until monitoring is in place and location is proven end-to-end in the monolith with the React map client.**
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md), [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
 
@@ -12,11 +12,14 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [SERVICE_BOUNDARIES.md](SERVICE_BOU
 
 | Phase | Requirement | Why it blocks MSA if skipped |
 |-------|-------------|------------------------------|
-| **4** | Rust worker production-ready (retry, DLQ, replay); real media handlers; media on post/comment/chat | Establishes async boundaries and object-storage patterns the media service will own |
-| **5** | Memory Map, location sharing, clustering worker job | Location service has distinct Redis TTL + geo patterns; split before this creates wrong coupling |
-| **6** | Prometheus + Grafana | Cross-service latency, error rates, and queue depth are invisible without metrics |
+| **4** | Rust worker production-ready (retry, DLQ, replay); media on post/comment/chat | Establishes async boundaries and object-storage patterns the media service will own — **Done** |
+| **5** | Thin Prometheus + Grafana | Cross-service latency, error rates, and queue depth are invisible without metrics; location TTL/SignalR debugging needs this too |
+| **6** | React web client with map UI for location | Proves deploy-and-run E2E; regression target for strangler routing during extraction |
+| **7** | Memory Map, location sharing, clustering worker job **in the monolith** | Validates Redis TTL + geo patterns before split; wrong to greenfield `location-service` before monolith proof |
 
-Phase 8 (**MSA prep**) runs in parallel with late Phase 4–5 work: apply [MSA-prep rules](SERVICE_BOUNDARIES.md#msa-prep-rules), document new job types in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md).
+Phase 8 (**MSA prep**) runs during Phase 7: apply [MSA-prep rules](SERVICE_BOUNDARIES.md#msa-prep-rules), document new job types in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md).
+
+Phase 6 starts with an auth scaffold; the map UI completes after Phase 7 location APIs land.
 
 ---
 
@@ -27,8 +30,9 @@ Lowest risk first — services with existing async or realtime boundaries leave 
 ```mermaid
 flowchart TD
   P4["Phase 4: Media + worker"]
-  P5["Phase 5: Location"]
-  P6["Phase 6: Monitoring"]
+  P5["Phase 5: Monitoring"]
+  P6["Phase 6: React web"]
+  P7["Phase 7: Location in monolith"]
   P8["Phase 8: MSA prep"]
   M1["1. media-service"]
   M2["2. chat-service"]
@@ -38,10 +42,9 @@ flowchart TD
   M6["6. friendships + user-blocks"]
   M7["7. users-service + gateway"]
 
-  P4 --> P5 --> P6
-  P4 --> P8
-  P5 --> P8
-  P6 --> M1
+  P4 --> P5 --> P6 --> P7
+  P7 --> P8
+  P7 --> M1
   P8 --> M1
   M1 --> M2 --> M3 --> M4 --> M5 --> M6 --> M7
 ```

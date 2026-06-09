@@ -17,8 +17,8 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/user-blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
-| **media** | *(new)* | MediaAsset, processing state | *(planned)* | Planned (Phase 4) |
-| **location** | *(new)* | Geo on content, live location sessions | *(planned)* | Planned (Phase 5) |
+| **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented (Phase 4) |
+| **location** | *(new)* | Geo on content, live location sessions | *(planned)* | Planned (Phase 7) |
 
 ---
 
@@ -101,7 +101,7 @@ Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
 ### media-service
 
-**Planned (Phase 4).** Not in the repo yet.
+**Implemented in monolith (Phase 4).** Extract at [MSA step 1](MSA_MIGRATION.md#extraction-order).
 
 **Will own:** `MediaAsset` (storage key, mime, dimensions, processing status, CDN URLs).
 
@@ -120,7 +120,7 @@ Client upload → media-service (presigned URL or direct) → object storage
 
 ### location-service
 
-**Planned (Phase 5).** Not in the repo yet.
+**Planned (Phase 7).** Not in the repo yet. **Build in the monolith first** (`Domain/Location/` or equivalent), then extract at [MSA step 3](MSA_MIGRATION.md#extraction-order) after the Phase 6 map client proves the feature. Do not greenfield `location-service` before monolith validation.
 
 **Will own:**
 - Geo metadata on content (posts, map pins) — durable in Postgres
@@ -174,7 +174,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these during Phase 4 (media) and Phase 5 (location) so later extraction does not require rewrites.
+Apply these during Phase 7 (location in monolith) so later extraction does not require rewrites. Phase 4 (media) already follows these patterns.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 
