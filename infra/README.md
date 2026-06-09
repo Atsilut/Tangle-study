@@ -44,7 +44,9 @@ Configured in [prometheus/prometheus.yml](prometheus/prometheus.yml):
 | `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length |
 | `rust-worker-media` | `rust-worker-media:9090` | Same |
 
-Worker targets appear as **DOWN** until the `workers` profile is active and worker metrics are implemented.
+Worker targets appear as **DOWN** until the `workers` profile is active.
+
+Optional host debug ports (not mapped by default): exec into a worker container and `wget -qO- http://127.0.0.1:9090/metrics`.
 
 ## Dashboard
 
@@ -56,7 +58,7 @@ Worker targets appear as **DOWN** until the `workers` profile is active and work
 - Worker pending messages and DLQ length
 - Work queue enqueue rate from the API
 
-Panels expect metrics from `prometheus-net` (API) and custom `tangle_*` counters/gauges (workers). No data appears until those endpoints are wired in later Phase 5 todos.
+Panels use metrics from `prometheus-net` (API) and custom `tangle_*` counters/gauges (workers).
 
 ## Related docs
 
