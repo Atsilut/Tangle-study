@@ -133,7 +133,7 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 |------|-----------|----------|
 | `WorkerScrapeTargetDown` | `up{job=~"rust-worker.*"} == 0` (`noDataState: OK`) | warning |
 | `WorkerDlqNotEmpty` | `max(tangle_worker_dlq_length) > 0` | warning |
-| `WorkerHighFailureRate` | failure outcome rate > 0 | warning |
+| `WorkerHighDlqRate` | DLQ outcome rate > 0 (`outcome="dlq"`; not retryable `failure`) | warning |
 | `WorkerBacklogGrowing` | `max(tangle_worker_pending_messages) > 50` | warning |
 | `WorkerCallbackHigh5xxRate` | callback 5xx rate > 0 | warning |
 

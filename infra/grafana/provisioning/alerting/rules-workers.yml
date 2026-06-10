@@ -123,7 +123,7 @@ groups:
         isPaused: false
 
       - uid: tang_wkr_fail_rate
-        title: WorkerHighFailureRate
+        title: WorkerHighDlqRate
         condition: C
         data:
           - refId: A
@@ -136,7 +136,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(tangle_worker_jobs_processed_total{outcome="failure"}[5m]))
+              expr: sum(rate(tangle_worker_jobs_processed_total{outcome="dlq"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -175,7 +175,7 @@ groups:
         execErrState: Error
         for: 5m
         annotations:
-          summary: Worker job failure rate is above zero
+          summary: Worker jobs are being dead-lettered at a non-zero rate
         labels:
           severity: warning
         isPaused: false
