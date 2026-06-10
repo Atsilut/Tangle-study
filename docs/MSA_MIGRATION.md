@@ -110,7 +110,7 @@ Copy this checklist for each service extraction. Replace `{service}` with the ta
 ### 7. Observability
 
 - [ ] Service-specific metrics (request latency, error rate)
-- [ ] Trace propagation (OpenTelemetry — when added)
+- [ ] Trace propagation (Grafana Alloy + Tempo — when added)
 - [ ] Dashboards in Grafana for the new service
 
 ---

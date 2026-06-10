@@ -239,7 +239,7 @@ This project is built **for learning purposes only**.
 ## Future Considerations
 
 * Replace Redis Streams with Kafka (if scaling demands it)
-* Add distributed tracing (e.g., OpenTelemetry)
+* Add distributed tracing and logs (Grafana Alloy + Loki + Tempo)
 * Improve fault tolerance and recovery strategies
 * Service mesh (beyond gateway + Compose) if operational needs grow
 

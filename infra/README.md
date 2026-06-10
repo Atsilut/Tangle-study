@@ -1,17 +1,25 @@
 # Monitoring infrastructure
 
-Thin Prometheus + Grafana stack (Phase 5). Scrapes metrics from the API and Rust workers. Does not run by default.
+Prometheus + Grafana stack (Phase 5) with provisioned alerts, recording rules, and infra exporters. Does not run by default.
+
+Distributed tracing and log aggregation are not part of this profile — planned later with Grafana Alloy + Loki + Tempo.
 
 ## Layout
 
 ```
 infra/
-  prometheus/prometheus.yml          # scrape targets
+  prometheus/
+    prometheus.yml                   # scrape targets + rule_files
+    recording_rules.yml              # precomputed tangle:api_* metrics
   grafana/provisioning/
     datasources/prometheus.yml       # Grafana → Prometheus datasource
     dashboards/
       dashboard.yml                  # file provider config
       tangle-overview.json           # provisioned dashboard
+    alerting/
+      rules-api-http.yml             # HTTP, health, scrape alerts
+      rules-workers.yml              # worker job + callback alerts
+      rules-infra.yml                # Postgres + Redis exporter alerts
 ```
 
 ## Start
@@ -19,7 +27,7 @@ infra/
 Monitoring uses the Compose `monitoring` profile. The API must be running for the `api` scrape target; workers need the `workers` profile.
 
 ```bash
-# API + Prometheus + Grafana
+# API + Prometheus + Grafana + infra exporters
 docker compose --profile monitoring up --build
 
 # Include Rust workers (chat + media scrape targets)
@@ -32,7 +40,8 @@ docker compose --profile monitoring --profile workers up --build
 |---------|-----|-------|
 | Grafana | http://localhost:3000 | Login: `admin` / `admin` (dev default) |
 | Prometheus | http://localhost:9090 | Targets page shows scrape health |
-| API metrics | http://localhost:5000/metrics | Unauthenticated Prometheus text |
+| API health | http://localhost:5000/health | JSON dependency summary |
+| API metrics | http://localhost:5000/metrics | Requires `X-Metrics-Secret` in Docker (see below) |
 | Worker metrics | in-container `:9090/metrics` | Scraped by Prometheus on the Compose network |
 
 ## Scrape targets
@@ -41,28 +50,131 @@ Configured in [prometheus/prometheus.yml](prometheus/prometheus.yml):
 
 | Job | Target | Metrics |
 |-----|--------|---------|
-| `api` | `api:8080` | HTTP request rate, latency, status codes; work queue enqueue counter |
-| `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length |
+| `api` | `api:8080` | HTTP request rate, latency, status codes; health gauges; work queue enqueue counter |
+| `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length, callback responses |
 | `rust-worker-media` | `rust-worker-media:9090` | Same |
+| `postgres` | `postgres-exporter:9187` | Connection counts, settings, activity |
+| `redis` | `redis-exporter:9121` | Memory, clients, uptime |
 
 Worker targets appear as **DOWN** until the `workers` profile is active.
 
 Optional host debug ports (not mapped by default): exec into a worker container and `wget -qO- http://127.0.0.1:9090/metrics`.
 
+## API `/health`
+
+`GET /health` returns ASP.NET Core health check results for PostgreSQL and Redis (when Redis is enabled). The API Compose healthcheck probes this endpoint.
+
+Health status is also published to `/metrics` as `aspnetcore_healthcheck_status{name="postgres|redis"}` (1 = healthy, 0 = unhealthy) via `prometheus-net.AspNetCore.HealthChecks`.
+
+## Secured `/metrics`
+
+In Docker (`appsettings.Docker.json`), `Metrics:RequireAuth` is `true`. Scrapers must send:
+
+```http
+X-Metrics-Secret: dev-metrics-secret
+```
+
+Prometheus is configured with this header in [prometheus/prometheus.yml](prometheus/prometheus.yml). Local development (`appsettings.json`) keeps auth disabled.
+
+## Recording rules
+
+Precomputed in [prometheus/recording_rules.yml](prometheus/recording_rules.yml) (evaluated every 15s):
+
+| Metric | Purpose |
+|--------|---------|
+| `tangle:api_request_rate` | Traffic guard for ratio/latency alerts |
+| `tangle:api_5xx_ratio` | 5xx share of total requests |
+| `tangle:api_other_4xx_ratio` | 4xx excluding 401/403/409 |
+| `tangle:api_5xx_rate_by_controller` | Per-controller 5xx rate |
+| `tangle:api_request_duration_p95` | API latency SLO input |
+
 ## Dashboard
 
 **Tangle Overview** (`uid: tangle-overview`) is auto-provisioned under the **Tangle** folder in Grafana:
 
-- API request rate and latency (p50 / p95)
-- API 5xx error rate
+- API request rate and latency (p50 / p95 with 2s threshold line)
+- API 4xx error rate by status code
+- API 5xx and other-4xx ratios (recording rules)
+- API errors by controller; top 5xx controllers
 - Worker jobs processed by outcome
+- Worker callback responses by code
 - Worker pending messages and DLQ length
 - Work queue enqueue rate from the API
+- Postgres connections and Redis memory/clients
 
 Panels use metrics from `prometheus-net` (API) and custom `tangle_*` counters/gauges (workers).
+
+## Alerting
+
+Provisioned under `grafana/provisioning/alerting/`. All rules use `for: 5m` before firing. View in Grafana → **Alerting** → **Alert rules** (folder: **Tangle**).
+
+No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
+
+### API HTTP (`rules-api-http.yml`)
+
+| Rule | Condition | Severity |
+|------|-----------|----------|
+| `ApiScrapeTargetDown` | `up{job="api"} == 0` | critical |
+| `ApiDependencyUnhealthy` | `min(aspnetcore_healthcheck_status{job="api"}) == 0` | critical |
+| `ApiHigh5xxRate` | 5xx rate > **0.1 req/s** | critical |
+| `ApiHigh5xxRatio` | `tangle:api_5xx_ratio > 1%` and traffic > 0.05 req/s | critical |
+| `ApiHigh401Rate` | 401 rate > **0.5 req/s** | warning |
+| `ApiHigh403Rate` | 403 rate > **0.1 req/s** | warning |
+| `ApiHigh409Rate` | 409 rate > **0.5 req/s** | warning |
+| `ApiHighOther4xxRatio` | `tangle:api_other_4xx_ratio > 10%` and traffic > 0.05 req/s | warning |
+| `ApiHighLatencyP95` | `tangle:api_request_duration_p95 > 2s` and traffic > 0.05 req/s | warning |
+| `ApiControllerHigh5xxRate` | any controller 5xx rate > **0.05 req/s** and traffic > 0.05 req/s | warning |
+
+### Workers (`rules-workers.yml`)
+
+| Rule | Condition | Severity |
+|------|-----------|----------|
+| `WorkerScrapeTargetDown` | `up{job=~"rust-worker.*"} == 0` (`noDataState: OK`) | warning |
+| `WorkerDlqNotEmpty` | `max(tangle_worker_dlq_length) > 0` | warning |
+| `WorkerHighFailureRate` | failure outcome rate > 0 | warning |
+| `WorkerBacklogGrowing` | `max(tangle_worker_pending_messages) > 50` | warning |
+| `WorkerCallbackHigh5xxRate` | callback 5xx rate > 0 | warning |
+
+### Infrastructure (`rules-infra.yml`)
+
+| Rule | Condition | Severity |
+|------|-----------|----------|
+| `PostgresExporterDown` | `up{job="postgres"} == 0` | critical |
+| `PostgresHighConnections` | connections > **80%** of `max_connections` | warning |
+| `RedisExporterDown` | `up{job="redis"} == 0` | critical |
+| `RedisHighMemory` | used memory > **90%** of `maxmemory` (when maxmemory is set) | warning |
+
+### Triage quick reference
+
+1. **Scrape DOWN** — check Compose profiles (`monitoring`, `workers`) and container logs.
+2. **Dependency unhealthy** — `docker compose logs api db redis`; verify `/health`.
+3. **5xx spike** — Grafana dashboard → errors by controller; check API logs.
+4. **Worker DLQ** — `cargo run -- replay` or inspect `{stream}.dlq` in Redis.
+5. **Callback 5xx** — media worker cannot reach API; check `API_BASE_URL` and `WORKER_CALLBACK_SECRET`.
+
+## Verification
+
+```bash
+# Full stack
+docker compose --profile monitoring --profile workers up --build
+
+# Prometheus targets (api, postgres, redis, workers) should be UP
+open http://localhost:9090/targets
+
+# Health
+curl -s http://localhost:5000/health | jq .
+
+# Metrics auth (Docker)
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5000/metrics          # expect 401
+curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics  # expect 200
+
+# Integration tests
+./scripts/docker-dotnet.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter MetricsIntegrationTests
+```
 
 ## Related docs
 
 - [README.md](../README.md#development-phases) — phased roadmap
-- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — system overview
+- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — system overview and observability
+- [workers/rust-worker/README.md](../workers/rust-worker/README.md) — worker metrics
 - [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) — async job contracts

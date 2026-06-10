@@ -110,7 +110,6 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
         options.RoutePrefix = "api";
     });
 
-using static Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults;
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();

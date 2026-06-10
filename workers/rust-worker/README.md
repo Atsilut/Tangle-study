@@ -103,8 +103,15 @@ Consumer mode starts a Prometheus HTTP listener on `WORKER_METRICS_PORT` (defaul
 | `tangle_worker_jobs_processed_total{stream_key,outcome}` | Counter | Jobs handled; `outcome` is `success`, `failure`, `malformed`, or `dlq` |
 | `tangle_worker_pending_messages{stream_key}` | Gauge | Pending entries in the consumer group (`XPENDING`) |
 | `tangle_worker_dlq_length{stream_key}` | Gauge | Length of the DLQ stream (`XLEN`) |
+| `tangle_worker_callback_requests_total{code}` | Counter | Final API callback outcome per attempt chain (`204`, HTTP status code, or `transport_error`) |
+
+The callback counter records one increment per callback invocation (not per HTTP retry). Grafana alerts on `WorkerCallbackHigh5xxRate` when 5xx callback responses occur.
 
 Scraped by Prometheus when the Compose `monitoring` profile is active. See [infra/README.md](../../infra/README.md).
+
+## Logging
+
+`telemetry.rs` configures a `tracing` subscriber (plain or JSON via `WORKER_LOG_JSON`). Filter with `RUST_LOG`. Distributed tracing is not implemented — planned later with Grafana Alloy + Loki + Tempo.
 
 ## Layout
 

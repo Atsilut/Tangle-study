@@ -25,7 +25,7 @@ flowchart TB
   API --> Redis
   Redis --> Worker
   Worker -.->|"future: write results"| PG
-  API -->|"GET /metrics"| Prom
+  API -->|"GET /metrics, /health"| Prom
   Worker -->|"GET /metrics"| Prom
   Prom --> Graf
 ```
@@ -52,11 +52,25 @@ Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR bac
 
 ### Observability
 
-Thin Prometheus + Grafana stack under [`infra/`](../infra/). The API exposes `/metrics` via `prometheus-net` (HTTP request rate, latency, status codes; `tangle_workqueue_enqueue_total` when Redis is enabled). Rust workers expose `/metrics` on `WORKER_METRICS_PORT` (default `9090`) with job counters and queue depth gauges.
+Prometheus + Grafana stack under [`infra/`](../infra/) with provisioned alerts, recording rules, and infra exporters.
+
+**Metrics**
+
+| Source | Endpoint | Key metrics |
+|--------|----------|-------------|
+| API | `GET /metrics` | `http_requests_received_total{code, controller}`, `http_request_duration_seconds`, `aspnetcore_healthcheck_status`, `tangle_workqueue_enqueue_total` |
+| Workers | `GET /metrics` on `WORKER_METRICS_PORT` | `tangle_worker_jobs_processed_total`, `tangle_worker_pending_messages`, `tangle_worker_dlq_length`, `tangle_worker_callback_requests_total` |
+| Postgres / Redis | sidecar exporters | `pg_stat_activity_count`, `redis_memory_used_bytes`, etc. |
+
+**Health** — `GET /health` checks PostgreSQL and Redis. Compose healthcheck and Grafana `ApiDependencyUnhealthy` alert use this signal (also exported to `/metrics`).
+
+**Metrics auth** — Docker enables `Metrics:RequireAuth` with `X-Metrics-Secret`; Prometheus scrape config sends the header. Local dev keeps `/metrics` open.
+
+**Alerts** — Grafana provisioned rules (folder: Tangle) for HTTP 4xx/5xx, latency p95 SLO, scrape health, worker DLQ/backlog, and infra limits. UI-only (no Alertmanager). Runbook: [infra/README.md#alerting](../infra/README.md#alerting).
+
+**Tracing and logs** — not implemented. Planned later via Grafana Alloy + Loki + Tempo.
 
 Start with `docker compose --profile monitoring up` (add `--profile workers` for worker scrape targets). Details: [infra/README.md](../infra/README.md).
-
-Distributed tracing (OpenTelemetry) is not implemented yet.
 
 ### Docker Compose (default)
 
@@ -68,6 +82,8 @@ Distributed tracing (OpenTelemetry) is not implemented yet.
 | `rust-worker` | Optional (`--profile workers`) |
 | `prometheus` | Optional (`--profile monitoring`) |
 | `grafana` | Optional (`--profile monitoring`) |
+| `postgres-exporter` | Optional (`--profile monitoring`) |
+| `redis-exporter` | Optional (`--profile monitoring`) |
 
 ---
 
@@ -167,7 +183,7 @@ Solution file (`Tangle.slnx`) currently includes only `Api` and `Api.Tests`. Wor
 
 - README diagram label "Gateway" is **aspirational** — there is no separate gateway service yet.
 - No inter-service HTTP boundaries beyond API → Redis → worker.
-- No distributed tracing (OpenTelemetry planned in Future Considerations).
+- No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.
 
 These are intentional. The monolith keeps deploy-and-run simple while Phases 5–7 land; MSA extraction (Phase 9) starts only after that vertical slice works. See [README.md](../README.md#development-phases).
