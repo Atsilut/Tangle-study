@@ -45,7 +45,7 @@ The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dis
 
 | Component | Endpoint | Metrics |
 |-----------|----------|---------|
-| API | `GET /metrics` | `http_requests_*` (prometheus-net); `tangle_workqueue_enqueue_total{stream}` when Redis is enabled |
+| API | `GET /metrics` | `http_requests_*` (prometheus-net); `tangle_workqueue_enqueue_total{stream}` and `tangle_workqueue_enqueue_failed_total{stream}` when Redis is enabled |
 | rust-worker | `GET /metrics` on `WORKER_METRICS_PORT` (default `9090`) | `tangle_worker_jobs_processed_total`, `tangle_worker_pending_messages`, `tangle_worker_dlq_length` |
 
 Prometheus scrape config: [`infra/prometheus/prometheus.yml`](../../../../infra/prometheus/prometheus.yml). Grafana dashboard: [infra/README.md](../../../../infra/README.md).

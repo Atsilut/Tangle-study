@@ -42,6 +42,7 @@ public sealed partial class RedisStreamWorkQueue(
         }
         catch (Exception ex)
         {
+            WorkQueueMetrics.EnqueueFailedTotal.WithLabels(streamKey).Inc();
             LogFailedToEnqueueJob(_logger, ex, streamKey);
         }
     }
