@@ -91,13 +91,24 @@ services:
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infra/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
+      - ./infra/prometheus/scrape/workers.yml:/etc/prometheus/scrape-src/workers.yml:ro
+      - ./infra/prometheus/docker-entrypoint.sh:/etc/prometheus/docker-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/etc/prometheus/docker-entrypoint.sh"]
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
     depends_on:
-      - postgres-exporter
-      - redis-exporter
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      rust-worker:
+        condition: service_started
+        required: false
+      rust-worker-media:
+        condition: service_started
+        required: false
 
   postgres-exporter:
     profiles: ["monitoring"]

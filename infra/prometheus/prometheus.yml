@@ -5,6 +5,9 @@ global:
 rule_files:
   - /etc/prometheus/recording_rules.yml
 
+scrape_config_files:
+  - /etc/prometheus/scrape/*.yml
+
 scrape_configs:
   - job_name: api
     static_configs:
@@ -14,16 +17,6 @@ scrape_configs:
       X-Metrics-Secret:
         values:
           - dev-metrics-secret
-
-  - job_name: rust-worker-chat
-    static_configs:
-      - targets: ["rust-worker:9090"]
-    metrics_path: /metrics
-
-  - job_name: rust-worker-media
-    static_configs:
-      - targets: ["rust-worker-media:9090"]
-    metrics_path: /metrics
 
   - job_name: postgres
     static_configs:

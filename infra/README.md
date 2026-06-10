@@ -9,7 +9,9 @@ Distributed tracing and log aggregation are not part of this profile — planned
 ```
 infra/
   prometheus/
-    prometheus.yml                   # scrape targets + rule_files
+    prometheus.yml                   # core scrape targets + rule_files
+    scrape/workers.yml               # worker jobs (loaded only with `workers` profile)
+    docker-entrypoint.sh             # enables worker scrape when rust-worker exists
     recording_rules.yml              # precomputed tangle:api_* metrics
   grafana/provisioning/
     datasources/prometheus.yml       # Grafana → Prometheus datasource
@@ -46,17 +48,17 @@ docker compose --profile monitoring --profile workers up --build
 
 ## Scrape targets
 
-Configured in [prometheus/prometheus.yml](prometheus/prometheus.yml):
+Core jobs in [prometheus/prometheus.yml](prometheus/prometheus.yml). Worker jobs in [prometheus/scrape/workers.yml](prometheus/scrape/workers.yml) are loaded at Prometheus startup only when the Compose `workers` profile is active (see [docker-entrypoint.sh](prometheus/docker-entrypoint.sh)).
 
 | Job | Target | Metrics |
 |-----|--------|---------|
 | `api` | `api:8080` | HTTP request rate, latency, status codes; health gauges; work queue enqueue counter |
-| `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length, callback responses |
-| `rust-worker-media` | `rust-worker-media:9090` | Same |
+| `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length, callback responses (`workers` profile) |
+| `rust-worker-media` | `rust-worker-media:9090` | Same (`workers` profile) |
 | `postgres` | `postgres-exporter:9187` | Connection counts, settings, activity |
 | `redis` | `redis-exporter:9121` | Memory, clients, uptime |
 
-Worker targets appear as **DOWN** until the `workers` profile is active.
+Without `--profile workers`, worker jobs are **not scraped** (no targets, no false `WorkerScrapeTargetDown` alert). With `--profile workers`, both worker targets should be **UP** when healthy.
 
 Optional host debug ports (not mapped by default): exec into a worker container and `wget -qO- http://127.0.0.1:9090/metrics`.
 
@@ -146,7 +148,7 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 
 ### Triage quick reference
 
-1. **Scrape DOWN** — check Compose profiles (`monitoring`, `workers`) and container logs.
+1. **Scrape DOWN** — check Compose profiles (`monitoring`, `workers`) and container logs. Worker scrape jobs exist only with `--profile workers`; restart Prometheus after enabling workers if targets are missing.
 2. **Dependency unhealthy** — `docker compose logs api db redis`; verify `/health`.
 3. **5xx spike** — Grafana dashboard → errors by controller; check API logs.
 4. **Worker DLQ** — `cargo run -- replay` or inspect `{stream}.dlq` in Redis.
