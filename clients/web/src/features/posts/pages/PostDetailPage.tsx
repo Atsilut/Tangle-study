@@ -11,6 +11,7 @@ import {
 } from '@/components/ui'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
+import { CommentSection } from '@/features/comments'
 import { useAuthStore } from '@/stores/authStore'
 import { useDeletePost, usePost } from '../hooks'
 
@@ -73,6 +74,8 @@ export function PostDetailPage() {
           </Card>
         )}
       </QueryBoundary>
+
+      {post && <CommentSection postId={post.id} />}
 
       <ConfirmDialog
         isOpen={confirmOpen}
