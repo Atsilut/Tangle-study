@@ -4,6 +4,13 @@ import { LoginPage, RegisterPage } from '@/features/auth'
 import { BlocksPage } from '@/features/blocks'
 import { FriendsPage } from '@/features/friends'
 import {
+  GroupCreatePage,
+  GroupDetailPage,
+  GroupEditPage,
+  GroupMembersPage,
+  GroupsPage,
+} from '@/features/groups'
+import {
   PostCreatePage,
   PostDetailPage,
   PostEditPage,
@@ -55,6 +62,46 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <BlocksPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups',
+        element: (
+          <ProtectedRoute>
+            <GroupsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/new',
+        element: (
+          <ProtectedRoute>
+            <GroupCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id',
+        element: (
+          <ProtectedRoute>
+            <GroupDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <GroupEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id/members',
+        element: (
+          <ProtectedRoute>
+            <GroupMembersPage />
           </ProtectedRoute>
         ),
       },
