@@ -46,3 +46,7 @@ export function normalizeMediaAsset(raw: unknown): MediaAsset | null {
 export function isMediaReady(asset: MediaAsset): boolean {
   return Number(asset.processingStatus) === MediaProcessingStatus.Ready
 }
+
+export function mediaContentUrl(id: number): string {
+  return `/api/media/${id}/content`
+}

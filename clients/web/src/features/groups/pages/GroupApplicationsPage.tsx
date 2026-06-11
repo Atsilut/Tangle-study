@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { Button, EmptyState, Tabs } from '@/components/ui'
+import { CenteredSpinner } from '@/components/common/CenteredSpinner'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { GroupRole } from '@/types/api'
@@ -26,7 +27,7 @@ export function GroupApplicationsPage() {
   const pending = useGroupApplications(Number.isFinite(groupId) ? groupId : null)
   const ignored = useGroupIgnoredApplications(Number.isFinite(groupId) ? groupId : null)
 
-  if (roleLoading) return null
+  if (roleLoading) return <CenteredSpinner />
   if (role !== GroupRole.Owner && role !== GroupRole.Admin) {
     return <Navigate to={`/groups/${groupId}`} replace />
   }

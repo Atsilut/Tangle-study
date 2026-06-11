@@ -3,11 +3,7 @@ import { Spinner } from '@/components/ui'
 import { api } from '@/lib/apiClient'
 import { cn } from '@/lib/cn'
 import { MediaKind, type MediaAsset } from '@/types/api'
-import { isMediaReady } from '../normalize'
-
-export function mediaContentUrl(id: number): string {
-  return `/api/media/${id}/content`
-}
+import { isMediaReady, mediaContentUrl } from '../normalize'
 
 export interface MediaAssetViewProps {
   asset: MediaAsset
@@ -44,8 +40,6 @@ function AuthenticatedMediaView({ asset, className }: { asset: MediaAsset; class
   useEffect(() => {
     let active = true
     let objectUrl: string | undefined
-    setFailed(false)
-    setSrc(undefined)
 
     api
       .get<Blob>(`/media/${asset.id}/content`, { responseType: 'blob', treatUnauthorizedAsForbidden: true })
@@ -97,6 +91,8 @@ function AuthenticatedMediaView({ asset, className }: { asset: MediaAsset; class
 export function MediaAssetView({ asset, authenticated = false, className }: MediaAssetViewProps) {
   if (!isMediaReady(asset)) return null
 
-  if (authenticated) return <AuthenticatedMediaView asset={asset} className={className} />
+  if (authenticated) {
+    return <AuthenticatedMediaView key={asset.id} asset={asset} className={className} />
+  }
   return <PublicMediaView asset={asset} className={className} />
 }

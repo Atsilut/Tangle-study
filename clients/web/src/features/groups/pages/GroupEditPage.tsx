@@ -1,5 +1,6 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardBody, CardHeader } from '@/components/ui'
+import { CenteredSpinner } from '@/components/common/CenteredSpinner'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { GroupRole } from '@/types/api'
 import { useGroup, useUpdateGroup } from '../hooks'
@@ -29,7 +30,7 @@ function EditForm({ group }: { group: Group }) {
   const updateGroup = useUpdateGroup()
   const { role, isLoading } = useMyGroupRole(group.id)
 
-  if (isLoading) return null
+  if (isLoading) return <CenteredSpinner />
   if (role !== GroupRole.Owner && role !== GroupRole.Admin) {
     return <Navigate to={`/groups/${group.id}`} replace />
   }

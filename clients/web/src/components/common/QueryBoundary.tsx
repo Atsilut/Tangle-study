@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { ErrorState, Spinner } from '@/components/ui'
+import { ErrorState } from '@/components/ui'
+import { CenteredSpinner } from './CenteredSpinner'
 
 export interface QueryBoundaryProps {
   isLoading: boolean
@@ -17,13 +18,7 @@ export function QueryBoundary({
   onRetry,
   children,
 }: QueryBoundaryProps) {
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-10 text-gray-400">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
+  if (isLoading) return <CenteredSpinner />
   if (isError) {
     return <ErrorState onRetry={onRetry} />
   }

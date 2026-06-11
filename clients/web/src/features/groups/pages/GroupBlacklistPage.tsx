@@ -11,6 +11,7 @@ import {
   FormField,
   Input,
 } from '@/components/ui'
+import { CenteredSpinner } from '@/components/common/CenteredSpinner'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { getErrorMessage } from '@/lib/apiError'
@@ -26,7 +27,7 @@ export function GroupBlacklistPage() {
   const { role, isLoading: roleLoading } = useMyGroupRole(valid ? groupId : null)
   const blacklist = useBlacklist(valid ? groupId : null)
 
-  if (roleLoading) return null
+  if (roleLoading) return <CenteredSpinner />
   if (role !== GroupRole.Owner) {
     return <Navigate to={`/groups/${groupId}`} replace />
   }

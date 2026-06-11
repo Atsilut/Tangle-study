@@ -1,5 +1,5 @@
-export { normalizeMediaAsset, isMediaReady } from './normalize'
-export { MediaAssetView, mediaContentUrl } from './components/MediaAssetView'
+export { normalizeMediaAsset, isMediaReady, mediaContentUrl } from './normalize'
+export { MediaAssetView } from './components/MediaAssetView'
 export { MediaGallery } from './components/MediaGallery'
 export { MediaUploader } from './components/MediaUploader'
 export { useMediaUploads } from './hooks'
