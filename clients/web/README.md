@@ -70,6 +70,20 @@ docker compose --profile web up --build
 
 > Node is not installed in the Docker-first backend workflow; run the web scripts on the host (or via the `web` Docker image build for prod).
 
+### Reset dev data (smoke tests)
+
+Wipe test users and other rows from the local Compose Postgres (schema and migrations are kept):
+
+```bash
+# from repo root
+./scripts/dev-clear-db.sh          # prompts for confirmation
+./scripts/dev-clear-db.sh --yes    # non-interactive
+```
+
+Requires the Compose `db` service to be running (`docker compose up -d db` or full stack). Does not clear Redis or Azurite. After reset, clear `tangle-auth` in browser local storage (or sign out) before signing up again.
+
+See [../../README.md](../../README.md#reset-local-dev-data) for details.
+
 ---
 
 ## Folder structure

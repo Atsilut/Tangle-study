@@ -268,6 +268,19 @@ Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT=Develop
 
 Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub contract: [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md).
 
+### Reset local dev data
+
+Wipe test users and other application rows from the Compose Postgres (keeps schema and migrations):
+
+```bash
+chmod +x scripts/dev-clear-db.sh
+
+./scripts/dev-clear-db.sh          # prompts for confirmation
+./scripts/dev-clear-db.sh --yes    # non-interactive
+```
+
+Does not clear Redis or Azurite blob storage. Re-run sign-up in the web client after reset.
+
 ### Build / EF / other CLI
 
 ```bash
