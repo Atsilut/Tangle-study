@@ -42,7 +42,7 @@ docker compose --profile monitoring --profile workers up --build
 |---------|-----|-------|
 | Grafana | http://localhost:3000 | Login: `admin` / `admin` (dev default) |
 | Prometheus | http://localhost:9090 | Targets page shows scrape health |
-| API health | http://localhost:5000/health | JSON dependency summary |
+| API health | http://localhost:5000/health | Plain-text `Healthy` / `Unhealthy` (Compose healthcheck uses status code) |
 | API metrics | http://localhost:5000/metrics | Requires `X-Metrics-Secret` in Docker (see below) |
 | Worker metrics | in-container `:9090/metrics` | Scraped by Prometheus on the Compose network |
 
@@ -64,9 +64,9 @@ Optional host debug ports (not mapped by default): exec into a worker container 
 
 ## API `/health`
 
-`GET /health` returns ASP.NET Core health check results for PostgreSQL and Redis (when Redis is enabled). The API Compose healthcheck probes this endpoint.
+`GET /health` returns a plain-text aggregate result (`Healthy` or `Unhealthy`) from ASP.NET Core health checks for PostgreSQL and Redis (when Redis is enabled). The API Compose healthcheck probes this endpoint for the status code only.
 
-Health status is also published to `/metrics` as `aspnetcore_healthcheck_status{name="postgres|redis"}` (1 = healthy, 0 = unhealthy) via `prometheus-net.AspNetCore.HealthChecks`.
+Per-dependency detail is not in the HTTP body. It is exported to `/metrics` as `aspnetcore_healthcheck_status{name="postgres|redis"}` (1 = healthy, 0 = unhealthy) via `prometheus-net.AspNetCore.HealthChecks`.
 
 ## Scrape-protected `/metrics`
 
@@ -125,17 +125,17 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 | `ApiHigh409Rate` | 409 rate > **0.5 req/s** | warning |
 | `ApiHighOther4xxRatio` | `tangle:api_other_4xx_ratio > 10%` and traffic > 0.05 req/s | warning |
 | `ApiHighLatencyP95` | `tangle:api_request_duration_p95 > 2s` and traffic > 0.05 req/s | warning |
-| `ApiControllerHigh5xxRate` | any controller 5xx rate > **0.05 req/s** and traffic > 0.05 req/s | warning |
+| `ApiControllerHigh5xxRate` | any controller 5xx rate > **0.05 req/s** and traffic > 0.05 req/s | critical |
 
 ### Workers (`rules-workers.yml`)
 
 | Rule | Condition | Severity |
 |------|-----------|----------|
 | `WorkerScrapeTargetDown` | `up{job=~"rust-worker.*"} == 0` (`noDataState: OK`) | warning |
-| `WorkerDlqNotEmpty` | `max(tangle_worker_dlq_length) > 0` | warning |
+| `WorkerDlqNotEmpty` | `max(tangle_worker_dlq_length) > 0` | critical |
 | `WorkerHighDlqRate` | DLQ outcome rate > 0 (`outcome="dlq"`; not retryable `failure`) | warning |
 | `WorkerBacklogGrowing` | `max(tangle_worker_pending_messages) > 50` | warning |
-| `WorkerCallbackHigh5xxRate` | callback 5xx rate > 0 | warning |
+| `WorkerCallbackHigh5xxRate` | callback 5xx rate > 0 | critical |
 
 ### Infrastructure (`rules-infra.yml`)
 
@@ -163,10 +163,13 @@ docker compose --profile monitoring --profile workers up --build
 # Prometheus targets (api, postgres, redis, workers) should be UP
 open http://localhost:9090/targets
 
-# Health
-curl -s http://localhost:5000/health | jq .
+# Health (plain text)
+curl -s http://localhost:5000/health
 
-# Metrics auth (Docker)
+# Per-dependency health gauges (Prometheus)
+curl -s -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics | grep aspnetcore_healthcheck_status
+
+# Metrics endpoint auth (Docker)
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5000/metrics          # expect 401
 curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics  # expect 200
 
