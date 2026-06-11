@@ -3,6 +3,7 @@ import { Avatar, Badge, Button, Card, CardBody, CardHeader } from '@/components/
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import { useSendFriendRequest } from '@/features/friends'
+import { useBlockUser } from '@/features/blocks'
 import { useUser } from '../hooks'
 import { friendsListVisibilityLabels } from '../labels'
 
@@ -13,6 +14,7 @@ export function UserProfilePage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data, isLoading, isError, refetch } = useUser(Number.isFinite(userId) ? userId : null)
   const sendRequest = useSendFriendRequest()
+  const blockUser = useBlockUser()
 
   const isSelf = currentUserId === userId
 
@@ -33,7 +35,7 @@ export function UserProfilePage() {
                 </Link>
               ) : (
                 isAuthenticated && (
-                  <div className="ml-auto">
+                  <div className="ml-auto flex items-center gap-2">
                     {sendRequest.isSuccess ? (
                       <Badge color="green">Request sent</Badge>
                     ) : (
@@ -43,6 +45,18 @@ export function UserProfilePage() {
                         onClick={() => sendRequest.mutate(userId)}
                       >
                         Add friend
+                      </Button>
+                    )}
+                    {blockUser.isSuccess ? (
+                      <Badge color="red">Blocked</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isLoading={blockUser.isPending}
+                        onClick={() => blockUser.mutate(userId)}
+                      >
+                        Block
                       </Button>
                     )}
                   </div>

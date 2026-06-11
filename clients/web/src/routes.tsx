@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell, ProtectedRoute } from '@/components/layout'
 import { LoginPage, RegisterPage } from '@/features/auth'
+import { BlocksPage } from '@/features/blocks'
 import { FriendsPage } from '@/features/friends'
 import {
   PostCreatePage,
@@ -46,6 +47,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <FriendsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'blocks',
+        element: (
+          <ProtectedRoute>
+            <BlocksPage />
           </ProtectedRoute>
         ),
       },
