@@ -122,6 +122,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
     db.Database.Migrate();
 }
 
+app.UseRouting();
 app.UseHttpMetrics();
 
 app.UseExceptionHandler();

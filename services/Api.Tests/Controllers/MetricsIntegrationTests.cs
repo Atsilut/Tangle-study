@@ -27,6 +27,7 @@ public sealed class MetricsIntegrationTests(PostgresTestcontainerFixture postgre
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("http_requests_received_total", body, StringComparison.Ordinal);
         Assert.Contains("http_request_duration_seconds", body, StringComparison.Ordinal);
+        Assert.Contains("controller=\"User\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
