@@ -59,6 +59,7 @@ export function GroupBoardPostsPage() {
           submitLabel="Post"
           isPending={createPost.isPending}
           error={createPost.error}
+          enableMedia
           onSubmit={onCreate}
           onCancel={() => setCreateOpen(false)}
         />

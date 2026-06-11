@@ -1,8 +1,9 @@
 import { Link, useParams } from 'react-router-dom'
-import { Avatar, Badge, Card, CardBody, CardHeader } from '@/components/ui'
+import { Avatar, Card, CardBody, CardHeader } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { CommentSection } from '@/features/comments'
+import { MediaGallery } from '@/features/media'
 import { useBoardPost } from '../boardsHooks'
 
 export function GroupBoardPostDetailPage() {
@@ -47,9 +48,7 @@ export function GroupBoardPostDetailPage() {
             <CardBody className="flex flex-col gap-3">
               <h1 className="text-xl font-bold text-gray-900">{data.title}</h1>
               <p className="whitespace-pre-wrap text-sm text-gray-700">{data.content}</p>
-              {data.media.length > 0 && (
-                <Badge color="blue">{data.media.length} media attached</Badge>
-              )}
+              <MediaGallery assets={data.media} />
             </CardBody>
           </Card>
         )}

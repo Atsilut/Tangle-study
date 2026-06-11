@@ -4,6 +4,7 @@ import {
   HubConnectionState,
   LogLevel,
 } from '@microsoft/signalr'
+import { normalizeMediaAsset } from '@/features/media/normalize'
 import { getAccessToken } from '@/stores/authStore'
 import type { ChatMessage } from './api'
 
@@ -41,7 +42,7 @@ function normalizeMessage(raw: unknown): ChatMessage {
     senderNickname: String(m.senderNickname ?? m.SenderNickname ?? ''),
     body: String(m.body ?? m.Body ?? ''),
     sentAt: String(m.sentAt ?? m.SentAt ?? ''),
-    media: (m.media ?? m.Media ?? null) as ChatMessage['media'],
+    media: normalizeMediaAsset(m.media ?? m.Media),
   }
 }
 

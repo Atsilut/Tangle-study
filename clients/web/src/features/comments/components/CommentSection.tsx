@@ -27,7 +27,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
             submitLabel="Comment"
             isPending={createComment.isPending}
             error={createComment.error}
-            onSubmit={(content) => createComment.mutate({ content, postId })}
+            enableMedia
+            onSubmit={(content, mediaAssetId) =>
+              createComment.mutate({ content, postId, mediaAssetId })
+            }
           />
         ) : (
           <p className="text-sm text-gray-500">

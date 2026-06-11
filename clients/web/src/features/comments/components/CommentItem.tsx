@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { Avatar, ConfirmDialog } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
+import { MediaAssetView } from '@/features/media'
 import { useCreateComment, useDeleteComment, useUpdateComment } from '../hooks'
 import { CommentForm } from './CommentForm'
 import type { Comment } from '../api'
@@ -66,6 +67,12 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
             <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{comment.content}</p>
           )}
 
+          {comment.media && (
+            <div className="mt-2">
+              <MediaAssetView asset={comment.media} />
+            </div>
+          )}
+
           {mode === 'view' && (
             <div className="mt-1 flex items-center gap-3 text-xs">
               {isAuthenticated && (
@@ -103,9 +110,10 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
                 isPending={createReply.isPending}
                 error={createReply.error}
                 autoFocus
-                onSubmit={(content) =>
+                enableMedia
+                onSubmit={(content, mediaAssetId) =>
                   createReply.mutate(
-                    { content, postId, parentId: comment.id },
+                    { content, postId, parentId: comment.id, mediaAssetId },
                     { onSuccess: () => setMode('view') },
                   )
                 }

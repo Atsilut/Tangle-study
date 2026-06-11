@@ -1,11 +1,11 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Badge, Button, Card, ConfirmDialog, ErrorState, Input, Spinner } from '@/components/ui'
+import { Avatar, Button, Card, ConfirmDialog, ErrorState, Input, Spinner } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { MediaIntendedContext } from '@/types/api'
-import { MediaUploader, useMediaUploads } from '@/features/media'
+import { MediaAssetView, MediaUploader, useMediaUploads } from '@/features/media'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRoom, useRoom, useRoomMessages } from '../hooks'
 import { roomLabel } from '../labels'
@@ -189,7 +189,7 @@ function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolea
         )}
         {message.media && (
           <div className={cn('mt-1', isOwn && 'flex justify-end')}>
-            <Badge color="blue">Attachment</Badge>
+            <MediaAssetView asset={message.media} authenticated />
           </div>
         )}
       </div>

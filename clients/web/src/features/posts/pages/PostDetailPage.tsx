@@ -1,17 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  ConfirmDialog,
-} from '@/components/ui'
+import { Avatar, Button, Card, CardBody, CardHeader, ConfirmDialog } from '@/components/ui'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { CommentSection } from '@/features/comments'
+import { MediaGallery } from '@/features/media'
 import { useAuthStore } from '@/stores/authStore'
 import { useDeletePost, usePost } from '../hooks'
 
@@ -67,9 +60,7 @@ export function PostDetailPage() {
             <CardBody className="flex flex-col gap-3">
               <h1 className="text-xl font-bold text-gray-900">{post.title}</h1>
               <p className="whitespace-pre-wrap text-sm text-gray-700">{post.content}</p>
-              {post.media.length > 0 && (
-                <Badge color="blue">{post.media.length} media attached</Badge>
-              )}
+              <MediaGallery assets={post.media} />
             </CardBody>
           </Card>
         )}
