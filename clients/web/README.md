@@ -1,6 +1,6 @@
 # Tangle Web Client
 
-Phase 6 React web client for the Tangle API. Thin, accessibility-minded UI built feature-by-feature in backend order (auth -> posts -> comments -> friends -> groups -> chat -> media). Component and hook reuse is a first-class concern.
+Phase 6 React web client for the Tangle API. Thin, accessibility-minded UI with backend parity through media (auth, posts, comments, friends, blocks, groups, chat, media). Component and hook reuse is a first-class concern.
 
 Project overview: [../../README.md](../../README.md). Backend feature reference: Swagger at `http://localhost:5000/api`.
 
@@ -90,11 +90,12 @@ See [../../README.md](../../README.md#reset-local-dev-data) for details.
 
 ```
 src/
-  lib/           axios client, query client, cn() helper, (signalr later)
+  lib/           axios client, query client, cn() helper
   stores/        Zustand stores (authStore)
   types/         shared backend enums / DTO base types
   components/
     ui/          recyclable primitives (Button, Input, Modal, ...)
+    common/      QueryBoundary, CenteredSpinner, UserRow, ...
     layout/      AppShell, Navbar, Sidebar, ProtectedRoute
   features/      per-feature slices: api.ts, hooks.ts, components/, pages/
   pages/         top-level route pages not owned by a feature
@@ -112,29 +113,25 @@ src/
    - `hooks.ts` — TanStack Query query/mutation hooks + a query-key factory.
    - `components/`, `pages/` — feature UI built on the kit.
 3. **Query keys** come from a per-feature factory; mutations invalidate via those keys.
-4. **Empty / error / loading** always use `EmptyState`, `ErrorState`, `Spinner`.
+4. **Empty / error / loading** use `EmptyState`, `ErrorState`, `Spinner`, and `CenteredSpinner` (via `QueryBoundary` or role gates).
 5. **List endpoints** that return HTTP 204 are normalized to `[]` by `getList()` in [src/lib/apiClient.ts](src/lib/apiClient.ts).
 6. **Auth**: the axios request interceptor attaches `Authorization: Bearer`; a 401 clears the session and redirects to `/login`. There is no `/api/users/me` and no refresh token — `userId` is decoded from the JWT `sub` claim, and an expired token (~15 min) sends the user back to login.
 7. **Accessibility**: semantic elements, `<label>`/`aria-*` wiring (see `FormField`), visible focus states, `role="dialog"` modals.
 
 ---
 
-## Feature checklist (backend parity)
+## Phase 6 status
 
-| # | Feature | Status |
-|---|---------|--------|
-| 0 | Scaffold + UI kit + layout | Done |
-| 1 | Auth (join / login) | Planned |
-| 2 | Users (list / profile / privacy) | Planned |
-| 3 | Posts | Planned |
-| 4 | Comments (threaded) | Planned |
-| 5 | Friends + requests | Planned |
-| 6 | User blocks | Planned |
-| 7 | Groups | Planned |
-| 8 | Group members | Planned |
-| 9 | Group invitations | Planned |
-| 10 | Group applications | Planned |
-| 11 | Group blacklist | Planned |
-| 12 | Group boards + board posts | Planned |
-| 13 | Chat (REST + SignalR) | Planned |
-| 14 | Media upload pipeline | Planned |
+**Complete.** Routes are in [src/routes.tsx](src/routes.tsx); each API area has a vertical slice under `src/features/`.
+
+| Area | Coverage |
+|------|----------|
+| Auth | Register, login, JWT session, protected routes |
+| Users | List, profile, settings, privacy, delete account |
+| Posts & comments | Feed, CRUD, threaded comments, media on create |
+| Friends & blocks | Friendships, requests, block list |
+| Groups | Core, members, invitations, applications, blacklist, boards & board posts |
+| Chat | Direct, multi-user, and group rooms; REST history + SignalR |
+| Media | Direct-to-storage upload, gallery, chat attachments |
+
+**Not in this client yet:** location / memory map (Phase 7 API), personalized home feed, `/metrics` through the SPA edge.
