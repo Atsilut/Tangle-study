@@ -21,6 +21,14 @@ internal sealed class FakeMediaStorage : IMediaStorage
     public Task<bool> ObjectExistsAsync(string objectKey, CancellationToken cancellationToken = default) =>
         Task.FromResult(_objects.Contains(objectKey));
 
+    public Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken = default)
+    {
+        if (!_objects.Contains(objectKey))
+            throw new FileNotFoundException($"Object not found: {objectKey}");
+
+        return Task.FromResult<Stream>(new MemoryStream([]));
+    }
+
     public Task DeleteObjectAsync(string objectKey, CancellationToken cancellationToken = default)
     {
         _objects.Remove(objectKey);

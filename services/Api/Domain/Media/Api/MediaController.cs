@@ -18,6 +18,15 @@ public sealed class MediaController(MediaService service) : ControllerBase
     public async Task<ActionResult<MediaAssetGetResponseDto>> GetById([FromRoute] long id) =>
         Ok(await _service.GetMediaAssetByIdAsync(id));
 
+    [AllowAnonymous]
+    [HttpGet("{id:long}/content")]
+    [SwaggerOperation(Summary = "Stream processed media bytes (public when linked to a post or comment)")]
+    public async Task<IActionResult> GetContent([FromRoute] long id)
+    {
+        var content = await _service.GetContentAsync(id);
+        return File(content.Stream, content.ContentType, content.FileName, enableRangeProcessing: true);
+    }
+
     [HttpPost("upload-init")]
     [SwaggerOperation(Summary = "Initialize a direct-to-storage media upload")]
     public async Task<ActionResult<MediaUploadInitResponseDto>> InitUpload([FromBody] MediaUploadInitRequestDto request) =>

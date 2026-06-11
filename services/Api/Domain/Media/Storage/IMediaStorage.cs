@@ -12,5 +12,7 @@ public interface IMediaStorage
 
     Task<bool> ObjectExistsAsync(string objectKey, CancellationToken cancellationToken = default);
 
+    Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken = default);
+
     Task DeleteObjectAsync(string objectKey, CancellationToken cancellationToken = default);
 }

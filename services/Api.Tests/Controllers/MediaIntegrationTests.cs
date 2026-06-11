@@ -173,6 +173,40 @@ public sealed class MediaIntegrationTests(
     }
 
     [Fact]
+    public async Task GetContent_Returns200_ForLinkedPostMedia_WithoutAuth()
+    {
+        const string testMethodName = nameof(GetContent_Returns200_ForLinkedPostMedia_WithoutAuth);
+
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
+            Client,
+            MediaIntendedContext.Post,
+            "image/jpeg",
+            "content.jpg",
+            declaredSizeBytes: 10_000,
+            storedSizeBytes: 8_000);
+        MediaIntegrationTestHelpers
+            .GetFakeStorage(Factory.Services)
+            .SeedObject($"processed/{mediaAssetId}/content.jpg");
+        var req = new PostCreateRequestDto
+        {
+            Title = $"{testMethodName} title",
+            Content = $"{testMethodName} content",
+            MediaAssetIds = [mediaAssetId],
+        };
+        var createRes = await Client.PostAsJsonAsync("/api/posts", req, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+
+        Client.DefaultRequestHeaders.Authorization = null;
+
+        var contentRes = await Client.GetAsync($"/api/media/{mediaAssetId}/content", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(contentRes, HttpStatusCode.OK);
+        Assert.Equal("image/jpeg", contentRes.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
     public async Task CreatePost_Returns400_WhenVideoTotalExceeded()
     {
         const string testMethodName = nameof(CreatePost_Returns400_WhenVideoTotalExceeded);

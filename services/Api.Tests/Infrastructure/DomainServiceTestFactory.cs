@@ -127,6 +127,7 @@ internal static class DomainServiceTestFactory
             CreateMediaStorageProvider(new FakeMediaStorage()),
             new MediaLimitPolicy(mediaOptions),
             userService,
+            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
             new FakeWorkQueue(),
             mediaOptions,
             http);

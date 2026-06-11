@@ -1,3 +1,4 @@
+using Api.Domain.Chat.Service;
 using Api.Domain.Media.Domain;
 using Api.Domain.Media.Dto;
 using Api.Domain.Media.Repository;
@@ -18,6 +19,7 @@ public sealed class MediaService(
     IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
     UserService userService,
+    Lazy<ChatMessageService> chatMessageService,
     IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
     IHttpContextAccessor httpContextAccessor)
@@ -28,6 +30,7 @@ public sealed class MediaService(
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly UserService _userService = userService;
+    private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -39,6 +42,18 @@ public sealed class MediaService(
     {
         var asset = await GetOwnedOrAccessibleAssetAsync(id);
         return MapToDto(asset);
+    }
+
+    public async Task<MediaContentResult> GetContentAsync(long id)
+    {
+        EnsureMediaEnabled();
+        var asset = await GetMediaAssetOrThrowAsync(id);
+        await EnsureCanReadContentAsync(asset);
+
+        var objectKey = asset.ProcessedObjectKey
+            ?? throw new InvalidOperationException("Processed media object is missing.");
+        var stream = await RequireMediaStorage().OpenReadAsync(objectKey);
+        return new MediaContentResult(stream, asset.MimeType, asset.OriginalFileName);
     }
 
     public async Task DeleteUnlinkedMediaAssetByIdAsync(long id)
@@ -346,6 +361,25 @@ public sealed class MediaService(
         if (asset.UploaderId == userId) return asset;
 
         throw new UnauthorizedAccessException("Unauthorized access");
+    }
+
+    private async Task EnsureCanReadContentAsync(MediaAsset asset)
+    {
+        if (asset.ProcessingStatus != MediaProcessingStatus.Ready)
+            throw new ArgumentException("Media is not ready for viewing.");
+        if (string.IsNullOrWhiteSpace(asset.ProcessedObjectKey))
+            throw new InvalidOperationException("Processed media object is missing.");
+
+        if (asset.PostId is not null || asset.CommentId is not null) return;
+
+        if (asset.ChatMessageId is long messageId)
+        {
+            await _chatMessageService.Value.EnsureCurrentUserCanAccessMessageAsync(messageId);
+            return;
+        }
+
+        var userId = GetUserIdFromLogin();
+        if (asset.UploaderId != userId) throw new UnauthorizedAccessException("Unauthorized access");
     }
 
     private async Task<List<MediaAsset>> LoadOwnedReadyAssetsAsync(

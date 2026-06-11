@@ -474,6 +474,7 @@ public sealed class MediaServiceUnitTests
             CreateMediaStorageProvider(storage),
             new MediaLimitPolicy(mediaOptions),
             userService,
+            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
             workQueue,
             mediaOptions,
             http);

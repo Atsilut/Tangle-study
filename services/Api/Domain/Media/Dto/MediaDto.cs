@@ -1,6 +1,7 @@
 using Api.Domain.Media.Domain;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 
 namespace Api.Domain.Media.Dto;
 
@@ -48,6 +49,8 @@ public sealed record MediaUploadInitResponseDto(
     DateTime ExpiresAt,
     long IngressLimitBytes,
     long StorageLimitBytes);
+
+public sealed record MediaContentResult(Stream Stream, string ContentType, string FileName);
 
 public sealed record MediaProcessedRequestDto
 {

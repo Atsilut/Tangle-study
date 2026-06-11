@@ -103,6 +103,13 @@ public class ChatMessageService(
     public Task DetachSenderFromDeletedUserAsync(long userId) =>
         _repo.DetachSenderFromMessagesAsync(userId);
 
+    public async Task EnsureCurrentUserCanAccessMessageAsync(long messageId)
+    {
+        var message = await _repo.GetChatMessageByIdAsync(messageId)
+            ?? throw new EntityNotFoundException("Message not found");
+        await _chatRoomService.EnsureCurrentUserIsParticipantAsync(message.ChatRoomId);
+    }
+
     public async Task DeleteMessageAsync(long roomId, long messageId)
     {
         await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);

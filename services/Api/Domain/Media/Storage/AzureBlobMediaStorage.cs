@@ -106,6 +106,13 @@ public sealed class AzureBlobMediaStorage : IMediaStorage
         return response.Value;
     }
 
+    public async Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var response = await _containerClient.GetBlobClient(objectKey).DownloadStreamingAsync(cancellationToken: cancellationToken);
+        return response.Value.Content;
+    }
+
     public async Task DeleteObjectAsync(string objectKey, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
