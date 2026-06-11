@@ -7,7 +7,11 @@ interface NavItem {
 }
 
 // Feature routes register their nav entries here as slices land.
-const navItems: NavItem[] = [{ to: '/', label: 'Home' }]
+const navItems: NavItem[] = [
+  { to: '/', label: 'Home' },
+  { to: '/users', label: 'Users' },
+  { to: '/settings', label: 'Settings' },
+]
 
 export function Sidebar() {
   return (

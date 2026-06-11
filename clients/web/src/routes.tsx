@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
-import { AppShell } from '@/components/layout'
+import { AppShell, ProtectedRoute } from '@/components/layout'
 import { LoginPage, RegisterPage } from '@/features/auth'
+import { SettingsPage, UserProfilePage, UsersListPage } from '@/features/users'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
@@ -11,7 +12,19 @@ export const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   {
     element: <AppShell />,
-    children: [{ index: true, element: <HomePage /> }],
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'users', element: <UsersListPage /> },
+      { path: 'users/:id', element: <UserProfilePage /> },
+      {
+        path: 'settings',
+        element: (
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
   { path: '*', element: <NotFoundPage /> },
 ])
