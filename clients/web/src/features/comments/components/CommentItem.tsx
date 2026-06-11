@@ -64,7 +64,9 @@ export function CommentItem({ comment, postId }: CommentItemProps) {
               />
             </div>
           ) : (
-            <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{comment.content}</p>
+            comment.content.length > 0 && (
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{comment.content}</p>
+            )
           )}
 
           {comment.media && (

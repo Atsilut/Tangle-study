@@ -31,18 +31,17 @@ export function CommentForm({
 }: CommentFormProps) {
   const [content, setContent] = useState(initial)
   const media = useMediaUploads(MediaIntendedContext.Comment)
+  const mediaId = enableMedia ? media.readyIds[0] : undefined
+  const hasContent = content.trim() !== ''
+  const canSubmit =
+    !(enableMedia && media.isUploading) && (hasContent || (enableMedia && mediaId != null))
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    const trimmed = content.trim()
-    if (trimmed === '') return
-    const mediaId = enableMedia ? media.readyIds[0] : undefined
-    onSubmit(trimmed, mediaId)
+    if (!canSubmit) return
+    onSubmit(content.trim(), mediaId)
     if (enableMedia) media.reset()
   }
-
-  const canSubmit =
-    content.trim() !== '' && !(enableMedia && media.isUploading)
 
   return (
     <form className="flex flex-col gap-2" onSubmit={submit}>
