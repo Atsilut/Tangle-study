@@ -16,6 +16,7 @@ import {
   GroupBoardsPage,
   GroupBoardPostsPage,
   GroupBoardPostDetailPage,
+  GroupBoardPostEditPage,
   GroupBlacklistPage,
 } from '@/features/groups'
 import {
@@ -142,6 +143,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <GroupBoardPostDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id/boards/:boardId/posts/:postId/edit',
+        element: (
+          <ProtectedRoute>
+            <GroupBoardPostEditPage />
           </ProtectedRoute>
         ),
       },

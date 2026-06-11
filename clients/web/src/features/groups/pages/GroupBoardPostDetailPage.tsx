@@ -1,10 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
-import { Avatar, Card, CardBody, CardHeader } from '@/components/ui'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Avatar, Button, Card, CardBody, CardHeader, ConfirmDialog } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { CommentSection } from '@/features/comments'
 import { MediaGallery } from '@/features/media'
-import { useBoardPost } from '../boardsHooks'
+import { useAuthStore } from '@/stores/authStore'
+import { useBoardPost, useDeleteBoardPost } from '../boardsHooks'
 
 export function GroupBoardPostDetailPage() {
   const { id, boardId, postId } = useParams<{
@@ -16,11 +18,23 @@ export function GroupBoardPostDetailPage() {
   const board = Number(boardId)
   const post = Number(postId)
   const valid = Number.isFinite(groupId) && Number.isFinite(board) && Number.isFinite(post)
+  const navigate = useNavigate()
+  const currentUserId = useAuthStore((s) => s.userId)
   const { data, isLoading, isError, refetch } = useBoardPost(
     valid ? groupId : null,
     valid ? board : null,
     valid ? post : null,
   )
+  const deletePost = useDeleteBoardPost(groupId, board)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  const isAuthor = data != null && currentUserId === data.authorId
+
+  const onDelete = () => {
+    deletePost.mutate(post, {
+      onSuccess: () => navigate(`/groups/${groupId}/boards/${board}`, { replace: true }),
+    })
+  }
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -44,6 +58,18 @@ export function GroupBoardPostDetailPage() {
                 </Link>
                 <EditedTimestamp createdAt={data.createdAt} updatedAt={data.updatedAt} />
               </div>
+              {isAuthor && (
+                <div className="ml-auto flex gap-2">
+                  <Link to={`/groups/${groupId}/boards/${board}/posts/${data.id}/edit`}>
+                    <Button size="sm" variant="secondary">
+                      Edit
+                    </Button>
+                  </Link>
+                  <Button size="sm" variant="danger" onClick={() => setConfirmOpen(true)}>
+                    Delete
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardBody className="flex flex-col gap-3">
               <h1 className="text-xl font-bold text-gray-900">{data.title}</h1>
@@ -55,6 +81,17 @@ export function GroupBoardPostDetailPage() {
       </QueryBoundary>
 
       {data && <CommentSection postId={data.id} />}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Delete post"
+        message="This permanently deletes the post."
+        confirmLabel="Delete"
+        destructive
+        isLoading={deletePost.isPending}
+        onConfirm={onDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }

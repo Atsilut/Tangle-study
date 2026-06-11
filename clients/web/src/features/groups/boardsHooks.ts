@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { deletePost, updatePost, type UpdatePostRequest } from '@/features/posts/api'
 import {
   createBoard,
   createBoardPost,
@@ -80,5 +81,29 @@ export function useCreateBoardPost(groupId: number, boardId: number) {
     mutationFn: (body: CreateBoardPostRequest) => createBoardPost(groupId, boardId, body),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: boardKeys.posts(groupId, boardId) }),
+  })
+}
+
+export function useUpdateBoardPost(groupId: number, boardId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: UpdatePostRequest) => updatePost(body),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.posts(groupId, boardId) })
+      queryClient.invalidateQueries({
+        queryKey: boardKeys.post(groupId, boardId, variables.id),
+      })
+    },
+  })
+}
+
+export function useDeleteBoardPost(groupId: number, boardId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deletePost(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.posts(groupId, boardId) })
+      queryClient.removeQueries({ queryKey: boardKeys.post(groupId, boardId, id) })
+    },
   })
 }
