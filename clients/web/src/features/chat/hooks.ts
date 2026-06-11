@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getErrorMessage } from '@/lib/apiError'
 import {
   createGroupRoom,
   createMultiRoom,
@@ -130,8 +131,10 @@ export interface RoomMessages {
   hasMore: boolean
   isLoadingMore: boolean
   loadOlder: () => void
-  send: (body: string) => Promise<void>
+  send: (body: string, mediaAssetId?: number) => Promise<void>
   isSending: boolean
+  sendError: string | null
+  clearSendError: () => void
 }
 
 // Owns a room's message list: loads the latest page from REST, streams new
@@ -146,6 +149,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const upsert = useCallback((incoming: ChatMessage[]) => {
     setMessages((prev) => {
@@ -208,19 +212,25 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   }, [roomId, messages, isLoadingMore, upsert])
 
   const send = useCallback(
-    async (body: string) => {
+    async (body: string, mediaAssetId?: number) => {
       const trimmed = body.trim()
-      if (roomId == null || trimmed === '') return
+      if (roomId == null || (trimmed === '' && mediaAssetId == null)) return
       setIsSending(true)
+      setSendError(null)
       try {
-        const message = await sendMessage(roomId, trimmed)
+        const message = await sendMessage(roomId, trimmed, mediaAssetId)
         upsert([message])
+      } catch (error) {
+        setSendError(getErrorMessage(error, 'Could not send message.'))
+        throw error
       } finally {
         setIsSending(false)
       }
     },
     [roomId, upsert],
   )
+
+  const clearSendError = useCallback(() => setSendError(null), [])
 
   return {
     messages,
@@ -231,5 +241,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     loadOlder,
     send,
     isSending,
+    sendError,
+    clearSendError,
   }
 }

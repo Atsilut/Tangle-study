@@ -19,6 +19,7 @@ export function PostCreatePage() {
             submitLabel="Publish"
             isPending={createPost.isPending}
             error={createPost.error}
+            enableMedia
             onSubmit={(values) =>
               createPost.mutate(values, { onSuccess: () => navigate('/posts') })
             }

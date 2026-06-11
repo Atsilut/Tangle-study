@@ -31,7 +31,7 @@ prod:  browser -> Nginx (:8080, serves dist/ + proxies /api,/hubs) -> api (:8080
 ```
 
 - Nginx config lives in [../../infra/nginx/nginx.conf](../../infra/nginx/nginx.conf) (infra, not here).
-- Vite proxies `/api`, `/hubs` (WebSocket), and `/health` to `VITE_PROXY_TARGET` (default `http://localhost:8080`).
+- Vite proxies `/api`, `/hubs` (WebSocket), `/health`, and `/devstoreaccount1` (local Azurite blob uploads) to the backend edge / storage.
 - REST calls go through `/api`; SignalR connects to `/hubs/chat?access_token=<JWT>`.
 
 ---
@@ -42,7 +42,7 @@ prod:  browser -> Nginx (:8080, serves dist/ + proxies /api,/hubs) -> api (:8080
 
 ```bash
 # 1. Backend + Nginx edge (from repo root)
-docker compose --profile web up api db redis nginx
+docker compose --profile web up api db redis azurite nginx
 
 # 2. Web dev server (this folder)
 npm install

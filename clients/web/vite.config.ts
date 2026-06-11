@@ -23,6 +23,8 @@ export default defineConfig(({ mode }) => {
         '/api': { target: proxyTarget, changeOrigin: true },
         '/hubs': { target: proxyTarget, changeOrigin: true, ws: true },
         '/health': { target: proxyTarget, changeOrigin: true },
+        // Local Azurite blob uploads (see resolveStorageUploadUrl in media/api.ts).
+        '/devstoreaccount1': { target: 'http://127.0.0.1:10000', changeOrigin: true },
       },
     },
   }

@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Button, Card, ConfirmDialog, ErrorState, Input, Spinner } from '@/components/ui'
+import { Avatar, Badge, Button, Card, ConfirmDialog, ErrorState, Input, Spinner } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { MediaIntendedContext } from '@/types/api'
+import { MediaUploader, useMediaUploads } from '@/features/media'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRoom, useRoom, useRoomMessages } from '../hooks'
 import { roomLabel } from '../labels'
@@ -69,20 +71,37 @@ function Conversation({
   roomId: number
   currentUserId: number | null
 }) {
-  const { messages, isLoading, isError, hasMore, isLoadingMore, loadOlder, send, isSending } =
-    useRoomMessages(roomId)
+  const {
+    messages,
+    isLoading,
+    isError,
+    hasMore,
+    isLoadingMore,
+    loadOlder,
+    send,
+    isSending,
+    sendError,
+    clearSendError,
+  } = useRoomMessages(roomId)
   const [draft, setDraft] = useState('')
+  const media = useMediaUploads(MediaIntendedContext.ChatMessage)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages])
 
+  const mediaId = media.readyIds[0]
+  const canSend = !isSending && !media.isUploading && (draft.trim() !== '' || mediaId != null)
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
+    if (!canSend) return
     const body = draft
     setDraft('')
-    void send(body)
+    void send(body, mediaId)
+      .then(() => media.reset())
+      .catch(() => {})
   }
 
   return (
@@ -114,18 +133,37 @@ function Conversation({
         </QueryBoundary>
       </div>
 
-      <form className="flex items-center gap-2 border-t border-gray-100 p-3" onSubmit={onSubmit}>
-        <Input
-          aria-label="Message"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a message"
-          maxLength={2000}
+      <div className="flex flex-col gap-2 border-t border-gray-100 p-3">
+        {sendError && (
+          <p className="text-sm text-red-600" role="alert">
+            {sendError}
+            <button
+              type="button"
+              className="ml-2 underline"
+              onClick={clearSendError}
+            >
+              Dismiss
+            </button>
+          </p>
+        )}
+        <MediaUploader
+          items={media.items}
+          onAddFiles={media.addFiles}
+          onRemove={media.removeItem}
         />
-        <Button type="submit" disabled={draft.trim() === '' || isSending}>
-          {isSending ? <Spinner size="sm" /> : 'Send'}
-        </Button>
-      </form>
+        <form className="flex items-center gap-2" onSubmit={onSubmit}>
+          <Input
+            aria-label="Message"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Type a message"
+            maxLength={2000}
+          />
+          <Button type="submit" disabled={!canSend}>
+            {isSending ? <Spinner size="sm" /> : 'Send'}
+          </Button>
+        </form>
+      </div>
     </Card>
   )
 }
@@ -139,14 +177,21 @@ function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolea
           <span className="font-medium text-gray-700">{message.senderNickname}</span>
           <span>{formatDateTime(message.sentAt)}</span>
         </div>
-        <p
-          className={cn(
-            'mt-1 inline-block whitespace-pre-wrap rounded-lg px-3 py-2 text-sm',
-            isOwn ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900',
-          )}
-        >
-          {message.body}
-        </p>
+        {message.body.length > 0 && (
+          <p
+            className={cn(
+              'mt-1 inline-block whitespace-pre-wrap rounded-lg px-3 py-2 text-sm',
+              isOwn ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900',
+            )}
+          >
+            {message.body}
+          </p>
+        )}
+        {message.media && (
+          <div className={cn('mt-1', isOwn && 'flex justify-end')}>
+            <Badge color="blue">Attachment</Badge>
+          </div>
+        )}
       </div>
     </div>
   )

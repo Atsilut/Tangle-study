@@ -98,6 +98,8 @@ services:
     depends_on:
       api:
         condition: service_started
+      rust-worker-media:
+        condition: service_started
     restart: unless-stopped
 
   prometheus:
@@ -198,7 +200,7 @@ services:
     restart: unless-stopped
 
   rust-worker-media:
-    profiles: ["workers", "harness"]
+    profiles: ["web", "workers", "harness"]
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile
