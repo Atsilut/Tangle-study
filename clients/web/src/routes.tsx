@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppShell, ProtectedRoute } from '@/components/layout'
 import { LoginPage, RegisterPage } from '@/features/auth'
 import { BlocksPage } from '@/features/blocks'
+import { ChatPage, ChatRoomPage } from '@/features/chat'
 import { FriendsPage } from '@/features/friends'
 import {
   GroupCreatePage,
@@ -165,6 +166,22 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ApplicationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'chat',
+        element: (
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'chat/:id',
+        element: (
+          <ProtectedRoute>
+            <ChatRoomPage />
           </ProtectedRoute>
         ),
       },
