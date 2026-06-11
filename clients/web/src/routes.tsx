@@ -15,6 +15,7 @@ import {
   GroupBoardsPage,
   GroupBoardPostsPage,
   GroupBoardPostDetailPage,
+  GroupBlacklistPage,
 } from '@/features/groups'
 import {
   PostCreatePage,
@@ -140,6 +141,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <GroupBoardPostDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id/blacklist',
+        element: (
+          <ProtectedRoute>
+            <GroupBlacklistPage />
           </ProtectedRoute>
         ),
       },

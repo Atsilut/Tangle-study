@@ -95,6 +95,14 @@ export function GroupDetailPage() {
                     Applications
                   </Link>
                 )}
+                {canDelete && (
+                  <Link
+                    to={`/groups/${group.id}/blacklist`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Blacklist
+                  </Link>
+                )}
               </div>
 
               {(canEdit || canDelete) && (
