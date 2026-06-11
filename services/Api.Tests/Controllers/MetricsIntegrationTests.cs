@@ -45,7 +45,7 @@ public sealed class MetricsIntegrationTests(PostgresTestcontainerFixture postgre
     }
 
     [Fact]
-    public async Task Metrics_Records401_AfterUnauthorizedResponse()
+    public async Task Metrics_Records401_AfterUnauthenticatedApiRequest()
     {
         // Arrange
         var before = await GetHttpRequestTotalForCodeAsync("401");

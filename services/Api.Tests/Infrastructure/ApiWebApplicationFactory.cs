@@ -17,7 +17,9 @@ public sealed class ApiWebApplicationFactory(
     string connectionString,
     bool redisEnabled = false,
     string? redisConnectionString = null,
-    bool mediaEnabled = false) : WebApplicationFactory<Program>
+    bool mediaEnabled = false,
+    bool metricsRequireScrapeSecret = false,
+    string? metricsScrapeSecret = null) : WebApplicationFactory<Program>
 {
     public const string TestWorkerCallbackSecret = "test-media-worker-secret";
 
@@ -25,6 +27,8 @@ public sealed class ApiWebApplicationFactory(
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
     private readonly bool _mediaEnabled = mediaEnabled;
+    private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
+    private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -43,8 +47,8 @@ public sealed class ApiWebApplicationFactory(
                 ["Media:Enabled"] = _mediaEnabled ? "true" : "false",
                 ["Media:ConnectionString"] = _mediaEnabled ? "UseDevelopmentStorage=true" : "",
                 ["Media:WorkerCallbackSecret"] = _mediaEnabled ? TestWorkerCallbackSecret : "",
-                ["Metrics:RequireAuth"] = "false",
-                ["Metrics:Secret"] = "",
+                ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
+                ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
             });
         });
 

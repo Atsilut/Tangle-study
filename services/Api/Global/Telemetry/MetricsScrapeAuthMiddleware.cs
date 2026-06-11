@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Api.Global.Telemetry;
 
-public sealed class MetricsAuthMiddleware(RequestDelegate next, IOptions<MetricsOptions> metricsOptions)
+public sealed class MetricsScrapeAuthMiddleware(RequestDelegate next, IOptions<MetricsOptions> metricsOptions)
 {
     public const string HeaderName = "X-Metrics-Secret";
 
@@ -11,7 +11,7 @@ public sealed class MetricsAuthMiddleware(RequestDelegate next, IOptions<Metrics
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (_metricsOptions.RequireAuth
+        if (_metricsOptions.RequireScrapeSecret
             && context.Request.Path.StartsWithSegments("/metrics", StringComparison.OrdinalIgnoreCase)
             && !IsAuthorized(context))
         {
@@ -24,10 +24,10 @@ public sealed class MetricsAuthMiddleware(RequestDelegate next, IOptions<Metrics
 
     private bool IsAuthorized(HttpContext context)
     {
-        if (string.IsNullOrWhiteSpace(_metricsOptions.Secret))
+        if (string.IsNullOrWhiteSpace(_metricsOptions.ScrapeSecret))
             return false;
 
         return context.Request.Headers.TryGetValue(HeaderName, out var providedSecret)
-            && providedSecret == _metricsOptions.Secret;
+            && providedSecret == _metricsOptions.ScrapeSecret;
     }
 }

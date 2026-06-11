@@ -129,7 +129,7 @@ app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseMiddleware<MetricsAuthMiddleware>();
+app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");

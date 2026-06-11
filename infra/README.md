@@ -68,9 +68,9 @@ Optional host debug ports (not mapped by default): exec into a worker container 
 
 Health status is also published to `/metrics` as `aspnetcore_healthcheck_status{name="postgres|redis"}` (1 = healthy, 0 = unhealthy) via `prometheus-net.AspNetCore.HealthChecks`.
 
-## Secured `/metrics`
+## Scrape-protected `/metrics`
 
-In Docker (`appsettings.Docker.json`), `Metrics:RequireAuth` is `true`. Scrapers must send:
+In Docker (`appsettings.Docker.json`), `Metrics:RequireScrapeSecret` is `true`. Scrapers must send:
 
 ```http
 X-Metrics-Secret: dev-metrics-secret
@@ -171,7 +171,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5000/metrics          
 curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics  # expect 200
 
 # Integration tests
-./scripts/docker-dotnet.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter MetricsIntegrationTests
+./scripts/docker-dotnet.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ```
 
 ## Related docs

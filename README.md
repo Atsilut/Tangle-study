@@ -315,7 +315,7 @@ docker compose --profile monitoring --profile workers up --build
 
 - Grafana: http://localhost:3000 (admin / admin)
 - Prometheus: http://localhost:9090
-- API metrics: http://localhost:5000/metrics (unauthenticated; for scrape only)
+- API metrics: http://localhost:5000/metrics (requires `X-Metrics-Secret` in Docker; see [infra/README.md](infra/README.md))
 
 ### Cleanup local SDK artifacts
 

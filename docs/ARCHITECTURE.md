@@ -64,7 +64,7 @@ Prometheus + Grafana stack under [`infra/`](../infra/) with provisioned alerts, 
 
 **Health** — `GET /health` checks PostgreSQL and Redis. Compose healthcheck and Grafana `ApiDependencyUnhealthy` alert use this signal (also exported to `/metrics`).
 
-**Metrics auth** — Docker enables `Metrics:RequireAuth` with `X-Metrics-Secret`; Prometheus scrape config sends the header. Local dev keeps `/metrics` open.
+**Metrics scrape auth** — Docker enables `Metrics:RequireScrapeSecret` with `X-Metrics-Secret`; Prometheus scrape config sends the header. Local dev keeps `/metrics` open.
 
 **Alerts** — Grafana provisioned rules (folder: Tangle) for HTTP 4xx/5xx, latency p95 SLO, scrape health, worker DLQ/backlog, and infra limits. UI-only (no Alertmanager). Runbook: [infra/README.md#alerting](../infra/README.md#alerting).
 
