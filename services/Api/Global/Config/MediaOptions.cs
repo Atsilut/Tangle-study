@@ -12,8 +12,9 @@ public sealed class MediaOptions
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>
-    /// Blob endpoint reachable by upload clients (browser/app). When the API runs in Docker but
-    /// clients run on the host, set this to e.g. http://127.0.0.1:10000/devstoreaccount1 while
+    /// Blob host reachable by upload clients (browser/app). Authority only — do not include the
+    /// account path (/devstoreaccount1); SAS URLs already contain it. When the API runs in Docker
+    /// but clients run on the host, set this to e.g. http://127.0.0.1:10000 while
     /// <see cref="ConnectionString"/> uses the in-compose hostname (http://azurite:10000/...).
     /// </summary>
     public string PublicBlobEndpoint { get; set; } = string.Empty;

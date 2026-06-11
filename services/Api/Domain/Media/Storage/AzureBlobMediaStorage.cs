@@ -90,11 +90,10 @@ public sealed class AzureBlobMediaStorage : IMediaStorage
         var uploadUrl = blobClient.GenerateSasUri(sasBuilder).ToString();
         if (!string.IsNullOrWhiteSpace(_options.PublicBlobEndpoint))
         {
-            var internalEndpoint = _serviceClient.Uri.GetLeftPart(UriPartial.Authority);
-            uploadUrl = uploadUrl.Replace(
-                internalEndpoint,
-                _options.PublicBlobEndpoint.TrimEnd('/'),
-                StringComparison.OrdinalIgnoreCase);
+            var internalAuthority = _serviceClient.Uri.GetLeftPart(UriPartial.Authority);
+            var publicAuthority = new Uri(_options.PublicBlobEndpoint.TrimEnd('/'))
+                .GetLeftPart(UriPartial.Authority);
+            uploadUrl = uploadUrl.Replace(internalAuthority, publicAuthority, StringComparison.OrdinalIgnoreCase);
         }
 
         return new PresignedUpload(uploadUrl, objectKey, expiresAt.UtcDateTime);
