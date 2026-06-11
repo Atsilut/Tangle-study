@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/format'
 import { GroupJoinPolicy, GroupRole } from '@/types/api'
 import { useDeleteGroup, useGroup, useJoinGroup } from '../hooks'
 import { useMyGroupRole } from '../membersHooks'
+import { useApplyToGroup } from '../applicationsHooks'
 import { groupVisibilityLabels, joinPolicyLabels } from '../labels'
 
 export function GroupDetailPage() {
@@ -25,6 +26,7 @@ export function GroupDetailPage() {
     Number.isFinite(groupId) ? groupId : null,
   )
   const join = useJoinGroup(groupId)
+  const apply = useApplyToGroup(groupId)
   const deleteGroup = useDeleteGroup()
   const { role } = useMyGroupRole(Number.isFinite(groupId) ? groupId : null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -57,6 +59,15 @@ export function GroupDetailPage() {
                   Join
                 </Button>
               )}
+              {!isMember &&
+                group.joinPolicy === GroupJoinPolicy.Requestable &&
+                (apply.isSuccess ? (
+                  <Badge color="green">Applied</Badge>
+                ) : (
+                  <Button size="sm" isLoading={apply.isPending} onClick={() => apply.mutate()}>
+                    Apply
+                  </Button>
+                ))}
             </CardHeader>
             <CardBody className="flex flex-col gap-3">
               <p className="whitespace-pre-wrap text-sm text-gray-700">{group.description}</p>
@@ -64,6 +75,9 @@ export function GroupDetailPage() {
 
               {join.isError && (
                 <ErrorState title="Could not join" message={getErrorMessage(join.error)} />
+              )}
+              {apply.isError && (
+                <ErrorState title="Could not apply" message={getErrorMessage(apply.error)} />
               )}
 
               <div className="flex flex-wrap gap-3 border-t border-gray-100 pt-3 text-sm">
@@ -73,6 +87,14 @@ export function GroupDetailPage() {
                 <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
                   Boards
                 </Link>
+                {canEdit && (
+                  <Link
+                    to={`/groups/${group.id}/applications`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Applications
+                  </Link>
+                )}
               </div>
 
               {(canEdit || canDelete) && (

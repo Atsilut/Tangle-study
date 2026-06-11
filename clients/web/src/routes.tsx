@@ -10,6 +10,8 @@ import {
   GroupMembersPage,
   GroupsPage,
   InvitationsPage,
+  ApplicationsPage,
+  GroupApplicationsPage,
 } from '@/features/groups'
 import {
   PostCreatePage,
@@ -107,10 +109,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'groups/:id/applications',
+        element: (
+          <ProtectedRoute>
+            <GroupApplicationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'invitations',
         element: (
           <ProtectedRoute>
             <InvitationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'applications',
+        element: (
+          <ProtectedRoute>
+            <ApplicationsPage />
           </ProtectedRoute>
         ),
       },
