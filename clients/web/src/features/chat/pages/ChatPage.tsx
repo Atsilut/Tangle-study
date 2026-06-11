@@ -1,11 +1,17 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Badge, Card, EmptyState } from '@/components/ui'
+import { Badge, Card, CardBody, CardHeader, EmptyState } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { Button } from '@/components/ui'
 import { formatChatListTimestamp } from '@/lib/format'
 import { useMyFriends } from '@/features/friends/hooks'
-import { useChatRoomsRealtimeSync, useGetOrCreateDirectRoom, useMyRooms } from '../hooks'
+import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
+import {
+  useChatRoomsRealtimeSync,
+  useCreateMultiRoom,
+  useGetOrCreateDirectRoom,
+  useMyRooms,
+} from '../hooks'
 import { chatRoomKindLabels, summaryLabel } from '../labels'
 
 export function ChatPage() {
@@ -14,6 +20,7 @@ export function ChatPage() {
   const friends = useMyFriends()
   const navigate = useNavigate()
   const openDirect = useGetOrCreateDirectRoom()
+  const createMulti = useCreateMultiRoom()
 
   const startDirect = (otherUserId: number) => {
     openDirect.mutate(otherUserId, {
@@ -56,6 +63,39 @@ export function ChatPage() {
               description="Start a direct chat with a friend below."
             />
           )}
+        </QueryBoundary>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-gray-900">Start a group chat</h2>
+        <QueryBoundary
+          isLoading={friends.isLoading}
+          isError={friends.isError}
+          onRetry={() => friends.refetch()}
+        >
+          <Card>
+            <CardHeader>
+              <p className="text-sm text-gray-600">
+                Pick one or more friends. You are added automatically as the room owner.
+              </p>
+            </CardHeader>
+            <CardBody>
+              <CreateChatRoomForm
+                participants={(friends.data ?? []).map((friend) => ({
+                  userId: friend.otherUserId,
+                  nickname: friend.otherUserNickname,
+                }))}
+                isPending={createMulti.isPending}
+                error={createMulti.isError ? createMulti.error : undefined}
+                onSubmit={(userIds, title) =>
+                  createMulti.mutate(
+                    { userIds, title },
+                    { onSuccess: (room) => navigate(`/chat/${room.id}`) },
+                  )
+                }
+              />
+            </CardBody>
+          </Card>
         </QueryBoundary>
       </section>
 

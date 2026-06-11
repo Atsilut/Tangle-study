@@ -1,21 +1,11 @@
-import { type FormEvent, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import {
-  Badge,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  EmptyState,
-  ErrorState,
-  FormField,
-  Input,
-} from '@/components/ui'
+import { Badge, Card, CardBody, CardHeader, EmptyState } from '@/components/ui'
+import { CenteredSpinner } from '@/components/common/CenteredSpinner'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { formatChatListTimestamp } from '@/lib/format'
-import { getErrorMessage } from '@/lib/apiError'
 import { useAuthStore } from '@/stores/authStore'
 import { useGroupMembers, useMyGroupRole } from '@/features/groups'
+import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
 import { useCreateGroupRoom, useGroupRooms, useMyRooms } from '../hooks'
 import { chatRoomKindLabels, summaryLabel } from '../labels'
 
@@ -28,7 +18,7 @@ export function GroupChatRoomsPage() {
   const myRooms = useMyRooms()
   const participantRoomIds = new Set(myRooms.data?.map((r) => r.id) ?? [])
 
-  if (roleLoading) return null
+  if (roleLoading) return <CenteredSpinner />
   // Group chat rooms are members-only.
   if (role == null) return <Navigate to={`/groups/${groupId}`} replace />
 
@@ -94,77 +84,25 @@ function CreateRoomCard({ groupId }: { groupId: number }) {
   const members = useGroupMembers(groupId)
   const create = useCreateGroupRoom(groupId)
   const navigate = useNavigate()
-  const [title, setTitle] = useState('')
-  const [selected, setSelected] = useState<Set<number>>(new Set())
 
-  const toggle = (userId: number) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
-      return next
-    })
-  }
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    const userIds = [...selected]
-    if (userIds.length === 0) return
-    create.mutate(
-      { userIds, title },
-      {
-        onSuccess: (room) => navigate(`/chat/${room.id}`),
-      },
-    )
-  }
-
-  const others = (members.data ?? []).filter((m) => m.userId !== currentUserId)
+  const others = (members.data ?? [])
+    .filter((m) => m.userId !== currentUserId)
+    .map((m) => ({ userId: m.userId, nickname: m.nickname }))
 
   return (
     <Card>
       <CardHeader>
         <h2 className="text-sm font-semibold text-gray-900">New chat room</h2>
       </CardHeader>
-      <CardBody className="flex flex-col gap-3">
-        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-          <FormField label="Title (optional)">
-            {({ id }) => (
-              <Input
-                id={id}
-                value={title}
-                maxLength={200}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Planning"
-              />
-            )}
-          </FormField>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium text-gray-700">Participants</legend>
-            {others.length === 0 ? (
-              <p className="text-sm text-gray-500">No other members to add.</p>
-            ) : (
-              others.map((member) => (
-                <label key={member.userId} className="flex items-center gap-2 text-sm text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(member.userId)}
-                    onChange={() => toggle(member.userId)}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  {member.nickname}
-                </label>
-              ))
-            )}
-          </fieldset>
-          <div>
-            <Button type="submit" isLoading={create.isPending} disabled={selected.size === 0}>
-              Create room
-            </Button>
-          </div>
-        </form>
-        {create.isError && (
-          <ErrorState title="Could not create room" message={getErrorMessage(create.error)} />
-        )}
+      <CardBody>
+        <CreateChatRoomForm
+          participants={others}
+          isPending={create.isPending}
+          error={create.isError ? create.error : undefined}
+          onSubmit={(userIds, title) =>
+            create.mutate({ userIds, title }, { onSuccess: (room) => navigate(`/chat/${room.id}`) })
+          }
+        />
       </CardBody>
     </Card>
   )
