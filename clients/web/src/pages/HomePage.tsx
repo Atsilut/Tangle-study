@@ -54,7 +54,7 @@ export function HomePage() {
             <Button>Get started</Button>
           </Link>
           <Link to="/login">
-            <Button variant="secondary">Log in</Button>
+            <Button variant="secondary">Sign in</Button>
           </Link>
         </div>
       </section>

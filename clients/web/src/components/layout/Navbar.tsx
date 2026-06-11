@@ -27,7 +27,7 @@ export function Navbar() {
             <>
               <Link to="/login">
                 <Button variant="ghost" size="sm">
-                  Log in
+                  Sign in
                 </Button>
               </Link>
               <Link to="/register">
