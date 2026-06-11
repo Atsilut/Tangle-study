@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
-import { Avatar, Badge, Card, CardBody, CardHeader } from '@/components/ui'
+import { Avatar, Badge, Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useAuthStore } from '@/stores/authStore'
+import { useSendFriendRequest } from '@/features/friends'
 import { useUser } from '../hooks'
 import { friendsListVisibilityLabels } from '../labels'
 
@@ -9,7 +10,9 @@ export function UserProfilePage() {
   const { id } = useParams<{ id: string }>()
   const userId = Number(id)
   const currentUserId = useAuthStore((s) => s.userId)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data, isLoading, isError, refetch } = useUser(Number.isFinite(userId) ? userId : null)
+  const sendRequest = useSendFriendRequest()
 
   const isSelf = currentUserId === userId
 
@@ -24,10 +27,26 @@ export function UserProfilePage() {
                 <h1 className="text-xl font-bold text-gray-900">{data.nickname}</h1>
                 <p className="text-sm text-gray-500">{data.email}</p>
               </div>
-              {isSelf && (
+              {isSelf ? (
                 <Link to="/settings" className="ml-auto text-sm text-blue-600 hover:underline">
                   Edit profile
                 </Link>
+              ) : (
+                isAuthenticated && (
+                  <div className="ml-auto">
+                    {sendRequest.isSuccess ? (
+                      <Badge color="green">Request sent</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        isLoading={sendRequest.isPending}
+                        onClick={() => sendRequest.mutate(userId)}
+                      >
+                        Add friend
+                      </Button>
+                    )}
+                  </div>
+                )
               )}
             </CardHeader>
             <CardBody className="flex flex-col gap-2 text-sm text-gray-600">

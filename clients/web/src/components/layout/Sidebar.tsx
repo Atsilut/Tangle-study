@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { to: '/', label: 'Home' },
   { to: '/posts', label: 'Posts' },
   { to: '/users', label: 'Users' },
+  { to: '/friends', label: 'Friends' },
   { to: '/settings', label: 'Settings' },
 ]
 

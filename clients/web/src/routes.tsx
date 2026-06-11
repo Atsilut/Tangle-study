@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell, ProtectedRoute } from '@/components/layout'
 import { LoginPage, RegisterPage } from '@/features/auth'
+import { FriendsPage } from '@/features/friends'
 import {
   PostCreatePage,
   PostDetailPage,
@@ -40,6 +41,14 @@ export const router = createBrowserRouter([
       },
       { path: 'users', element: <UsersListPage /> },
       { path: 'users/:id', element: <UserProfilePage /> },
+      {
+        path: 'friends',
+        element: (
+          <ProtectedRoute>
+            <FriendsPage />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: 'settings',
         element: (
