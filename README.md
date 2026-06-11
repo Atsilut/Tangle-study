@@ -288,8 +288,21 @@ docker compose --profile tools run --rm sdk ef migrations add MyMigration --proj
 ### Tests (Testcontainers needs Docker socket)
 
 ```bash
+chmod +x scripts/docker-test.sh
+
+./scripts/docker-test.sh
+
+# Filtered run
+./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+```
+
+Equivalent without the script:
+
+```bash
 docker compose --profile test run --rm test
 ```
+
+Use `docker-test.sh` (or `--profile test`), not `docker-dotnet.sh` / `sdk` — integration tests need the host Docker socket mounted by the `test` service.
 
 Integration tests start their own Postgres containers via Testcontainers (using the host Docker engine through the mounted socket). The compose `db` service is not required for tests. Docker Desktop must be running.
 

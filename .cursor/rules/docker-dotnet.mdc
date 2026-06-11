@@ -13,7 +13,6 @@ Use `scripts/docker-dotnet.sh` (wraps `docker compose --profile tools`):
 
 ```bash
 ./scripts/docker-dotnet.sh build Tangle.slnx
-./scripts/docker-dotnet.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build
 ./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Api
 ```
 
@@ -27,13 +26,24 @@ Build the SDK image first if needed: `docker compose --profile tools build sdk`.
 
 ## Tests
 
-Run the full test suite via the `test` compose service (Testcontainers needs the host Docker socket):
+Run tests via `scripts/docker-test.sh` (wraps `docker compose --profile test`). The `test` service mounts the host Docker socket — required for Testcontainers. Do **not** use `docker-dotnet.sh` / `sdk` for integration tests; that container has no Docker access.
+
+```bash
+# Full suite
+./scripts/docker-test.sh
+
+# Filtered run
+./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+```
+
+Equivalent without the script:
 
 ```bash
 docker compose --profile test run --rm test
+docker compose --profile test run --rm test test services/Api.Tests/Api.Tests.csproj -c Release --filter "..."
 ```
 
-For a filtered or one-off test run, prefer extending the `test` service command or using the SDK container with the same env/volumes as `docker-compose.yml` (`test` service), not bare `dotnet test` on the host.
+Do not run bare `dotnet test` on the host.
 
 Integration tests use Testcontainers; Docker Desktop must be running. The compose `db` service is **not** required for tests.
 

@@ -173,8 +173,8 @@ curl -s -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics 
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5000/metrics          # expect 401
 curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics  # expect 200
 
-# Integration tests
-./scripts/docker-dotnet.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
+# Integration tests (Testcontainers — use `test` profile, not `docker-dotnet.sh` / `sdk`)
+./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ```
 
 ## Related docs
