@@ -20,15 +20,19 @@ export const friendKeys = {
   ignored: () => [...friendKeys.all, 'requests', 'ignored'] as const,
 }
 
-export function useMyFriends() {
-  return useQuery({ queryKey: friendKeys.myFriends(), queryFn: getMyFriends })
+export function useMyFriends(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: friendKeys.myFriends(),
+    queryFn: getMyFriends,
+    enabled: options?.enabled ?? true,
+  })
 }
 
-export function useUserFriends(userId: number | null) {
+export function useUserFriends(userId: number | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: friendKeys.userFriends(userId ?? -1),
     queryFn: () => getUserFriends(userId as number),
-    enabled: userId != null,
+    enabled: (options?.enabled ?? true) && userId != null,
   })
 }
 

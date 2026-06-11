@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { api, getList } from '@/lib/apiClient'
 
 export interface Friendship {
@@ -25,9 +26,27 @@ export function getMyFriends(): Promise<Friendship[]> {
   return getList<Friendship>('/friendships/me')
 }
 
-// GET /api/friendships/users/{userId} -> 200 list | 204 (privacy-gated)
-export function getUserFriends(userId: number): Promise<Friendship[]> {
-  return getList<Friendship>(`/friendships/users/${userId}`)
+export type UserFriendsResult =
+  | { access: 'allowed'; friends: Friendship[] }
+  | { access: 'denied'; message: string }
+
+// GET /api/friendships/users/{userId} -> 200 list | 204 | 401 (privacy-gated)
+export async function getUserFriends(userId: number): Promise<UserFriendsResult> {
+  try {
+    const friends = await getList<Friendship>(`/friendships/users/${userId}`, {
+      treatUnauthorizedAsForbidden: true,
+    })
+    return { access: 'allowed', friends }
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const detail = (error.response.data as { detail?: string } | undefined)?.detail
+      return {
+        access: 'denied',
+        message: detail ?? "You cannot view this user's friends list.",
+      }
+    }
+    throw error
+  }
 }
 
 // DELETE /api/friendships/{id} -> 204

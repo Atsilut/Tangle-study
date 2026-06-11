@@ -1,6 +1,13 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { clearAuth, getAccessToken } from '@/stores/authStore'
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Business-rule 401 (e.g. privacy); do not clear session or redirect to login. */
+    treatUnauthorizedAsForbidden?: boolean
+  }
+}
+
 // All REST endpoints live under /api; the dev proxy / Nginx make this
 // same-origin. SignalR (/hubs) is handled separately in the chat feature.
 export const api = axios.create({
@@ -20,7 +27,7 @@ api.interceptors.response.use(
   (error) => {
     // JWT expires after ~15 min with no refresh token: drop session and
     // bounce to login. Skip if already on the login/register pages.
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.treatUnauthorizedAsForbidden) {
       clearAuth()
       const path = window.location.pathname
       if (path !== '/login' && path !== '/register') {

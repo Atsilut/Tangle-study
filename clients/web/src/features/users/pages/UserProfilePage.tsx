@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Avatar, Badge, Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useAuthStore } from '@/stores/authStore'
-import { useSendFriendRequest } from '@/features/friends'
+import { useSendFriendRequest, UserFriendsList } from '@/features/friends'
 import { useBlockUser } from '@/features/blocks'
 import { useUser } from '../hooks'
 import { friendsListVisibilityLabels } from '../labels'
@@ -75,6 +75,14 @@ export function UserProfilePage() {
           </Card>
         )}
       </QueryBoundary>
+      {data && Number.isFinite(userId) && (
+        <UserFriendsList
+          userId={userId}
+          nickname={data.nickname}
+          visibility={data.friendsListVisibility}
+          isSelf={isSelf}
+        />
+      )}
     </div>
   )
 }
