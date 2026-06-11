@@ -20,10 +20,7 @@ export function GroupBoardPostsPage() {
   const [createOpen, setCreateOpen] = useState(false)
 
   const onCreate = (values: PostFormValues) => {
-    createPost.mutate(
-      { title: values.title, content: values.content },
-      { onSuccess: () => setCreateOpen(false) },
-    )
+    createPost.mutate(values, { onSuccess: () => setCreateOpen(false) })
   }
 
   return (
