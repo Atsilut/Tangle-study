@@ -9,6 +9,7 @@ interface NavItem {
 // Feature routes register their nav entries here as slices land.
 const navItems: NavItem[] = [
   { to: '/', label: 'Home' },
+  { to: '/posts', label: 'Posts' },
   { to: '/users', label: 'Users' },
   { to: '/settings', label: 'Settings' },
 ]
