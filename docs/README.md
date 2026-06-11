@@ -26,7 +26,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 |-------|-------|--------------|
 | 1–3 | Core API, chat, Redis | [AGENTS.md](../services/Api/AGENTS.md), [CHAT.md](../services/Api/Domain/Chat/CHAT.md), [REDIS.md](../services/Api/Global/REDIS.md) |
 | 4 | Rust worker + media | [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [rust-worker README](../workers/rust-worker/README.md) — **Done** |
-| 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) |
+| 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
 | 6 | Web client (React) — scaffold, then map UI after Phase 7 | [clients/web](../clients/web) |
 | 7 | Location / Memory Map (monolith first) | [SERVICE_BOUNDARIES.md#location-service](SERVICE_BOUNDARIES.md#location-service) |
 | 8 | MSA prep (during Phase 7) | [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) |

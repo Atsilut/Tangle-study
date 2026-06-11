@@ -6,6 +6,7 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::config::Config;
+use crate::metrics;
 
 pub const CALLBACK_HEADER: &str = "X-Worker-Callback-Secret";
 
@@ -19,6 +20,12 @@ struct MediaProcessedRequest<'a> {
     processed_object_key: Option<&'a str>,
     stored_size_bytes: Option<i64>,
     failure_reason: Option<&'a str>,
+}
+
+enum CallbackAttemptOutcome {
+    Success,
+    HttpError(StatusCode),
+    TransportError,
 }
 
 /// Builds a shared HTTP client with configured connect and request timeouts.
@@ -76,29 +83,64 @@ async fn send_callback(
     );
 
     let max_attempts = config.callback_max_retries.max(1);
-    let mut last_err: Option<anyhow::Error> = None;
+    let mut last_outcome: Option<CallbackAttemptOutcome> = None;
 
     for attempt in 1..=max_attempts {
-        match try_send_callback(client, config, &url, body).await {
-            Ok(()) => return Ok(()),
-            Err(err) if is_retryable_callback_error(&err) && attempt < max_attempts => {
+        let outcome = try_send_callback(client, config, &url, body).await;
+        match outcome {
+            CallbackAttemptOutcome::Success => {
+                metrics::record_callback_request("204");
+                return Ok(());
+            }
+            CallbackAttemptOutcome::HttpError(status)
+                if is_retryable_http_status(status) && attempt < max_attempts =>
+            {
+                let delay_ms = config.callback_retry_base_ms.saturating_mul(2u64.pow(attempt - 1));
+                warn!(
+                    media_asset_id = media_asset_id,
+                    attempt = attempt,
+                    max_attempts = max_attempts,
+                    status = %status,
+                    retry_after_ms = delay_ms,
+                    "media processed callback failed; retrying"
+                );
+                tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                last_outcome = Some(CallbackAttemptOutcome::HttpError(status));
+            }
+            CallbackAttemptOutcome::HttpError(status) => {
+                metrics::record_callback_request(&status.as_u16().to_string());
+                bail!("media processed callback failed with status {status}");
+            }
+            CallbackAttemptOutcome::TransportError if attempt < max_attempts => {
                 let delay_ms = config.callback_retry_base_ms.saturating_mul(2u64.pow(attempt - 1));
                 warn!(
                     media_asset_id = media_asset_id,
                     attempt = attempt,
                     max_attempts = max_attempts,
                     retry_after_ms = delay_ms,
-                    error = %err,
                     "media processed callback failed; retrying"
                 );
                 tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                last_err = Some(err);
+                last_outcome = Some(CallbackAttemptOutcome::TransportError);
             }
-            Err(err) => return Err(err),
+            CallbackAttemptOutcome::TransportError => {
+                metrics::record_callback_request("transport_error");
+                bail!("send media processed callback");
+            }
         }
     }
 
-    Err(last_err.expect("callback loop exits only after recording a retryable error"))
+    match last_outcome.expect("callback loop exits only after recording a retryable error") {
+        CallbackAttemptOutcome::HttpError(status) => {
+            metrics::record_callback_request(&status.as_u16().to_string());
+            bail!("media processed callback failed with status {status}");
+        }
+        CallbackAttemptOutcome::TransportError => {
+            metrics::record_callback_request("transport_error");
+            bail!("send media processed callback");
+        }
+        CallbackAttemptOutcome::Success => unreachable!("success returns early"),
+    }
 }
 
 async fn try_send_callback(
@@ -106,41 +148,27 @@ async fn try_send_callback(
     config: &Config,
     url: &str,
     body: &MediaProcessedRequest<'_>,
-) -> Result<()> {
-    let response = client
+) -> CallbackAttemptOutcome {
+    let response = match client
         .patch(url)
         .header(CALLBACK_HEADER, &config.worker_callback_secret)
         .json(body)
         .send()
         .await
-        .context("send media processed callback")?;
+    {
+        Ok(response) => response,
+        Err(_) => return CallbackAttemptOutcome::TransportError,
+    };
 
     if response.status() == StatusCode::NO_CONTENT {
-        return Ok(());
+        return CallbackAttemptOutcome::Success;
     }
 
-    let status = response.status();
-    let detail = response.text().await.unwrap_or_default();
-    bail!("media processed callback failed with status {status}: {detail}");
+    CallbackAttemptOutcome::HttpError(response.status())
 }
 
-fn is_retryable_callback_error(err: &anyhow::Error) -> bool {
-    if err.chain().any(|cause| cause.is::<reqwest::Error>()) {
-        return true;
-    }
-
-    err.chain().any(|cause| {
-        let message = cause.to_string();
-        status_code_from_message(&message)
-            .is_some_and(|status| status.is_server_error() || status == StatusCode::TOO_MANY_REQUESTS)
-    })
-}
-
-fn status_code_from_message(message: &str) -> Option<StatusCode> {
-    let prefix = "media processed callback failed with status ";
-    let rest = message.strip_prefix(prefix)?;
-    let status_token = rest.split(':').next()?.trim();
-    status_token.parse().ok()
+fn is_retryable_http_status(status: StatusCode) -> bool {
+    status.is_server_error() || status == StatusCode::TOO_MANY_REQUESTS
 }
 
 fn truncate_failure_reason(reason: &str) -> String {
@@ -170,5 +198,12 @@ mod tests {
 
         assert!(truncated.chars().count() <= MAX_FAILURE_REASON_LEN);
         assert!(truncated.ends_with(TRUNCATION_ELLIPSIS));
+    }
+
+    #[test]
+    fn is_retryable_http_status_matches_server_errors_and_429() {
+        assert!(is_retryable_http_status(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(is_retryable_http_status(StatusCode::TOO_MANY_REQUESTS));
+        assert!(!is_retryable_http_status(StatusCode::NOT_FOUND));
     }
 }

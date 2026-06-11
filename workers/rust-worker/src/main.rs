@@ -6,6 +6,7 @@ mod handlers;
 mod job;
 mod encode_plan;
 mod message;
+mod metrics;
 mod probe;
 mod processing;
 mod retry;
@@ -46,10 +47,12 @@ async fn main() -> anyhow::Result<()> {
         );
         dlq::run_replay(&mut connection, &config).await
     } else {
+        metrics::init(config.metrics_port).context("initialize Prometheus metrics")?;
         info!(
             stream = %config.full_stream_key(),
             group = %config.consumer_group,
             consumer = %config.consumer_name,
+            metrics_port = config.metrics_port,
             "starting tangle worker"
         );
         consumer::run(config, connection).await

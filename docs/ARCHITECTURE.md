@@ -1,6 +1,6 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker. The target is **domain-aligned microservices** (Phase 9) after Phases 5–7 complete: thin monitoring, React web client, and location in the monolith.
+Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker and an optional **Prometheus / Grafana** monitoring profile. The target is **domain-aligned microservices** (Phase 9) after Phases 6–7 complete: React web client and location in the monolith.
 
 Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../services/Api/AGENTS.md).
 
@@ -17,12 +17,17 @@ flowchart TB
   PG[(PostgreSQL)]
   Redis[(Redis)]
   Worker["rust-worker (optional)"]
+  Prom["Prometheus (optional)"]
+  Graf["Grafana (optional)"]
 
   Clients --> API
   API --> PG
   API --> Redis
   Redis --> Worker
   Worker -.->|"future: write results"| PG
+  API -->|"GET /metrics, /health"| Prom
+  Worker -->|"GET /metrics"| Prom
+  Prom --> Graf
 ```
 
 ### In-process boundaries
@@ -45,6 +50,28 @@ See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md) and [rust-worker README](.
 
 Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR backplane allows multiple API replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md) and [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
+### Observability
+
+Prometheus + Grafana stack under [`infra/`](../infra/) with provisioned alerts, recording rules, and infra exporters.
+
+**Metrics**
+
+| Source | Endpoint | Key metrics |
+|--------|----------|-------------|
+| API | `GET /metrics` | `http_requests_received_total{code, controller}`, `http_request_duration_seconds`, `aspnetcore_healthcheck_status`, `tangle_workqueue_enqueue_total`, `tangle_workqueue_enqueue_failed_total` |
+| Workers | `GET /metrics` on `WORKER_METRICS_PORT` | `tangle_worker_jobs_processed_total`, `tangle_worker_pending_messages`, `tangle_worker_dlq_length`, `tangle_worker_callback_requests_total` |
+| Postgres / Redis | sidecar exporters | `pg_stat_activity_count`, `redis_memory_used_bytes`, etc. |
+
+**Health** — `GET /health` returns plain-text `Healthy` / `Unhealthy` for PostgreSQL and Redis. Compose healthcheck and Grafana `ApiDependencyUnhealthy` alert use this signal; per-check gauges are on `/metrics`.
+
+**Metrics scrape auth** — Docker enables `Metrics:RequireScrapeSecret` with `X-Metrics-Secret`; Prometheus scrape config sends the header. Local dev keeps `/metrics` open.
+
+**Alerts** — Grafana provisioned rules (folder: Tangle) for HTTP 4xx/5xx, latency p95 SLO, scrape health, worker DLQ/backlog, and infra limits. UI-only (no Alertmanager). Runbook: [infra/README.md#alerting](../infra/README.md#alerting).
+
+**Tracing and logs** — not implemented. Planned later via Grafana Alloy + Loki + Tempo.
+
+Start with `docker compose --profile monitoring up` (add `--profile workers` for worker scrape targets). Details: [infra/README.md](../infra/README.md).
+
 ### Docker Compose (default)
 
 | Service | Role |
@@ -53,6 +80,10 @@ Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR bac
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
 | `rust-worker` | Optional (`--profile workers`) |
+| `prometheus` | Optional (`--profile monitoring`) |
+| `grafana` | Optional (`--profile monitoring`) |
+| `postgres-exporter` | Optional (`--profile monitoring`) |
+| `redis-exporter` | Optional (`--profile monitoring`) |
 
 ---
 
@@ -140,7 +171,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts
 /tools          ← planned Go CLI / load testing
-/infra          ← planned Prometheus / Grafana
+/infra          ← Prometheus / Grafana ([infra/README.md](../infra/README.md))
 /docs           ← architecture and migration docs (this folder)
 ```
 
@@ -152,7 +183,7 @@ Solution file (`Tangle.slnx`) currently includes only `Api` and `Api.Tests`. Wor
 
 - README diagram label "Gateway" is **aspirational** — there is no separate gateway service yet.
 - No inter-service HTTP boundaries beyond API → Redis → worker.
-- No distributed tracing (OpenTelemetry planned in Future Considerations).
+- No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.
 
 These are intentional. The monolith keeps deploy-and-run simple while Phases 5–7 land; MSA extraction (Phase 9) starts only after that vertical slice works. See [README.md](../README.md#development-phases).
