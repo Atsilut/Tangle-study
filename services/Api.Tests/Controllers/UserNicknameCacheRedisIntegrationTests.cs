@@ -4,9 +4,10 @@ using System.Text.Json;
 using Api.Domain.Chat.Dto;
 using Api.Domain.Users.Dto;
 using Api.Global.Events;
+using Api.Global.Config;
 using Api.Tests.Infrastructure;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Api.Tests.Controllers;
@@ -36,19 +37,21 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         await IntegrationAssertions.AssertStatusAsync(warmCacheRes, HttpStatusCode.Created);
 
         await using var scope = Factory.Services.CreateAsyncScope();
-        var cache = scope.ServiceProvider.GetRequiredService<IDistributedCache>();
-        var nicknameCacheKey = $"users:nickname:{userA.Id}";
-        var cachedBeforeUpdate = await cache.GetStringAsync(nicknameCacheKey, TestContext.Current.CancellationToken);
-        Assert.False(string.IsNullOrWhiteSpace(cachedBeforeUpdate));
-        Assert.Equal(userA.Nickname, cachedBeforeUpdate);
+        var multiplexer = scope.ServiceProvider.GetRequiredService<IConnectionMultiplexer>();
+        var redisOptions = scope.ServiceProvider.GetRequiredService<IOptions<RedisOptions>>().Value;
+        var database = multiplexer.GetDatabase();
+        var nicknameCacheKey = (RedisKey)ChatRealtimeTestHelpers.GetNicknameCacheKey(redisOptions, userA.Id);
+        var cachedBeforeUpdate = await database.StringGetAsync(nicknameCacheKey);
+        Assert.False(cachedBeforeUpdate.IsNullOrEmpty);
+        Assert.Equal(userA.Nickname, cachedBeforeUpdate.ToString());
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = userA.Id, Nickname = updatedNickname }, TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
-        var cachedAfterUpdate = await cache.GetStringAsync(nicknameCacheKey, TestContext.Current.CancellationToken);
-        Assert.Null(cachedAfterUpdate);
+        var cachedAfterUpdate = await database.StringGetAsync(nicknameCacheKey);
+        Assert.True(cachedAfterUpdate.IsNullOrEmpty);
 
         await LoginAs(userB);
         var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages", TestContext.Current.CancellationToken);

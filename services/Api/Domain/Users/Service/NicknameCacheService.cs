@@ -58,8 +58,16 @@ public class NicknameCacheService(
         return result;
     }
 
-    public Task InvalidateUserNicknameAsync(long userId) =>
-        _cache.RemoveAsync(GetDistributedCacheKey(userId));
+    public async Task InvalidateUserNicknameAsync(long userId)
+    {
+        if (_serviceProvider.GetService<IConnectionMultiplexer>() is { } multiplexer)
+        {
+            await multiplexer.GetDatabase().KeyDeleteAsync(GetRedisKey(userId));
+            return;
+        }
+
+        await _cache.RemoveAsync(GetDistributedCacheKey(userId));
+    }
 
     private async Task<IReadOnlyDictionary<long, string>> GetCachedNicknamesAsync(IReadOnlyList<long> userIds)
     {

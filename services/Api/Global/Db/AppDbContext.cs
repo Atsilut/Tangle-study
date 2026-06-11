@@ -12,22 +12,22 @@ namespace Api.Global.Db
 {
     public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
-        public DbSet<User> Users { get; set; }
-        public DbSet<Post> Posts { get; set; }
-        public DbSet<Comment> Comments { get; set; }
-        public DbSet<Friendship> Friendships { get; set; }
-        public DbSet<FriendRequest> FriendRequests { get; set; }
-        public DbSet<UserBlock> UserBlocks { get; set; }
-        public DbSet<Group> Groups { get; set; }
-        public DbSet<GroupMember> GroupMembers { get; set; }
-        public DbSet<GroupInvitation> GroupInvitations { get; set; }
-        public DbSet<GroupApplication> GroupApplications { get; set; }
-        public DbSet<GroupBlacklist> GroupBlacklists { get; set; }
-        public DbSet<GroupBoard> GroupBoards { get; set; }
-        public DbSet<ChatRoom> ChatRooms { get; set; }
-        public DbSet<ChatRoomParticipant> ChatRoomParticipants { get; set; }
-        public DbSet<ChatMessage> ChatMessages { get; set; }
-        public DbSet<MediaAsset> MediaAssets { get; set; }
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Post> Posts => Set<Post>();
+        public DbSet<Comment> Comments => Set<Comment>();
+        public DbSet<Friendship> Friendships => Set<Friendship>();
+        public DbSet<FriendRequest> FriendRequests => Set<FriendRequest>();
+        public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
+        public DbSet<Group> Groups => Set<Group>();
+        public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
+        public DbSet<GroupInvitation> GroupInvitations => Set<GroupInvitation>();
+        public DbSet<GroupApplication> GroupApplications => Set<GroupApplication>();
+        public DbSet<GroupBlacklist> GroupBlacklists => Set<GroupBlacklist>();
+        public DbSet<GroupBoard> GroupBoards => Set<GroupBoard>();
+        public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
+        public DbSet<ChatRoomParticipant> ChatRoomParticipants => Set<ChatRoomParticipant>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
