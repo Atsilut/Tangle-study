@@ -67,7 +67,11 @@ public class ChatMessageService(
             "Authentication failed",
             StatusCodes.Status400BadRequest);
 
-        var message = new ChatMessage(roomId, senderUserId, request.Body);
+        var body = request.Body.Trim();
+        if (body.Length == 0 && request.MediaAssetId is null)
+            throw new ArgumentException("Message body cannot be empty.");
+
+        var message = new ChatMessage(roomId, senderUserId, body);
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _repo.CreateChatMessageAsync(message);

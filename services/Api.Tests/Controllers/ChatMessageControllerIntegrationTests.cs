@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
+using Api.Domain.Media.Domain;
 using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
@@ -223,6 +224,38 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var messages = await res.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(messages);
         Assert.Equal(expectedCount, messages.Count);
+    }
+
+    [Fact]
+    public async Task CreateMessage_Returns201_WhenMediaOnly()
+    {
+        const string testMethodName = nameof(CreateMessage_Returns201_WhenMediaOnly);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        await LoginAs(userA);
+
+        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
+            Client,
+            MediaIntendedContext.ChatMessage,
+            "image/png",
+            "chat.png",
+            declaredSizeBytes: 68,
+            storedSizeBytes: 67);
+
+        var res = await Client.PostAsJsonAsync(
+            $"{ChatRoomsBase}/{room.Id}/messages",
+            new ChatMessageCreateRequestDto { Body = string.Empty, MediaAssetId = mediaAssetId },
+            TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+        var created = await res.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+        Assert.Equal(string.Empty, created.Body);
+        Assert.NotNull(created.Media);
+        Assert.Equal(mediaAssetId, created.Media.Id);
     }
 
     [Fact]

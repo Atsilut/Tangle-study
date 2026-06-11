@@ -99,10 +99,10 @@ public sealed class ChatDomainUnitTests
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    public void ChatMessage_Constructor_WithEmptyBody_ThrowsArgumentException(string body)
+    public void ChatMessage_Constructor_AllowsEmptyBody(string body)
     {
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() => new ChatMessage(chatRoomId: 1, senderUserId: 2, body));
+        var msg = new ChatMessage(chatRoomId: 1, senderUserId: 2, body);
+        Assert.Equal(body, msg.Body);
     }
 
     [Fact]

@@ -6,9 +6,8 @@ namespace Api.Domain.Chat.Dto;
 
 public record ChatMessageCreateRequestDto
 {
-    [Required]
     [MaxLength(ChatMessage.MaxBodyLength)]
-    public required string Body { get; init; } = string.Empty;
+    public string Body { get; init; } = string.Empty;
 
     public long? MediaAssetId { get; init; }
 }
