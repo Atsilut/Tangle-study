@@ -25,12 +25,17 @@ export function HomePage() {
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Home</h1>
-          <p className="text-sm text-gray-600">Posts from your network appear here.</p>
+          <p className="text-sm text-gray-600">Browse posts, chat with friends, and manage groups.</p>
         </div>
 
         <EmptyState
-          title="Your feed is empty"
-          description="When friends and groups start posting, you will see their updates here."
+          title="Welcome back"
+          description="Open the posts feed to read and share updates."
+          action={
+            <Link to="/posts">
+              <Button size="sm">Go to posts</Button>
+            </Link>
+          }
         />
       </div>
     )

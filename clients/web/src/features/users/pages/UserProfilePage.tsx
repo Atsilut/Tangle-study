@@ -3,6 +3,7 @@ import { Avatar, Badge, Button, Card, CardBody, CardHeader } from '@/components/
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import { useSendFriendRequest, UserFriendsList } from '@/features/friends'
+import { UserPostsList } from '@/features/posts'
 import { useBlockUser } from '@/features/blocks'
 import { useUser } from '../hooks'
 import { friendsListVisibilityLabels } from '../labels'
@@ -75,13 +76,18 @@ export function UserProfilePage() {
           </Card>
         )}
       </QueryBoundary>
-      {data && Number.isFinite(userId) && (
-        <UserFriendsList
-          userId={userId}
-          nickname={data.nickname}
-          visibility={data.friendsListVisibility}
-          isSelf={isSelf}
-        />
+      {data && (
+        <>
+          <UserPostsList nickname={data.nickname} />
+          {Number.isFinite(userId) && (
+            <UserFriendsList
+              userId={userId}
+              nickname={data.nickname}
+              visibility={data.friendsListVisibility}
+              isSelf={isSelf}
+            />
+          )}
+        </>
       )}
     </div>
   )

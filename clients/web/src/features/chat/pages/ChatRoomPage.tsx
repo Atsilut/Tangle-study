@@ -82,8 +82,11 @@ function Conversation({
     isSending,
     sendError,
     clearSendError,
+    deleteMessage,
+    isDeleting,
   } = useRoomMessages(roomId)
   const [draft, setDraft] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const media = useMediaUploads(MediaIntendedContext.ChatMessage)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -124,6 +127,11 @@ function Conversation({
                   <MessageBubble
                     message={message}
                     isOwn={message.senderUserId === currentUserId}
+                    onDelete={
+                      message.senderUserId === currentUserId
+                        ? () => setConfirmDeleteId(message.id)
+                        : undefined
+                    }
                   />
                 </li>
               ))}
@@ -164,18 +172,55 @@ function Conversation({
           </Button>
         </form>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDeleteId != null}
+        title="Delete message"
+        message="This permanently deletes your message."
+        confirmLabel="Delete"
+        destructive
+        isLoading={isDeleting}
+        onConfirm={() => {
+          if (confirmDeleteId == null) return
+          void deleteMessage(confirmDeleteId).then(() => setConfirmDeleteId(null))
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </Card>
   )
 }
 
-function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+function MessageBubble({
+  message,
+  isOwn,
+  onDelete,
+}: {
+  message: ChatMessage
+  isOwn: boolean
+  onDelete?: () => void
+}) {
   return (
     <div className={cn('flex gap-2', isOwn && 'flex-row-reverse')}>
       <Avatar name={message.senderNickname} size="sm" />
       <div className={cn('max-w-[75%]', isOwn && 'text-right')}>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div
+          className={cn(
+            'flex items-center gap-2 text-xs text-gray-500',
+            isOwn && 'flex-row-reverse',
+          )}
+        >
           <span className="font-medium text-gray-700">{message.senderNickname}</span>
           <span>{formatDateTime(message.sentAt)}</span>
+          {onDelete && (
+            <button
+              type="button"
+              className="text-red-600 hover:underline"
+              aria-label="Delete message"
+              onClick={onDelete}
+            >
+              Delete
+            </button>
+          )}
         </div>
         {message.body.length > 0 && (
           <p

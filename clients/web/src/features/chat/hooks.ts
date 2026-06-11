@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/lib/apiError'
 import {
   createGroupRoom,
   createMultiRoom,
+  deleteChatMessage,
   getGroupRooms,
   getMessages,
   getMyRooms,
@@ -135,6 +136,8 @@ export interface RoomMessages {
   isSending: boolean
   sendError: string | null
   clearSendError: () => void
+  deleteMessage: (messageId: number) => Promise<void>
+  isDeleting: boolean
 }
 
 // Owns a room's message list: loads the latest page from REST, streams new
@@ -149,6 +152,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
   const upsert = useCallback((incoming: ChatMessage[]) => {
@@ -232,6 +236,20 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
 
   const clearSendError = useCallback(() => setSendError(null), [])
 
+  const deleteMessage = useCallback(
+    async (messageId: number) => {
+      if (roomId == null) return
+      setIsDeleting(true)
+      try {
+        await deleteChatMessage(roomId, messageId)
+        setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      } finally {
+        setIsDeleting(false)
+      }
+    },
+    [roomId],
+  )
+
   return {
     messages,
     isLoading,
@@ -243,5 +261,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     isSending,
     sendError,
     clearSendError,
+    deleteMessage,
+    isDeleting,
   }
 }

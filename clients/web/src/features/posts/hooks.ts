@@ -4,6 +4,7 @@ import {
   deletePost,
   getPost,
   getPosts,
+  getPostsByNickname,
   updatePost,
   type CreatePostRequest,
   type UpdatePostRequest,
@@ -12,12 +13,21 @@ import {
 export const postKeys = {
   all: ['posts'] as const,
   lists: () => [...postKeys.all, 'list'] as const,
+  byNickname: (nickname: string) => [...postKeys.lists(), 'nickname', nickname] as const,
   details: () => [...postKeys.all, 'detail'] as const,
   detail: (id: number) => [...postKeys.details(), id] as const,
 }
 
 export function usePosts() {
   return useQuery({ queryKey: postKeys.lists(), queryFn: getPosts })
+}
+
+export function usePostsByNickname(nickname: string | null) {
+  return useQuery({
+    queryKey: postKeys.byNickname(nickname ?? ''),
+    queryFn: () => getPostsByNickname(nickname as string),
+    enabled: nickname != null && nickname.length > 0,
+  })
 }
 
 export function usePost(id: number | null) {

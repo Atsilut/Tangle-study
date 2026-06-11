@@ -126,6 +126,11 @@ export function getMessages(
   return getList<ChatMessage>(`/chat/rooms/${roomId}/messages?${params.toString()}`, asForbidden)
 }
 
+// DELETE /api/chat/rooms/{roomId}/messages/{messageId} -> 204 (sender only)
+export async function deleteChatMessage(roomId: number, messageId: number): Promise<void> {
+  await api.delete(`/chat/rooms/${roomId}/messages/${messageId}`, asForbidden)
+}
+
 // POST /api/chat/rooms/{roomId}/messages -> 201
 export async function sendMessage(
   roomId: number,
