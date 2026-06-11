@@ -1,8 +1,21 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Badge, Button, ConfirmDialog, EmptyState, Select } from '@/components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  FormField,
+  Input,
+  Select,
+} from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
+import { getErrorMessage } from '@/lib/apiError'
 import { useAuthStore } from '@/stores/authStore'
 import { GroupRole } from '@/types/api'
 import {
@@ -11,6 +24,7 @@ import {
   useRemoveMember,
   useUpdateMemberRole,
 } from '../membersHooks'
+import { useInviteToGroup } from '../invitationsHooks'
 import { useTransferOwnership } from '../hooks'
 import { groupRoleLabels } from '../labels'
 import type { GroupMember } from '../membersApi'
@@ -31,6 +45,7 @@ export function GroupMembersPage() {
         Back to group
       </Link>
       <h1 className="text-2xl font-bold text-gray-900">Members</h1>
+      {isAdmin && <InviteCard groupId={groupId} />}
       <QueryBoundary
         isLoading={members.isLoading}
         isError={members.isError}
@@ -55,6 +70,48 @@ export function GroupMembersPage() {
         )}
       </QueryBoundary>
     </div>
+  )
+}
+
+function InviteCard({ groupId }: { groupId: number }) {
+  const invite = useInviteToGroup(groupId)
+  const [userId, setUserId] = useState('')
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const id = Number(userId)
+    if (Number.isFinite(id) && id > 0) {
+      invite.mutate(id, { onSuccess: () => setUserId('') })
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="text-sm font-semibold text-gray-900">Invite a user</h2>
+      </CardHeader>
+      <CardBody className="flex flex-col gap-3">
+        <form className="flex items-end gap-2" onSubmit={onSubmit}>
+          <FormField label="User ID" className="flex-1">
+            {({ id }) => (
+              <Input
+                id={id}
+                type="number"
+                min={1}
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                placeholder="e.g. 2"
+              />
+            )}
+          </FormField>
+          <Button type="submit" isLoading={invite.isPending} disabled={userId.trim() === ''}>
+            Invite
+          </Button>
+        </form>
+        {invite.isError && <ErrorState title="Could not invite" message={getErrorMessage(invite.error)} />}
+        {invite.isSuccess && <Badge color="green">Invitation sent</Badge>}
+      </CardBody>
+    </Card>
   )
 }
 

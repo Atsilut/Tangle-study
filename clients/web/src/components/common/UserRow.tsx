@@ -5,7 +5,7 @@ import { Avatar, Card } from '@/components/ui'
 export interface UserRowProps {
   userId?: number
   nickname: string
-  subtitle?: string
+  subtitle?: ReactNode
   actions?: ReactNode
 }
 
@@ -26,7 +26,7 @@ export function UserRow({ userId, nickname, subtitle, actions }: UserRowProps) {
         ) : (
           <span className="block truncate text-sm font-medium text-gray-900">{nickname}</span>
         )}
-        {subtitle && <p className="truncate text-xs text-gray-500">{subtitle}</p>}
+        {subtitle && <div className="truncate text-xs text-gray-500">{subtitle}</div>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </Card>

@@ -9,6 +9,7 @@ import {
   GroupEditPage,
   GroupMembersPage,
   GroupsPage,
+  InvitationsPage,
 } from '@/features/groups'
 import {
   PostCreatePage,
@@ -102,6 +103,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <GroupMembersPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'invitations',
+        element: (
+          <ProtectedRoute>
+            <InvitationsPage />
           </ProtectedRoute>
         ),
       },
