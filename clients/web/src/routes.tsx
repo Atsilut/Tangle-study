@@ -2,7 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppShell, ProtectedRoute } from '@/components/layout'
 import { LoginPage, RegisterPage } from '@/features/auth'
 import { BlocksPage } from '@/features/blocks'
-import { ChatPage, ChatRoomPage } from '@/features/chat'
+import { ChatPage, ChatRoomPage, GroupChatRoomsPage } from '@/features/chat'
 import { FriendsPage } from '@/features/friends'
 import {
   GroupCreatePage,
@@ -150,6 +150,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <GroupBlacklistPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'groups/:id/chat-rooms',
+        element: (
+          <ProtectedRoute>
+            <GroupChatRoomsPage />
           </ProtectedRoute>
         ),
       },

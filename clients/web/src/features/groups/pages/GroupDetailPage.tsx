@@ -87,6 +87,14 @@ export function GroupDetailPage() {
                 <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
                   Boards
                 </Link>
+                {isMember && (
+                  <Link
+                    to={`/groups/${group.id}/chat-rooms`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Chat rooms
+                  </Link>
+                )}
                 {canEdit && (
                   <Link
                     to={`/groups/${group.id}/applications`}

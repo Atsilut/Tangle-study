@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Button, Card, ConfirmDialog, Input, Spinner } from '@/components/ui'
+import { Avatar, Button, Card, ConfirmDialog, ErrorState, Input, Spinner } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -35,7 +35,15 @@ export function ChatRoomPage() {
         {room.data ? roomLabel(room.data, currentUserId) : 'Chat'}
       </h1>
 
-      {valid && <Conversation key={roomId} roomId={roomId} currentUserId={currentUserId} />}
+      {valid && room.isError && (
+        <ErrorState
+          title="No access"
+          message="You are not a participant in this chat room."
+        />
+      )}
+      {valid && room.data && (
+        <Conversation key={roomId} roomId={roomId} currentUserId={currentUserId} />
+      )}
 
       <ConfirmDialog
         isOpen={confirmLeave}

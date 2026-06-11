@@ -1,0 +1,171 @@
+import { type FormEvent, useState } from 'react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  ErrorState,
+  FormField,
+  Input,
+} from '@/components/ui'
+import { QueryBoundary } from '@/components/common/QueryBoundary'
+import { formatChatListTimestamp } from '@/lib/format'
+import { getErrorMessage } from '@/lib/apiError'
+import { useAuthStore } from '@/stores/authStore'
+import { useGroupMembers, useMyGroupRole } from '@/features/groups'
+import { useCreateGroupRoom, useGroupRooms, useMyRooms } from '../hooks'
+import { chatRoomKindLabels, summaryLabel } from '../labels'
+
+export function GroupChatRoomsPage() {
+  const { id } = useParams<{ id: string }>()
+  const groupId = Number(id)
+  const valid = Number.isFinite(groupId)
+  const { role, isLoading: roleLoading } = useMyGroupRole(valid ? groupId : null)
+  const rooms = useGroupRooms(valid ? groupId : null)
+  const myRooms = useMyRooms()
+  const participantRoomIds = new Set(myRooms.data?.map((r) => r.id) ?? [])
+
+  if (roleLoading) return null
+  // Group chat rooms are members-only.
+  if (role == null) return <Navigate to={`/groups/${groupId}`} replace />
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <Link to={`/groups/${groupId}`} className="text-sm text-blue-600 hover:underline">
+        Back to group
+      </Link>
+      <h1 className="text-2xl font-bold text-gray-900">Group chat rooms</h1>
+
+      <CreateRoomCard groupId={groupId} />
+
+      <QueryBoundary
+        isLoading={rooms.isLoading}
+        isError={rooms.isError}
+        onRetry={() => rooms.refetch()}
+      >
+        {rooms.data && rooms.data.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {rooms.data.map((room) => {
+              const canEnter = participantRoomIds.has(room.id)
+              const card = (
+                <Card
+                  className={`flex items-center gap-3 px-4 py-3 ${canEnter ? 'hover:bg-gray-50' : ''}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-gray-900">
+                      {summaryLabel(room)}
+                    </span>
+                    <span className="shrink-0 text-xs text-gray-500">
+                      {formatChatListTimestamp(room.updatedAt)}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {!canEnter && <Badge color="gray">Not a participant</Badge>}
+                    <Badge>{chatRoomKindLabels[room.kind]}</Badge>
+                  </div>
+                </Card>
+              )
+              return (
+                <li key={room.id}>
+                  {canEnter ? (
+                    <Link to={`/chat/${room.id}`} className="block">
+                      {card}
+                    </Link>
+                  ) : (
+                    card
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <EmptyState title="No chat rooms yet" description="Create one below." />
+        )}
+      </QueryBoundary>
+    </div>
+  )
+}
+
+function CreateRoomCard({ groupId }: { groupId: number }) {
+  const currentUserId = useAuthStore((s) => s.userId)
+  const members = useGroupMembers(groupId)
+  const create = useCreateGroupRoom(groupId)
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+
+  const toggle = (userId: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const userIds = [...selected]
+    if (userIds.length === 0) return
+    create.mutate(
+      { userIds, title },
+      {
+        onSuccess: (room) => navigate(`/chat/${room.id}`),
+      },
+    )
+  }
+
+  const others = (members.data ?? []).filter((m) => m.userId !== currentUserId)
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="text-sm font-semibold text-gray-900">New chat room</h2>
+      </CardHeader>
+      <CardBody className="flex flex-col gap-3">
+        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+          <FormField label="Title (optional)">
+            {({ id }) => (
+              <Input
+                id={id}
+                value={title}
+                maxLength={200}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Planning"
+              />
+            )}
+          </FormField>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium text-gray-700">Participants</legend>
+            {others.length === 0 ? (
+              <p className="text-sm text-gray-500">No other members to add.</p>
+            ) : (
+              others.map((member) => (
+                <label key={member.userId} className="flex items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(member.userId)}
+                    onChange={() => toggle(member.userId)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  {member.nickname}
+                </label>
+              ))
+            )}
+          </fieldset>
+          <div>
+            <Button type="submit" isLoading={create.isPending} disabled={selected.size === 0}>
+              Create room
+            </Button>
+          </div>
+        </form>
+        {create.isError && (
+          <ErrorState title="Could not create room" message={getErrorMessage(create.error)} />
+        )}
+      </CardBody>
+    </Card>
+  )
+}

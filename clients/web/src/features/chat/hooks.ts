@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createGroupRoom,
   createMultiRoom,
+  getGroupRooms,
   getMessages,
   getMyRooms,
   getOrCreateDirectRoom,
@@ -16,6 +18,7 @@ export const chatKeys = {
   all: ['chat'] as const,
   rooms: () => [...chatKeys.all, 'rooms'] as const,
   room: (roomId: number) => [...chatKeys.all, 'room', roomId] as const,
+  groupRooms: (groupId: number) => [...chatKeys.all, 'groupRooms', groupId] as const,
 }
 
 export function useMyRooms() {
@@ -29,13 +32,16 @@ export function useChatRoomsRealtimeSync(roomIds: number[]) {
   const roomKey = roomIds.length > 0 ? roomIds.join(',') : ''
 
   useEffect(() => {
-    if (roomIds.length === 0) return
+    if (roomKey === '') return
+    // Derive ids from the stable key so the effect only re-runs when the set
+    // of rooms actually changes (not on every array identity change).
+    const ids = roomKey.split(',').map(Number)
     let active = true
     const cleanups: Array<() => void> = []
 
     const connect = (attempt: number) => {
       Promise.all(
-        roomIds.map((id) =>
+        ids.map((id) =>
           subscribeToRoom(id, () => {
             queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
           }),
@@ -92,6 +98,26 @@ export function useLeaveRoom() {
   return useMutation({
     mutationFn: (roomId: number) => leaveRoom(roomId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: chatKeys.rooms() }),
+  })
+}
+
+export function useGroupRooms(groupId: number | null) {
+  return useQuery({
+    queryKey: chatKeys.groupRooms(groupId ?? -1),
+    queryFn: () => getGroupRooms(groupId as number),
+    enabled: groupId != null,
+  })
+}
+
+export function useCreateGroupRoom(groupId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userIds, title }: { userIds: number[]; title?: string }) =>
+      createGroupRoom(groupId, userIds, title),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chatKeys.groupRooms(groupId) })
+      queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
+    },
   })
 }
 

@@ -33,6 +33,18 @@ export function formatTime(iso: string): string {
   return d.toLocaleTimeString()
 }
 
+/** Chat inbox rows: time if today, otherwise the calendar date. */
+export function formatChatListTimestamp(iso: string): string {
+  const d = toDate(iso)
+  if (!d) return ''
+  const now = new Date()
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  return sameDay ? formatTime(iso) : formatDate(iso)
+}
+
 export function formatUpdatedAt(
   createdAt: string,
   updatedAt: string,

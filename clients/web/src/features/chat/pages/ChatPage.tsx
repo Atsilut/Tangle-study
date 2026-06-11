@@ -3,7 +3,7 @@ import { Badge, Card, EmptyState } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { Button } from '@/components/ui'
-import { formatDate } from '@/lib/format'
+import { formatChatListTimestamp } from '@/lib/format'
 import { useMyFriends } from '@/features/friends/hooks'
 import { useChatRoomsRealtimeSync, useGetOrCreateDirectRoom, useMyRooms } from '../hooks'
 import { chatRoomKindLabels, summaryLabel } from '../labels'
@@ -40,7 +40,9 @@ export function ChatPage() {
                         <span className="block truncate text-sm font-medium text-gray-900">
                           {summaryLabel(room)}
                         </span>
-                        <span className="text-xs text-gray-500">{formatDate(room.updatedAt)}</span>
+                        <span className="shrink-0 text-xs text-gray-500">
+                          {formatChatListTimestamp(room.updatedAt)}
+                        </span>
                       </div>
                       <Badge>{chatRoomKindLabels[room.kind]}</Badge>
                     </Card>
