@@ -217,7 +217,7 @@ Central index: [docs/README.md](docs/README.md)
 | 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
 | 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | Done (`chat.message.created` worker handler is an intentional stub; delivery is SignalR) |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
-| 6 | Web client (React) in [clients/web](clients/web) — auth scaffold, then map UI after Phase 7 | Planned |
+| 6 | Web client (React) in [clients/web](clients/web/README.md) — scaffold + UI kit done; features in progress, map UI after Phase 7 | In progress |
 | 7 | Location / Memory Map in monolith — [SERVICE_BOUNDARIES.md#location-service](docs/SERVICE_BOUNDARIES.md#location-service) | Planned |
 | 8 | MSA prep — cross-service contracts during Phase 7; document events in [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Planned |
 | 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
