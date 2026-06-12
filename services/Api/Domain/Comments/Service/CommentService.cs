@@ -56,8 +56,12 @@ namespace Api.Domain.Comments.Service
                 if (parentComment.LogicalPostId != request.PostId) throw new ArgumentException("Parent comment must belong to the same post");
             }
 
+            var content = request.Content.Trim();
+            if (content.Length == 0 && request.MediaAssetId is null)
+                throw new ArgumentException("Comment content cannot be empty.");
+
             var comment = new Comment(
-                content: request.Content,
+                content: content,
                 userId: userId,
                 postId: request.PostId,
                 parentId: request.ParentId);
