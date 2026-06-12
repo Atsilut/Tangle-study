@@ -23,12 +23,31 @@ export interface ChatRoom {
   participants: ChatRoomParticipant[]
 }
 
+export interface ChatRoomSummaryLastMessage {
+  senderUserId: number
+  body: string
+  senderNickname: string
+  sentAt: string
+  hasMedia: boolean
+}
+
 export interface ChatRoomSummary {
   id: number
   kind: ChatRoomKind
   title: string | null
   platformGroupId: number | null
   updatedAt: string
+  /** Present after #20 API deploy; omitted on older API builds. */
+  otherParticipantNicknames?: string[]
+  lastMessage?: ChatRoomSummaryLastMessage | null
+}
+
+function normalizeChatRoomSummary(room: ChatRoomSummary): ChatRoomSummary {
+  return {
+    ...room,
+    otherParticipantNicknames: room.otherParticipantNicknames ?? [],
+    lastMessage: room.lastMessage ?? null,
+  }
 }
 
 export interface ChatMessage {
@@ -42,8 +61,9 @@ export interface ChatMessage {
 }
 
 // GET /api/chat/rooms -> 200 list | 204 (rooms I participate in)
-export function getMyRooms(): Promise<ChatRoomSummary[]> {
-  return getList<ChatRoomSummary>('/chat/rooms', asForbidden)
+export async function getMyRooms(): Promise<ChatRoomSummary[]> {
+  const rooms = await getList<ChatRoomSummary>('/chat/rooms', asForbidden)
+  return rooms.map(normalizeChatRoomSummary)
 }
 
 // GET /api/chat/rooms/{roomId} -> 200 (participants only)
@@ -97,8 +117,9 @@ export async function leaveRoom(roomId: number): Promise<void> {
 }
 
 // GET /api/groups/{groupId}/chat-rooms -> 200 list | 204 (group members only)
-export function getGroupRooms(groupId: number): Promise<ChatRoomSummary[]> {
-  return getList<ChatRoomSummary>(`/groups/${groupId}/chat-rooms`, asForbidden)
+export async function getGroupRooms(groupId: number): Promise<ChatRoomSummary[]> {
+  const rooms = await getList<ChatRoomSummary>(`/groups/${groupId}/chat-rooms`, asForbidden)
+  return rooms.map(normalizeChatRoomSummary)
 }
 
 // POST /api/groups/{groupId}/chat-rooms -> 201 (creator added as owner)

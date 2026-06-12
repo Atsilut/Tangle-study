@@ -4,6 +4,7 @@ import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { Button } from '@/components/ui'
 import { formatChatListTimestamp } from '@/lib/format'
+import { useAuthStore } from '@/stores/authStore'
 import { useMyFriends } from '@/features/friends/hooks'
 import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
 import {
@@ -12,9 +13,10 @@ import {
   useGetOrCreateDirectRoom,
   useMyRooms,
 } from '../hooks'
-import { chatRoomKindLabels, summaryLabel } from '../labels'
+import { chatRoomKindLabels, summaryLabel, summaryLastMessagePreview } from '../labels'
 
 export function ChatPage() {
+  const currentUserId = useAuthStore((s) => s.userId)
   const rooms = useMyRooms()
   useChatRoomsRealtimeSync(rooms.data?.map((r) => r.id) ?? [])
   const friends = useMyFriends()
@@ -39,23 +41,32 @@ export function ChatPage() {
         >
           {rooms.data && rooms.data.length > 0 ? (
             <ul className="flex flex-col gap-2">
-              {rooms.data.map((room) => (
-                <li key={room.id}>
-                  <Link to={`/chat/${room.id}`} className="block">
-                    <Card className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                      <div className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-gray-900">
-                          {summaryLabel(room)}
-                        </span>
-                        <span className="shrink-0 text-xs text-gray-500">
-                          {formatChatListTimestamp(room.updatedAt)}
-                        </span>
-                      </div>
-                      <Badge>{chatRoomKindLabels[room.kind]}</Badge>
-                    </Card>
-                  </Link>
-                </li>
-              ))}
+              {rooms.data.map((room) => {
+                const preview = summaryLastMessagePreview(room, currentUserId)
+                const listTimestamp = formatChatListTimestamp(
+                  room.lastMessage?.sentAt ?? room.updatedAt,
+                )
+                return (
+                  <li key={room.id}>
+                    <Link to={`/chat/${room.id}`} className="block">
+                      <Card className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-sm font-medium text-gray-900">
+                              {summaryLabel(room)}
+                            </span>
+                            <span className="shrink-0 text-xs text-gray-500">{listTimestamp}</span>
+                          </div>
+                          {preview && (
+                            <p className="truncate text-xs text-gray-500">{preview}</p>
+                          )}
+                        </div>
+                        <Badge>{chatRoomKindLabels[room.kind]}</Badge>
+                      </Card>
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <EmptyState
