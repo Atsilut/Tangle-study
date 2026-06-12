@@ -39,17 +39,18 @@ export function UserProfilePage() {
               ) : (
                 isAuthenticated && (
                   <div className="ml-auto flex items-center gap-2">
-                    {sendRequest.isSuccess ? (
-                      <Badge color="green">Request sent</Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        isLoading={sendRequest.isPending}
-                        onClick={() => sendRequest.mutate(userId)}
-                      >
-                        Add friend
-                      </Button>
-                    )}
+                    {!blockRecord &&
+                      (sendRequest.isSuccess ? (
+                        <Badge color="green">Request sent</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          isLoading={sendRequest.isPending}
+                          onClick={() => sendRequest.mutate(userId)}
+                        >
+                          Add friend
+                        </Button>
+                      ))}
                     {blockRecord ? (
                       <Button
                         size="sm"
