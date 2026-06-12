@@ -124,7 +124,19 @@ namespace Api.Domain.Friendships.Service
             }
 
             if (!friendRequest.IsPending) return;
-            friendRequest.Ignore();
+            friendRequest.IgnoreByBlock();
+            await _repo.UpdateFriendRequestAsync(friendRequest);
+        }
+
+        public async Task HandlePendingFriendRequestOnUnblockAsync(long blockerId, long blockedUserId)
+        {
+            var friendRequest = await _repo.GetForUserPairAsync(blockerId, blockedUserId);
+            if (friendRequest is null) return;
+            if (friendRequest.AddresseeId != blockerId || friendRequest.RequesterId != blockedUserId) return;
+
+            friendRequest.Unignore();
+            if (!friendRequest.IsPending) return;
+
             await _repo.UpdateFriendRequestAsync(friendRequest);
         }
 

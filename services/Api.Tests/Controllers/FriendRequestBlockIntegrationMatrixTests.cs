@@ -148,4 +148,46 @@ public sealed class FriendRequestBlockIntegrationMatrixTests(PostgresTestcontain
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }
+
+    [Fact]
+    public async Task UnblockUser_RestoresPending_WhenAddresseeBlockedRequesterWithPendingRequest()
+    {
+        // Arrange
+        const string prefix = "UnblockRestore";
+        var userA = await CreateUserForTest(prefix + "A", 1);
+        var userB = await CreateUserForTest(prefix + "B", 2);
+        await SendFriendRequestAndGetOutgoingIdAsync(userA, userB);
+        await LoginAs(userB);
+        await BlockUserAsync(userA.Id);
+        await AssertStoredFriendRequestIsPendingAsync(userA.Id, userB.Id, isPending: false);
+
+        // Act
+        await UnblockUserAsync(userA.Id);
+
+        // Assert
+        await AssertStoredFriendRequestIsPendingAsync(userA.Id, userB.Id, isPending: true);
+        await AssertPendingDtoAppearsAsync(userB, userA.Id, appearsPending: true, isIncoming: true);
+    }
+
+    [Fact]
+    public async Task UnblockUser_KeepsIgnored_WhenManuallyIgnoredBeforeBlock()
+    {
+        // Arrange
+        const string prefix = "UnblockManualIgnore";
+        var userA = await CreateUserForTest(prefix + "A", 1);
+        var userB = await CreateUserForTest(prefix + "B", 2);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(userA, userB);
+        await IgnoreIncomingRequestAsync(userB, requestId);
+        await LoginAs(userB);
+        await BlockUserAsync(userA.Id);
+        await AssertStoredFriendRequestIsPendingAsync(userA.Id, userB.Id, isPending: false);
+
+        // Act
+        await UnblockUserAsync(userA.Id);
+
+        // Assert
+        await AssertStoredFriendRequestIsPendingAsync(userA.Id, userB.Id, isPending: false);
+        var pendingRes = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(pendingRes, HttpStatusCode.NoContent);
+    }
 }
