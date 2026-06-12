@@ -14,12 +14,14 @@ public class ChatRoomService(
     IChatRoomRepository repo,
     ChatRoomAccessService access,
     UserService userService,
+    Lazy<ChatMessageService> chatMessageService,
     AppDbContext db,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IChatRoomRepository _repo = repo;
     private readonly ChatRoomAccessService _access = access;
     private readonly UserService _userService = userService;
+    private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
     private readonly AppDbContext _db = db;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
@@ -88,7 +90,7 @@ public class ChatRoomService(
         var userId = GetUserIdFromLogin();
         var rooms = await _repo.GetChatRoomsForUserAsync(userId);
         if (rooms.Count == 0) return null;
-        return [.. rooms.Select(MapToSummaryDto)];
+        return await MapManyToSummaryDtosAsync(rooms, userId);
     }
 
     public async Task<List<ChatRoomSummaryGetResponseDto>?> GetPlatformGroupRoomsAsync(long platformGroupId)
@@ -98,7 +100,7 @@ public class ChatRoomService(
 
         var rooms = await _repo.GetChatRoomsForPlatformGroupAsync(platformGroupId);
         if (rooms.Count == 0) return null;
-        return [.. rooms.Select(MapToSummaryDto)];
+        return await MapManyToSummaryDtosAsync(rooms, userId);
     }
 
     public async Task<ChatRoomGetResponseDto> GetRoomByIdAsync(long roomId)
@@ -215,8 +217,45 @@ public class ChatRoomService(
         [.. participantIds
             .Select(id => (id, id == creatorId ? ChatRoomParticipantRole.Owner : ChatRoomParticipantRole.Member))];
 
-    private static ChatRoomSummaryGetResponseDto MapToSummaryDto(ChatRoom room) =>
-        new(room.Id, room.Kind, room.Title, room.PlatformGroupId, room.UpdatedAt);
+    private async Task<List<ChatRoomSummaryGetResponseDto>> MapManyToSummaryDtosAsync(
+        IReadOnlyList<ChatRoom> rooms,
+        long viewerUserId)
+    {
+        var roomIds = rooms.Select(r => r.Id).ToList();
+        var lastMessages = await _chatMessageService.Value.GetLatestMessageSummariesByRoomIdsAsync(roomIds);
+
+        var participantUserIds = rooms.SelectMany(r => r.Participants.Select(p => p.UserId)).Distinct();
+        var nicknames = await _userService.GetNicknamesByUserIdsAsync(participantUserIds);
+
+        return [.. rooms.Select(r => MapToSummaryDto(
+            r,
+            viewerUserId,
+            lastMessages.GetValueOrDefault(r.Id),
+            nicknames))];
+    }
+
+    private static ChatRoomSummaryGetResponseDto MapToSummaryDto(
+        ChatRoom room,
+        long viewerUserId,
+        ChatRoomSummaryLastMessageDto? lastMessage,
+        IReadOnlyDictionary<long, string> nicknames) =>
+        new(
+            room.Id,
+            room.Kind,
+            room.Title,
+            room.PlatformGroupId,
+            room.UpdatedAt,
+            GetOtherParticipantNicknames(room, viewerUserId, nicknames),
+            lastMessage);
+
+    private static List<string> GetOtherParticipantNicknames(
+        ChatRoom room,
+        long viewerUserId,
+        IReadOnlyDictionary<long, string> nicknames) =>
+        [.. room.Participants
+            .Where(p => p.UserId != viewerUserId)
+            .Select(p => nicknames.GetValueOrDefault(p.UserId, "Deleted User"))
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
     private async Task<ChatRoomGetResponseDto> MapToGetDtoAsync(ChatRoom room, bool includeParticipants)
     {

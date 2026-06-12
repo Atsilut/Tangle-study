@@ -19,9 +19,18 @@ public record ChatRoomGetResponseDto(
     DateTime UpdatedAt,
     IReadOnlyList<ChatRoomParticipantGetResponseDto> Participants);
 
+public record ChatRoomSummaryLastMessageDto(
+    long SenderUserId,
+    string Body,
+    string SenderNickname,
+    DateTime SentAt,
+    bool HasMedia);
+
 public record ChatRoomSummaryGetResponseDto(
     long Id,
     ChatRoomKind Kind,
     string? Title,
     long? PlatformGroupId,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    IReadOnlyList<string> OtherParticipantNicknames,
+    ChatRoomSummaryLastMessageDto? LastMessage);

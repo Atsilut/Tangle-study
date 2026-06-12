@@ -37,12 +37,14 @@ public class ChatRoomRepository(AppDbContext context) : IChatRoomRepository
 
     public Task<List<ChatRoom>> GetChatRoomsForUserAsync(long userId) =>
         _context.ChatRooms
+            .Include(r => r.Participants)
             .Where(r => r.Participants.Any(p => p.UserId == userId))
             .OrderByDescending(r => r.UpdatedAt)
             .ToListAsync();
 
     public Task<List<ChatRoom>> GetChatRoomsForPlatformGroupAsync(long platformGroupId) =>
         _context.ChatRooms
+            .Include(r => r.Participants)
             .Where(r => r.PlatformGroupId == platformGroupId)
             .OrderByDescending(r => r.UpdatedAt)
             .ToListAsync();
