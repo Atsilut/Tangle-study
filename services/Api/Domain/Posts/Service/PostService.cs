@@ -168,8 +168,16 @@ namespace Api.Domain.Posts.Service
             var post = await GetPostOrThrowAsync(request.Id);
             if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException();
-            post.Update(request.Title, request.Content);
-            await _repo.UpdatePostAsync(post);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                post.Update(request.Title, request.Content);
+                await _repo.UpdatePostAsync(post);
+                await _mediaService.Value.PatchPostMediaAsync(
+                    post.Id,
+                    user.Id,
+                    request.AddMediaAssetIds,
+                    request.RemoveMediaAssetIds);
+            });
             return new PostPatchResponseDto(
                 Title: post.Title,
                 Content: post.Content,

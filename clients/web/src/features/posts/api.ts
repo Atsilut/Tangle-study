@@ -22,6 +22,8 @@ export interface UpdatePostRequest {
   id: number
   title: string
   content: string
+  addMediaAssetIds?: number[]
+  removeMediaAssetIds?: number[]
 }
 
 // GET /api/posts -> 200 list | 204 empty
