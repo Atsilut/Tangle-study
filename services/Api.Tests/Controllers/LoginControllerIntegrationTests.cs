@@ -50,6 +50,64 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Conflict);
     }
 
+    [Fact]
+    public async Task CreateUser_Returns409_WhenNicknameAlreadyExists()
+    {
+        // Arrange
+        const string nickname = "TakenNickname";
+        var created = await CreateAndGetUser(CreateUserRequest(nickname: nickname));
+        var duplicateReq = CreateUserRequest(nickname: created.Nickname);
+
+        // Act
+        var res = await Client.PostAsJsonAsync("/api/join", duplicateReq, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertProblemDetailAsync(
+            res,
+            HttpStatusCode.Conflict,
+            $"A user with nickname '{nickname}' already exists.");
+    }
+
+    [Fact]
+    public async Task CheckNicknameAvailable_ReturnsTrue_WhenUnused()
+    {
+        // Act
+        var res = await Client.GetAsync("/api/join/nickname-available?nickname=UnusedNick", TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var body = await res.Content.ReadFromJsonAsync<NicknameAvailabilityResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(body);
+        Assert.True(body.Available);
+    }
+
+    [Fact]
+    public async Task CheckNicknameAvailable_ReturnsFalse_WhenTaken()
+    {
+        // Arrange
+        const string nickname = "TakenNick";
+        await CreateAndGetUser(CreateUserRequest(nickname: nickname));
+
+        // Act
+        var res = await Client.GetAsync($"/api/join/nickname-available?nickname={nickname}", TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var body = await res.Content.ReadFromJsonAsync<NicknameAvailabilityResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(body);
+        Assert.False(body.Available);
+    }
+
+    [Fact]
+    public async Task CheckNicknameAvailable_Returns400_WhenEmpty()
+    {
+        // Act
+        var res = await Client.GetAsync("/api/join/nickname-available?nickname=", TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Nickname is required.");
+    }
+
     // --- LOGIN (POST /api/login) ---
 
     [Fact]

@@ -7,6 +7,7 @@ using Api.Domain.Comments.Domain;
 namespace Api.Domain.Users.Domain
 {
     [Index(nameof(Email), IsUnique = true)]
+    [Index(nameof(Nickname), IsUnique = true)]
     public class User
     {
         [Key]

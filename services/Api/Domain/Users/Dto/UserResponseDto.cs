@@ -15,4 +15,6 @@ namespace Api.Domain.Users.Dto
     public record UserPrivacySettingsResponseDto(
         FriendsListVisibility FriendsListVisibility,
         DateTime UpdatedAt);
+
+    public record NicknameAvailabilityResponseDto(bool Available);
 }

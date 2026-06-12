@@ -2,11 +2,22 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, ErrorState, FormField, Input } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
+import { isNicknameAvailable } from '../api'
 import { useLogin, useRegister } from '../hooks'
 import { AuthCard } from '../components/AuthCard'
 
 // Mirrors backend validation: password 8-32 chars with letters and numbers.
 const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+=-]{8,32}$/
+
+async function validateNickname(value: string): Promise<string | undefined> {
+  const trimmed = value.trim()
+  if (!trimmed) return 'Nickname is required.'
+
+  const available = await isNicknameAvailable(trimmed)
+  if (!available) return `A user with nickname '${trimmed}' already exists.`
+
+  return undefined
+}
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -18,8 +29,21 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string>()
   const [confirmPasswordError, setConfirmPasswordError] = useState<string>()
+  const [nicknameError, setNicknameError] = useState<string>()
+  const [nicknameChecking, setNicknameChecking] = useState(false)
 
-  const onSubmit = (e: FormEvent) => {
+  const checkNickname = async (value: string) => {
+    setNicknameChecking(true)
+    try {
+      const error = await validateNickname(value)
+      setNicknameError(error)
+      return error == null
+    } finally {
+      setNicknameChecking(false)
+    }
+  }
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     let hasError = false
@@ -37,19 +61,25 @@ export function RegisterPage() {
       setConfirmPasswordError(undefined)
     }
 
+    const nicknameOk = await checkNickname(nickname)
+    if (!nicknameOk) hasError = true
+
     if (hasError) return
 
     registerMutation.mutate(
-      { email, password, nickname },
-      // Auto-login after successful registration, then land on home.
+      { email, password, nickname: nickname.trim() },
       {
         onSuccess: () =>
           login.mutate({ email, password }, { onSuccess: () => navigate('/', { replace: true }) }),
+        onError: (error) => {
+          const message = getErrorMessage(error)
+          if (message.includes('nickname')) setNicknameError(message)
+        },
       },
     )
   }
 
-  const isPending = registerMutation.isPending || login.isPending
+  const isPending = registerMutation.isPending || login.isPending || nicknameChecking
 
   return (
     <AuthCard
@@ -64,7 +94,7 @@ export function RegisterPage() {
       }
     >
       <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
-        {registerMutation.isError && (
+        {registerMutation.isError && !nicknameError && (
           <ErrorState
             title="Registration failed"
             message={getErrorMessage(registerMutation.error)}
@@ -125,14 +155,21 @@ export function RegisterPage() {
             />
           )}
         </FormField>
-        <FormField label="Nickname" required>
-          {({ id, invalid }) => (
+        <FormField label="Nickname" required error={nicknameError}>
+          {({ id, describedBy, invalid }) => (
             <Input
               id={id}
               autoComplete="nickname"
+              aria-describedby={describedBy}
               value={nickname}
               invalid={invalid}
-              onChange={(e) => setNickname(e.target.value)}
+              onChange={(e) => {
+                setNickname(e.target.value)
+                setNicknameError(undefined)
+              }}
+              onBlur={() => {
+                if (nickname.trim()) void checkNickname(nickname)
+              }}
               required
             />
           )}
