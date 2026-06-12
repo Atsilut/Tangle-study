@@ -18,6 +18,9 @@ namespace Api.Domain.Users.Service
             var isUserExist = await _repo.ExistsUserByEmailAsync(request.Email);
             if (isUserExist) throw new EntityAlreadyExistsException($"A user with email '{request.Email}' already exists.");
 
+            if (await _repo.ExistsUserByNicknameAsync(request.Nickname))
+                throw new EntityAlreadyExistsException($"A user with nickname '{request.Nickname}' already exists.");
+
             var encodedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var user = new User(
                 email: request.Email,
@@ -25,6 +28,12 @@ namespace Api.Domain.Users.Service
                 nickname: request.Nickname
                 );
             await _repo.CreateUserAsync(user);
+        }
+
+        public async Task<bool> IsNicknameAvailableAsync(string nickname)
+        {
+            if (string.IsNullOrWhiteSpace(nickname)) throw new ArgumentException("Nickname is required.");
+            return !await _repo.ExistsUserByNicknameAsync(nickname.Trim());
         }
 
         public async Task<LoginResponseDto?> LoginUserAsync(LoginRequestDto request)
