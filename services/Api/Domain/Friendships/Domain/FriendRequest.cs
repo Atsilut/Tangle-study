@@ -25,6 +25,8 @@ namespace Api.Domain.Friendships.Domain
 
         public bool IsPending { get; private set; } = true;
 
+        public bool IgnoredByBlock { get; private set; }
+
         private FriendRequest() { }
 
         public FriendRequest(long requesterId, long addresseeId)
@@ -46,12 +48,23 @@ namespace Api.Domain.Friendships.Domain
         public void Ignore()
         {
             IsPending = false;
+            IgnoredByBlock = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void IgnoreByBlock()
+        {
+            IsPending = false;
+            IgnoredByBlock = true;
             UpdatedAt = DateTime.UtcNow;
         }
 
         public void Unignore()
         {
+            if (!IgnoredByBlock) return;
+
             IsPending = true;
+            IgnoredByBlock = false;
             UpdatedAt = DateTime.UtcNow;
         }
     }

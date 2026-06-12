@@ -86,6 +86,17 @@ public abstract class FriendshipDomainIntegrationTestBase(
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
+    protected async Task UnblockUserAsync(long blockedUserId)
+    {
+        var listRes = await Client.GetAsync("/api/users/blocks/me", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
+        var blocks = await listRes.Content.ReadFromJsonAsync<List<UserBlockGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(blocks);
+        var block = Assert.Single(blocks, b => b.BlockedUserId == blockedUserId);
+        var res = await Client.DeleteAsync($"/api/users/blocks/{block.Id}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+    }
+
     protected async Task IgnoreIncomingRequestAsync(UserGetResponseDto addressee, long requestId)
     {
         await LoginAs(addressee);

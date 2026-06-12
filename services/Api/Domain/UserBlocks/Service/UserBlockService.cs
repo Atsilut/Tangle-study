@@ -51,7 +51,9 @@ namespace Api.Domain.UserBlocks.Service
             var block = await GetBlockOrThrowAsync(id);
             if (block.BlockerId != userId) throw new UnauthorizedAccessException("Unauthorized access");
 
+            var blockedUserId = block.BlockedUserId;
             await _repo.DeleteUserBlockAsync(block);
+            await _friendRequestService.Value.HandlePendingFriendRequestOnUnblockAsync(userId, blockedUserId);
         }
 
         public Task<bool> IsBlockedByAsync(long blockerId, long blockedUserId) =>
