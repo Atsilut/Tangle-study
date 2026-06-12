@@ -31,4 +31,99 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
         Assert.Equal(GroupRole.Owner, single.Role);
         Assert.Equal(owner.Id, single.UserId);
     }
+
+    [Fact]
+    public async Task ListDiscoverable_ReturnsOnlyPublicGroups()
+    {
+        const string testMethodName = nameof(ListDiscoverable_ReturnsOnlyPublicGroups);
+
+        // Arrange
+        var user = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 1);
+        var publicGroup = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
+            Client,
+            user,
+            GroupVisibility.Public,
+            GroupJoinPolicy.Open);
+        await GroupIntegrationTestHelpers.CreateGroupAsAsync(
+            Client,
+            user,
+            GroupVisibility.Private,
+            GroupJoinPolicy.Requestable);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, user);
+
+        // Act
+        var res = await Client.GetAsync(GroupIntegrationTestHelpers.GroupsBase, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var groups = await res.Content.ReadFromJsonAsync<List<GroupResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(groups);
+        var listed = Assert.Single(groups);
+        Assert.Equal(publicGroup.Id, listed.Id);
+        Assert.Equal(GroupVisibility.Public, listed.Visibility);
+    }
+
+    [Fact]
+    public async Task ListDiscoverable_Returns204_WhenNoPublicGroups()
+    {
+        const string testMethodName = nameof(ListDiscoverable_Returns204_WhenNoPublicGroups);
+
+        // Arrange
+        var user = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 1);
+        await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, user, GroupVisibility.Private);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, user);
+
+        // Act
+        var res = await Client.GetAsync(GroupIntegrationTestHelpers.GroupsBase, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task ListMyGroups_ReturnsMemberships_IncludingPrivate()
+    {
+        const string testMethodName = nameof(ListMyGroups_ReturnsMemberships_IncludingPrivate);
+
+        // Arrange
+        var owner = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 1);
+        var member = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 2);
+        var publicGroup = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
+            Client,
+            owner,
+            GroupVisibility.Public);
+        var privateGroup = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
+            Client,
+            owner,
+            GroupVisibility.Private);
+        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, publicGroup.Id, member.Id, GroupRole.Member);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, member);
+
+        // Act
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/me", TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var groups = await res.Content.ReadFromJsonAsync<List<GroupResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(groups);
+        Assert.Single(groups);
+        Assert.Equal(publicGroup.Id, groups[0].Id);
+        Assert.Equal(2, groups[0].MemberCount);
+    }
+
+    [Fact]
+    public async Task ListMyGroups_Returns204_WhenNotMemberOfAnyGroup()
+    {
+        const string testMethodName = nameof(ListMyGroups_Returns204_WhenNotMemberOfAnyGroup);
+
+        // Arrange
+        var user = await GroupIntegrationTestHelpers.CreateUserForTestAsync(Client, testMethodName, 1);
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, user);
+
+        // Act
+        var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/me", TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
 }

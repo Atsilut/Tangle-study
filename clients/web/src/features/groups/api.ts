@@ -1,4 +1,4 @@
-import { api } from '@/lib/apiClient'
+import { api, getList } from '@/lib/apiClient'
 import type { GroupJoinPolicy, GroupVisibility } from '@/types/api'
 
 export interface Group {
@@ -25,6 +25,16 @@ export interface UpdateGroupRequest {
   description: string
   visibility: GroupVisibility
   joinPolicy: GroupJoinPolicy
+}
+
+// GET /api/groups -> 200 public groups | 204
+export function getDiscoverableGroups(): Promise<Group[]> {
+  return getList<Group>('/groups')
+}
+
+// GET /api/groups/me -> 200 memberships | 204
+export function getMyGroups(): Promise<Group[]> {
+  return getList<Group>('/groups/me')
 }
 
 // POST /api/groups (JWT) -> 201 GroupResponseDto (caller becomes owner)

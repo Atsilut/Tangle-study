@@ -49,6 +49,19 @@ namespace Api.Domain.Groups.Repository
         public Task<int> CountMembersAsync(long groupId) =>
             _context.GroupMembers.CountAsync(m => m.GroupId == groupId);
 
+        public async Task<IReadOnlyDictionary<long, int>> GetMemberCountsByGroupIdsAsync(
+            IReadOnlyCollection<long> groupIds)
+        {
+            if (groupIds.Count == 0) return new Dictionary<long, int>();
+
+            var groupIdList = groupIds.Distinct().ToList();
+            return await _context.GroupMembers
+                .Where(m => groupIdList.Contains(m.GroupId))
+                .GroupBy(m => m.GroupId)
+                .Select(g => new { GroupId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.GroupId, x => x.Count);
+        }
+
         public Task UpdateMemberAsync(GroupMember member) => _context.SaveChangesAsync();
 
         public Task RemoveMemberAsync(GroupMember member)
