@@ -207,6 +207,96 @@ public sealed class MediaIntegrationTests(
     }
 
     [Fact]
+    public async Task UpdatePost_AddMedia_ReturnsMediaInGet()
+    {
+        const string testMethodName = nameof(UpdatePost_AddMedia_ReturnsMediaInGet);
+
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var createReq = new PostCreateRequestDto
+        {
+            Title = $"{testMethodName} title",
+            Content = $"{testMethodName} content",
+        };
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var posts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
+        var post = Assert.Single(posts!, p => p.Title == createReq.Title);
+        Assert.Empty(post.Media);
+
+        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
+            Client,
+            MediaIntendedContext.Post,
+            "image/jpeg",
+            "patch-add.jpg",
+            declaredSizeBytes: 10_000,
+            storedSizeBytes: 8_000);
+
+        var patchReq = new PostPatchRequestDto
+        {
+            Id = post.Id,
+            Title = createReq.Title,
+            Content = createReq.Content,
+            AddMediaAssetIds = [mediaAssetId],
+        };
+        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
+
+        var getRes = await Client.GetAsync($"/api/posts/{post.Id}", TestContext.Current.CancellationToken);
+        var updated = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(updated);
+        var media = Assert.Single(updated.Media);
+        Assert.Equal(mediaAssetId, media.Id);
+    }
+
+    [Fact]
+    public async Task UpdatePost_RemoveMedia_DeletesAsset()
+    {
+        const string testMethodName = nameof(UpdatePost_RemoveMedia_DeletesAsset);
+
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
+            Client,
+            MediaIntendedContext.Post,
+            "image/jpeg",
+            "patch-remove.jpg",
+            declaredSizeBytes: 10_000,
+            storedSizeBytes: 8_000);
+        var createReq = new PostCreateRequestDto
+        {
+            Title = $"{testMethodName} title",
+            Content = $"{testMethodName} content",
+            MediaAssetIds = [mediaAssetId],
+        };
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var posts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
+        var post = Assert.Single(posts!, p => p.Title == createReq.Title);
+        Assert.Single(post.Media);
+
+        var patchReq = new PostPatchRequestDto
+        {
+            Id = post.Id,
+            Title = createReq.Title,
+            Content = createReq.Content,
+            RemoveMediaAssetIds = [mediaAssetId],
+        };
+        var patchRes = await Client.PatchAsJsonAsync("/api/posts", patchReq, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
+
+        var getRes = await Client.GetAsync($"/api/posts/{post.Id}", TestContext.Current.CancellationToken);
+        var updated = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(updated);
+        Assert.Empty(updated.Media);
+
+        var mediaRes = await Client.GetAsync($"/api/media/{mediaAssetId}", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(mediaRes, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task CreatePost_Returns400_WhenVideoTotalExceeded()
     {
         const string testMethodName = nameof(CreatePost_Returns400_WhenVideoTotalExceeded);

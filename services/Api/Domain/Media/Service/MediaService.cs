@@ -123,6 +123,50 @@ public sealed class MediaService(
         await _repo.SaveChangesAsync();
     }
 
+    internal async Task PatchPostMediaAsync(
+        long postId,
+        long uploaderUserId,
+        IReadOnlyList<long>? addMediaAssetIds,
+        IReadOnlyList<long>? removeMediaAssetIds)
+    {
+        List<long> addIds = addMediaAssetIds is null ? [] : [.. addMediaAssetIds];
+        List<long> removeIds = removeMediaAssetIds is null ? [] : [.. removeMediaAssetIds];
+        if (addIds.Count == 0 && removeIds.Count == 0) return;
+
+        EnsureMediaEnabled();
+        if (addIds.Distinct().Count() != addIds.Count || removeIds.Distinct().Count() != removeIds.Count)
+            throw new ArgumentException("Duplicate media asset IDs are not allowed.");
+        if (addIds.Intersect(removeIds).Any())
+            throw new ArgumentException("Cannot add and remove the same media asset in one request.");
+
+        var current = await _repo.GetMediaAssetsByPostIdAsync(postId);
+        List<MediaAsset> toRemove = [];
+        foreach (var removeId in removeIds)
+        {
+            var asset = current.FirstOrDefault(a => a.Id == removeId)
+                ?? throw new ArgumentException($"Media asset {removeId} is not attached to this post.");
+            toRemove.Add(asset);
+        }
+
+        if (toRemove.Count > 0)
+        {
+            await DeleteBlobStorageForAssetsAsync(toRemove);
+            foreach (var asset in toRemove)
+                await _repo.DeleteMediaAssetAsync(asset);
+        }
+
+        var remaining = current.Where(a => !removeIds.Contains(a.Id)).ToList();
+        var toAdd = addIds.Count == 0
+            ? new List<MediaAsset>()
+            : await LoadOwnedReadyAssetsAsync(addIds, uploaderUserId, MediaIntendedContext.Post);
+        ValidatePostTotalsMedia([.. remaining, .. toAdd]);
+
+        foreach (var asset in toAdd)
+            asset.LinkToPost(postId);
+
+        await _repo.SaveChangesAsync();
+    }
+
     internal async Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId)
     {
         if (mediaAssetId is null) return;

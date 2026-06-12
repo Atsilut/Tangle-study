@@ -45,5 +45,11 @@ namespace Api.Domain.Posts.Dto
         [SwaggerSchema(Description = "Post Content")]
         [DefaultValue("Will be started in somewhere")]
         public required string Content { get; init; }
+
+        [SwaggerSchema(Description = "Ready media asset IDs to attach to the post")]
+        public long[]? AddMediaAssetIds { get; init; }
+
+        [SwaggerSchema(Description = "Media asset IDs currently on the post to delete")]
+        public long[]? RemoveMediaAssetIds { get; init; }
     }
 }
