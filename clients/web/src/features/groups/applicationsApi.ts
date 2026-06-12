@@ -3,6 +3,7 @@ import { api, getList } from '@/lib/apiClient'
 export interface GroupApplication {
   id: number
   groupId: number
+  groupName: string
   applicantId: number
   applicantNickname: string
   isPending: boolean
