@@ -1,6 +1,6 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker and an optional **Prometheus / Grafana** monitoring profile. The target is **domain-aligned microservices** (Phase 9) after Phases 6–7 complete: React web client and location in the monolith.
+Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** with one optional background worker, an optional **React web client** behind an Nginx edge, and an optional **Prometheus / Grafana** monitoring profile. The target is **domain-aligned microservices** (Phase 9) after Phases 6–7 complete: React web client and location in the monolith.
 
 Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../services/Api/AGENTS.md).
 
@@ -12,7 +12,8 @@ One ASP.NET Core deployable (`services/Api`) owns all business domains. PostgreS
 
 ```mermaid
 flowchart TB
-  Clients["Clients (planned: React / MAUI)"]
+  Web["React web client (optional, clients/web)"]
+  Nginx["Nginx edge (optional, infra/nginx)"]
   API["ASP.NET Core Api monolith"]
   PG[(PostgreSQL)]
   Redis[(Redis)]
@@ -20,7 +21,8 @@ flowchart TB
   Prom["Prometheus (optional)"]
   Graf["Grafana (optional)"]
 
-  Clients --> API
+  Web -->|"/api, /hubs"| Nginx
+  Nginx --> API
   API --> PG
   API --> Redis
   Redis --> Worker
@@ -29,6 +31,8 @@ flowchart TB
   Worker -->|"GET /metrics"| Prom
   Prom --> Graf
 ```
+
+The web client talks to the API same-origin through Nginx (the API has no CORS): in dev the Vite dev server proxies `/api` and `/hubs` to Nginx; in prod Nginx serves the built SPA and proxies the same paths. See [clients/web/README.md](../clients/web/README.md).
 
 ### In-process boundaries
 
@@ -79,6 +83,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 | `api` | Monolith |
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
+| `nginx` | Optional (`--profile web`) — edge proxy + SPA host |
 | `rust-worker` | Optional (`--profile workers`) |
 | `prometheus` | Optional (`--profile monitoring`) |
 | `grafana` | Optional (`--profile monitoring`) |
@@ -166,12 +171,13 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 ```
 /services
   /Api          ← monolith today; shrinks during Phase 9
-/clients/web    ← planned React client (Phase 6); MAUI optional later
+/clients/web    ← React client (Phase 6, in progress); MAUI optional later
 /workers
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts
 /tools          ← planned Go CLI / load testing
-/infra          ← Prometheus / Grafana ([infra/README.md](../infra/README.md))
+/infra          ← Prometheus / Grafana, Nginx edge ([infra/README.md](../infra/README.md))
+  /nginx        ← edge reverse proxy (serves SPA + proxies /api, /hubs)
 /docs           ← architecture and migration docs (this folder)
 ```
 
