@@ -7,9 +7,30 @@ export const chatRoomKindLabels: Record<ChatRoomKind, string> = {
   [ChatRoomKind.PlatformGroup]: 'Group chat',
 }
 
-// Best-effort name for a list summary (no participants available).
+// Room title for list rows; untitled rooms use other participants when available.
 export function summaryLabel(room: ChatRoomSummary): string {
-  return room.title?.trim() || chatRoomKindLabels[room.kind]
+  if (room.title?.trim()) return room.title.trim()
+  const others = room.otherParticipantNicknames ?? []
+  if (others.length > 0) return others.join(', ')
+  return chatRoomKindLabels[room.kind]
+}
+
+export function summaryLastMessagePreview(
+  room: ChatRoomSummary,
+  currentUserId: number | null,
+): string | null {
+  const last = room.lastMessage
+  if (!last) return null
+
+  const body = last.body.trim()
+  const text = body.length > 0 ? body : last.hasMedia ? 'Attachment' : ''
+  if (!text) return null
+
+  if (room.kind === ChatRoomKind.Direct) return text
+
+  const sender =
+    currentUserId != null && last.senderUserId === currentUserId ? 'You' : last.senderNickname
+  return `${sender}: ${text}`
 }
 
 // Full name once participants are loaded: direct rooms show the other person.

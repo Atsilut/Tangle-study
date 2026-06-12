@@ -362,6 +362,59 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
     }
 
     [Fact]
+    public async Task ListMyRooms_IncludesLastMessageAndOtherParticipantNickname()
+    {
+        const string testMethodName = nameof(ListMyRooms_IncludesLastMessageAndOtherParticipantNickname);
+
+        // Arrange
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        await LoginAs(userA);
+        await PostMessageAsync(room.Id, "Latest preview");
+
+        // Act
+        var rooms = await ListMyRoomsAsync();
+
+        // Assert
+        Assert.NotNull(rooms);
+        var summary = Assert.Single(rooms, r => r.Id == room.Id);
+        Assert.Equal([userB.Nickname], summary.OtherParticipantNicknames);
+        Assert.NotNull(summary.LastMessage);
+        Assert.Equal("Latest preview", summary.LastMessage.Body);
+        Assert.Equal(userA.Nickname, summary.LastMessage.SenderNickname);
+        Assert.False(summary.LastMessage.HasMedia);
+    }
+
+    [Fact]
+    public async Task ListMyRooms_IncludesOtherParticipantNicknames_ForUntitledMultiRoom()
+    {
+        const string testMethodName = nameof(ListMyRooms_IncludesOtherParticipantNicknames_ForUntitledMultiRoom);
+
+        // Arrange
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        var userC = await CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(userA, userB);
+        await AcceptFriendshipAsync(userA, userC);
+        var room = await CreateMultiRoomAsync(userA, [userB.Id, userC.Id]);
+        await LoginAs(userA);
+
+        // Act
+        var rooms = await ListMyRoomsAsync();
+
+        // Assert
+        Assert.NotNull(rooms);
+        var summary = Assert.Single(rooms, r => r.Id == room.Id);
+        Assert.Null(summary.Title);
+        Assert.Equal(
+            [userB.Nickname, userC.Nickname].OrderBy(n => n, StringComparer.OrdinalIgnoreCase),
+            summary.OtherParticipantNicknames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
+        Assert.Null(summary.LastMessage);
+    }
+
+    [Fact]
     public async Task GetRoom_Returns401_ForStranger()
     {
         const string testMethodName = nameof(GetRoom_Returns401_ForStranger);

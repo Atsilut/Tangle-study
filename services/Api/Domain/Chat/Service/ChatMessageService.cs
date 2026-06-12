@@ -100,6 +100,28 @@ public class ChatMessageService(
         return dto;
     }
 
+    public async Task<IReadOnlyDictionary<long, ChatRoomSummaryLastMessageDto>> GetLatestMessageSummariesByRoomIdsAsync(
+        IReadOnlyCollection<long> roomIds)
+    {
+        if (roomIds.Count == 0) return new Dictionary<long, ChatRoomSummaryLastMessageDto>();
+
+        var messagesByRoom = await _repo.GetLatestChatMessagesByRoomIdsAsync(roomIds);
+        if (messagesByRoom.Count == 0) return new Dictionary<long, ChatRoomSummaryLastMessageDto>();
+
+        var messages = messagesByRoom.Values.ToList();
+        var nicknames = await _userService.GetNicknamesByUserIdsAsync(messages.Select(m => m.LogicalSenderUserId));
+        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
+
+        return messages.ToDictionary(
+            m => m.ChatRoomId,
+            m => new ChatRoomSummaryLastMessageDto(
+                m.LogicalSenderUserId,
+                m.Body,
+                nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
+                m.SentAt,
+                mediaByMessageId.ContainsKey(m.Id)));
+    }
+
     public Task DetachSenderFromDeletedUserAsync(long userId) =>
         _repo.DetachSenderFromMessagesAsync(userId);
 

@@ -39,6 +39,27 @@ public class ChatMessageRepository(AppDbContext context) : IChatMessageRepositor
         return messages;
     }
 
+    public async Task<IReadOnlyDictionary<long, ChatMessage>> GetLatestChatMessagesByRoomIdsAsync(
+        IReadOnlyCollection<long> roomIds)
+    {
+        if (roomIds.Count == 0) return new Dictionary<long, ChatMessage>();
+
+        var roomIdList = roomIds.Distinct().ToList();
+        var latestMessageIds = await _context.ChatMessages
+            .Where(m => roomIdList.Contains(m.ChatRoomId))
+            .GroupBy(m => m.ChatRoomId)
+            .Select(g => g.Max(m => m.Id))
+            .ToListAsync();
+
+        if (latestMessageIds.Count == 0) return new Dictionary<long, ChatMessage>();
+
+        var messages = await _context.ChatMessages
+            .Where(m => latestMessageIds.Contains(m.Id))
+            .ToListAsync();
+
+        return messages.ToDictionary(m => m.ChatRoomId);
+    }
+
     public Task DeleteChatMessageAsync(ChatMessage message)
     {
         _context.ChatMessages.Remove(message);

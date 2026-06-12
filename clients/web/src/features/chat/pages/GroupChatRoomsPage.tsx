@@ -7,12 +7,13 @@ import { useAuthStore } from '@/stores/authStore'
 import { useGroupMembers, useMyGroupRole } from '@/features/groups'
 import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
 import { useCreateGroupRoom, useGroupRooms, useMyRooms } from '../hooks'
-import { chatRoomKindLabels, summaryLabel } from '../labels'
+import { chatRoomKindLabels, summaryLabel, summaryLastMessagePreview } from '../labels'
 
 export function GroupChatRoomsPage() {
   const { id } = useParams<{ id: string }>()
   const groupId = Number(id)
   const valid = Number.isFinite(groupId)
+  const currentUserId = useAuthStore((s) => s.userId)
   const { role, isLoading: roleLoading } = useMyGroupRole(valid ? groupId : null)
   const rooms = useGroupRooms(valid ? groupId : null)
   const myRooms = useMyRooms()
@@ -40,17 +41,22 @@ export function GroupChatRoomsPage() {
           <ul className="flex flex-col gap-2">
             {rooms.data.map((room) => {
               const canEnter = participantRoomIds.has(room.id)
+              const preview = summaryLastMessagePreview(room, currentUserId)
+              const listTimestamp = formatChatListTimestamp(
+                room.lastMessage?.sentAt ?? room.updatedAt,
+              )
               const card = (
                 <Card
                   className={`flex items-center gap-3 px-4 py-3 ${canEnter ? 'hover:bg-gray-50' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-gray-900">
-                      {summaryLabel(room)}
-                    </span>
-                    <span className="shrink-0 text-xs text-gray-500">
-                      {formatChatListTimestamp(room.updatedAt)}
-                    </span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-gray-900">
+                        {summaryLabel(room)}
+                      </span>
+                      <span className="shrink-0 text-xs text-gray-500">{listTimestamp}</span>
+                    </div>
+                    {preview && <p className="truncate text-xs text-gray-500">{preview}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {!canEnter && <Badge color="gray">Not a participant</Badge>}
