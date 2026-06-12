@@ -6,11 +6,10 @@ namespace Api.Domain.Comments.Dto
 {
     public record CommentCreateRequestDto
     {
-        [Required]
-        [StringLength(1000, MinimumLength = 1)]
-        [SwaggerSchema(Description = "Comment content")]
+        [MaxLength(1000)]
+        [SwaggerSchema(Description = "Comment content (optional when MediaAssetId is set)")]
         [DefaultValue("Thanks for sharing your post.")]
-        public required string Content { get; init; }
+        public string Content { get; init; } = string.Empty;
 
         [Required]
         [SwaggerSchema(Description = "Post Id")]

@@ -1,4 +1,5 @@
 ﻿using Api.Domain.Comments.Dto;
+using Api.Domain.Media.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
@@ -9,7 +10,7 @@ namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
 public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+    : IntegrationTestBase(postgres, mediaEnabled: true)
 {
     private async Task<PostGetResponseDto> CreatePostForTest(string testMethodName, long userId, long index = 1)
     {
@@ -126,8 +127,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData(null)]
-    public async Task CreateComment_Returns400_WhenContentEmpty(string? invalidContent)
+    public async Task CreateComment_Returns400_WhenContentEmptyAndNoMedia(string invalidContent)
     {
         // Arrange
         const string testMethodName = "CreateComment_ContentEmpty";
@@ -145,7 +145,44 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
 
         // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Comment content cannot be empty.");
+    }
+
+    [Fact]
+    public async Task CreateComment_Returns201_WhenMediaOnly()
+    {
+        // Arrange
+        const string testMethodName = nameof(CreateComment_Returns201_WhenMediaOnly);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var post = await CreatePostForTest(testMethodName, user.Id);
+        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
+            Client,
+            MediaIntendedContext.Comment,
+            "image/png",
+            "comment.png",
+            declaredSizeBytes: 68,
+            storedSizeBytes: 67);
+
+        var req = new CommentCreateRequestDto
+        {
+            PostId = post.Id,
+            Content = string.Empty,
+            MediaAssetId = mediaAssetId
+        };
+
+        // Act
+        var res = await Client.PostAsJsonAsync("/api/comments", req, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
+        var getRes = await Client.GetAsync($"/api/comments/post/{post.Id}", TestContext.Current.CancellationToken);
+        var comments = await getRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(comments);
+        var created = Assert.Single(comments);
+        Assert.Equal(string.Empty, created.Content);
+        Assert.NotNull(created.Media);
+        Assert.Equal(mediaAssetId, created.Media.Id);
     }
 
     [Fact]
