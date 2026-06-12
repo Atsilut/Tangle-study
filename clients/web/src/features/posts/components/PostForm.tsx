@@ -1,21 +1,28 @@
 import { type FormEvent, useState } from 'react'
 import { Button, ErrorState, FormField, Input, TextArea } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
-import { MediaIntendedContext } from '@/types/api'
-import { MediaUploader, useMediaUploads } from '@/features/media'
+import { MediaIntendedContext, type MediaAsset } from '@/types/api'
+import {
+  ExistingMediaAttachments,
+  isMediaReady,
+  MediaUploader,
+  useMediaUploads,
+} from '@/features/media'
 
 export interface PostFormValues {
   title: string
   content: string
   mediaAssetIds?: number[]
+  addMediaAssetIds?: number[]
+  removeMediaAssetIds?: number[]
 }
 
 export interface PostFormProps {
-  initial?: PostFormValues
+  initial?: Pick<PostFormValues, 'title' | 'content'>
+  existingMedia?: MediaAsset[]
   submitLabel: string
   isPending: boolean
   error?: unknown
-  // Media can only be attached on create (the patch endpoint takes no media).
   enableMedia?: boolean
   onSubmit: (values: PostFormValues) => void
   onCancel?: () => void
@@ -25,6 +32,7 @@ export interface PostFormProps {
 // PostPatchRequestDto (both capped at 100 chars by the backend).
 export function PostForm({
   initial,
+  existingMedia,
   submitLabel,
   isPending,
   error,
@@ -34,14 +42,33 @@ export function PostForm({
 }: PostFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [content, setContent] = useState(initial?.content ?? '')
+  const [removedExistingIds, setRemovedExistingIds] = useState<ReadonlySet<number>>(() => new Set())
   const media = useMediaUploads(MediaIntendedContext.Post)
+  const isEdit = existingMedia != null
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    const trimmed = { title: title.trim(), content: content.trim() }
+
+    if (isEdit) {
+      const removeMediaAssetIds = existingMedia
+        .filter((asset) => isMediaReady(asset) && removedExistingIds.has(asset.id))
+        .map((asset) => asset.id)
+      const addMediaAssetIds =
+        enableMedia && media.readyIds.length > 0 ? media.readyIds : undefined
+
+      onSubmit({
+        ...trimmed,
+        ...(addMediaAssetIds != null ? { addMediaAssetIds } : {}),
+        ...(removeMediaAssetIds.length > 0 ? { removeMediaAssetIds } : {}),
+      })
+      return
+    }
+
     onSubmit({
-      title: title.trim(),
-      content: content.trim(),
-      mediaAssetIds: enableMedia && media.readyIds.length > 0 ? media.readyIds : undefined,
+      ...trimmed,
+      mediaAssetIds:
+        enableMedia && media.readyIds.length > 0 ? media.readyIds : undefined,
     })
   }
 
@@ -77,12 +104,23 @@ export function PostForm({
       {enableMedia && (
         <FormField label="Media">
           {() => (
-            <MediaUploader
-              items={media.items}
-              onAddFiles={media.addFiles}
-              onRemove={media.removeItem}
-              multiple
-            />
+            <>
+              {isEdit && existingMedia.length > 0 && (
+                <ExistingMediaAttachments
+                  assets={existingMedia}
+                  removedIds={removedExistingIds}
+                  onRemove={(id) =>
+                    setRemovedExistingIds((prev) => new Set([...prev, id]))
+                  }
+                />
+              )}
+              <MediaUploader
+                items={media.items}
+                onAddFiles={media.addFiles}
+                onRemove={media.removeItem}
+                multiple
+              />
+            </>
           )}
         </FormField>
       )}

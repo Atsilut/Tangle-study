@@ -57,12 +57,20 @@ function EditForm({
       <CardBody>
         <PostForm
           initial={{ title: post.title, content: post.content }}
+          existingMedia={post.media}
+          enableMedia
           submitLabel="Save changes"
           isPending={updatePost.isPending}
           error={updatePost.error}
           onSubmit={(values) =>
             updatePost.mutate(
-              { id: post.id, ...values },
+              {
+                id: post.id,
+                title: values.title,
+                content: values.content,
+                addMediaAssetIds: values.addMediaAssetIds,
+                removeMediaAssetIds: values.removeMediaAssetIds,
+              },
               {
                 onSuccess: () =>
                   navigate(`/groups/${groupId}/boards/${boardId}/posts/${post.id}`),
