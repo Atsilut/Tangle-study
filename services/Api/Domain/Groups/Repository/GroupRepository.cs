@@ -18,6 +18,24 @@ namespace Api.Domain.Groups.Repository
 
         public Task<Group?> GetGroupByIdAsync(long id) => _context.Groups.FindAsync(id).AsTask();
 
+        public Task<List<Group>> GetPublicGroupsAsync() =>
+            _context.Groups
+                .Where(g => g.Visibility == GroupVisibility.Public)
+                .OrderBy(g => g.Name)
+                .ToListAsync();
+
+        public async Task<List<Group>> GetGroupsByIdsAsync(IReadOnlyCollection<long> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0) return [];
+
+            var groups = await _context.Groups
+                .Where(g => idList.Contains(g.Id))
+                .ToListAsync();
+
+            return [.. groups.OrderBy(g => g.Name)];
+        }
+
         public Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids)
         {
             List<long> idList = [.. ids.Distinct()];

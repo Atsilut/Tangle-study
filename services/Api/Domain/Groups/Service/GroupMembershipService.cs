@@ -62,6 +62,13 @@ namespace Api.Domain.Groups.Service
 
         public Task<int> CountMembersAsync(long groupId) => _repo.CountMembersAsync(groupId);
 
+        public Task<IReadOnlyDictionary<long, int>> GetMemberCountsByGroupIdsAsync(
+            IReadOnlyCollection<long> groupIds) =>
+            _repo.GetMemberCountsByGroupIdsAsync(groupIds);
+
+        public Task<List<GroupMember>> GetMembershipsByUserAsync(long userId) =>
+            _repo.GetMembershipsByUserAsync(userId);
+
         public Task AddMemberInternalAsync(long groupId, long userId, GroupRole role) =>
             _repo.AddMemberAsync(new GroupMember(groupId, userId, role));
 

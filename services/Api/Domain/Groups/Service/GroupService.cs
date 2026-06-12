@@ -75,6 +75,24 @@ namespace Api.Domain.Groups.Service
             return MapToDto(group, memberCount);
         }
 
+        public async Task<List<GroupResponseDto>?> ListDiscoverableGroupsAsync()
+        {
+            var groups = await _repo.GetPublicGroupsAsync();
+            if (groups.Count == 0) return null;
+            return await MapManyToDtosAsync(groups);
+        }
+
+        public async Task<List<GroupResponseDto>?> ListMyGroupsAsync()
+        {
+            var userId = GetUserIdFromLogin();
+            var memberships = await _membership.GetMembershipsByUserAsync(userId);
+            if (memberships.Count == 0) return null;
+
+            var groups = await _repo.GetGroupsByIdsAsync([.. memberships.Select(m => m.GroupId)]);
+            if (groups.Count == 0) return null;
+            return await MapManyToDtosAsync(groups);
+        }
+
         public async Task<GroupResponseDto> UpdateGroupAsync(GroupPatchRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
@@ -122,6 +140,13 @@ namespace Api.Domain.Groups.Service
             await _membership.RemoveAllByGroupAsync(groupId);
             var group = await GetGroupOrThrowAsync(groupId);
             await _repo.DeleteGroupAsync(group);
+        }
+
+        private async Task<List<GroupResponseDto>> MapManyToDtosAsync(IReadOnlyList<Group> groups)
+        {
+            var groupIds = groups.Select(g => g.Id).ToList();
+            var memberCounts = await _membership.GetMemberCountsByGroupIdsAsync(groupIds);
+            return [.. groups.Select(g => MapToDto(g, memberCounts.GetValueOrDefault(g.Id, 0)))];
         }
 
         private static GroupResponseDto MapToDto(Group group, int memberCount) => new(

@@ -30,6 +30,24 @@ namespace Api.Domain.Groups.Api
             return Ok();
         }
 
+        [HttpGet]
+        [SwaggerOperation(Summary = "List public groups (discover)")]
+        public async Task<ActionResult<List<GroupResponseDto>>> ListDiscoverable()
+        {
+            var response = await _service.ListDiscoverableGroupsAsync();
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
+        [HttpGet("me")]
+        [SwaggerOperation(Summary = "List groups the caller is a member of")]
+        public async Task<ActionResult<List<GroupResponseDto>>> ListMine()
+        {
+            var response = await _service.ListMyGroupsAsync();
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
         [HttpGet("{id:long}")]
         [SwaggerOperation(Summary = "Get group info (private groups: members only)")]
         public async Task<ActionResult<GroupResponseDto>> GetGroup([FromRoute] long id)
