@@ -45,16 +45,11 @@ public class ChatMessageRepository(AppDbContext context) : IChatMessageRepositor
         if (roomIds.Count == 0) return new Dictionary<long, ChatMessage>();
 
         var roomIdList = roomIds.Distinct().ToList();
-        var latestMessageIds = await _context.ChatMessages
+        // Npgsql translates to DISTINCT ON; uses IX_ChatMessages_ChatRoomId_Id (ChatRoomId ASC, Id DESC).
+        var messages = await _context.ChatMessages
             .Where(m => roomIdList.Contains(m.ChatRoomId))
             .GroupBy(m => m.ChatRoomId)
-            .Select(g => g.Max(m => m.Id))
-            .ToListAsync();
-
-        if (latestMessageIds.Count == 0) return new Dictionary<long, ChatMessage>();
-
-        var messages = await _context.ChatMessages
-            .Where(m => latestMessageIds.Contains(m.Id))
+            .Select(g => g.OrderByDescending(m => m.Id).First())
             .ToListAsync();
 
         return messages.ToDictionary(m => m.ChatRoomId);

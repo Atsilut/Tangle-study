@@ -247,6 +247,11 @@ namespace Api.Global.Db
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            // Latest-message-per-room list queries: filter by ChatRoomId, order by Id DESC.
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.ChatRoomId, m.Id })
+                .IsDescending(false, true);
+
             modelBuilder.Entity<MediaAsset>()
                 .HasOne(m => m.Uploader)
                 .WithMany()

@@ -49,7 +49,8 @@ namespace Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChatRoomId");
+                    b.HasIndex("ChatRoomId", "Id")
+                        .IsDescending(false, true);
 
                     b.HasIndex("SenderUserId");
 
