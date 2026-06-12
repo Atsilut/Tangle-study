@@ -4,7 +4,7 @@ import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import { useSendFriendRequest, UserFriendsList } from '@/features/friends'
 import { UserPostsList } from '@/features/posts'
-import { useBlockUser } from '@/features/blocks'
+import { useBlockUser, useMyBlocks, useUnblockUser } from '@/features/blocks'
 import { useUser } from '../hooks'
 import { friendsListVisibilityLabels } from '../labels'
 
@@ -16,8 +16,10 @@ export function UserProfilePage() {
   const { data, isLoading, isError, refetch } = useUser(Number.isFinite(userId) ? userId : null)
   const sendRequest = useSendFriendRequest()
   const blockUser = useBlockUser()
-
+  const unblockUser = useUnblockUser()
   const isSelf = currentUserId === userId
+  const { data: myBlocks } = useMyBlocks({ enabled: isAuthenticated && !isSelf })
+  const blockRecord = myBlocks?.find((b) => b.blockedUserId === userId)
 
   return (
     <div className="flex flex-col gap-4">
@@ -48,8 +50,15 @@ export function UserProfilePage() {
                         Add friend
                       </Button>
                     )}
-                    {blockUser.isSuccess ? (
-                      <Badge color="red">Blocked</Badge>
+                    {blockRecord ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isLoading={unblockUser.isPending}
+                        onClick={() => unblockUser.mutate(blockRecord.id)}
+                      >
+                        Unblock
+                      </Button>
                     ) : (
                       <Button
                         size="sm"

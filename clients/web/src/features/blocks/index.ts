@@ -1,2 +1,2 @@
 export { BlocksPage } from './pages/BlocksPage'
-export { useBlockUser, useMyBlocks } from './hooks'
+export { useBlockUser, useMyBlocks, useUnblockUser } from './hooks'

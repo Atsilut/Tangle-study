@@ -6,8 +6,12 @@ export const blockKeys = {
   myBlocks: () => [...blockKeys.all, 'me'] as const,
 }
 
-export function useMyBlocks() {
-  return useQuery({ queryKey: blockKeys.myBlocks(), queryFn: getMyBlocks })
+export function useMyBlocks(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: blockKeys.myBlocks(),
+    queryFn: getMyBlocks,
+    enabled: options?.enabled ?? true,
+  })
 }
 
 export function useBlockUser() {
