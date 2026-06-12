@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createGroup,
   deleteGroup,
+  getDiscoverableGroups,
   getGroup,
+  getMyGroups,
   joinGroup,
   transferOwnership,
   updateGroup,
@@ -12,8 +14,18 @@ import {
 
 export const groupKeys = {
   all: ['groups'] as const,
+  mine: () => [...groupKeys.all, 'mine'] as const,
+  discover: () => [...groupKeys.all, 'discover'] as const,
   details: () => [...groupKeys.all, 'detail'] as const,
   detail: (id: number) => [...groupKeys.details(), id] as const,
+}
+
+export function useMyGroups() {
+  return useQuery({ queryKey: groupKeys.mine(), queryFn: getMyGroups })
+}
+
+export function useDiscoverableGroups() {
+  return useQuery({ queryKey: groupKeys.discover(), queryFn: getDiscoverableGroups })
 }
 
 export function useGroup(id: number | null) {
@@ -25,7 +37,14 @@ export function useGroup(id: number | null) {
 }
 
 export function useCreateGroup() {
-  return useMutation({ mutationFn: (body: CreateGroupRequest) => createGroup(body) })
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateGroupRequest) => createGroup(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.mine() })
+      queryClient.invalidateQueries({ queryKey: groupKeys.discover() })
+    },
+  })
 }
 
 export function useUpdateGroup() {
@@ -53,6 +72,9 @@ export function useJoinGroup(groupId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => joinGroup(groupId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) })
+      queryClient.invalidateQueries({ queryKey: groupKeys.mine() })
+    },
   })
 }
