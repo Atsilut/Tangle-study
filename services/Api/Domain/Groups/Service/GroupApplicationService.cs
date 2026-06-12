@@ -190,8 +190,12 @@ namespace Api.Domain.Groups.Service
             if (applications.Count == 0) return [];
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(applications.Select(a => a.ApplicantId));
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
             return [.. applications
-                .Select(a => MapForReviewer(a, nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))];
+                .Select(a => MapForReviewer(
+                    a,
+                    groupNames.GetValueOrDefault(a.GroupId, "Unknown group"),
+                    nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))];
         }
 
         private async Task<List<GroupApplicationResponseDto>> MapApplicationsForApplicantAsync(
@@ -199,18 +203,32 @@ namespace Api.Domain.Groups.Service
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([applicantId]);
             var nickname = nicknames.GetValueOrDefault(applicantId, "Deleted User");
-            return [.. applications.Select(a => MapForApplicant(a, applicantId, nickname))];
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
+            return [.. applications.Select(a => MapForApplicant(
+                a,
+                applicantId,
+                nickname,
+                groupNames.GetValueOrDefault(a.GroupId, "Unknown group")))];
         }
 
         private async Task<GroupApplicationResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)
         {
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([application.GroupId]);
             var nickname = (await _userService.GetUserByIdAsync(application.ApplicantId))?.Nickname ?? "Deleted User";
-            return MapForApplicant(application, viewerId, nickname);
+            return MapForApplicant(
+                application,
+                viewerId,
+                nickname,
+                groupNames.GetValueOrDefault(application.GroupId, "Unknown group"));
         }
 
-        private static GroupApplicationResponseDto MapForReviewer(GroupApplication application, string applicantNickname) => new(
+        private static GroupApplicationResponseDto MapForReviewer(
+            GroupApplication application,
+            string groupName,
+            string applicantNickname) => new(
             Id: application.Id,
             GroupId: application.GroupId,
+            GroupName: groupName,
             ApplicantId: application.ApplicantId,
             ApplicantNickname: applicantNickname,
             IsPending: application.IsPending,
@@ -219,9 +237,13 @@ namespace Api.Domain.Groups.Service
             UpdatedAt: application.UpdatedAt);
 
         private static GroupApplicationResponseDto MapForApplicant(
-            GroupApplication application, long viewerId, string applicantNickname) => new(
+            GroupApplication application,
+            long viewerId,
+            string applicantNickname,
+            string groupName) => new(
             Id: application.Id,
             GroupId: application.GroupId,
+            GroupName: groupName,
             ApplicantId: application.ApplicantId,
             ApplicantNickname: applicantNickname,
             IsPending: AppearsPendingForViewer(application, viewerId),

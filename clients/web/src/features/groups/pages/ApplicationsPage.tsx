@@ -36,7 +36,7 @@ function ApplicationRow({ application }: { application: GroupApplication }) {
           to={`/groups/${application.groupId}`}
           className="block truncate text-sm font-medium text-gray-900 hover:underline"
         >
-          Group #{application.groupId}
+          {application.groupName}
         </Link>
         <div className="mt-0.5">
           {application.isPending ? (
