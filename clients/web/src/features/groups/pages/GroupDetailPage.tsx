@@ -12,11 +12,11 @@ import {
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { getErrorMessage } from '@/lib/apiError'
 import { formatDate } from '@/lib/format'
-import { GroupJoinPolicy, GroupRole, GroupVisibility } from '@/types/api'
+import { GroupInvitePolicy, GroupJoinPolicy, GroupRole, GroupVisibility } from '@/types/api'
 import { useDeleteGroup, useGroup, useJoinGroup } from '../hooks'
 import { useMyGroupRole } from '../membersHooks'
 import { useApplyToGroup } from '../applicationsHooks'
-import { groupVisibilityLabels, joinPolicyLabels } from '../labels'
+import { groupVisibilityLabels, invitePolicyLabels, joinPolicyLabels, canInviteToGroup } from '../labels'
 
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -36,6 +36,8 @@ export function GroupDetailPage() {
     group?.visibility === GroupVisibility.Private && !isMember
   const canEdit = role === GroupRole.Owner || role === GroupRole.Admin
   const canDelete = role === GroupRole.Owner
+  const canInvite =
+    group != null && canInviteToGroup(group.invitePolicy ?? GroupInvitePolicy.AdminsOnly, role)
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -54,6 +56,9 @@ export function GroupDetailPage() {
                       {groupVisibilityLabels[group.visibility]}
                     </Badge>
                     <Badge color="blue">{joinPolicyLabels[group.joinPolicy]}</Badge>
+                    <Badge color="gray">
+                      {invitePolicyLabels[group.invitePolicy ?? GroupInvitePolicy.AdminsOnly]}
+                    </Badge>
                     <Badge>{group.memberCount} members</Badge>
                   </div>
                 )}
@@ -91,6 +96,14 @@ export function GroupDetailPage() {
                 <Link to={`/groups/${group.id}/members`} className="text-blue-600 hover:underline">
                   Members
                 </Link>
+                {canInvite && (
+                  <Link
+                    to={`/groups/${group.id}/members#invitations`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Invitations
+                  </Link>
+                )}
                 <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
                   Boards
                 </Link>

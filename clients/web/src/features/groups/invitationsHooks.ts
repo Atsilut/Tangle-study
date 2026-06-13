@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   acceptInvitation,
   cancelInvitation,
+  getGroupInvitations,
   getIgnoredInvitations,
   getMyInvitations,
   ignoreInvitation,
@@ -14,6 +15,7 @@ export const invitationKeys = {
   all: ['invitations'] as const,
   mine: () => [...invitationKeys.all, 'me'] as const,
   ignored: () => [...invitationKeys.all, 'ignored'] as const,
+  group: (groupId: number) => [...invitationKeys.all, 'group', groupId] as const,
 }
 
 export function useMyInvitations() {
@@ -28,7 +30,18 @@ export function useInviteToGroup(groupId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (inviteeId: number) => inviteToGroup(groupId, inviteeId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: invitationKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invitationKeys.all })
+      queryClient.invalidateQueries({ queryKey: invitationKeys.group(groupId) })
+    },
+  })
+}
+
+export function useGroupInvitations(groupId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: invitationKeys.group(groupId ?? -1),
+    queryFn: () => getGroupInvitations(groupId as number),
+    enabled: groupId != null && enabled,
   })
 }
 
@@ -56,6 +69,15 @@ export function useRejectInvitation() {
   return useInvitationAction(rejectInvitation)
 }
 
-export function useCancelInvitation() {
-  return useInvitationAction(cancelInvitation)
+export function useCancelInvitation(groupId?: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: cancelInvitation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invitationKeys.all })
+      if (groupId != null) {
+        queryClient.invalidateQueries({ queryKey: invitationKeys.group(groupId) })
+      }
+    },
+  })
 }

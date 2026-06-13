@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Badge, Button, Card, CardBody, EmptyState } from '@/components/ui'
+import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import type { Group } from '../api'
 import { useDiscoverableGroups, useMyGroups } from '../hooks'

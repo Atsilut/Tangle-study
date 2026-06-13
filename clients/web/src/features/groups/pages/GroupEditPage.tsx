@@ -2,7 +2,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardBody, CardHeader } from '@/components/ui'
 import { CenteredSpinner } from '@/components/common/CenteredSpinner'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
-import { GroupRole } from '@/types/api'
+import { GroupInvitePolicy, GroupRole } from '@/types/api'
 import { useGroup, useUpdateGroup } from '../hooks'
 import { useMyGroupRole } from '../membersHooks'
 import { GroupForm } from '../components/GroupForm'
@@ -47,6 +47,7 @@ function EditForm({ group }: { group: Group }) {
             description: group.description,
             visibility: group.visibility,
             joinPolicy: group.joinPolicy,
+            invitePolicy: group.invitePolicy ?? GroupInvitePolicy.AdminsOnly,
           }}
           submitLabel="Save changes"
           isPending={updateGroup.isPending}

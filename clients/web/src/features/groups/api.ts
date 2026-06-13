@@ -1,5 +1,5 @@
 import { api, getList } from '@/lib/apiClient'
-import type { GroupJoinPolicy, GroupVisibility } from '@/types/api'
+import type { GroupInvitePolicy, GroupJoinPolicy, GroupVisibility } from '@/types/api'
 
 export interface Group {
   id: number
@@ -7,6 +7,7 @@ export interface Group {
   description: string
   visibility: GroupVisibility
   joinPolicy: GroupJoinPolicy
+  invitePolicy: GroupInvitePolicy
   memberCount: number
   createdAt: string
   updatedAt: string
@@ -17,6 +18,7 @@ export interface CreateGroupRequest {
   description: string
   visibility: GroupVisibility
   joinPolicy?: GroupJoinPolicy
+  invitePolicy?: GroupInvitePolicy
 }
 
 export interface UpdateGroupRequest {
@@ -25,6 +27,7 @@ export interface UpdateGroupRequest {
   description: string
   visibility: GroupVisibility
   joinPolicy: GroupJoinPolicy
+  invitePolicy: GroupInvitePolicy
 }
 
 // GET /api/groups -> 200 public groups | 204
