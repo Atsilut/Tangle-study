@@ -110,17 +110,15 @@ namespace Api.Domain.Groups.Service
             return CanWriteBoard(group, board, userId, member);
         }
 
-        private static bool CanWriteBoard(Group group, GroupBoard board, long? userId, GroupMember? member)
+        private static bool CanWriteBoard(Group group, GroupBoard board, long? userId, GroupMember? member) => board.Writeability switch
         {
-            if (board.Writeability == BoardWriteability.ForAll)
-                return CanViewBoard(group, board, userId, member);
-
-            if (userId is null || member is null) return false;
-
-            if (board.Writeability == BoardWriteability.MembersOnly)
-                return CanViewBoard(group, board, userId, member);
-
-            return member.Role is GroupRole.Admin or GroupRole.Owner;
-        }
+            BoardWriteability.ForAll =>
+                CanViewBoard(group, board, userId, member),
+            BoardWriteability.MembersOnly =>
+                userId is not null && member is not null && CanViewBoard(group, board, userId, member),
+            BoardWriteability.AdminOnly =>
+                userId is not null && member?.Role is GroupRole.Admin or GroupRole.Owner,
+            _ => false,
+        };
     }
 }
