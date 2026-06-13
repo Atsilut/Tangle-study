@@ -43,7 +43,7 @@ export async function createGroup(body: CreateGroupRequest): Promise<Group> {
   return res.data
 }
 
-// GET /api/groups/{id} (JWT) -> 200 (private: members only)
+// GET /api/groups/{id} (JWT) -> 200
 export async function getGroup(id: number): Promise<Group> {
   const res = await api.get<Group>(`/groups/${id}`)
   return res.data

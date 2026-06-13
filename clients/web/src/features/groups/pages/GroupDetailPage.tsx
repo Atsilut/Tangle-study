@@ -12,7 +12,7 @@ import {
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { getErrorMessage } from '@/lib/apiError'
 import { formatDate } from '@/lib/format'
-import { GroupJoinPolicy, GroupRole } from '@/types/api'
+import { GroupJoinPolicy, GroupRole, GroupVisibility } from '@/types/api'
 import { useDeleteGroup, useGroup, useJoinGroup } from '../hooks'
 import { useMyGroupRole } from '../membersHooks'
 import { useApplyToGroup } from '../applicationsHooks'
@@ -32,6 +32,8 @@ export function GroupDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const isMember = role != null
+  const isPrivateVisitor =
+    group?.visibility === GroupVisibility.Private && !isMember
   const canEdit = role === GroupRole.Owner || role === GroupRole.Admin
   const canDelete = role === GroupRole.Owner
 
@@ -46,20 +48,23 @@ export function GroupDetailPage() {
             <CardHeader className="flex items-start gap-3">
               <div className="flex-1">
                 <h1 className="text-xl font-bold text-gray-900">{group.name}</h1>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <Badge color={group.visibility ? 'green' : 'gray'}>
-                    {groupVisibilityLabels[group.visibility]}
-                  </Badge>
-                  <Badge color="blue">{joinPolicyLabels[group.joinPolicy]}</Badge>
-                  <Badge>{group.memberCount} members</Badge>
-                </div>
+                {!isPrivateVisitor && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    <Badge color={group.visibility ? 'green' : 'gray'}>
+                      {groupVisibilityLabels[group.visibility]}
+                    </Badge>
+                    <Badge color="blue">{joinPolicyLabels[group.joinPolicy]}</Badge>
+                    <Badge>{group.memberCount} members</Badge>
+                  </div>
+                )}
               </div>
-              {!isMember && group.joinPolicy === GroupJoinPolicy.Open && (
+              {!isPrivateVisitor && !isMember && group.joinPolicy === GroupJoinPolicy.Open && (
                 <Button size="sm" isLoading={join.isPending} onClick={() => join.mutate()}>
                   Join
                 </Button>
               )}
-              {!isMember &&
+              {!isPrivateVisitor &&
+                !isMember &&
                 group.joinPolicy === GroupJoinPolicy.Requestable &&
                 (apply.isSuccess ? (
                   <Badge color="green">Applied</Badge>
@@ -71,12 +76,14 @@ export function GroupDetailPage() {
             </CardHeader>
             <CardBody className="flex flex-col gap-3">
               <p className="whitespace-pre-wrap text-sm text-gray-700">{group.description}</p>
-              <p className="text-xs text-gray-400">Created {formatDate(group.createdAt)}</p>
+              {!isPrivateVisitor && (
+                <p className="text-xs text-gray-400">Created {formatDate(group.createdAt)}</p>
+              )}
 
-              {join.isError && (
+              {!isPrivateVisitor && join.isError && (
                 <ErrorState title="Could not join" message={getErrorMessage(join.error)} />
               )}
-              {apply.isError && (
+              {!isPrivateVisitor && apply.isError && (
                 <ErrorState title="Could not apply" message={getErrorMessage(apply.error)} />
               )}
 
@@ -87,7 +94,7 @@ export function GroupDetailPage() {
                 <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
                   Boards
                 </Link>
-                {isMember && (
+                {!isPrivateVisitor && isMember && (
                   <Link
                     to={`/groups/${group.id}/chat-rooms`}
                     className="text-blue-600 hover:underline"
@@ -95,7 +102,7 @@ export function GroupDetailPage() {
                     Chat rooms
                   </Link>
                 )}
-                {canEdit && (
+                {!isPrivateVisitor && canEdit && (
                   <Link
                     to={`/groups/${group.id}/applications`}
                     className="text-blue-600 hover:underline"
@@ -103,7 +110,7 @@ export function GroupDetailPage() {
                     Applications
                   </Link>
                 )}
-                {canDelete && (
+                {!isPrivateVisitor && canDelete && (
                   <Link
                     to={`/groups/${group.id}/blacklist`}
                     className="text-blue-600 hover:underline"
@@ -113,7 +120,7 @@ export function GroupDetailPage() {
                 )}
               </div>
 
-              {(canEdit || canDelete) && (
+              {!isPrivateVisitor && (canEdit || canDelete) && (
                 <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
                   {canEdit && (
                     <Link to={`/groups/${group.id}/edit`}>
