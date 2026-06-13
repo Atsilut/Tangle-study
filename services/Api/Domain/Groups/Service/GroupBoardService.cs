@@ -27,10 +27,15 @@ namespace Api.Domain.Groups.Service
         {
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
             var boards = await _repo.GetByGroupAsync(groupId);
             var visible = await _access.FilterViewableBoardsAsync(groupId, boards);
 
-            return [.. visible.Select(MapToDto)];
+            List<GroupBoardResponseDto> dtos = [];
+            foreach (var board in visible)
+                dtos.Add(await MapToDtoAsync(group, board));
+
+            return dtos;
         }
 
         public async Task<GroupBoardResponseDto> CreateAsync(long groupId, GroupBoardCreateRequestDto request)
@@ -44,10 +49,11 @@ namespace Api.Domain.Groups.Service
 
             var visibility = request.Visibility
                 ?? (group.Visibility == GroupVisibility.Public ? BoardVisibility.ForAll : BoardVisibility.MembersOnly);
-            var board = new GroupBoard(groupId, request.Name, visibility, request.Description);
+            var writeability = request.Writeability ?? BoardWriteability.MembersOnly;
+            var board = new GroupBoard(groupId, request.Name, visibility, request.Description, writeability);
             await _repo.CreateAsync(board);
 
-            return MapToDto(board);
+            return await MapToDtoAsync(group, board);
         }
 
         public async Task<GroupBoardResponseDto> UpdateAsync(long groupId, long boardId, GroupBoardPatchRequestDto request)
@@ -55,17 +61,17 @@ namespace Api.Domain.Groups.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
 
-            await _groupService.Value.EnsureGroupExistsAsync(groupId);
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
 
             var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
                 ?? throw new EntityNotFoundException("Board not found");
 
             if (await _repo.ExistsByNameAsync(groupId, request.Name, boardId)) throw new EntityAlreadyExistsException("A board with this name already exists in the group.");
 
-            board.Update(request.Name, request.Visibility, request.Description);
+            board.Update(request.Name, request.Visibility, request.Writeability, request.Description);
             await _repo.UpdateAsync(board);
 
-            return MapToDto(board);
+            return await MapToDtoAsync(group, board);
         }
 
         public async Task DeleteAsync(long groupId, long boardId)
@@ -81,12 +87,14 @@ namespace Api.Domain.Groups.Service
 
         public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
-        private static GroupBoardResponseDto MapToDto(GroupBoard board) => new(
+        private async Task<GroupBoardResponseDto> MapToDtoAsync(Group group, GroupBoard board) => new(
             Id: board.Id,
             GroupId: board.GroupId,
             Name: board.Name,
             Description: board.Description,
             Visibility: board.Visibility,
+            Writeability: board.Writeability,
+            CanWrite: await _access.CanWriteBoardForViewerAsync(group, board),
             CreatedAt: board.CreatedAt,
             UpdatedAt: board.UpdatedAt);
     }

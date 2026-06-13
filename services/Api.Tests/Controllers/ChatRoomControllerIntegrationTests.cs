@@ -380,7 +380,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Assert
         Assert.NotNull(rooms);
         var summary = Assert.Single(rooms, r => r.Id == room.Id);
-        Assert.Equal([userB.Nickname], summary.OtherParticipantNicknames);
+        Assert.Equal(new[] { userB.Nickname }, summary.OtherParticipantNicknames);
         Assert.NotNull(summary.LastMessage);
         Assert.Equal("Latest preview", summary.LastMessage.Body);
         Assert.Equal(userA.Nickname, summary.LastMessage.SenderNickname);
@@ -409,7 +409,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         var summary = Assert.Single(rooms, r => r.Id == room.Id);
         Assert.Null(summary.Title);
         Assert.Equal(
-            [userB.Nickname, userC.Nickname].OrderBy(n => n, StringComparer.OrdinalIgnoreCase),
+            new[] { userB.Nickname, userC.Nickname }.OrderBy(n => n, StringComparer.OrdinalIgnoreCase),
             summary.OtherParticipantNicknames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
         Assert.Null(summary.LastMessage);
     }

@@ -14,6 +14,9 @@ namespace Api.Domain.Groups.Dto
 
         [SwaggerSchema(Description = "Omit to default: public group → ForAll, private group → MembersOnly")]
         public BoardVisibility? Visibility { get; init; }
+
+        [SwaggerSchema(Description = "Omit to default: MembersOnly")]
+        public BoardWriteability? Writeability { get; init; }
     }
 
     public record GroupBoardPatchRequestDto
@@ -26,5 +29,8 @@ namespace Api.Domain.Groups.Dto
 
         [Required]
         public required BoardVisibility Visibility { get; init; }
+
+        [Required]
+        public required BoardWriteability Writeability { get; init; }
     }
 }

@@ -8,6 +8,8 @@ namespace Api.Domain.Groups.Dto
         string Name,
         string? Description,
         BoardVisibility Visibility,
+        BoardWriteability Writeability,
+        bool CanWrite,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 }

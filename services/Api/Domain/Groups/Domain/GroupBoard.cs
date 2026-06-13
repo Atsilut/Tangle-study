@@ -25,20 +25,33 @@ namespace Api.Domain.Groups.Domain
 
         public BoardVisibility Visibility { get; private set; }
 
+        public BoardWriteability Writeability { get; private set; }
+
         private GroupBoard() { }
 
-        public GroupBoard(long groupId, string name, BoardVisibility visibility, string? description = null)
+        public GroupBoard(
+            long groupId,
+            string name,
+            BoardVisibility visibility,
+            string? description = null,
+            BoardWriteability writeability = BoardWriteability.MembersOnly)
         {
             GroupId = groupId;
             Name = name;
             Visibility = visibility;
             Description = description;
+            Writeability = writeability;
         }
 
-        public void Update(string name, BoardVisibility visibility, string? description)
+        public void Update(
+            string name,
+            BoardVisibility visibility,
+            BoardWriteability writeability,
+            string? description)
         {
             Name = name;
             Visibility = visibility;
+            Writeability = writeability;
             Description = description;
             UpdatedAt = DateTime.UtcNow;
         }
