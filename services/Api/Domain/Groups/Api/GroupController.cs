@@ -49,7 +49,7 @@ namespace Api.Domain.Groups.Api
         }
 
         [HttpGet("{id:long}")]
-        [SwaggerOperation(Summary = "Get group info (private groups: members only)")]
+        [SwaggerOperation(Summary = "Get group info (private groups: limited profile for non-members)")]
         public async Task<ActionResult<GroupResponseDto>> GetGroup([FromRoute] long id)
         {
             var response = await _service.GetGroupAsync(id);

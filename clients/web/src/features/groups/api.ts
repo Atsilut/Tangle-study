@@ -11,6 +11,8 @@ export interface Group {
   memberCount: number
   createdAt: string
   updatedAt: string
+  /** True when the API redacts description and other member-only fields. */
+  isLimitedProfile?: boolean
 }
 
 export interface CreateGroupRequest {

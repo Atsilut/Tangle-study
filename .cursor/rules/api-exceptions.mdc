@@ -49,5 +49,5 @@ Assert status + `ProblemDetails.Detail` for 401 permission, 404 target, 400 prer
 ## Known deviations (do not "fix" without intent)
 
 - `LoginService` returns `null` on failure (intentional; not typed exceptions).
-- Private group read: `EnsureMemberAsync` returns **404** for non-members (hides private group existence from strangers).
+- Private group `GET /api/groups/{id}`: non-members receive **200** with a limited profile (`IsLimitedProfile`, no description); members receive the full payload. Other private routes (e.g. members) still use **404** for non-members.
 - `ArgumentOutOfRangeException` is not mapped by `GlobalExceptionHandler` (defensive enum paths only).

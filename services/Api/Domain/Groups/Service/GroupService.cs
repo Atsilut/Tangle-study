@@ -71,6 +71,12 @@ namespace Api.Domain.Groups.Service
         {
             var group = await GetGroupOrThrowAsync(id);
             var memberCount = await _membership.CountMembersAsync(id);
+            var userId = GetUserIdFromLogin();
+
+            if (group.Visibility == GroupVisibility.Private
+                && !await _membership.IsMemberAsync(id, userId))
+                return MapToLimitedDto(group, memberCount);
+
             return MapToDto(group, memberCount);
         }
 
@@ -162,6 +168,19 @@ namespace Api.Domain.Groups.Service
             InvitePolicy: group.InvitePolicy,
             MemberCount: memberCount,
             CreatedAt: group.CreatedAt,
-            UpdatedAt: group.UpdatedAt);
+            UpdatedAt: group.UpdatedAt,
+            IsLimitedProfile: false);
+
+        private static GroupResponseDto MapToLimitedDto(Group group, int memberCount) => new(
+            Id: group.Id,
+            Name: group.Name,
+            Description: string.Empty,
+            Visibility: group.Visibility,
+            JoinPolicy: group.JoinPolicy,
+            InvitePolicy: group.InvitePolicy,
+            MemberCount: memberCount,
+            CreatedAt: default,
+            UpdatedAt: default,
+            IsLimitedProfile: true);
     }
 }

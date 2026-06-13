@@ -11,7 +11,8 @@ namespace Api.Domain.Groups.Dto
         GroupInvitePolicy InvitePolicy,
         int MemberCount,
         DateTime CreatedAt,
-        DateTime UpdatedAt);
+        DateTime UpdatedAt,
+        bool IsLimitedProfile = false);
 
     public record GroupMemberResponseDto(
         long UserId,
