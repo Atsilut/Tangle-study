@@ -89,7 +89,7 @@ export function GroupsPage() {
 
       <div className="flex gap-4 text-sm">
         <Link to="/invitations" className="text-blue-600 hover:underline">
-          My invitations
+          Invitations
         </Link>
         <Link to="/applications" className="text-blue-600 hover:underline">
           My applications

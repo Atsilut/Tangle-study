@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, EmptyState, Tabs } from '@/components/ui'
+import { Button, Card, EmptyState, Tabs } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
-import { UserRow } from '@/components/common/UserRow'
 import {
   useAcceptInvitation,
   useCancelInvitation,
@@ -99,11 +98,36 @@ export function InvitationsPage() {
   )
 }
 
-function GroupLink({ invitation }: { invitation: GroupInvitation }) {
+function InvitationRow({
+  invitation,
+  personPrefix,
+  actions,
+}: {
+  invitation: GroupInvitation
+  personPrefix: string
+  actions: ReactNode
+}) {
   return (
-    <Link to={`/groups/${invitation.groupId}`} className="font-medium text-blue-600 hover:underline">
-      {invitation.groupName}
-    </Link>
+    <Card className="flex items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <Link
+          to={`/groups/${invitation.groupId}`}
+          className="block truncate text-sm font-medium text-gray-900 hover:underline"
+        >
+          {invitation.groupName}
+        </Link>
+        <p className="mt-0.5 truncate text-xs text-gray-500">
+          {personPrefix}{' '}
+          <Link
+            to={`/users/${invitation.otherUserId}`}
+            className="text-gray-600 hover:underline"
+          >
+            {invitation.otherUserNickname}
+          </Link>
+        </p>
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </Card>
   )
 }
 
@@ -113,10 +137,9 @@ function IncomingRow({ invitation }: { invitation: GroupInvitation }) {
   const reject = useRejectInvitation()
   const busy = accept.isPending || ignore.isPending || reject.isPending
   return (
-    <UserRow
-      userId={invitation.otherUserId}
-      nickname={invitation.otherUserNickname}
-      subtitle={`Invited you to ${invitation.groupName}`}
+    <InvitationRow
+      invitation={invitation}
+      personPrefix="Invited by"
       actions={
         <>
           <Button size="sm" disabled={busy} isLoading={accept.isPending} onClick={() => accept.mutate(invitation.id)}>
@@ -137,14 +160,9 @@ function IncomingRow({ invitation }: { invitation: GroupInvitation }) {
 function OutgoingRow({ invitation }: { invitation: GroupInvitation }) {
   const cancel = useCancelInvitation()
   return (
-    <UserRow
-      userId={invitation.otherUserId}
-      nickname={invitation.otherUserNickname}
-      subtitle={
-        <>
-          Invited to <GroupLink invitation={invitation} />
-        </>
-      }
+    <InvitationRow
+      invitation={invitation}
+      personPrefix="Invited"
       actions={
         <Button size="sm" variant="secondary" isLoading={cancel.isPending} onClick={() => cancel.mutate(invitation.id)}>
           Cancel
