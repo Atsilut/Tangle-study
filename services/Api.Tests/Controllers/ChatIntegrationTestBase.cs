@@ -98,4 +98,26 @@ public abstract class ChatIntegrationTestBase(
             $"{ChatRoomsBase}/{roomId}/messages",
             new ChatMessageCreateRequestDto { Body = body },
             TestContext.Current.CancellationToken);
+
+    protected Task<HttpResponseMessage> PatchMessageAsync(long roomId, long messageId, string body) =>
+        Client.PatchAsJsonAsync(
+            $"{ChatRoomsBase}/{roomId}/messages/{messageId}",
+            new ChatMessagePatchRequestDto { Body = body },
+            TestContext.Current.CancellationToken);
+
+    protected Task<HttpResponseMessage> DeleteMessageAsync(long roomId, long messageId) =>
+        Client.DeleteAsync($"{ChatRoomsBase}/{roomId}/messages/{messageId}", TestContext.Current.CancellationToken);
+
+    protected Task<HttpResponseMessage> MarkMessagesSeenAsync(long roomId, params long[] messageIds) =>
+        Client.PostAsJsonAsync(
+            $"{ChatRoomsBase}/{roomId}/messages/seen",
+            new ChatMessageMarkSeenRequestDto { MessageIds = messageIds },
+            TestContext.Current.CancellationToken);
+
+    protected async Task<List<ChatMessageGetResponseDto>> ListMessagesAsync(long roomId)
+    {
+        var res = await Client.GetAsync($"{ChatRoomsBase}/{roomId}/messages", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        return (await res.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken))!;
+    }
 }

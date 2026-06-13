@@ -276,4 +276,163 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task PatchMessage_Returns200_WhenSenderAndUnseen()
+    {
+        const string testMethodName = nameof(PatchMessage_Returns200_WhenSenderAndUnseen);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        var patchRes = await PatchMessageAsync(room.Id, created.Id, "Updated");
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
+        var patched = await patchRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(patched);
+        Assert.Equal("Updated", patched.Body);
+        Assert.True(patched.IsEdited);
+        Assert.True(patched.CanEdit);
+    }
+
+    [Fact]
+    public async Task PatchMessage_Returns200_WhenSeenByOtherParticipant()
+    {
+        const string testMethodName = nameof(PatchMessage_Returns200_WhenSeenByOtherParticipant);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        await LoginAs(userB);
+        var markSeenRes = await MarkMessagesSeenAsync(room.Id, created.Id);
+        await IntegrationAssertions.AssertStatusAsync(markSeenRes, HttpStatusCode.NoContent);
+
+        await LoginAs(userA);
+        var patchRes = await PatchMessageAsync(room.Id, created.Id, "Still editable");
+        await IntegrationAssertions.AssertStatusAsync(patchRes, HttpStatusCode.OK);
+        var patched = await patchRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(patched);
+        Assert.Equal("Still editable", patched.Body);
+        Assert.True(patched.CanEdit);
+        Assert.False(patched.CanDelete);
+    }
+
+    [Fact]
+    public async Task DeleteMessage_SoftDeletes_WhenSenderAndUnseen()
+    {
+        const string testMethodName = nameof(DeleteMessage_SoftDeletes_WhenSenderAndUnseen);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Delete me")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        var deleteRes = await DeleteMessageAsync(room.Id, created.Id);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NoContent);
+
+        var messages = await ListMessagesAsync(room.Id);
+        var msg = Assert.Single(messages);
+        Assert.True(msg.IsDeleted);
+        Assert.Equal(string.Empty, msg.Body);
+        Assert.False(msg.CanDelete);
+    }
+
+    [Fact]
+    public async Task DeleteMessage_Returns400_WhenSeenByOtherParticipant()
+    {
+        const string testMethodName = nameof(DeleteMessage_Returns400_WhenSeenByOtherParticipant);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        await LoginAs(userB);
+        var markSeenRes = await MarkMessagesSeenAsync(room.Id, created.Id);
+        await IntegrationAssertions.AssertStatusAsync(markSeenRes, HttpStatusCode.NoContent);
+
+        await LoginAs(userA);
+        var deleteRes = await DeleteMessageAsync(room.Id, created.Id);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task ListMessages_DoesNotMarkMessagesSeen()
+    {
+        const string testMethodName = nameof(ListMessages_DoesNotMarkMessagesSeen);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Unseen")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        await LoginAs(userB);
+        await ListMessagesAsync(room.Id);
+
+        await LoginAs(userA);
+        var deleteRes = await DeleteMessageAsync(room.Id, created.Id);
+        await IntegrationAssertions.AssertStatusAsync(deleteRes, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task ListMessages_ExposesCanEditAndCanDelete_ForOwnUnseenMessage()
+    {
+        const string testMethodName = nameof(ListMessages_ExposesCanEditAndCanDelete_ForOwnUnseenMessage);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        await PostMessageAsync(room.Id, "Editable");
+
+        var messages = await ListMessagesAsync(room.Id);
+        var msg = Assert.Single(messages);
+        Assert.True(msg.CanEdit);
+        Assert.True(msg.CanDelete);
+    }
+
+    [Fact]
+    public async Task PatchMessage_RecordsEditHistory_AsThreadedTree()
+    {
+        const string testMethodName = nameof(PatchMessage_RecordsEditHistory_AsThreadedTree);
+
+        var userA = await CreateUserForTest(testMethodName, 1);
+        var userB = await CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        var created = await (await PostMessageAsync(room.Id, "Version 1")).Content
+            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        await PatchMessageAsync(room.Id, created.Id, "Version 2");
+        var secondPatch = await PatchMessageAsync(room.Id, created.Id, "Version 3");
+        await IntegrationAssertions.AssertStatusAsync(secondPatch, HttpStatusCode.OK);
+        var patched = await secondPatch.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(patched);
+        Assert.Equal("Version 3", patched.Body);
+        Assert.True(patched.IsEdited);
+        Assert.NotNull(patched.EditHistory);
+        Assert.Equal("Version 2", patched.EditHistory.Body);
+        var prior = Assert.Single(patched.EditHistory.PreviousEdits);
+        Assert.Equal("Version 1", prior.Body);
+        Assert.Empty(prior.PreviousEdits);
+    }
 }

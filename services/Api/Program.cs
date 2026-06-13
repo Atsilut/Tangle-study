@@ -1,3 +1,4 @@
+using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Realtime;
 using Api.Global.Config;
 using Api.Global.Db;
@@ -35,6 +36,8 @@ builder.Configuration
     .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
+builder.Services.Configure<ChatMessagePolicyOptions>(
+    builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
 builder.Services.AddSingleton<TokenProvider>();
 
 builder.Services

@@ -27,6 +27,8 @@ namespace Api.Global.Db
         public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
         public DbSet<ChatRoomParticipant> ChatRoomParticipants => Set<ChatRoomParticipant>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
+        public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
         public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -251,6 +253,24 @@ namespace Api.Global.Db
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => new { m.ChatRoomId, m.Id })
                 .IsDescending(false, true);
+
+            modelBuilder.Entity<ChatMessageReceipt>()
+                .HasOne(r => r.ChatMessage)
+                .WithMany()
+                .HasForeignKey(r => r.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessageReceipt>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<ChatMessageEdit>()
+                .HasOne(e => e.ChatMessage)
+                .WithMany()
+                .HasForeignKey(e => e.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<MediaAsset>()
                 .HasOne(m => m.Uploader)

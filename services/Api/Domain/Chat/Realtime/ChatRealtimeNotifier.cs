@@ -13,4 +13,14 @@ public class ChatRealtimeNotifier(IHubContext<ChatHub> hub) : IChatRealtimeNotif
         _hub.Clients
             .Group(ChatHub.RoomGroup(chatRoomId))
             .SendAsync(ChatHub.MessageCreatedEvent, message);
+
+    public Task NotifyMessageEditedAsync(long chatRoomId, ChatMessageGetResponseDto message) =>
+        _hub.Clients
+            .Group(ChatHub.RoomGroup(chatRoomId))
+            .SendAsync(ChatHub.MessageEditedEvent, message);
+
+    public Task NotifyMessageDeletedAsync(long chatRoomId, ChatMessageGetResponseDto message) =>
+        _hub.Clients
+            .Group(ChatHub.RoomGroup(chatRoomId))
+            .SendAsync(ChatHub.MessageDeletedEvent, message);
 }
