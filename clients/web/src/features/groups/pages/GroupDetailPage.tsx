@@ -16,7 +16,12 @@ import { GroupInvitePolicy, GroupJoinPolicy, GroupRole, GroupVisibility } from '
 import { useDeleteGroup, useGroup, useJoinGroup } from '../hooks'
 import { useMyGroupRole } from '../membersHooks'
 import { useApplyToGroup } from '../applicationsHooks'
-import { groupVisibilityLabels, invitePolicyLabels, joinPolicyLabels, canInviteToGroup } from '../labels'
+import {
+  canInviteToGroup,
+  groupVisibilityLabels,
+  invitePolicyLabels,
+  joinPolicyLabels,
+} from '../labels'
 
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -32,12 +37,15 @@ export function GroupDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const isMember = role != null
-  const isPrivateVisitor =
-    group?.visibility === GroupVisibility.Private && !isMember
+  const isLimitedProfile =
+    group?.isLimitedProfile ??
+    (group?.visibility === GroupVisibility.Private && !isMember)
   const canEdit = role === GroupRole.Owner || role === GroupRole.Admin
   const canDelete = role === GroupRole.Owner
   const canInvite =
-    group != null && canInviteToGroup(group.invitePolicy ?? GroupInvitePolicy.AdminsOnly, role)
+    !isLimitedProfile &&
+    group != null &&
+    canInviteToGroup(group.invitePolicy ?? GroupInvitePolicy.AdminsOnly, role)
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -50,26 +58,25 @@ export function GroupDetailPage() {
             <CardHeader className="flex items-start gap-3">
               <div className="flex-1">
                 <h1 className="text-xl font-bold text-gray-900">{group.name}</h1>
-                {!isPrivateVisitor && (
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    <Badge color={group.visibility ? 'green' : 'gray'}>
-                      {groupVisibilityLabels[group.visibility]}
-                    </Badge>
-                    <Badge color="blue">{joinPolicyLabels[group.joinPolicy]}</Badge>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <Badge color={group.visibility ? 'green' : 'gray'}>
+                    {groupVisibilityLabels[group.visibility]}
+                  </Badge>
+                  <Badge color="blue">{joinPolicyLabels[group.joinPolicy]}</Badge>
+                  {!isLimitedProfile && (
                     <Badge color="gray">
                       {invitePolicyLabels[group.invitePolicy ?? GroupInvitePolicy.AdminsOnly]}
                     </Badge>
-                    <Badge>{group.memberCount} members</Badge>
-                  </div>
-                )}
+                  )}
+                  <Badge>{group.memberCount} members</Badge>
+                </div>
               </div>
-              {!isPrivateVisitor && !isMember && group.joinPolicy === GroupJoinPolicy.Open && (
+              {!isMember && group.joinPolicy === GroupJoinPolicy.Open && (
                 <Button size="sm" isLoading={join.isPending} onClick={() => join.mutate()}>
                   Join
                 </Button>
               )}
-              {!isPrivateVisitor &&
-                !isMember &&
+              {!isMember &&
                 group.joinPolicy === GroupJoinPolicy.Requestable &&
                 (apply.isSuccess ? (
                   <Badge color="green">Applied</Badge>
@@ -80,60 +87,68 @@ export function GroupDetailPage() {
                 ))}
             </CardHeader>
             <CardBody className="flex flex-col gap-3">
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{group.description}</p>
-              {!isPrivateVisitor && (
-                <p className="text-xs text-gray-400">Created {formatDate(group.createdAt)}</p>
+              {isLimitedProfile ? (
+                <p className="text-sm text-gray-500">
+                  This is a private group. Join to see the description and group content.
+                </p>
+              ) : (
+                <>
+                  <p className="whitespace-pre-wrap text-sm text-gray-700">{group.description}</p>
+                  <p className="text-xs text-gray-400">Created {formatDate(group.createdAt)}</p>
+                </>
               )}
 
-              {!isPrivateVisitor && join.isError && (
+              {join.isError && (
                 <ErrorState title="Could not join" message={getErrorMessage(join.error)} />
               )}
-              {!isPrivateVisitor && apply.isError && (
+              {apply.isError && (
                 <ErrorState title="Could not apply" message={getErrorMessage(apply.error)} />
               )}
 
-              <div className="flex flex-wrap gap-3 border-t border-gray-100 pt-3 text-sm">
-                <Link to={`/groups/${group.id}/members`} className="text-blue-600 hover:underline">
-                  Members
-                </Link>
-                {canInvite && (
-                  <Link
-                    to={`/groups/${group.id}/members#invitations`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Invitations
+              {!isLimitedProfile && (
+                <div className="flex flex-wrap gap-3 border-t border-gray-100 pt-3 text-sm">
+                  <Link to={`/groups/${group.id}/members`} className="text-blue-600 hover:underline">
+                    Members
                   </Link>
-                )}
-                <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
-                  Boards
-                </Link>
-                {!isPrivateVisitor && isMember && (
-                  <Link
-                    to={`/groups/${group.id}/chat-rooms`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Chat rooms
+                  {canInvite && (
+                    <Link
+                      to={`/groups/${group.id}/members#invitations`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Invitations
+                    </Link>
+                  )}
+                  <Link to={`/groups/${group.id}/boards`} className="text-blue-600 hover:underline">
+                    Boards
                   </Link>
-                )}
-                {!isPrivateVisitor && canEdit && (
-                  <Link
-                    to={`/groups/${group.id}/applications`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Applications
-                  </Link>
-                )}
-                {!isPrivateVisitor && canDelete && (
-                  <Link
-                    to={`/groups/${group.id}/blacklist`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Blacklist
-                  </Link>
-                )}
-              </div>
+                  {isMember && (
+                    <Link
+                      to={`/groups/${group.id}/chat-rooms`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Chat rooms
+                    </Link>
+                  )}
+                  {canEdit && (
+                    <Link
+                      to={`/groups/${group.id}/applications`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Applications
+                    </Link>
+                  )}
+                  {canDelete && (
+                    <Link
+                      to={`/groups/${group.id}/blacklist`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Blacklist
+                    </Link>
+                  )}
+                </div>
+              )}
 
-              {!isPrivateVisitor && (canEdit || canDelete) && (
+              {!isLimitedProfile && (canEdit || canDelete) && (
                 <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
                   {canEdit && (
                     <Link to={`/groups/${group.id}/edit`}>
