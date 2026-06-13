@@ -10,20 +10,21 @@ namespace Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "Writeability",
-                table: "GroupBoards",
-                type: "integer",
-                nullable: false,
-                defaultValue: 1);
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE "GroupBoards"
+                ADD COLUMN IF NOT EXISTS "Writeability" integer NOT NULL DEFAULT 1;
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Writeability",
-                table: "GroupBoards");
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE "GroupBoards"
+                DROP COLUMN IF EXISTS "Writeability";
+                """);
         }
     }
 }
