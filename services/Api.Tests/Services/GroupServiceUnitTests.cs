@@ -85,5 +85,7 @@ public sealed class GroupServiceUnitTests
         // Assert
         Assert.Equal(group.Id, dto.Id);
         Assert.Equal("Private", dto.Name);
+        Assert.True(dto.IsLimitedProfile);
+        Assert.Equal(string.Empty, dto.Description);
     }
 }

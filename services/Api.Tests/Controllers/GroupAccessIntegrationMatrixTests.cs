@@ -18,7 +18,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Owner, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Member, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
-            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
+            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.NotFound },
             { GroupVisibility.Public, GroupActorRole.Stranger, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Public, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
         };
@@ -52,6 +52,17 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 var dto = await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken);
                 Assert.NotNull(dto);
                 Assert.Equal(group.Id, dto.Id);
+                if (visibility == GroupVisibility.Private && actor == GroupActorRole.Stranger)
+                {
+                    Assert.True(dto.IsLimitedProfile);
+                    Assert.Equal(string.Empty, dto.Description);
+                    Assert.Equal(group.Name, dto.Name);
+                    Assert.True(dto.MemberCount >= 1);
+                }
+                else
+                {
+                    Assert.False(dto.IsLimitedProfile);
+                }
             }
             else
             {
