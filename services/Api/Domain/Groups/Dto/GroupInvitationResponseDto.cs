@@ -12,4 +12,12 @@ namespace Api.Domain.Groups.Dto
         bool IsIncoming,
         DateTime CreatedAt,
         DateTime UpdatedAt);
+
+    public record GroupInvitationGroupListItemDto(
+        long Id,
+        long InviterId,
+        string InviterNickname,
+        long InviteeId,
+        string InviteeNickname,
+        DateTime CreatedAt);
 }

@@ -16,25 +16,38 @@ namespace Api.Domain.Groups.Domain
         public string Description { get; private set; }
         public GroupVisibility Visibility { get; private set; }
         public GroupJoinPolicy JoinPolicy { get; private set; }
+        public GroupInvitePolicy InvitePolicy { get; private set; }
 
         public ICollection<GroupMember> Members { get; private set; } = [];
 
         private Group() { }
 
-        public Group(string name, string description, GroupVisibility visibility, GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable)
+        public Group(
+            string name,
+            string description,
+            GroupVisibility visibility,
+            GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable,
+            GroupInvitePolicy invitePolicy = GroupInvitePolicy.AdminsOnly)
         {
             Name = name;
             Description = description;
             Visibility = visibility;
             JoinPolicy = joinPolicy;
+            InvitePolicy = invitePolicy;
         }
 
-        public void UpdateDetails(string name, string description, GroupVisibility visibility, GroupJoinPolicy joinPolicy)
+        public void UpdateDetails(
+            string name,
+            string description,
+            GroupVisibility visibility,
+            GroupJoinPolicy joinPolicy,
+            GroupInvitePolicy invitePolicy)
         {
             Name = name;
             Description = description;
             Visibility = visibility;
             JoinPolicy = joinPolicy;
+            InvitePolicy = invitePolicy;
             UpdatedAt = DateTime.UtcNow;
         }
     }

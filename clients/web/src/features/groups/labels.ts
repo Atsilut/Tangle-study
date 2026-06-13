@@ -1,6 +1,7 @@
 import {
   BoardVisibility,
   BoardWriteability,
+  GroupInvitePolicy,
   GroupJoinPolicy,
   GroupRole,
   GroupVisibility,
@@ -24,6 +25,22 @@ export const joinPolicyOptions = [
   GroupJoinPolicy.Requestable,
   GroupJoinPolicy.InvitationOnly,
 ]
+
+export const invitePolicyLabels: Record<GroupInvitePolicy, string> = {
+  [GroupInvitePolicy.AdminsOnly]: 'Admins only',
+  [GroupInvitePolicy.ForAll]: 'All members',
+}
+
+export const invitePolicyOptions = [GroupInvitePolicy.AdminsOnly, GroupInvitePolicy.ForAll]
+
+export function canInviteToGroup(
+  invitePolicy: GroupInvitePolicy,
+  role: GroupRole | null | undefined,
+): boolean {
+  if (role == null) return false
+  if (invitePolicy === GroupInvitePolicy.ForAll) return true
+  return role === GroupRole.Owner || role === GroupRole.Admin
+}
 
 export const groupRoleLabels: Record<GroupRole, string> = {
   [GroupRole.Member]: 'Member',

@@ -14,7 +14,23 @@ export interface GroupInvitation {
   updatedAt: string
 }
 
-// POST /api/groups/{groupId}/invitations (JWT, owner/admin) -> 201 | 200 (reciprocal)
+export interface GroupInvitationListItem {
+  id: number
+  inviterId: number
+  inviterNickname: string
+  inviteeId: number
+  inviteeNickname: string
+  createdAt: string
+}
+
+// GET /api/groups/{groupId}/invitations -> 200 list | 204
+export function getGroupInvitations(groupId: number): Promise<GroupInvitationListItem[]> {
+  return getList<GroupInvitationListItem>(`/groups/${groupId}/invitations`, {
+    treatUnauthorizedAsForbidden: true,
+  })
+}
+
+// POST /api/groups/{groupId}/invitations (JWT, per invite policy) -> 201 | 200 (reciprocal)
 export async function inviteToGroup(groupId: number, inviteeId: number): Promise<void> {
   await api.post(
     `/groups/${groupId}/invitations`,

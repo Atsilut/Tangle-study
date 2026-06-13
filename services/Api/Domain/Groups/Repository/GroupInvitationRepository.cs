@@ -31,6 +31,12 @@ namespace Api.Domain.Groups.Repository
                 .Where(i => i.InviteeId == inviteeId && i.IsPending)
                 .ToListAsync();
 
+        public Task<List<GroupInvitation>> GetPendingForGroupAsync(long groupId) =>
+            _context.GroupInvitations
+                .Where(i => i.GroupId == groupId && i.IsPending)
+                .OrderByDescending(i => i.CreatedAt)
+                .ToListAsync();
+
         public Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId) =>
             _context.GroupInvitations
                 .Where(i => i.InviterId == inviterId && !i.IsPending)

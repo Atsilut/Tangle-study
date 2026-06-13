@@ -12,8 +12,17 @@ namespace Api.Domain.Groups.Api
     {
         private readonly GroupInvitationService _service = service;
 
+        [HttpGet("api/groups/{groupId:long}/invitations")]
+        [SwaggerOperation(Summary = "List pending invitations for a group (members per invite policy)")]
+        public async Task<IActionResult> ListForGroup([FromRoute] long groupId)
+        {
+            var response = await _service.GetPendingForGroupAsync(groupId);
+            if (response is null) return NoContent();
+            return Ok(response);
+        }
+
         [HttpPost("api/groups/{groupId:long}/invitations")]
-        [SwaggerOperation(Summary = "Invite a user to a group (owner/admin)")]
+        [SwaggerOperation(Summary = "Invite a user to a group (per group invite policy)")]
         public async Task<IActionResult> Invite(
             [FromRoute] long groupId,
             [FromBody] GroupInvitationCreateRequestDto request)

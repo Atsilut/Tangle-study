@@ -32,7 +32,8 @@ internal static class GroupIntegrationTestHelpers
         HttpClient client,
         UserGetResponseDto user,
         GroupVisibility visibility = GroupVisibility.Private,
-        GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable)
+        GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable,
+        GroupInvitePolicy invitePolicy = GroupInvitePolicy.AdminsOnly)
     {
         await LoginAsAsync(client, user);
         var res = await client.PostAsJsonAsync(GroupsBase, new GroupCreateRequestDto
@@ -41,6 +42,7 @@ internal static class GroupIntegrationTestHelpers
             Description = "test group",
             Visibility = visibility,
             JoinPolicy = joinPolicy,
+            InvitePolicy = invitePolicy,
         }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
         return (await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken))!;

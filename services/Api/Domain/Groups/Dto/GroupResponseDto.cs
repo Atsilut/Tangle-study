@@ -8,6 +8,7 @@ namespace Api.Domain.Groups.Dto
         string Description,
         GroupVisibility Visibility,
         GroupJoinPolicy JoinPolicy,
+        GroupInvitePolicy InvitePolicy,
         int MemberCount,
         DateTime CreatedAt,
         DateTime UpdatedAt);

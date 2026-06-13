@@ -19,6 +19,11 @@ export enum GroupJoinPolicy {
   InvitationOnly = 2,
 }
 
+export enum GroupInvitePolicy {
+  AdminsOnly = 0,
+  ForAll = 1,
+}
+
 export enum GroupRole {
   Member = 0,
   Admin = 1,

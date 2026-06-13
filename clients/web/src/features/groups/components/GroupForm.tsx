@@ -1,10 +1,12 @@
 import { type FormEvent, useState } from 'react'
 import { Button, ErrorState, FormField, Input, Select, TextArea } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
-import { GroupJoinPolicy, GroupVisibility } from '@/types/api'
+import { GroupJoinPolicy, GroupInvitePolicy, GroupVisibility } from '@/types/api'
 import {
   groupVisibilityLabels,
   groupVisibilityOptions,
+  invitePolicyLabels,
+  invitePolicyOptions,
   joinPolicyLabels,
   joinPolicyOptions,
 } from '../labels'
@@ -14,6 +16,7 @@ export interface GroupFormValues {
   description: string
   visibility: GroupVisibility
   joinPolicy: GroupJoinPolicy
+  invitePolicy: GroupInvitePolicy
 }
 
 export interface GroupFormProps {
@@ -42,10 +45,13 @@ export function GroupForm({
   const [joinPolicy, setJoinPolicy] = useState<GroupJoinPolicy>(
     initial?.joinPolicy ?? GroupJoinPolicy.Requestable,
   )
+  const [invitePolicy, setInvitePolicy] = useState<GroupInvitePolicy>(
+    initial?.invitePolicy ?? GroupInvitePolicy.AdminsOnly,
+  )
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    onSubmit({ name: name.trim(), description: description.trim(), visibility, joinPolicy })
+    onSubmit({ name: name.trim(), description: description.trim(), visibility, joinPolicy, invitePolicy })
   }
 
   return (
@@ -98,6 +104,21 @@ export function GroupForm({
             {joinPolicyOptions.map((p) => (
               <option key={p} value={p}>
                 {joinPolicyLabels[p]}
+              </option>
+            ))}
+          </Select>
+        )}
+      </FormField>
+      <FormField label="Invite permission">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={invitePolicy}
+            onChange={(e) => setInvitePolicy(Number(e.target.value))}
+          >
+            {invitePolicyOptions.map((p) => (
+              <option key={p} value={p}>
+                {invitePolicyLabels[p]}
               </option>
             ))}
           </Select>

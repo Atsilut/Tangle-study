@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Badge,
@@ -16,28 +16,39 @@ import {
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { getErrorMessage } from '@/lib/apiError'
+import { formatDateTime } from '@/lib/format'
 import { useAuthStore } from '@/stores/authStore'
-import { GroupRole } from '@/types/api'
+import { useUsers } from '@/features/users/hooks'
+import { GroupInvitePolicy, GroupRole } from '@/types/api'
 import {
   useGroupMembers,
   useMyGroupRole,
   useRemoveMember,
   useUpdateMemberRole,
 } from '../membersHooks'
-import { useInviteToGroup } from '../invitationsHooks'
-import { useTransferOwnership } from '../hooks'
-import { groupRoleLabels } from '../labels'
+import {
+  useCancelInvitation,
+  useGroupInvitations,
+  useInviteToGroup,
+} from '../invitationsHooks'
+import { useGroup, useTransferOwnership } from '../hooks'
+import { canInviteToGroup, groupRoleLabels } from '../labels'
 import type { GroupMember } from '../membersApi'
 
 export function GroupMembersPage() {
   const { id } = useParams<{ id: string }>()
   const groupId = Number(id)
   const currentUserId = useAuthStore((s) => s.userId)
+  const group = useGroup(Number.isFinite(groupId) ? groupId : null)
   const members = useGroupMembers(Number.isFinite(groupId) ? groupId : null)
   const { role: myRole } = useMyGroupRole(Number.isFinite(groupId) ? groupId : null)
 
   const isOwner = myRole === GroupRole.Owner
   const isAdmin = myRole === GroupRole.Admin || isOwner
+  const canInvite = canInviteToGroup(
+    group.data?.invitePolicy ?? GroupInvitePolicy.AdminsOnly,
+    myRole,
+  )
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -45,7 +56,8 @@ export function GroupMembersPage() {
         Back to group
       </Link>
       <h1 className="text-2xl font-bold text-gray-900">Members</h1>
-      {isAdmin && <InviteCard groupId={groupId} />}
+      {canInvite && <InviteCard groupId={groupId} />}
+      {canInvite && <PendingInvitationsCard groupId={groupId} />}
       <QueryBoundary
         isLoading={members.isLoading}
         isError={members.isError}
@@ -75,14 +87,47 @@ export function GroupMembersPage() {
 
 function InviteCard({ groupId }: { groupId: number }) {
   const invite = useInviteToGroup(groupId)
-  const [userId, setUserId] = useState('')
+  const users = useUsers()
+  const members = useGroupMembers(groupId)
+  const [nickname, setNickname] = useState('')
+  const [lookupError, setLookupError] = useState<string | null>(null)
+
+  const memberIds = useMemo(
+    () => new Set(members.data?.map((m) => m.userId) ?? []),
+    [members.data],
+  )
+
+  const suggestions = useMemo(
+    () =>
+      (users.data ?? [])
+        .filter((u) => !memberIds.has(u.id))
+        .map((u) => u.nickname)
+        .sort((a, b) => a.localeCompare(b)),
+    [users.data, memberIds],
+  )
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const id = Number(userId)
-    if (Number.isFinite(id) && id > 0) {
-      invite.mutate(id, { onSuccess: () => setUserId('') })
+    setLookupError(null)
+    const trimmed = nickname.trim()
+    if (trimmed === '') return
+
+    const match = users.data?.find(
+      (u) => u.nickname.localeCompare(trimmed, undefined, { sensitivity: 'accent' }) === 0,
+    )
+    if (!match) {
+      setLookupError('No user found with that nickname.')
+      return
     }
+    if (memberIds.has(match.id)) {
+      setLookupError('That user is already a member.')
+      return
+    }
+
+    invite.mutate(match.id, {
+      onSuccess: () => setNickname(''),
+      onError: () => setLookupError(null),
+    })
   }
 
   return (
@@ -92,25 +137,95 @@ function InviteCard({ groupId }: { groupId: number }) {
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
         <form className="flex items-end gap-2" onSubmit={onSubmit}>
-          <FormField label="User ID" className="flex-1">
+          <FormField label="Nickname" className="flex-1">
             {({ id }) => (
-              <Input
-                id={id}
-                type="number"
-                min={1}
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="e.g. 2"
-              />
+              <>
+                <Input
+                  id={id}
+                  list="group-invite-nicknames"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Search by nickname"
+                  autoComplete="off"
+                />
+                <datalist id="group-invite-nicknames">
+                  {suggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </>
             )}
           </FormField>
-          <Button type="submit" isLoading={invite.isPending} disabled={userId.trim() === ''}>
+          <Button type="submit" isLoading={invite.isPending} disabled={nickname.trim() === ''}>
             Invite
           </Button>
         </form>
-        {invite.isError && <ErrorState title="Could not invite" message={getErrorMessage(invite.error)} />}
+        {lookupError && (
+          <p className="text-sm text-red-600" role="alert">
+            {lookupError}
+          </p>
+        )}
+        {invite.isError && (
+          <ErrorState title="Could not invite" message={getErrorMessage(invite.error)} />
+        )}
         {invite.isSuccess && <Badge color="green">Invitation sent</Badge>}
       </CardBody>
+    </Card>
+  )
+}
+
+function PendingInvitationsCard({ groupId }: { groupId: number }) {
+  const invitations = useGroupInvitations(groupId)
+  const cancel = useCancelInvitation(groupId)
+  const [cancelId, setCancelId] = useState<number | null>(null)
+
+  return (
+    <Card id="invitations">
+      <CardHeader>
+        <h2 className="text-sm font-semibold text-gray-900">Pending invitations</h2>
+      </CardHeader>
+      <CardBody>
+        <QueryBoundary isLoading={invitations.isLoading} isError={invitations.isError}>
+          {invitations.data && invitations.data.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {invitations.data.map((invitation) => (
+                <li key={invitation.id}>
+                  <UserRow
+                    userId={invitation.inviteeId}
+                    nickname={invitation.inviteeNickname}
+                    subtitle={`Invited by ${invitation.inviterNickname} · ${formatDateTime(invitation.createdAt)}`}
+                    actions={
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => setCancelId(invitation.id)}
+                      >
+                        Cancel
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState title="No pending invitations" />
+          )}
+        </QueryBoundary>
+      </CardBody>
+
+      <ConfirmDialog
+        isOpen={cancelId != null}
+        title="Cancel invitation"
+        message="The invitee will no longer be able to accept this invitation."
+        confirmLabel="Cancel invitation"
+        destructive
+        isLoading={cancel.isPending}
+        onConfirm={() => {
+          if (cancelId == null) return
+          cancel.mutate(cancelId, { onSuccess: () => setCancelId(null) })
+        }}
+        onCancel={() => setCancelId(null)}
+      />
     </Card>
   )
 }
@@ -132,11 +247,8 @@ function MemberRow({ groupId, member, isSelf, isOwner, isAdmin }: MemberRowProps
 
   const memberIsOwner = member.role === GroupRole.Owner
 
-  // Owner can promote/demote non-owner members between Member and Admin.
   const canChangeRole = isOwner && !isSelf && !memberIsOwner
-  // Owner can transfer ownership to another member.
   const canTransfer = isOwner && !isSelf && !memberIsOwner
-  // Admin/owner can kick; owner additionally can remove admins. Never the owner.
   const canRemove = !isSelf && !memberIsOwner && isAdmin && (isOwner || member.role === GroupRole.Member)
 
   return (

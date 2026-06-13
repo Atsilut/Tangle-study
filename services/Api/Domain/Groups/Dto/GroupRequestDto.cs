@@ -27,6 +27,10 @@ namespace Api.Domain.Groups.Dto
         [SwaggerSchema(Description = "How users may join (Open = 0, Requestable = 1, InvitationOnly = 2). Defaults to Requestable when omitted.")]
         [DefaultValue(GroupJoinPolicy.Requestable)]
         public GroupJoinPolicy? JoinPolicy { get; init; }
+
+        [SwaggerSchema(Description = "Who may send invitations (AdminsOnly = 0, ForAll = 1). Defaults to AdminsOnly when omitted.")]
+        [DefaultValue(GroupInvitePolicy.AdminsOnly)]
+        public GroupInvitePolicy? InvitePolicy { get; init; }
     }
 
     public record GroupPatchRequestDto
@@ -52,6 +56,10 @@ namespace Api.Domain.Groups.Dto
         [Required]
         [SwaggerSchema(Description = "How users may join (Open = 0, Requestable = 1, InvitationOnly = 2)")]
         public required GroupJoinPolicy JoinPolicy { get; init; }
+
+        [Required]
+        [SwaggerSchema(Description = "Who may send invitations (AdminsOnly = 0, ForAll = 1)")]
+        public required GroupInvitePolicy InvitePolicy { get; init; }
     }
 
     public record GroupTransferOwnershipRequestDto
