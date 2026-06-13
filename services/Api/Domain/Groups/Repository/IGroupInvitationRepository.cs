@@ -9,6 +9,7 @@ namespace Api.Domain.Groups.Repository
         public Task<GroupInvitation?> GetForUserAsync(long groupId, long inviteeId);
         public Task<GroupInvitation?> GetPendingForUserAsync(long groupId, long inviteeId);
         public Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId);
+        public Task<List<GroupInvitation>> GetPendingForGroupAsync(long groupId);
         public Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId);
         public Task<List<GroupInvitation>> GetIgnoredIncomingForInviteeAsync(long inviteeId);
         public Task UpdateInvitationAsync(GroupInvitation invitation);

@@ -67,7 +67,8 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupInvitationResult> InviteAsync(long groupId, GroupInvitationCreateRequestDto request)
         {
             var inviterId = GetUserIdFromLogin();
-            await _membershipService.EnsureAdminOrOwnerAsync(groupId, inviterId);
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+            await EnsureCanInviteAsync(group, groupId, inviterId);
 
             if (inviterId == request.InviteeId) throw new ArgumentException("Cannot invite yourself.");
 
@@ -148,6 +149,29 @@ namespace Api.Domain.Groups.Service
 
         private static bool IsGroupInvitationUniqueViolation(DbUpdateException exception) =>
             exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
+        public async Task<List<GroupInvitationGroupListItemDto>?> GetPendingForGroupAsync(long groupId)
+        {
+            var userId = GetUserIdFromLogin();
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+            await EnsureCanViewGroupInvitationsAsync(group, groupId, userId);
+
+            var invitations = await _repo.GetPendingForGroupAsync(groupId);
+            if (invitations.Count == 0) return null;
+
+            var userIds = invitations
+                .SelectMany(i => new[] { i.InviterId, i.InviteeId })
+                .Distinct();
+            var nicknames = await _userService.GetNicknamesByUserIdsAsync(userIds);
+
+            return [.. invitations.Select(i => new GroupInvitationGroupListItemDto(
+                i.Id,
+                i.InviterId,
+                nicknames.GetValueOrDefault(i.InviterId, "Deleted User"),
+                i.InviteeId,
+                nicknames.GetValueOrDefault(i.InviteeId, "Deleted User"),
+                i.CreatedAt))];
+        }
 
         public async Task IgnoreAsync(long invitationId)
         {
@@ -271,5 +295,20 @@ namespace Api.Domain.Groups.Service
 
         private static bool AppearsPendingForViewer(GroupInvitation invitation, long viewerId) =>
             invitation.IsPending || invitation.InviterId == viewerId;
+
+        private async Task EnsureCanInviteAsync(Group group, long groupId, long userId)
+        {
+            if (group.InvitePolicy == GroupInvitePolicy.AdminsOnly)
+            {
+                await _membershipService.EnsureAdminOrOwnerAsync(groupId, userId);
+                return;
+            }
+
+            if (!await _membershipService.IsMemberAsync(groupId, userId))
+                throw new UnauthorizedAccessException("Unauthorized access");
+        }
+
+        private Task EnsureCanViewGroupInvitationsAsync(Group group, long groupId, long userId) =>
+            EnsureCanInviteAsync(group, groupId, userId);
     }
 }

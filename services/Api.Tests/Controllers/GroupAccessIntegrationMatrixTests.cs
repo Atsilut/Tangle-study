@@ -104,6 +104,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 Description = "desc",
                 Visibility = GroupVisibility.Public,
                 JoinPolicy = GroupJoinPolicy.Requestable,
+                InvitePolicy = GroupInvitePolicy.AdminsOnly,
             }, TestContext.Current.CancellationToken),
             GroupManagementAction.Delete => await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken),
             GroupManagementAction.TransferToMember => await Client.PatchAsJsonAsync($"{GroupIntegrationTestHelpers.GroupsBase}/transfer",

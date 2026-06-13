@@ -56,7 +56,8 @@ namespace Api.Domain.Groups.Service
                 request.Name,
                 request.Description,
                 request.Visibility,
-                request.JoinPolicy ?? GroupJoinPolicy.Requestable);
+                request.JoinPolicy ?? GroupJoinPolicy.Requestable,
+                request.InvitePolicy ?? GroupInvitePolicy.AdminsOnly);
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreateGroupAsync(group);
@@ -97,7 +98,12 @@ namespace Api.Domain.Groups.Service
             await _membership.EnsureAdminOrOwnerAsync(request.Id, callerId);
 
             var group = await GetGroupOrThrowAsync(request.Id);
-            group.UpdateDetails(request.Name, request.Description, request.Visibility, request.JoinPolicy);
+            group.UpdateDetails(
+                request.Name,
+                request.Description,
+                request.Visibility,
+                request.JoinPolicy,
+                request.InvitePolicy);
             await _repo.UpdateGroupAsync(group);
 
             var memberCount = await _membership.CountMembersAsync(group.Id);
@@ -153,6 +159,7 @@ namespace Api.Domain.Groups.Service
             Description: group.Description,
             Visibility: group.Visibility,
             JoinPolicy: group.JoinPolicy,
+            InvitePolicy: group.InvitePolicy,
             MemberCount: memberCount,
             CreatedAt: group.CreatedAt,
             UpdatedAt: group.UpdatedAt);

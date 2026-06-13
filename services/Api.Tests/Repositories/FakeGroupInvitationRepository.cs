@@ -31,6 +31,9 @@ public sealed class FakeGroupInvitationRepository : IGroupInvitationRepository
     public Task<List<GroupInvitation>> GetPendingIncomingForInviteeAsync(long inviteeId) =>
         Task.FromResult(_invitations.Where(i => i.InviteeId == inviteeId && i.IsPending).ToList());
 
+    public Task<List<GroupInvitation>> GetPendingForGroupAsync(long groupId) =>
+        Task.FromResult(_invitations.Where(i => i.GroupId == groupId && i.IsPending).ToList());
+
     public Task<List<GroupInvitation>> GetIgnoredOutgoingForInviterAsync(long inviterId) =>
         Task.FromResult(_invitations.Where(i => i.InviterId == inviterId && !i.IsPending).ToList());
 
