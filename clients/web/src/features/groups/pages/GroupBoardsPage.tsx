@@ -12,7 +12,7 @@ import {
 } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { GroupRole } from '@/types/api'
-import { boardVisibilityLabels } from '../labels'
+import { boardVisibilityLabels, boardWriteabilityLabels } from '../labels'
 import { BoardForm, type BoardFormValues } from '../components/BoardForm'
 import { useBoards, useCreateBoard, useDeleteBoard, useUpdateBoard } from '../boardsHooks'
 import { useMyGroupRole } from '../membersHooks'
@@ -31,7 +31,12 @@ export function GroupBoardsPage() {
 
   const onCreate = (values: BoardFormValues) => {
     createBoard.mutate(
-      { name: values.name, description: values.description, visibility: values.visibility },
+      {
+        name: values.name,
+        description: values.description,
+        visibility: values.visibility,
+        writeability: values.writeability,
+      },
       { onSuccess: () => setCreateOpen(false) },
     )
   }
@@ -99,6 +104,7 @@ function BoardRow({
           name: values.name,
           description: values.description,
           visibility: values.visibility,
+          writeability: values.writeability,
         },
       },
       { onSuccess: () => setEditOpen(false) },
@@ -114,7 +120,10 @@ function BoardRow({
         >
           {board.name}
         </Link>
-        <Badge>{boardVisibilityLabels[board.visibility]}</Badge>
+        <div className="flex flex-wrap gap-1">
+          <Badge>{boardVisibilityLabels[board.visibility]}</Badge>
+          <Badge color="gray">{boardWriteabilityLabels[board.writeability]}</Badge>
+        </div>
         {canManage && (
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
@@ -138,6 +147,7 @@ function BoardRow({
             name: board.name,
             description: board.description ?? '',
             visibility: board.visibility,
+            writeability: board.writeability,
           }}
           submitLabel="Save"
           isPending={updateBoard.isPending}

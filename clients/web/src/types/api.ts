@@ -31,6 +31,12 @@ export enum BoardVisibility {
   ForAll = 2,
 }
 
+export enum BoardWriteability {
+  AdminOnly = 0,
+  MembersOnly = 1,
+  ForAll = 2,
+}
+
 export enum ChatRoomKind {
   Direct = 0,
   Multi = 1,

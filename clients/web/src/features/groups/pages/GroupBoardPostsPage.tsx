@@ -15,7 +15,9 @@ export function GroupBoardPostsPage() {
   const valid = Number.isFinite(groupId) && Number.isFinite(board)
   const posts = useBoardPosts(valid ? groupId : null, valid ? board : null)
   const boards = useBoards(valid ? groupId : null)
-  const boardName = boards.data?.find((b) => b.id === board)?.name ?? 'Board'
+  const boardMeta = boards.data?.find((b) => b.id === board)
+  const boardName = boardMeta?.name ?? 'Board'
+  const canWrite = boardMeta?.canWrite ?? false
   const createPost = useCreateBoardPost(groupId, board)
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -30,7 +32,7 @@ export function GroupBoardPostsPage() {
       </Link>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{boardName}</h1>
-        <Button onClick={() => setCreateOpen(true)}>New post</Button>
+        {canWrite && <Button onClick={() => setCreateOpen(true)}>New post</Button>}
       </div>
 
       <QueryBoundary

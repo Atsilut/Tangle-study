@@ -1,5 +1,5 @@
 import { api, getList } from '@/lib/apiClient'
-import type { BoardVisibility } from '@/types/api'
+import type { BoardVisibility, BoardWriteability } from '@/types/api'
 import type { Post } from '@/features/posts/api'
 
 const asForbidden = { treatUnauthorizedAsForbidden: true }
@@ -10,6 +10,8 @@ export interface GroupBoard {
   name: string
   description: string | null
   visibility: BoardVisibility
+  writeability: BoardWriteability
+  canWrite: boolean
   createdAt: string
   updatedAt: string
 }
@@ -19,12 +21,14 @@ export interface CreateBoardRequest {
   description?: string | null
   // Omit to let the backend default by group visibility.
   visibility?: BoardVisibility
+  writeability?: BoardWriteability
 }
 
 export interface UpdateBoardRequest {
   name: string
   description?: string | null
   visibility: BoardVisibility
+  writeability: BoardWriteability
 }
 
 export interface CreateBoardPostRequest {

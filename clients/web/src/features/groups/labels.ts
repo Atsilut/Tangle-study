@@ -1,4 +1,10 @@
-import { BoardVisibility, GroupJoinPolicy, GroupRole, GroupVisibility } from '@/types/api'
+import {
+  BoardVisibility,
+  BoardWriteability,
+  GroupJoinPolicy,
+  GroupRole,
+  GroupVisibility,
+} from '@/types/api'
 
 export const groupVisibilityLabels: Record<GroupVisibility, string> = {
   [GroupVisibility.Private]: 'Private',
@@ -35,4 +41,16 @@ export const boardVisibilityOptions = [
   BoardVisibility.ForAll,
   BoardVisibility.MembersOnly,
   BoardVisibility.AdminOnly,
+]
+
+export const boardWriteabilityLabels: Record<BoardWriteability, string> = {
+  [BoardWriteability.AdminOnly]: 'Admins only',
+  [BoardWriteability.MembersOnly]: 'Members only',
+  [BoardWriteability.ForAll]: 'Everyone who can view',
+}
+
+export const boardWriteabilityOptions = [
+  BoardWriteability.ForAll,
+  BoardWriteability.MembersOnly,
+  BoardWriteability.AdminOnly,
 ]
