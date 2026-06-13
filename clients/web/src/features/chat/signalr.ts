@@ -4,11 +4,13 @@ import {
   HubConnectionState,
   LogLevel,
 } from '@microsoft/signalr'
-import { normalizeMediaAsset } from '@/features/media/normalize'
 import { getAccessToken } from '@/stores/authStore'
+import { normalizeChatMessage } from './normalize'
 import type { ChatMessage } from './api'
 
 export const MESSAGE_CREATED_EVENT = 'MessageCreated'
+export const MESSAGE_EDITED_EVENT = 'MessageEdited'
+export const MESSAGE_DELETED_EVENT = 'MessageDeleted'
 
 // Single shared hub connection for the whole app. The server copies the
 // access_token query param into the bearer handler for /hubs paths.
@@ -33,21 +35,8 @@ function getConnection(): HubConnection {
   return connection
 }
 
-function normalizeMessage(raw: unknown): ChatMessage {
-  const m = raw as Record<string, unknown>
-  return {
-    id: Number(m.id ?? m.Id),
-    chatRoomId: Number(m.chatRoomId ?? m.ChatRoomId),
-    senderUserId: Number(m.senderUserId ?? m.SenderUserId),
-    senderNickname: String(m.senderNickname ?? m.SenderNickname ?? ''),
-    body: String(m.body ?? m.Body ?? ''),
-    sentAt: String(m.sentAt ?? m.SentAt ?? ''),
-    media: normalizeMediaAsset(m.media ?? m.Media),
-  }
-}
-
 function dispatchMessage(raw: unknown) {
-  const message = normalizeMessage(raw)
+  const message = normalizeChatMessage(raw)
   if (!Number.isFinite(message.id) || !Number.isFinite(message.chatRoomId)) return
 
   roomListeners.get(message.chatRoomId)?.forEach((listener) => listener(message))
@@ -58,6 +47,8 @@ function installConnectionHandlers(conn: HubConnection) {
   handlersInstalled = true
 
   conn.on(MESSAGE_CREATED_EVENT, dispatchMessage)
+  conn.on(MESSAGE_EDITED_EVENT, dispatchMessage)
+  conn.on(MESSAGE_DELETED_EVENT, dispatchMessage)
 
   // Automatic reconnect drops SignalR group membership; re-join every room
   // we still have active listeners for.
@@ -106,7 +97,7 @@ export async function ensureConnected(): Promise<HubConnection> {
   return conn
 }
 
-// Join a room's broadcast group and stream new messages until cleanup runs.
+// Join a room's broadcast group and stream message updates until cleanup runs.
 export async function subscribeToRoom(
   roomId: number,
   onMessage: (message: ChatMessage) => void,

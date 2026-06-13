@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getErrorMessage } from '@/lib/apiError'
+import { getCurrentUserId, useAuthStore } from '@/stores/authStore'
 import {
   createGroupRoom,
   createMultiRoom,
@@ -11,6 +12,8 @@ import {
   getOrCreateDirectRoom,
   getRoom,
   leaveRoom,
+  markChatMessagesSeen,
+  patchChatMessage,
   sendMessage,
   type ChatMessage,
 } from './api'
@@ -138,6 +141,8 @@ export interface RoomMessages {
   clearSendError: () => void
   deleteMessage: (messageId: number) => Promise<void>
   isDeleting: boolean
+  editMessage: (messageId: number, body: string) => Promise<void>
+  isEditing: boolean
 }
 
 // Owns a room's message list: loads the latest page from REST, streams new
@@ -153,20 +158,30 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+
+  const storeUserId = useAuthStore((s) => s.userId)
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const currentUserId = storeUserId ?? (accessToken ? getCurrentUserId() : null)
+
+  const markOthersSeen = useCallback(
+    (incoming: ChatMessage[]) => {
+      if (roomId == null || currentUserId == null) return
+      const ids = incoming
+        .filter((m) => !m.isDeleted && m.senderUserId !== currentUserId)
+        .map((m) => m.id)
+      if (ids.length === 0) return
+      void markChatMessagesSeen(roomId, ids).catch(() => {})
+    },
+    [roomId, currentUserId],
+  )
 
   const upsert = useCallback((incoming: ChatMessage[]) => {
     setMessages((prev) => {
-      const seen = new Set(prev.map((m) => m.id))
-      const merged = [...prev]
-      for (const m of incoming) {
-        if (!seen.has(m.id)) {
-          merged.push(m)
-          seen.add(m.id)
-        }
-      }
-      merged.sort((a, b) => a.id - b.id)
-      return merged
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      for (const m of incoming) byId.set(m.id, m)
+      return [...byId.values()].sort((a, b) => a.id - b.id)
     })
   }, [])
 
@@ -179,13 +194,17 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
         if (!active) return
         setMessages(page)
         setHasMore(page.length === PAGE_SIZE)
+        markOthersSeen(page)
       })
       .catch(() => active && setIsError(true))
       .finally(() => active && setIsLoading(false))
 
     let cleanup: (() => void) | undefined
     const connectRealtime = (attempt: number) => {
-      subscribeToRoom(roomId, (message) => upsert([message]))
+      subscribeToRoom(roomId, (message) => {
+        upsert([message])
+        markOthersSeen([message])
+      })
         .then((fn) => {
           if (active) cleanup = fn
           else fn()
@@ -201,7 +220,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
       active = false
       cleanup?.()
     }
-  }, [roomId, upsert])
+  }, [roomId, upsert, markOthersSeen])
 
   const loadOlder = useCallback(() => {
     if (roomId == null || messages.length === 0 || isLoadingMore) return
@@ -210,10 +229,11 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     getMessages(roomId, oldestId, PAGE_SIZE)
       .then((page) => {
         upsert(page)
+        markOthersSeen(page)
         setHasMore(page.length === PAGE_SIZE)
       })
       .finally(() => setIsLoadingMore(false))
-  }, [roomId, messages, isLoadingMore, upsert])
+  }, [roomId, messages, isLoadingMore, upsert, markOthersSeen])
 
   const send = useCallback(
     async (body: string, mediaAssetId?: number) => {
@@ -242,12 +262,25 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
       setIsDeleting(true)
       try {
         await deleteChatMessage(roomId, messageId)
-        setMessages((prev) => prev.filter((m) => m.id !== messageId))
       } finally {
         setIsDeleting(false)
       }
     },
     [roomId],
+  )
+
+  const editMessage = useCallback(
+    async (messageId: number, body: string) => {
+      if (roomId == null) return
+      setIsEditing(true)
+      try {
+        const updated = await patchChatMessage(roomId, messageId, body)
+        upsert([updated])
+      } finally {
+        setIsEditing(false)
+      }
+    },
+    [roomId, upsert],
   )
 
   return {
@@ -263,5 +296,7 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     clearSendError,
     deleteMessage,
     isDeleting,
+    editMessage,
+    isEditing,
   }
 }

@@ -1,5 +1,6 @@
 import { api, getList } from '@/lib/apiClient'
 import type { ChatRoomKind, ChatRoomParticipantRole, MediaAsset } from '@/types/api'
+import { normalizeChatMessage } from './normalize'
 
 // Chat returns 401 when the caller is authenticated but not a room participant.
 const asForbidden = { treatUnauthorizedAsForbidden: true }
@@ -50,6 +51,13 @@ function normalizeChatRoomSummary(room: ChatRoomSummary): ChatRoomSummary {
   }
 }
 
+export interface ChatMessageEditHistory {
+  id: number
+  body: string
+  recordedAt: string
+  previousEdits: ChatMessageEditHistory[]
+}
+
 export interface ChatMessage {
   id: number
   chatRoomId: number
@@ -57,6 +65,13 @@ export interface ChatMessage {
   senderNickname: string
   body: string
   sentAt: string
+  updatedAt: string
+  isDeleted: boolean
+  isEdited: boolean
+  /** Omitted on older API builds; treat undefined as allowed for own messages. */
+  canEdit?: boolean
+  canDelete?: boolean
+  editHistory: ChatMessageEditHistory | null
   media: MediaAsset | null
 }
 
@@ -137,19 +152,43 @@ export async function createGroupRoom(
 }
 
 // GET /api/chat/rooms/{roomId}/messages?before=&limit= -> 200 ascending | 204
-export function getMessages(
+export async function getMessages(
   roomId: number,
   before?: number,
   limit = 50,
 ): Promise<ChatMessage[]> {
   const params = new URLSearchParams({ limit: String(limit) })
   if (before != null) params.set('before', String(before))
-  return getList<ChatMessage>(`/chat/rooms/${roomId}/messages?${params.toString()}`, asForbidden)
+  const rows = await getList<ChatMessage>(
+    `/chat/rooms/${roomId}/messages?${params.toString()}`,
+    asForbidden,
+  )
+  return rows.map((row) => normalizeChatMessage(row))
 }
 
-// DELETE /api/chat/rooms/{roomId}/messages/{messageId} -> 204 (sender only)
+// DELETE /api/chat/rooms/{roomId}/messages/{messageId} -> 204 (sender, policy window, unseen)
 export async function deleteChatMessage(roomId: number, messageId: number): Promise<void> {
   await api.delete(`/chat/rooms/${roomId}/messages/${messageId}`, asForbidden)
+}
+
+// PATCH /api/chat/rooms/{roomId}/messages/{messageId} -> 200
+export async function patchChatMessage(
+  roomId: number,
+  messageId: number,
+  body: string,
+): Promise<ChatMessage> {
+  const res = await api.patch<ChatMessage>(
+    `/chat/rooms/${roomId}/messages/${messageId}`,
+    { body },
+    asForbidden,
+  )
+  return normalizeChatMessage(res.data)
+}
+
+// POST /api/chat/rooms/{roomId}/messages/seen -> 204 (marks others' messages read)
+export async function markChatMessagesSeen(roomId: number, messageIds: number[]): Promise<void> {
+  if (messageIds.length === 0) return
+  await api.post(`/chat/rooms/${roomId}/messages/seen`, { messageIds }, asForbidden)
 }
 
 // POST /api/chat/rooms/{roomId}/messages -> 201
@@ -163,5 +202,5 @@ export async function sendMessage(
     { body, mediaAssetId },
     asForbidden,
   )
-  return res.data
+  return normalizeChatMessage(res.data)
 }

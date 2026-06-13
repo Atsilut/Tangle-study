@@ -16,6 +16,14 @@ function userIdFromToken(token: string): number | null {
   }
 }
 
+/** Prefer store userId; decode JWT when persist omitted it. */
+export function getCurrentUserId(): number | null {
+  const { userId, accessToken } = useAuthStore.getState()
+  if (userId != null) return userId
+  if (accessToken) return userIdFromToken(accessToken)
+  return null
+}
+
 interface AuthState {
   accessToken: string | null
   userId: number | null
@@ -34,7 +42,14 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken: token, userId: userIdFromToken(token), isAuthenticated: true }),
       clear: () => set({ accessToken: null, userId: null, isAuthenticated: false }),
     }),
-    { name: 'tangle-auth' },
+    {
+      name: 'tangle-auth',
+      onRehydrateStorage: () => (state) => {
+        if (state?.accessToken && state.userId == null) {
+          state.userId = userIdFromToken(state.accessToken)
+        }
+      },
+    },
   ),
 )
 
