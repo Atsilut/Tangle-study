@@ -69,8 +69,6 @@ namespace Api.Domain.Groups.Service
         public async Task<GroupResponseDto> GetGroupAsync(long id)
         {
             var group = await GetGroupOrThrowAsync(id);
-            if (group.Visibility == GroupVisibility.Private) await _membership.EnsureMemberAsync(id, GetUserIdFromLogin());
-
             var memberCount = await _membership.CountMembersAsync(id);
             return MapToDto(group, memberCount);
         }

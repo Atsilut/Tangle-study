@@ -1,6 +1,5 @@
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
-using Api.Global.Exceptions;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 
@@ -64,7 +63,7 @@ public sealed class GroupServiceUnitTests
     }
 
     [Fact]
-    public async Task GetGroup_ThrowsNotFound_WhenPrivateAndNotMember()
+    public async Task GetGroup_ReturnsGroup_WhenPrivateAndNotMember()
     {
         // Arrange
         var http = new FakeHttpContextAccessor("1");
@@ -80,7 +79,11 @@ public sealed class GroupServiceUnitTests
         });
         http.HttpContext = ServiceTestHelpers.ContextFor(stranger.Id);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<EntityNotFoundException>(() => graph.GroupService.GetGroupAsync(group.Id));
+        // Act
+        var dto = await graph.GroupService.GetGroupAsync(group.Id);
+
+        // Assert
+        Assert.Equal(group.Id, dto.Id);
+        Assert.Equal("Private", dto.Name);
     }
 }

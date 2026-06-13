@@ -15,10 +15,10 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             { GroupVisibility.Private, GroupActorRole.Owner, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Admin, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Member, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
-            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetGroup, GroupExpectedOutcome.NotFound },
+            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Owner, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
             { GroupVisibility.Private, GroupActorRole.Member, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
-            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.NotFound },
+            { GroupVisibility.Private, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
             { GroupVisibility.Public, GroupActorRole.Stranger, GroupReadOperation.GetGroup, GroupExpectedOutcome.Ok },
             { GroupVisibility.Public, GroupActorRole.Stranger, GroupReadOperation.GetMembers, GroupExpectedOutcome.Ok },
         };

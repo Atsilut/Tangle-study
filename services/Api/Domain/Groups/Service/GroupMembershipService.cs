@@ -124,9 +124,7 @@ namespace Api.Domain.Groups.Service
 
         public async Task<List<GroupMemberResponseDto>?> GetMembersAsync(long groupId)
         {
-            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
-
-            if (group.Visibility == GroupVisibility.Private) await EnsureMemberAsync(groupId, GetUserIdFromLogin());
+            await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
             var members = await _repo.GetMembersByGroupAsync(groupId);
             if (members.Count == 0) return null;
