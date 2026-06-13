@@ -84,7 +84,11 @@ namespace Api.Domain.Comments.Service
             if (comment == null) return null;
             if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
-            return await MapToDtoAsync(comment, nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"));
+            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([comment.Id]);
+            return MapToDto(
+                comment,
+                nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"),
+                mediaByCommentId.GetValueOrDefault(comment.Id));
         }
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
@@ -111,12 +115,6 @@ namespace Api.Domain.Comments.Service
                 c,
                 nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"),
                 mediaByCommentId.GetValueOrDefault(c.Id)))];
-        }
-
-        private async Task<CommentGetResponseDto> MapToDtoAsync(Comment comment, string authorNickname)
-        {
-            var media = await _mediaService.Value.GetMediaForCommentAsync(comment.Id);
-            return MapToDto(comment, authorNickname, media);
         }
 
         private static CommentGetResponseDto MapToDto(

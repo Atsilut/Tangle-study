@@ -133,9 +133,9 @@ Update the **Status** column when a fix group lands.
 | C-2 | Chat | `ChatRoomAccessService.EnsureCanCreateMultiRoomAsync` | Create multi room | fixed |
 | C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | fixed |
 | U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | Redis MGET/pipeline; parallel cache I/O fallback | fixed |
-| CM-1 | Comments | `CommentService.MapToDtoAsync` | Single-comment GET only | open |
+| CM-1 | Comments | `CommentService.GetCommentByIdAsync` | Single-comment GET only | fixed |
 
-**Clean (no action):** Friendships and UserBlocks list paths; `ChatMessageService` list mapping; `GetAllUsersAsync`.
+**Clean (no action):** Friendships and UserBlocks list paths; `ChatMessageService` list mapping; `GetAllUsersAsync`; single-item GET enrichment (`GetPostByIdAsync`, `GetCommentByIdAsync`).
 
 ### Fix groups
 
