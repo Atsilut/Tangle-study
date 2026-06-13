@@ -41,6 +41,13 @@ public sealed class FakeGroupMemberRepository : IGroupMemberRepository
     public Task<int> CountMembersAsync(long groupId) =>
         Task.FromResult(_members.Count(m => m.GroupId == groupId));
 
+    public Task<IReadOnlyDictionary<long, int>> GetMemberCountsByGroupIdsAsync(IReadOnlyCollection<long> groupIds) =>
+        Task.FromResult<IReadOnlyDictionary<long, int>>(
+            _members
+                .Where(m => groupIds.Contains(m.GroupId))
+                .GroupBy(m => m.GroupId)
+                .ToDictionary(g => g.Key, g => g.Count()));
+
     public Task UpdateMemberAsync(GroupMember member) => Task.CompletedTask;
 
     public Task RemoveMemberAsync(GroupMember member)

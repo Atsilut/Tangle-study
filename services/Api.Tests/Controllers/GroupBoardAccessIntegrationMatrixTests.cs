@@ -47,7 +47,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
 
     [Theory]
     [MemberData(nameof(ViewAccessMatrixData))]
-    public async Task BoardPostAccess_MatchesExpectedForVisibilityAndRole(
+    public async Task BoardPostListAccess_MatchesExpectedForVisibilityAndRole(
         GroupVisibility groupVisibility,
         BoardVisibility boardVisibility,
         GroupActorRole actor,
@@ -62,31 +62,86 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
         // Act
         var listRes = await Client.GetAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts", TestContext.Current.CancellationToken);
-        var writeRes = await Client.PostAsJsonAsync(
-            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
-            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" }, TestContext.Current.CancellationToken);
 
         // Assert
         // Board post endpoints require authentication; anonymous callers always get 401.
         if (actor == GroupActorRole.Anonymous)
         {
             await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.Unauthorized);
-            await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Unauthorized);
             return;
         }
 
         if (canAccess)
-        {
             Assert.True(
                 listRes.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
                 $"list: {listRes.StatusCode}");
-            await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Created);
-        }
         else
-        {
             await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.Unauthorized);
+    }
+
+    [Theory]
+    [MemberData(nameof(ViewAccessMatrixData))]
+    public async Task BoardPostCreateAccess_UsesWriteabilityDefault(
+        GroupVisibility groupVisibility,
+        BoardVisibility boardVisibility,
+        GroupActorRole actor,
+        bool canAccess)
+    {
+        // Arrange — seeded boards default to MembersOnly writeability
+        var scenario = await CreateScenarioAsync($"write_{Guid.NewGuid():N}"[..8]);
+        var group = await scenario.SetupGroupAsync(groupVisibility, includeAdmin: true, includeMember: true);
+        var board = await GroupIntegrationTestHelpers.SeedBoardAsync(Factory, group.Id, "board", boardVisibility);
+        await scenario.LoginAsAsync(actor);
+
+        // Act
+        var writeRes = await Client.PostAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
+            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" }, TestContext.Current.CancellationToken);
+
+        // Assert
+        if (actor == GroupActorRole.Anonymous)
+        {
             await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Unauthorized);
+            return;
         }
+
+        var canWrite = canAccess && actor is not GroupActorRole.Stranger;
+        if (canWrite)
+            await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Created);
+        else
+            await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task BoardPostCreate_NoticeBoard_MemberCanReadButNotWrite()
+    {
+        // Arrange — MembersOnly visibility + AdminOnly writeability
+        var scenario = await CreateScenarioAsync("notice_board");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
+        var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
+            Factory,
+            group.Id,
+            "Notice",
+            BoardVisibility.MembersOnly,
+            BoardWriteability.AdminOnly);
+        await scenario.LoginAsAsync(GroupActorRole.Member);
+
+        // Act
+        var listRes = await Client.GetAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts", TestContext.Current.CancellationToken);
+        var writeRes = await Client.PostAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
+            new GroupBoardPostCreateRequestDto { Title = "t", Content = "c" }, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.NoContent);
+        await IntegrationAssertions.AssertStatusAsync(writeRes, HttpStatusCode.Unauthorized);
+
+        await scenario.LoginAsAsync(GroupActorRole.Admin);
+        var adminWriteRes = await Client.PostAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
+            new GroupBoardPostCreateRequestDto { Title = "notice", Content = "body" }, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(adminWriteRes, HttpStatusCode.Created);
     }
 
     public static TheoryData<GroupVisibility, BoardVisibility?, BoardVisibility> CreateDefaultVisibilityData =>
@@ -154,6 +209,7 @@ public sealed class GroupBoardAccessIntegrationMatrixTests(PostgresTestcontainer
             {
                 Name = "Updated",
                 Visibility = BoardVisibility.AdminOnly,
+                Writeability = BoardWriteability.AdminOnly,
             }, TestContext.Current.CancellationToken),
             BoardCrudOperation.Delete => await Client.DeleteAsync($"{boardsBase}/{board.Id}", TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null),

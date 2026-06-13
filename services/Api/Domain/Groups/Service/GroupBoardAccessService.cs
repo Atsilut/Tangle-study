@@ -92,7 +92,35 @@ namespace Api.Domain.Groups.Service
             return member.Role is GroupRole.Admin or GroupRole.Owner;
         }
 
-        public Task EnsureCanWritePostAsync(long groupId, long boardId) =>
-            EnsureCanViewBoardAsync(groupId, boardId);
+        public async Task EnsureCanWritePostAsync(long groupId, long boardId)
+        {
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+
+            var board = await _repo.GetByGroupAndIdAsync(groupId, boardId)
+                ?? throw new EntityNotFoundException("Board not found");
+
+            var (userId, member) = await GetViewerContextAsync(group);
+            if (!CanWriteBoard(group, board, userId, member))
+                throw new UnauthorizedAccessException("Unauthorized access");
+        }
+
+        public async Task<bool> CanWriteBoardForViewerAsync(Group group, GroupBoard board)
+        {
+            var (userId, member) = await GetViewerContextAsync(group);
+            return CanWriteBoard(group, board, userId, member);
+        }
+
+        private static bool CanWriteBoard(Group group, GroupBoard board, long? userId, GroupMember? member)
+        {
+            if (board.Writeability == BoardWriteability.ForAll)
+                return CanViewBoard(group, board, userId, member);
+
+            if (userId is null || member is null) return false;
+
+            if (board.Writeability == BoardWriteability.MembersOnly)
+                return CanViewBoard(group, board, userId, member);
+
+            return member.Role is GroupRole.Admin or GroupRole.Owner;
+        }
     }
 }

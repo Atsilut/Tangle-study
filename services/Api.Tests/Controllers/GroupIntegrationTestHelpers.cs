@@ -101,11 +101,12 @@ internal static class GroupIntegrationTestHelpers
         ApiWebApplicationFactory factory,
         long groupId,
         string name,
-        BoardVisibility visibility)
+        BoardVisibility visibility,
+        BoardWriteability writeability = BoardWriteability.MembersOnly)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var board = new GroupBoardEntity(groupId, name, visibility);
+        var board = new GroupBoardEntity(groupId, name, visibility, writeability: writeability);
         db.GroupBoards.Add(board);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         return board;

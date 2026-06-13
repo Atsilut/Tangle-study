@@ -1,13 +1,19 @@
 import { type FormEvent, useState } from 'react'
 import { Button, ErrorState, FormField, Input, Select, TextArea } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
-import { BoardVisibility } from '@/types/api'
-import { boardVisibilityLabels, boardVisibilityOptions } from '../labels'
+import { BoardVisibility, BoardWriteability } from '@/types/api'
+import {
+  boardVisibilityLabels,
+  boardVisibilityOptions,
+  boardWriteabilityLabels,
+  boardWriteabilityOptions,
+} from '../labels'
 
 export interface BoardFormValues {
   name: string
   description: string
   visibility: BoardVisibility
+  writeability: BoardWriteability
 }
 
 export interface BoardFormProps {
@@ -33,10 +39,13 @@ export function BoardForm({
   const [visibility, setVisibility] = useState<BoardVisibility>(
     initial?.visibility ?? BoardVisibility.ForAll,
   )
+  const [writeability, setWriteability] = useState<BoardWriteability>(
+    initial?.writeability ?? BoardWriteability.MembersOnly,
+  )
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    onSubmit({ name: name.trim(), description: description.trim(), visibility })
+    onSubmit({ name: name.trim(), description: description.trim(), visibility, writeability })
   }
 
   return (
@@ -63,7 +72,7 @@ export function BoardForm({
           />
         )}
       </FormField>
-      <FormField label="Visibility">
+      <FormField label="Who can read">
         {({ id }) => (
           <Select
             id={id}
@@ -73,6 +82,21 @@ export function BoardForm({
             {boardVisibilityOptions.map((v) => (
               <option key={v} value={v}>
                 {boardVisibilityLabels[v]}
+              </option>
+            ))}
+          </Select>
+        )}
+      </FormField>
+      <FormField label="Who can post">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={writeability}
+            onChange={(e) => setWriteability(Number(e.target.value) as BoardWriteability)}
+          >
+            {boardWriteabilityOptions.map((v) => (
+              <option key={v} value={v}>
+                {boardWriteabilityLabels[v]}
               </option>
             ))}
           </Select>

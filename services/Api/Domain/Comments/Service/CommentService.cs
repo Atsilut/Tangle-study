@@ -42,13 +42,19 @@ namespace Api.Domain.Comments.Service
             if (groupBoard is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
         }
 
+        private async Task EnsureGroupBoardWriteAccessForPostAsync(long postId)
+        {
+            var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
+            if (groupBoard is not null) await _groupBoardAccess.EnsureCanWritePostAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+        }
+
         public async Task CreateCommentAsync(CommentCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();
             await _userService.EnsureUserExistsAsync(userId, "Authentication failed", StatusCodes.Status400BadRequest);
             await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
 
-            await EnsureGroupBoardViewAccessForPostAsync(request.PostId);
+            await EnsureGroupBoardWriteAccessForPostAsync(request.PostId);
 
             if (request.ParentId.HasValue)
             {
