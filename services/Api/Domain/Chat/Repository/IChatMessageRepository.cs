@@ -10,6 +10,18 @@ public interface IChatMessageRepository
     public Task<IReadOnlyDictionary<long, ChatMessage>> GetLatestChatMessagesByRoomIdsAsync(
         IReadOnlyCollection<long> roomIds);
 
+    public Task SaveChatMessageAsync(ChatMessage message);
+
+    public Task<IReadOnlySet<long>> GetMessageIdsSeenByOtherParticipantsAsync(
+        IReadOnlyCollection<long> messageIds);
+
+    public Task MarkMessagesSeenByUserAsync(long userId, IReadOnlyCollection<long> messageIds);
+
+    public void AddChatMessageEdit(ChatMessageEdit edit);
+
+    public Task<IReadOnlyDictionary<long, List<ChatMessageEdit>>> GetChatMessageEditsByMessageIdsAsync(
+        IReadOnlyCollection<long> messageIds);
+
     public Task DeleteChatMessageAsync(ChatMessage message);
 
     public Task DetachSenderFromMessagesAsync(long senderUserId);

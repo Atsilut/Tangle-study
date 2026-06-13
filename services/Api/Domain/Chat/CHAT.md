@@ -15,7 +15,10 @@ REST owns chat persistence and permissions; SignalR pushes new messages to clien
 | `POST` | `/api/chat/rooms/{roomId}/participants` | Direct/multi: any participant (direct → promotes to multi); platform-group: owner only |
 | `DELETE` | `/api/chat/rooms/{roomId}/participants/me` | Leave room |
 | `GET` | `/api/chat/rooms/{roomId}/messages` | `?before={messageId}&limit=` (default 50, max 100) |
+| `POST` | `/api/chat/rooms/{roomId}/messages/seen` | Mark message IDs as read (others' messages only) |
 | `POST` | `/api/chat/rooms/{roomId}/messages` | Send message (participants only) |
+| `PATCH` | `/api/chat/rooms/{roomId}/messages/{messageId}` | Edit body (sender, policy window) |
+| `DELETE` | `/api/chat/rooms/{roomId}/messages/{messageId}` | Soft-delete (sender, policy window, unseen by others) |
 
 Room kinds: `Direct`, `Multi`, `PlatformGroup`. See Swagger under `api/chat` and `api/groups/{groupId}/chat-rooms`.
 
@@ -54,6 +57,8 @@ Call `JoinRoom` after connecting and whenever the user opens a chat screen. Call
 | Event | Payload | When |
 |-------|---------|------|
 | `MessageCreated` | `ChatMessageGetResponseDto` | After `POST /api/chat/rooms/{roomId}/messages` succeeds |
+| `MessageEdited` | `ChatMessageGetResponseDto` | After `PATCH /api/chat/rooms/{roomId}/messages/{messageId}` succeeds |
+| `MessageDeleted` | `ChatMessageGetResponseDto` | After `DELETE /api/chat/rooms/{roomId}/messages/{messageId}` succeeds |
 
 Payload shape (JSON):
 
@@ -64,18 +69,28 @@ Payload shape (JSON):
   "senderUserId": 2,
   "senderNickname": "alice",
   "body": "Hello",
-  "sentAt": "2026-05-27T12:00:00Z"
+  "sentAt": "2026-05-27T12:00:00Z",
+  "updatedAt": "2026-05-27T12:00:00Z",
+  "isDeleted": false,
+  "isEdited": false,
+  "canEdit": true,
+  "canDelete": true,
+  "editHistory": null,
+  "media": null
 }
 ```
+
+Edit/delete policy (`Chat` in `appsettings.json`): default **15** minutes to edit, **60** minutes to delete. Delete is blocked once another participant has marked the message seen (read receipts); edit is allowed within the time window even after seen. The client calls `POST .../messages/seen` when others' messages are displayed — listing messages alone does not create receipts.
 
 ## Recommended client flow
 
 1. Log in via `POST /api/login` and store `accessToken`.
 2. **Load history** via `GET /api/chat/rooms/{roomId}/messages?before=&limit=50` (Postgres; required for context if the user was offline or joins late).
-3. Connect to `/hubs/chat?access_token=...`.
-4. `JoinRoom(roomId)` for each open conversation (subscribes to live pushes only; does not replay past messages).
-5. Listen for `MessageCreated`.
-6. Send text via `POST /api/chat/rooms/{roomId}/messages` (do not send chat text only over the hub).
+3. **Mark seen** via `POST /api/chat/rooms/{roomId}/messages/seen` with `{ "messageIds": [...] }` for others' messages shown in the UI.
+4. Connect to `/hubs/chat?access_token=...`.
+5. `JoinRoom(roomId)` for each open conversation (subscribes to live pushes only; does not replay past messages).
+6. Listen for `MessageCreated`, `MessageEdited`, and `MessageDeleted`; mark incoming others' messages seen when displayed.
+7. Send text via `POST /api/chat/rooms/{roomId}/messages` (do not send chat text only over the hub).
 
 Planned: return the latest messages from `JoinRoom` to reduce round-trips (not implemented yet).
 

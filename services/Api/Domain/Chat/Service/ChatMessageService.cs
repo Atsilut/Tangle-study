@@ -1,3 +1,4 @@
+using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
 using Api.Domain.Media.Dto;
@@ -10,6 +11,7 @@ using Api.Global.Events;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
 using Api.Global.Queue;
+using Microsoft.Extensions.Options;
 
 namespace Api.Domain.Chat.Service;
 
@@ -23,7 +25,8 @@ public class ChatMessageService(
     IChatRealtimeNotifier realtime,
     IEventPublisher eventPublisher,
     IWorkQueue workQueue,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    IOptions<ChatMessagePolicyOptions> chatPolicy)
 {
     public const int DefaultPageLimit = 50;
     public const int MaxPageLimit = 100;
@@ -37,6 +40,7 @@ public class ChatMessageService(
     private readonly IEventPublisher _eventPublisher = eventPublisher;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly ChatMessagePolicyOptions _policy = chatPolicy.Value;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -54,7 +58,26 @@ public class ChatMessageService(
         var messages = await _repo.GetChatMessagesForRoomAsync(roomId, beforeMessageId, pageLimit);
         if (messages.Count == 0) return null;
 
-        return await MapManyAsync(messages);
+        return await MapManyAsync(messages, GetUserIdFromLogin());
+    }
+
+    public async Task MarkMessagesSeenAsync(long roomId, ChatMessageMarkSeenRequestDto request)
+    {
+        await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);
+
+        if (request.MessageIds.Length == 0) return;
+
+        var viewerUserId = GetUserIdFromLogin();
+        foreach (var messageId in request.MessageIds.Distinct())
+        {
+            var message = await _repo.GetChatMessageByIdAsync(messageId)
+                ?? throw new EntityNotFoundException("Message not found", StatusCodes.Status400BadRequest);
+
+            if (message.ChatRoomId != roomId)
+                throw new ArgumentException("Message does not belong to this chat room.");
+        }
+
+        await _repo.MarkMessagesSeenByUserAsync(viewerUserId, request.MessageIds);
     }
 
     public async Task<ChatMessageGetResponseDto> CreateMessageAsync(long roomId, ChatMessageCreateRequestDto request)
@@ -79,7 +102,7 @@ public class ChatMessageService(
         });
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
-        var dto = await MapToDtoAsync(message);
+        var dto = await MapToDtoAsync(message, senderUserId);
         await _realtime.NotifyMessageCreatedAsync(roomId, dto);
         await _eventPublisher.PublishAsync(
             RedisEventChannels.ChatMessageCreated,
@@ -116,10 +139,45 @@ public class ChatMessageService(
             m => m.ChatRoomId,
             m => new ChatRoomSummaryLastMessageDto(
                 m.LogicalSenderUserId,
-                m.Body,
+                m.IsDeleted ? string.Empty : m.Body,
                 nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
                 m.SentAt,
-                mediaByMessageId.ContainsKey(m.Id)));
+                !m.IsDeleted && mediaByMessageId.ContainsKey(m.Id)));
+    }
+
+    public async Task<ChatMessageGetResponseDto> UpdateMessageAsync(
+        long roomId,
+        long messageId,
+        ChatMessagePatchRequestDto request)
+    {
+        await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);
+
+        var userId = GetUserIdFromLogin();
+        var message = await _repo.GetChatMessageByIdAsync(messageId)
+            ?? throw new EntityNotFoundException("Message not found");
+
+        if (message.ChatRoomId != roomId) throw new ArgumentException("Message does not belong to this chat room.");
+        if (message.SenderUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+
+        if (!ChatMessageEligibility.CanEdit(message, userId, _policy, DateTime.UtcNow))
+            throw new ArgumentException("This message can no longer be edited.");
+
+        var body = request.Body.Trim();
+        if (body.Length == 0) throw new ArgumentException("Message body cannot be empty.");
+        if (string.Equals(message.Body, body, StringComparison.Ordinal))
+            return await MapToDtoAsync(message, userId);
+
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            _repo.AddChatMessageEdit(new ChatMessageEdit(messageId, message.Body));
+            message.UpdateBody(body);
+            await _repo.SaveChatMessageAsync(message);
+        });
+        await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
+
+        var dto = await MapToDtoAsync(message, userId);
+        await _realtime.NotifyMessageEditedAsync(roomId, dto);
+        return dto;
     }
 
     public Task DetachSenderFromDeletedUserAsync(long userId) =>
@@ -143,11 +201,21 @@ public class ChatMessageService(
         if (message.ChatRoomId != roomId) throw new ArgumentException("Message does not belong to this chat room.");
         if (message.SenderUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
 
+        var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([messageId]);
+        if (!ChatMessageEligibility.CanDelete(
+                message, userId, seenByOther.Contains(messageId), _policy, DateTime.UtcNow))
+            throw new ArgumentException("This message can no longer be deleted.");
+
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _mediaService.Value.DeleteBlobStorageForChatMessageAsync(messageId);
-            await _repo.DeleteChatMessageAsync(message);
+            message.MarkDeleted();
+            await _repo.SaveChatMessageAsync(message);
         });
+        await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
+
+        var dto = await MapToDtoAsync(message, userId);
+        await _realtime.NotifyMessageDeletedAsync(roomId, dto);
     }
 
     private static int NormalizeLimit(int? limit)
@@ -164,32 +232,70 @@ public class ChatMessageService(
         if (anchor.ChatRoomId != roomId) throw new ArgumentException("beforeMessageId must refer to a message in this chat room.");
     }
 
-    private async Task<List<ChatMessageGetResponseDto>> MapManyAsync(IReadOnlyList<ChatMessage> messages)
+    private async Task<List<ChatMessageGetResponseDto>> MapManyAsync(
+        IReadOnlyList<ChatMessage> messages,
+        long viewerUserId)
     {
         var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
         var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
+        var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([.. messages.Select(m => m.Id)]);
+        var editsByMessageId = await _repo.GetChatMessageEditsByMessageIdsAsync([.. messages.Select(m => m.Id)]);
+        var utcNow = DateTime.UtcNow;
         return [.. messages
             .Select(m => MapToDto(
                 m,
                 nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
-                mediaByMessageId.GetValueOrDefault(m.Id)))];
+                m.IsDeleted ? null : mediaByMessageId.GetValueOrDefault(m.Id),
+                BuildEditHistoryTree(editsByMessageId.GetValueOrDefault(m.Id)),
+                viewerUserId,
+                seenByOther.Contains(m.Id),
+                utcNow))];
     }
 
-    private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message)
+    private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message, long viewerUserId)
     {
         var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
-        var media = await _mediaService.Value.GetMediaForChatMessageAsync(message.Id);
+        var media = message.IsDeleted
+            ? null
+            : await _mediaService.Value.GetMediaForChatMessageAsync(message.Id);
+        var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([message.Id]);
+        var editsByMessageId = await _repo.GetChatMessageEditsByMessageIdsAsync([message.Id]);
         return MapToDto(
             message,
             nicknames.GetValueOrDefault(message.LogicalSenderUserId, "Deleted User"),
-            media);
+            media,
+            BuildEditHistoryTree(editsByMessageId.GetValueOrDefault(message.Id)),
+            viewerUserId,
+            seenByOther.Contains(message.Id),
+            DateTime.UtcNow);
     }
 
-    private static ChatMessageGetResponseDto MapToDto(
+    private static ChatMessageEditGetResponseDto? BuildEditHistoryTree(IReadOnlyList<ChatMessageEdit>? edits)
+    {
+        if (edits is null or { Count: 0 }) return null;
+
+        ChatMessageEditGetResponseDto? nested = null;
+        foreach (var edit in edits.OrderBy(e => e.RecordedAt))
+        {
+            nested = new ChatMessageEditGetResponseDto(
+                edit.Id,
+                edit.Body,
+                edit.RecordedAt,
+                nested is null ? [] : [nested]);
+        }
+
+        return nested;
+    }
+
+    private ChatMessageGetResponseDto MapToDto(
         ChatMessage message,
         string senderNickname,
-        MediaAssetGetResponseDto? media) =>
+        MediaAssetGetResponseDto? media,
+        ChatMessageEditGetResponseDto? editHistory,
+        long viewerUserId,
+        bool seenByOtherParticipant,
+        DateTime utcNow) =>
         new(
             message.Id,
             message.ChatRoomId,
@@ -197,5 +303,11 @@ public class ChatMessageService(
             senderNickname,
             message.Body,
             message.SentAt,
+            message.UpdatedAt,
+            message.IsDeleted,
+            !message.IsDeleted && editHistory is not null,
+            ChatMessageEligibility.CanEdit(message, viewerUserId, _policy, utcNow),
+            ChatMessageEligibility.CanDelete(message, viewerUserId, seenByOtherParticipant, _policy, utcNow),
+            editHistory,
             media);
 }

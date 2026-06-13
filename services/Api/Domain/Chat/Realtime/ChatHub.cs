@@ -8,6 +8,8 @@ namespace Api.Domain.Chat.Realtime;
 public class ChatHub(ChatRoomService chatRoomService) : Hub
 {
     public const string MessageCreatedEvent = "MessageCreated";
+    public const string MessageEditedEvent = "MessageEdited";
+    public const string MessageDeletedEvent = "MessageDeleted";
 
     private readonly ChatRoomService _chatRoomService = chatRoomService;
 
