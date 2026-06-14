@@ -1,0 +1,47 @@
+using Api.Domain.Location.Domain;
+using Api.Global.Db;
+using Api.Global.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+
+namespace Api.Domain.Location.Repository;
+
+[Repository]
+public class MapPinRepository(AppDbContext context) : IMapPinRepository
+{
+    private readonly AppDbContext _context = context;
+
+    public Task CreateMapPinAsync(MapPin pin)
+    {
+        _context.MapPins.Add(pin);
+        return _context.SaveChangesAsync();
+    }
+
+    public Task<MapPin?> GetMapPinByIdAsync(long id) =>
+        _context.MapPins.FindAsync(id).AsTask();
+
+    public Task<bool> ExistsMapPinByIdAsync(long id) =>
+        _context.MapPins.AnyAsync(p => p.Id == id);
+
+    public Task<List<MapPin>> GetMapPinsInBoundsAsync(
+        decimal minLatitude,
+        decimal maxLatitude,
+        decimal minLongitude,
+        decimal maxLongitude) =>
+        _context.MapPins
+            .Where(p =>
+                p.Latitude >= minLatitude &&
+                p.Latitude <= maxLatitude &&
+                p.Longitude >= minLongitude &&
+                p.Longitude <= maxLongitude)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+    public Task DeleteMapPinAsync(MapPin pin)
+    {
+        _context.MapPins.Remove(pin);
+        return _context.SaveChangesAsync();
+    }
+
+    public Task DeleteAllByUserIdAsync(long userId) =>
+        _context.MapPins.Where(p => p.UserId == userId).ExecuteDeleteAsync();
+}

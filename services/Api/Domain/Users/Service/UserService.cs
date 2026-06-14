@@ -1,6 +1,7 @@
 using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Location.Service;
 using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
@@ -24,6 +25,7 @@ namespace Api.Domain.Users.Service
         Lazy<ChatMessageService> chatMessageService,
         Lazy<ChatRoomService> chatRoomService,
         Lazy<GroupMembershipService> groupMembershipService,
+        Lazy<MapPinService> mapPinService,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
@@ -37,6 +39,7 @@ namespace Api.Domain.Users.Service
         private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
         private readonly Lazy<ChatRoomService> _chatRoomService = chatRoomService;
         private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
+        private readonly Lazy<MapPinService> _mapPinService = mapPinService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
@@ -169,6 +172,7 @@ namespace Api.Domain.Users.Service
                 await _chatMessageService.Value.DetachSenderFromDeletedUserAsync(id);
                 await _chatRoomService.Value.DetachUserFromDeletedUserAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
+                await _mapPinService.Value.HandleUserDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
 

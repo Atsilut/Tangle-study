@@ -7,6 +7,7 @@ using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Media.Domain;
+using Api.Domain.Location.Domain;
 
 namespace Api.Global.Db
 {
@@ -30,6 +31,7 @@ namespace Api.Global.Db
         public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
         public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
         public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+        public DbSet<MapPin> MapPins => Set<MapPin>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -302,6 +304,26 @@ namespace Api.Global.Db
 
             modelBuilder.Entity<MediaAsset>()
                 .HasIndex(m => m.UploaderId);
+
+            modelBuilder.Entity<MapPin>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<MapPin>()
+                .HasOne(p => p.Post)
+                .WithMany()
+                .HasForeignKey(p => p.PostId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MapPin>()
+                .HasIndex(p => new { p.Latitude, p.Longitude });
+
+            modelBuilder.Entity<MapPin>()
+                .HasIndex(p => p.UserId);
         }
     }
 }

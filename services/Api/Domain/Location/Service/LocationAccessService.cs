@@ -1,0 +1,92 @@
+using Api.Domain.Location.Domain;
+using Api.Domain.Posts.Service;
+using Api.Domain.UserBlocks.Service;
+using Api.Global.Exceptions;
+using Api.Global.Infrastructure;
+
+namespace Api.Domain.Location.Service;
+
+[Service]
+public class LocationAccessService(
+    PostService postService,
+    UserBlockService userBlockService,
+    IHttpContextAccessor httpContextAccessor)
+{
+    private readonly PostService _postService = postService;
+    private readonly UserBlockService _userBlockService = userBlockService;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+
+    public long? TryGetViewerUserId()
+    {
+        var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
+        return long.TryParse(sub, out var id) ? id : null;
+    }
+
+    public async Task EnsureCanCreateMapPinAsync(long userId, long? postId)
+    {
+        if (!postId.HasValue) return;
+
+        var post = await _postService.GetPostByIdAsync(postId.Value)
+            ?? throw new EntityNotFoundException("Post not found", StatusCodes.Status400BadRequest);
+
+        if (post.AuthorId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+    }
+
+    public void EnsureCanDeleteMapPin(MapPin pin, long userId)
+    {
+        if (pin.OwnerUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+    }
+
+    public async Task<bool> CanViewMapPinAsync(MapPin pin, long? viewerUserId)
+    {
+        if (viewerUserId == pin.OwnerUserId) return true;
+
+        if (viewerUserId is not null &&
+            await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [pin.OwnerUserId]))
+            return false;
+
+        if (pin.PostId is null) return true;
+
+        return await _postService.GetPostByIdAsync(pin.PostId.Value) is not null;
+    }
+
+    public async Task<List<MapPin>> FilterViewableMapPinsAsync(IReadOnlyList<MapPin> pins, long? viewerUserId)
+    {
+        if (pins.Count == 0) return [];
+
+        var ownerIds = pins.Select(p => p.OwnerUserId).Distinct().ToList();
+        var blockedOwnerIds = new HashSet<long>();
+        if (viewerUserId is not null)
+        {
+            foreach (var ownerId in ownerIds)
+            {
+                if (ownerId == viewerUserId.Value) continue;
+                if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [ownerId]))
+                    blockedOwnerIds.Add(ownerId);
+            }
+        }
+
+        var postIds = pins.Where(p => p.PostId is not null).Select(p => p.PostId!.Value).Distinct().ToList();
+        var viewablePostIds = new HashSet<long>();
+        foreach (var postId in postIds)
+        {
+            if (await _postService.GetPostByIdAsync(postId) is not null) viewablePostIds.Add(postId);
+        }
+
+        List<MapPin> visible = [];
+        foreach (var pin in pins)
+        {
+            if (viewerUserId == pin.OwnerUserId)
+            {
+                visible.Add(pin);
+                continue;
+            }
+
+            if (blockedOwnerIds.Contains(pin.OwnerUserId)) continue;
+
+            if (pin.PostId is null || viewablePostIds.Contains(pin.PostId.Value)) visible.Add(pin);
+        }
+
+        return visible;
+    }
+}
