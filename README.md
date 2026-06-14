@@ -253,7 +253,25 @@ All .NET build, test, EF, and API runtime run in Docker so nothing writes `.nuge
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### Runtime (API + Postgres + Redis)
+Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows, run the equivalent `docker compose` commands shown below from PowerShell in the repo root.
+
+### Compose services and profiles
+
+| Service | Profile | Always on? | Role |
+|---------|---------|------------|------|
+| `api` | — | yes (default `up`) | ASP.NET Core API |
+| `db` | — | yes | Postgres |
+| `redis` | — | yes | Cache, SignalR backplane, Streams |
+| `azurite` | — | yes | Local Azure Blob storage (media uploads) |
+| `nginx` | `web` | no | Edge proxy + SPA host |
+| `rust-worker` | `workers` | no | Chat queue consumer |
+| `rust-worker-media` | `web`, `workers`, `harness` | no | Media upload processor |
+| `prometheus`, `postgres-exporter`, `redis-exporter`, `grafana` | `monitoring` | no | Metrics stack |
+| `sdk` | `tools` | no | One-off .NET CLI (`run --rm`) |
+| `test` | `test` | no | One-off test run (`run --rm`) |
+| `harness` | `harness` | no | One-off harness tests (`run --rm`) |
+
+### Default runtime (API + Postgres + Redis + Azurite)
 
 ```bash
 docker compose up --build
@@ -263,10 +281,49 @@ docker compose up --build
 - Swagger: http://localhost:5000/api  
 - Postgres: `localhost:5433` (user `tangle`, db `tangledb`)
 - Redis: `localhost:6379` (enabled on the `api` service for cache, SignalR backplane, pub/sub, Streams producer)
+- Azurite (blob): `localhost:10000`
 
-Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT=Development`.
+Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Docker`.
 
 Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub contract: [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md).
+
+### Full stack (all long-running services)
+
+Starts the default stack plus Nginx, both Rust workers, and monitoring:
+
+```bash
+docker compose --profile web --profile workers --profile monitoring up --build
+```
+
+- Nginx: http://localhost:8080 (serves `clients/web/dist` when built; see [clients/web/README.md](clients/web/README.md))
+- Grafana: http://localhost:3000 (`admin` / `admin`)
+- Prometheus: http://localhost:9090
+
+For day-to-day backend work, the default `docker compose up --build` is enough. Add profiles only when you need the web edge, workers, or dashboards.
+
+### Web client (optional, `web` profile)
+
+The React app runs on the host in dev (Vite hot reload) or is built into `dist/` for Nginx. Full setup: [clients/web/README.md](clients/web/README.md).
+
+**Dev (hot reload):**
+
+```bash
+# From repo root — backend + Nginx edge
+docker compose --profile web up api db redis azurite nginx
+
+# From clients/web
+npm install
+cp .env.example .env
+npm run dev            # http://localhost:5173
+```
+
+**Production-style (SPA served by Nginx):**
+
+```bash
+cd clients/web && npm run build && cd ../..
+docker compose --profile web up --build
+# browse http://localhost:8080
+```
 
 ### Reset local dev data
 
@@ -321,27 +378,48 @@ Integration tests start their own Postgres containers via Testcontainers (using 
 
 Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` forces `Redis:Enabled=false`). Realtime hub tests use a separate collection with a Testcontainers Redis instance — see `RedisRealtimeIntegrationTestCollection` in [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md).
 
-### Rust worker (optional)
+### Rust workers (optional, `workers` profile)
+
+Two workers share the `workers/rust-worker` image with different stream keys:
+
+| Service | Stream | Notes |
+|---------|--------|-------|
+| `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
+| `rust-worker-media` | `media.uploaded` | Also starts with `web` profile (needed for Nginx media routes) |
+
+Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
 
 ```bash
-docker compose --profile workers build rust-worker
-docker compose --profile workers up rust-worker
+# Chat worker only (with core stack)
+docker compose --profile workers up --build rust-worker
+
+# Both workers + core stack
+docker compose --profile workers up --build
 ```
 
-Requires Redis (e.g. `docker compose up redis` or the full stack). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
-
-### Monitoring (optional)
+### Monitoring (optional, `monitoring` profile)
 
 Prometheus and Grafana use the Compose `monitoring` profile. See [infra/README.md](infra/README.md).
 
 ```bash
+# API + exporters + Prometheus + Grafana
 docker compose --profile monitoring up --build
+
+# Include worker scrape targets (needs `workers` profile)
 docker compose --profile monitoring --profile workers up --build
 ```
 
-- Grafana: http://localhost:3000 (admin / admin)
+- Grafana: http://localhost:3000 (`admin` / `admin`)
 - Prometheus: http://localhost:9090
 - API metrics: http://localhost:5000/metrics (requires `X-Metrics-Secret` in Docker; see [infra/README.md](infra/README.md))
+
+### Harness tests (optional, `harness` profile)
+
+End-to-end tests that run inside Compose against `http://api:8080` (no host API port required). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
+
+```bash
+docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml run --rm harness
+```
 
 ### Cleanup local SDK artifacts
 
