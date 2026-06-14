@@ -10,9 +10,8 @@ namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
 public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres, mediaEnabled: true)
-{
-    private async Task<PostGetResponseDto> CreatePostForTest(string testMethodName, long userId, long index = 1)
+    : IntegrationTestBase(postgres)
+{    private async Task<PostGetResponseDto> CreatePostForTest(string testMethodName, long userId, long index = 1)
     {
         var req = new PostCreateRequestDto
         {

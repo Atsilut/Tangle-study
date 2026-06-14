@@ -9,9 +9,8 @@ namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
 public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : ChatIntegrationTestBase(postgres, mediaEnabled: true)
-{
-    [Fact]
+    : ChatIntegrationTestBase(postgres)
+{    [Fact]
     public async Task CreateAndListMessages_Returns200_ForDirectRoomParticipants()
     {
         const string testMethodName = nameof(CreateAndListMessages_Returns200_ForDirectRoomParticipants);

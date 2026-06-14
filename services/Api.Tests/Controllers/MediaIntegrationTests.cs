@@ -17,7 +17,7 @@ namespace Api.Tests.Controllers;
 public sealed class MediaIntegrationTests(
     PostgresTestcontainerFixture postgres,
     RedisTestcontainerFixture redis)
-    : IntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString, mediaEnabled: true)
+    : IntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
 {
     // --- Upload-init ingress ---
 

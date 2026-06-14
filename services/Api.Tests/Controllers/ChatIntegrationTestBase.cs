@@ -11,9 +11,8 @@ namespace Api.Tests.Controllers;
 public abstract class ChatIntegrationTestBase(
     PostgresTestcontainerFixture postgres,
     bool redisEnabled = false,
-    string? redisConnectionString = null,
-    bool mediaEnabled = false)
-    : FriendshipDomainIntegrationTestBase(postgres, redisEnabled, redisConnectionString, mediaEnabled)
+    string? redisConnectionString = null)
+    : FriendshipDomainIntegrationTestBase(postgres, redisEnabled, redisConnectionString)
 {
     protected const string ChatRoomsBase = "/api/chat/rooms";
 

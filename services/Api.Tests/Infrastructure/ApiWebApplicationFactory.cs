@@ -17,7 +17,6 @@ public sealed class ApiWebApplicationFactory(
     string connectionString,
     bool redisEnabled = false,
     string? redisConnectionString = null,
-    bool mediaEnabled = false,
     bool metricsRequireScrapeSecret = false,
     string? metricsScrapeSecret = null) : WebApplicationFactory<Program>
 {
@@ -26,7 +25,6 @@ public sealed class ApiWebApplicationFactory(
     private readonly string _connectionString = connectionString;
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
-    private readonly bool _mediaEnabled = mediaEnabled;
     private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
     private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
 
@@ -44,9 +42,9 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:InstanceName"] = "tangle:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Media:Enabled"] = _mediaEnabled ? "true" : "false",
-                ["Media:ConnectionString"] = _mediaEnabled ? "UseDevelopmentStorage=true" : "",
-                ["Media:WorkerCallbackSecret"] = _mediaEnabled ? TestWorkerCallbackSecret : "",
+                ["Media:Enabled"] = "true",
+                ["Media:ConnectionString"] = "UseDevelopmentStorage=true",
+                ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
                 ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
             });
