@@ -16,7 +16,7 @@ export function GroupBoardPostEditPage() {
   const board = Number(boardId)
   const post = Number(postId)
   const valid = Number.isFinite(groupId) && Number.isFinite(board) && Number.isFinite(post)
-  const { data, isLoading, isError, refetch } = useBoardPost(
+  const { data, isLoading, isError, error, refetch } = useBoardPost(
     valid ? groupId : null,
     valid ? board : null,
     valid ? post : null,
@@ -25,7 +25,7 @@ export function GroupBoardPostEditPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Edit post</h1>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {data && valid && <EditForm groupId={groupId} boardId={board} post={data} />}
       </QueryBoundary>
     </div>

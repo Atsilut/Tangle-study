@@ -11,14 +11,14 @@ import type { Group } from '../api'
 export function GroupEditPage() {
   const { id } = useParams<{ id: string }>()
   const groupId = Number(id)
-  const { data: group, isLoading, isError, refetch } = useGroup(
+  const { data: group, isLoading, isError, error, refetch } = useGroup(
     Number.isFinite(groupId) ? groupId : null,
   )
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Edit group</h1>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {group && <EditForm group={group} />}
       </QueryBoundary>
     </div>

@@ -13,7 +13,7 @@ export interface CommentSectionProps {
 // Mounted under a post: top-level add form plus the threaded comment tree.
 export function CommentSection({ postId }: CommentSectionProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { data, isLoading, isError, refetch } = useCommentsByPost(postId)
+  const { data, isLoading, isError, error, refetch } = useCommentsByPost(postId)
   const createComment = useCreateComment(postId)
 
   return (
@@ -41,7 +41,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
           </p>
         )}
 
-        <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+        <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
           {data && data.length > 0 ? (
             <div className="flex flex-col gap-4">
               {data.map((comment) => (

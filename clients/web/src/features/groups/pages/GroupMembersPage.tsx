@@ -61,6 +61,7 @@ export function GroupMembersPage() {
       <QueryBoundary
         isLoading={members.isLoading}
         isError={members.isError}
+        error={members.error}
         onRetry={() => members.refetch()}
       >
         {members.data && members.data.length > 0 ? (
@@ -185,7 +186,12 @@ function PendingInvitationsCard({ groupId }: { groupId: number }) {
         <h2 className="text-sm font-semibold text-gray-900">Pending invitations</h2>
       </CardHeader>
       <CardBody>
-        <QueryBoundary isLoading={invitations.isLoading} isError={invitations.isError}>
+        <QueryBoundary
+          isLoading={invitations.isLoading}
+          isError={invitations.isError}
+          error={invitations.error}
+          onRetry={() => invitations.refetch()}
+        >
           {invitations.data && invitations.data.length > 0 ? (
             <ul className="flex flex-col gap-2">
               {invitations.data.map((invitation) => (

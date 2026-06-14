@@ -10,7 +10,7 @@ export function ApplicationsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">My applications</h1>
-      <QueryBoundary isLoading={mine.isLoading} isError={mine.isError} onRetry={() => mine.refetch()}>
+      <QueryBoundary isLoading={mine.isLoading} isError={mine.isError} error={mine.error} onRetry={() => mine.refetch()}>
         {mine.data && mine.data.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {mine.data.map((app) => (

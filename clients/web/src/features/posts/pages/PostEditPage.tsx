@@ -9,14 +9,14 @@ import type { Post } from '../api'
 export function PostEditPage() {
   const { id } = useParams<{ id: string }>()
   const postId = Number(id)
-  const { data: post, isLoading, isError, refetch } = usePost(
+  const { data: post, isLoading, isError, error, refetch } = usePost(
     Number.isFinite(postId) ? postId : null,
   )
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Edit post</h1>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {post && <EditForm post={post} />}
       </QueryBoundary>
     </div>

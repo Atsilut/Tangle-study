@@ -42,7 +42,7 @@ export function getMyGroups(): Promise<Group[]> {
   return getList<Group>('/groups/me')
 }
 
-// POST /api/groups (JWT) -> 201 GroupResponseDto (caller becomes owner)
+// POST /api/groups (JWT) -> 201 GroupGetResponseDto (caller becomes owner)
 export async function createGroup(body: CreateGroupRequest): Promise<Group> {
   const res = await api.post<Group>('/groups', body)
   return res.data

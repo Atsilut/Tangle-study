@@ -65,6 +65,7 @@ export function UserFriendsList({ userId, nickname, visibility, isSelf }: UserFr
         <QueryBoundary
           isLoading={myFriends.isLoading}
           isError={myFriends.isError}
+          error={myFriends.error}
           onRetry={() => myFriends.refetch()}
         >
           <FriendsListContent friends={myFriends.data ?? []} emptyTitle="No friends yet" />
@@ -78,6 +79,7 @@ export function UserFriendsList({ userId, nickname, visibility, isSelf }: UserFr
       <QueryBoundary
         isLoading={theirFriends.isLoading}
         isError={theirFriends.isError}
+        error={theirFriends.error}
         onRetry={() => theirFriends.refetch()}
       >
         {theirFriends.data?.access === 'denied' ? (

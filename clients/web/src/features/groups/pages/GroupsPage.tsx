@@ -47,6 +47,7 @@ export function GroupsPage() {
         <QueryBoundary
           isLoading={myGroups.isLoading}
           isError={myGroups.isError}
+          error={myGroups.error}
           onRetry={() => myGroups.refetch()}
         >
           {myGroups.data && myGroups.data.length > 0 ? (
@@ -71,6 +72,7 @@ export function GroupsPage() {
         <QueryBoundary
           isLoading={discover.isLoading}
           isError={discover.isError}
+          error={discover.error}
           onRetry={() => discover.refetch()}
         >
           {discover.data && discover.data.length > 0 ? (

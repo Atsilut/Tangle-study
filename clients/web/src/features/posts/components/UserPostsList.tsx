@@ -8,7 +8,7 @@ interface UserPostsListProps {
 }
 
 export function UserPostsList({ nickname }: UserPostsListProps) {
-  const { data, isLoading, isError, refetch } = usePostsByNickname(nickname)
+  const { data, isLoading, isError, error, refetch } = usePostsByNickname(nickname)
 
   return (
     <Card>
@@ -16,7 +16,7 @@ export function UserPostsList({ nickname }: UserPostsListProps) {
         <h2 className="text-sm font-semibold text-gray-900">Posts</h2>
       </CardHeader>
       <CardBody>
-        <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+        <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
           {data && data.length > 0 ? (
             <ul className="flex flex-col gap-2">
               {data.map((post) => (

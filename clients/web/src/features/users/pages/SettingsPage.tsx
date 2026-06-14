@@ -22,12 +22,12 @@ import { friendsListVisibilityLabels, friendsListVisibilityOptions } from '../la
 import type { User } from '../api'
 
 export function SettingsPage() {
-  const { data: user, isLoading, isError, refetch } = useCurrentUser()
+  const { data: user, isLoading, isError, error, refetch } = useCurrentUser()
 
   return (
     <div className="flex max-w-lg flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {/* Remount when the user changes so forms re-seed from fresh data. */}
         {user && <SettingsForms key={user.id} user={user} />}
       </QueryBoundary>

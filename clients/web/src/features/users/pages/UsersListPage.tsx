@@ -4,12 +4,12 @@ import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { useUsers } from '../hooks'
 
 export function UsersListPage() {
-  const { data, isLoading, isError, refetch } = useUsers()
+  const { data, isLoading, isError, error, refetch } = useUsers()
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {data && data.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {data.map((user) => (

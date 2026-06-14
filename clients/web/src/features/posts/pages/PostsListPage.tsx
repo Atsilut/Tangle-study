@@ -6,7 +6,7 @@ import { usePosts } from '../hooks'
 import { PostCard } from '../components/PostCard'
 
 export function PostsListPage() {
-  const { data, isLoading, isError, refetch } = usePosts()
+  const { data, isLoading, isError, error, refetch } = usePosts()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   return (
@@ -19,7 +19,7 @@ export function PostsListPage() {
           </Link>
         )}
       </div>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {data && data.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {data.map((post) => (

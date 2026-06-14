@@ -35,6 +35,7 @@ export function GroupChatRoomsPage() {
       <QueryBoundary
         isLoading={rooms.isLoading}
         isError={rooms.isError}
+        error={rooms.error}
         onRetry={() => rooms.refetch()}
       >
         {rooms.data && rooms.data.length > 0 ? (

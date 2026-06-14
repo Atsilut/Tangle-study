@@ -13,7 +13,7 @@ export function UserProfilePage() {
   const userId = Number(id)
   const currentUserId = useAuthStore((s) => s.userId)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { data, isLoading, isError, refetch } = useUser(Number.isFinite(userId) ? userId : null)
+  const { data, isLoading, isError, error, refetch } = useUser(Number.isFinite(userId) ? userId : null)
   const sendRequest = useSendFriendRequest()
   const blockUser = useBlockUser()
   const unblockUser = useUnblockUser()
@@ -23,14 +23,14 @@ export function UserProfilePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {data && (
           <Card>
             <CardHeader className="flex items-center gap-3">
               <Avatar name={data.nickname} size="lg" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">{data.nickname}</h1>
-                <p className="text-sm text-gray-500">{data.email}</p>
+                {isSelf && data.email && <p className="text-sm text-gray-500">{data.email}</p>}
               </div>
               {isSelf ? (
                 <Link to="/settings" className="ml-auto text-sm text-blue-600 hover:underline">

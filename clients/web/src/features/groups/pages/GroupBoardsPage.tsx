@@ -54,6 +54,7 @@ export function GroupBoardsPage() {
       <QueryBoundary
         isLoading={boards.isLoading}
         isError={boards.isError}
+        error={boards.error}
         onRetry={() => boards.refetch()}
       >
         {boards.data && boards.data.length > 0 ? (

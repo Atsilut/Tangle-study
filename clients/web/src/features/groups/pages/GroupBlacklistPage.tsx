@@ -42,6 +42,7 @@ export function GroupBlacklistPage() {
       <QueryBoundary
         isLoading={blacklist.isLoading}
         isError={blacklist.isError}
+        error={blacklist.error}
         onRetry={() => blacklist.refetch()}
       >
         {blacklist.data && blacklist.data.length > 0 ? (

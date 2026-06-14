@@ -27,7 +27,7 @@ export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
   const groupId = Number(id)
   const navigate = useNavigate()
-  const { data: group, isLoading, isError, refetch } = useGroup(
+  const { data: group, isLoading, isError, error, refetch } = useGroup(
     Number.isFinite(groupId) ? groupId : null,
   )
   const join = useJoinGroup(groupId)
@@ -52,7 +52,7 @@ export function GroupDetailPage() {
       <Link to="/groups" className="text-sm text-blue-600 hover:underline">
         Back to groups
       </Link>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {group && (
           <Card>
             <CardHeader className="flex items-start gap-3">
