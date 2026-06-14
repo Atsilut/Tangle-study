@@ -1,10 +1,10 @@
-﻿using Api.Domain.Users.Domain;
+using Api.Domain.Users.Domain;
 
 namespace Api.Domain.Users.Dto
 {
     public record UserGetResponseDto(
         long Id,
-        string Email,
+        string? Email,
         string Nickname,
         FriendsListVisibility FriendsListVisibility,
         DateTime CreatedAt,

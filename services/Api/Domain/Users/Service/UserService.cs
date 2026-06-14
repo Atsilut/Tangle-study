@@ -1,4 +1,4 @@
-﻿using Api.Domain.Chat.Service;
+using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
 using Api.Domain.Media.Service;
@@ -66,27 +66,39 @@ namespace Api.Domain.Users.Service
         public async Task<List<UserGetResponseDto>> GetAllUsersAsync()
         {
             var users = await _repo.GetAllUsersAsync();
-            return [.. users.Select(MapToDto)];
+            return [.. users.Select(u => MapToDto(u, includeEmail: false))];
         }
 
         public async Task<UserGetResponseDto?> GetUserByIdAsync(long id)
         {
             var user = await _repo.GetUserByIdAsync(id);
-            return user == null ? null : MapToDto(user);
+            if (user == null) return null;
+
+            var viewerId = TryGetUserIdFromLogin();
+            return MapToDto(user, includeEmail: viewerId == id);
         }
 
         public async Task<UserGetResponseDto?> GetUserByNicknameAsync(string nickname)
         {
             var user = await _repo.GetUserByNicknameAsync(nickname);
-            return user == null ? null : MapToDto(user);
+            if (user == null) return null;
+
+            var viewerId = TryGetUserIdFromLogin();
+            return MapToDto(user, includeEmail: viewerId == user.Id);
         }
 
         public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
             _nicknameCacheService.GetNicknamesByUserIdsAsync(userIds);
 
-        private static UserGetResponseDto MapToDto(User user) => new(
+        private long? TryGetUserIdFromLogin()
+        {
+            var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
+            return long.TryParse(sub, out var id) ? id : null;
+        }
+
+        private static UserGetResponseDto MapToDto(User user, bool includeEmail) => new(
             Id: user.Id,
-            Email: user.Email,
+            Email: includeEmail ? user.Email : null,
             Nickname: user.Nickname,
             FriendsListVisibility: user.FriendsListVisibility,
             CreatedAt: user.CreatedAt,

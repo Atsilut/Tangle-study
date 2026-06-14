@@ -39,6 +39,30 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task GetUserById_DoesNotExposeEmail_WhenViewerIsNotSelf()
+    {
+        // Arrange
+        const string testMethodName = "GetUserByIdEmailPrivacy";
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var viewer = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Viewer");
+
+        // Act
+        var res = await Client.GetAsync("/api/users/" + owner.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var user = await res.Content.ReadFromJsonAsync<UserGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(user);
+        Assert.Null(user.Email);
+
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
+        var selfRes = await Client.GetAsync("/api/users/" + owner.Id, TestContext.Current.CancellationToken);
+        var self = await selfRes.Content.ReadFromJsonAsync<UserGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(self);
+        Assert.Equal(IntegrationTestAuthHelpers.GetTestEmail(owner.Id), self.Email);
+    }
+
     // --- PATCH ---
 
     [Fact]
