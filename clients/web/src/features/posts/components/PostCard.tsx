@@ -28,9 +28,19 @@ export function PostCard({ post, to }: PostCardProps) {
               {post.media.length} media
             </Badge>
           )}
+          {post.location && (
+            <Badge color="green">Location</Badge>
+          )}
         </div>
         <h3 className="mt-2 text-base font-semibold text-gray-900">{post.title}</h3>
         <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.content}</p>
+        {post.location && (
+          <p className="mt-2 text-xs text-blue-700">
+            {post.location.latitude.toFixed(4)}, {post.location.longitude.toFixed(4)}
+            {' · '}
+            <span className="font-medium">View on map</span>
+          </p>
+        )}
       </Card>
     </Link>
   )

@@ -1,13 +1,33 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { MemoryMap } from '../components/MemoryMap'
 import { MapSearchBox } from '../components/MapSearchBox'
 import type { Place } from '../places'
 
 export function MapPage() {
-  const [flyToPlace, setFlyToPlace] = useState<Place | null>(null)
+  const [searchParams] = useSearchParams()
+  const [searchFlyToPlace, setSearchFlyToPlace] = useState<Place | null>(null)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  const urlFlyToPlace = useMemo((): Place | null => {
+    const lat = searchParams.get('lat')
+    const lng = searchParams.get('lng')
+    if (!lat || !lng) return null
+
+    const latitude = Number(lat)
+    const longitude = Number(lng)
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+
+    return {
+      placeId: `coords:${latitude},${longitude}`,
+      displayName: 'Post location',
+      latitude,
+      longitude,
+    }
+  }, [searchParams])
+
+  const flyToPlace = searchFlyToPlace ?? urlFlyToPlace
 
   return (
     <div className="flex flex-col gap-4">
@@ -19,7 +39,7 @@ export function MapPage() {
       </div>
 
       <section className="flex flex-col gap-3" aria-label="Map controls">
-        <MapSearchBox onSelectPlace={setFlyToPlace} />
+        <MapSearchBox onSelectPlace={setSearchFlyToPlace} />
         {isAuthenticated ? (
           <p className="text-sm text-gray-600">
             Search for a place above, then double-click the map to drop a pin.

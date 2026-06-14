@@ -1,6 +1,8 @@
 export { MapPage } from './pages/MapPage'
 export { MemoryMap } from './components/MemoryMap'
 export { MapSearchBox } from './components/MapSearchBox'
+export { LocationPicker } from './components/LocationPicker'
+export type { PostLocation } from './components/LocationPicker'
 export { useCreateMapPin, useMapPins, usePlaceSearchQuery } from './hooks'
 export type { MapPin, MapBounds, MapPinCreateRequest } from './api'
 export type { Place } from './places'

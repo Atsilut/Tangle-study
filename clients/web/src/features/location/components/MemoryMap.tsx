@@ -79,7 +79,7 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
   const [actionError, setActionError] = useState<string | null>(null)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: pins = [], isFetching, isError, error, refetch } = useMapPins(bounds)
-  const visiblePins = bounds == null ? [] : pins
+  const visiblePins = useMemo(() => (bounds == null ? [] : pins), [bounds, pins])
   const pinsGeoJson = useMemo(() => pinsToGeoJson(visiblePins), [visiblePins])
   const createPin = useCreateMapPin()
   const { data: selectedPlaceName } = usePlaceReverse(
@@ -144,12 +144,20 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
 
   useEffect(() => {
     if (!flyToPlace) return
-    mapRef.current?.flyTo({
+    const map = mapRef.current
+    if (!map) return
+
+    const clearSelection = () => setSelectedPin(null)
+    map.once('moveend', clearSelection)
+    map.flyTo({
       center: [flyToPlace.longitude, flyToPlace.latitude],
       zoom: FLY_TO_ZOOM,
       duration: 1200,
     })
-    setSelectedPin(null)
+
+    return () => {
+      map.off('moveend', clearSelection)
+    }
   }, [flyToPlace])
 
   const handleDropPin = useCallback(
