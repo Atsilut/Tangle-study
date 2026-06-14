@@ -14,8 +14,37 @@ Related: [SERVICE_BOUNDARIES.md](../../../../docs/SERVICE_BOUNDARIES.md#location
 | `GET` | `/api/location/pins` | Anonymous* | Bounding-box query: `minLatitude`, `maxLatitude`, `minLongitude`, `maxLongitude` |
 | `GET` | `/api/location/pins/{id}` | Anonymous* | Single pin by id |
 | `DELETE` | `/api/location/pins/{id}` | Bearer | Delete own pin |
+| `GET` | `/api/location/places/search` | Anonymous | `q`, optional `limit` — Google Places text search |
+| `GET` | `/api/location/places/reverse` | Anonymous | `latitude`, `longitude` — Google reverse geocode for pin popups |
 
 \* Visibility follows post and block rules: pins linked to posts the viewer cannot read are omitted; pins from blocked users are hidden for authenticated viewers.
+
+### Google Places configuration
+
+Set on the **API** (not the web client). Do **not** commit the API key.
+
+**Docker Compose** — create a local `docker-compose.override.yml` (gitignored) at the repo root:
+
+```yaml
+services:
+  api:
+    environment:
+      Places__Enabled: "true"
+      Places__ApiKey: "YOUR_KEY_HERE"
+```
+
+Then `docker compose up -d api`.
+
+**Host `dotnet run`** (Development profile) — add to local `services/Api/appsettings.Development.json` (do not commit the key):
+
+```json
+"Places": {
+  "Enabled": true,
+  "ApiKey": "YOUR_KEY_HERE"
+}
+```
+
+Enable **Places API (New)** and **Geocoding API** on the key. When disabled, search returns `204 No Content` and the map UI shows no suggestions.
 
 Swagger: `http://localhost:5000/api` under `api/location/pins`.
 
@@ -28,6 +57,12 @@ Swagger: `http://localhost:5000/api` under `api/location/pins`.
 | **Postgres** | `MapPin` — durable geo metadata (`latitude`, `longitude`, optional `postId`, owner `userId`) |
 
 Coordinates use `decimal(9,6)` (plain lat/lng, no PostGIS in v1).
+
+---
+
+## Web client (Memory Map)
+
+[clients/web](../../../../clients/web/README.md): MapLibre renders **OpenStreetMap** raster tiles; place search and pin popups use **Google Places** via `/api/location/places` (see configuration above).
 
 ---
 

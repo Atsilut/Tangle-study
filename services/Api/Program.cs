@@ -75,6 +75,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMedia(builder.Configuration);
+builder.Services.AddTanglePlaces(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -103,6 +104,11 @@ else logger.LogInformation("Redis disabled; using in-memory distributed cache an
 var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Value;
 if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
 else logger.LogInformation("Media uploads disabled.");
+
+var placesOptions = app.Services.GetRequiredService<IOptions<PlacesOptions>>().Value;
+if (placesOptions.Enabled && !string.IsNullOrWhiteSpace(placesOptions.ApiKey))
+    logger.LogInformation("Google Places search enabled.");
+else logger.LogInformation("Google Places search disabled (set Places:Enabled and Places:ApiKey).");
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
