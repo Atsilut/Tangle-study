@@ -1,4 +1,4 @@
-import { useEffect, useId, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
 
@@ -11,19 +11,51 @@ export interface ModalProps {
   className?: string
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 export function Modal({ isOpen, onClose, title, children, footer, className }: ModalProps) {
   const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return
+
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      if (focusable.length === 0) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
+
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
+
+    const focusTarget = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE)
+    focusTarget?.focus()
+
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
+      previousFocusRef.current?.focus()
     }
   }, [isOpen, onClose])
 
@@ -37,11 +69,13 @@ export function Modal({ isOpen, onClose, title, children, footer, className }: M
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
         className={cn(
-          'relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl',
+          'relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl outline-none',
           className,
         )}
       >

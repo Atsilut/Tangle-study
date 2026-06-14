@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { Button, ErrorState, TextArea } from '@/components/ui'
+import { Button, ErrorState, FormField, TextArea } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
 import { MediaIntendedContext } from '@/types/api'
 import { MediaUploader, useMediaUploads } from '@/features/media'
@@ -46,14 +46,19 @@ export function CommentForm({
   return (
     <form className="flex flex-col gap-2" onSubmit={submit}>
       {error != null && <ErrorState title="Could not save" message={getErrorMessage(error)} />}
-      <TextArea
-        value={content}
-        maxLength={1000}
-        rows={3}
-        autoFocus={autoFocus}
-        placeholder={placeholder}
-        onChange={(e) => setContent(e.target.value)}
-      />
+      <FormField label="Comment">
+        {({ id }) => (
+          <TextArea
+            id={id}
+            value={content}
+            maxLength={1000}
+            rows={3}
+            autoFocus={autoFocus}
+            placeholder={placeholder}
+            onChange={(e) => setContent(e.target.value)}
+          />
+        )}
+      </FormField>
       {enableMedia && (
         <MediaUploader
           items={media.items}
