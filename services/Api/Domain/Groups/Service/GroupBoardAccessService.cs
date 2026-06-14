@@ -104,6 +104,35 @@ namespace Api.Domain.Groups.Service
                 throw new UnauthorizedAccessException("Unauthorized access");
         }
 
+        public async Task<(long? UserId, GroupMember? Member)> GetViewerContextForGroupAsync(Group group) =>
+            await GetViewerContextAsync(group);
+
+        public bool CanWriteBoardForViewer(Group group, GroupBoard board, long? userId, GroupMember? member) =>
+            CanWriteBoard(group, board, userId, member);
+
+        public async Task<HashSet<(long GroupId, long BoardId)>> ResolveViewableBoardKeysAsync(
+            IReadOnlyCollection<(long GroupId, long BoardId)> boardKeys)
+        {
+            if (boardKeys.Count == 0) return [];
+
+            var viewable = new HashSet<(long GroupId, long BoardId)>();
+            foreach (var groupKeys in boardKeys.GroupBy(k => k.GroupId))
+            {
+                var groupId = groupKeys.Key;
+                var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+                var (userId, member) = await GetViewerContextAsync(group);
+
+                foreach (var boardId in groupKeys.Select(k => k.BoardId).Distinct())
+                {
+                    var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
+                    if (board is not null && CanViewBoard(group, board, userId, member))
+                        viewable.Add((groupId, boardId));
+                }
+            }
+
+            return viewable;
+        }
+
         public async Task<bool> CanWriteBoardForViewerAsync(Group group, GroupBoard board)
         {
             var (userId, member) = await GetViewerContextAsync(group);

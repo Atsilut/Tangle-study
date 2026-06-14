@@ -120,11 +120,37 @@ namespace Api.Domain.Posts.Service
             return await MapToDtoAsync(post, user?.Nickname ?? "Deleted User");
         }
 
+        public async Task<IReadOnlyDictionary<long, (long GroupId, long GroupBoardId)>> GetGroupBoardContextsByPostIdsAsync(
+            IEnumerable<long> postIds)
+        {
+            var result = new Dictionary<long, (long GroupId, long GroupBoardId)>();
+            foreach (var postId in postIds.Distinct())
+            {
+                var ctx = await TryGetGroupBoardContextAsync(postId);
+                if (ctx is not null) result[postId] = ctx.Value;
+            }
+
+            return result;
+        }
+
         public async Task<List<PostGetResponseDto>?> GetPostsByUserNicknameAsync(string nickname)
         {
             var user = await _userService.GetUserByNicknameAsync(nickname);
             if (user == null) return null;
             var posts = await _repo.GetPostsByUserIdAsync(user.Id);
+
+            var boardKeys = posts
+                .Where(p => p.GroupId is not null && p.GroupBoardId is not null)
+                .Select(p => (p.GroupId!.Value, p.GroupBoardId!.Value))
+                .Distinct()
+                .ToList();
+            var viewableBoards = boardKeys.Count == 0
+                ? []
+                : await _groupBoardAccess.ResolveViewableBoardKeysAsync(boardKeys);
+
+            posts = [.. posts.Where(p =>
+                p.GroupId is null ||
+                viewableBoards.Contains((p.GroupId.Value, p.GroupBoardId!.Value)))];
             if (posts.Count == 0) return null;
 
             return await MapManyAsync(posts, new Dictionary<long, string> { [user.Id] = user.Nickname });

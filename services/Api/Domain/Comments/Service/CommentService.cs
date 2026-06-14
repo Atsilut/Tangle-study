@@ -100,6 +100,14 @@ namespace Api.Domain.Comments.Service
             return await BuildCommentTreeAsync(comments);
         }
 
+        public async Task EnsureCanViewCommentMediaAsync(long commentId)
+        {
+            var comment = await _repo.GetCommentByIdAsync(commentId)
+                ?? throw new EntityNotFoundException("Comment not found");
+            if (comment.PostId is not null)
+                await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+        }
+
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
         {
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
@@ -108,6 +116,21 @@ namespace Api.Domain.Comments.Service
                 await _userService.EnsureUserExistsAsync(userId);
                 return null;
             }
+
+            var postIds = comments.Where(c => c.PostId is not null).Select(c => c.PostId!.Value).Distinct().ToList();
+            var postBoardContext = await _postService.GetGroupBoardContextsByPostIdsAsync(postIds);
+            var boardKeys = postBoardContext.Values.Distinct().ToList();
+            var viewableBoards = boardKeys.Count == 0
+                ? []
+                : await _groupBoardAccess.ResolveViewableBoardKeysAsync(boardKeys);
+
+            comments = [.. comments.Where(c =>
+            {
+                if (c.PostId is null) return true;
+                if (!postBoardContext.TryGetValue(c.PostId.Value, out var ctx)) return true;
+                return viewableBoards.Contains(ctx);
+            })];
+            if (comments.Count == 0) return null;
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
             var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
