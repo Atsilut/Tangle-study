@@ -5,12 +5,15 @@ import type { Post } from '../api'
 
 export interface PostCardProps {
   post: Post
+  /** Defaults to `/posts/{id}`. */
+  to?: string
 }
 
 // Compact list item linking to the post detail. Reused by feed and profile.
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, to }: PostCardProps) {
+  const href = to ?? `/posts/${post.id}`
   return (
-    <Link to={`/posts/${post.id}`} className="block">
+    <Link to={href} className="block">
       <Card className="px-4 py-3 hover:bg-gray-50">
         <div className="flex items-center gap-2">
           <Avatar name={post.authorNickname} size="sm" />

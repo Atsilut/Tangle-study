@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Card, EmptyState, Tabs } from '@/components/ui'
-import { QueryBoundary } from '@/components/common/QueryBoundary'
+import { Button, EmptyState } from '@/components/ui'
+import { TabbedRequestLayout } from '@/components/common/TabbedRequestLayout'
 import {
   useAcceptInvitation,
   useCancelInvitation,
@@ -25,77 +25,74 @@ export function InvitationsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <h1 className="text-2xl font-bold text-gray-900">Invitations</h1>
-      <Tabs
+      <TabbedRequestLayout
         activeId={tab}
-        onChange={(id) => setTab(id as TabId)}
+        onTabChange={(id) => setTab(id as TabId)}
         tabs={[
           { id: 'incoming', label: 'Received', count: incoming.length },
           { id: 'outgoing', label: 'Sent', count: outgoing.length },
           { id: 'ignored', label: 'Ignored', count: ignored.data?.length },
         ]}
+        panels={[
+          {
+            id: 'incoming',
+            isLoading: mine.isLoading,
+            isError: mine.isError,
+            error: mine.error,
+            onRetry: () => mine.refetch(),
+            children:
+              incoming.length > 0 ? (
+                <InvitationList>
+                  {incoming.map((inv) => (
+                    <IncomingRow key={inv.id} invitation={inv} />
+                  ))}
+                </InvitationList>
+              ) : (
+                <EmptyState title="No invitations" />
+              ),
+          },
+          {
+            id: 'outgoing',
+            isLoading: mine.isLoading,
+            isError: mine.isError,
+            error: mine.error,
+            onRetry: () => mine.refetch(),
+            children:
+              outgoing.length > 0 ? (
+                <InvitationList>
+                  {outgoing.map((inv) => (
+                    <OutgoingRow key={inv.id} invitation={inv} />
+                  ))}
+                </InvitationList>
+              ) : (
+                <EmptyState title="No sent invitations" />
+              ),
+          },
+          {
+            id: 'ignored',
+            isLoading: ignored.isLoading,
+            isError: ignored.isError,
+            error: ignored.error,
+            onRetry: () => ignored.refetch(),
+            children:
+              ignored.data && ignored.data.length > 0 ? (
+                <InvitationList>
+                  {ignored.data.map((inv) => (
+                    <IncomingRow key={inv.id} invitation={inv} />
+                  ))}
+                </InvitationList>
+              ) : (
+                <EmptyState title="No ignored invitations" />
+              ),
+          },
+        ]}
       />
-
-      {tab === 'incoming' && (
-        <QueryBoundary
-          isLoading={mine.isLoading}
-          isError={mine.isError}
-          onRetry={() => mine.refetch()}
-        >
-          {incoming.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {incoming.map((inv) => (
-                <li key={inv.id}>
-                  <IncomingRow invitation={inv} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No invitations" />
-          )}
-        </QueryBoundary>
-      )}
-
-      {tab === 'outgoing' && (
-        <QueryBoundary
-          isLoading={mine.isLoading}
-          isError={mine.isError}
-          onRetry={() => mine.refetch()}
-        >
-          {outgoing.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {outgoing.map((inv) => (
-                <li key={inv.id}>
-                  <OutgoingRow invitation={inv} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No sent invitations" />
-          )}
-        </QueryBoundary>
-      )}
-
-      {tab === 'ignored' && (
-        <QueryBoundary
-          isLoading={ignored.isLoading}
-          isError={ignored.isError}
-          onRetry={() => ignored.refetch()}
-        >
-          {ignored.data && ignored.data.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {ignored.data.map((inv) => (
-                <li key={inv.id}>
-                  <IncomingRow invitation={inv} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No ignored invitations" />
-          )}
-        </QueryBoundary>
-      )}
     </div>
   )
+}
+
+function InvitationList({ children }: { children: ReactNode }) {
+  return <ul className="flex flex-col gap-2">{children}</ul>
 }
 
 function InvitationRow({
@@ -108,26 +105,28 @@ function InvitationRow({
   actions: ReactNode
 }) {
   return (
-    <Card className="flex items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <Link
-          to={`/groups/${invitation.groupId}`}
-          className="block truncate text-sm font-medium text-gray-900 hover:underline"
-        >
-          {invitation.groupName}
-        </Link>
-        <p className="mt-0.5 truncate text-xs text-gray-500">
-          {personPrefix}{' '}
+    <li>
+      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+        <div className="min-w-0 flex-1">
           <Link
-            to={`/users/${invitation.otherUserId}`}
-            className="text-gray-600 hover:underline"
+            to={`/groups/${invitation.groupId}`}
+            className="block truncate text-sm font-medium text-gray-900 hover:underline"
           >
-            {invitation.otherUserNickname}
+            {invitation.groupName}
           </Link>
-        </p>
+          <p className="mt-0.5 truncate text-xs text-gray-500">
+            {personPrefix}{' '}
+            <Link
+              to={`/users/${invitation.otherUserId}`}
+              className="text-gray-600 hover:underline"
+            >
+              {invitation.otherUserNickname}
+            </Link>
+          </p>
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-    </Card>
+    </li>
   )
 }
 

@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Button, Card, CardBody, CardHeader, ConfirmDialog } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
-import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { CommentSection } from '@/features/comments'
-import { MediaGallery } from '@/features/media'
+import { PostDetailCard } from '@/features/posts/components/PostDetailCard'
 import { useAuthStore } from '@/stores/authStore'
 import { useBoardPost, useDeleteBoardPost } from '../boardsHooks'
 
@@ -20,7 +19,7 @@ export function GroupBoardPostDetailPage() {
   const valid = Number.isFinite(groupId) && Number.isFinite(board) && Number.isFinite(post)
   const navigate = useNavigate()
   const currentUserId = useAuthStore((s) => s.userId)
-  const { data, isLoading, isError, refetch } = useBoardPost(
+  const { data, isLoading, isError, error, refetch } = useBoardPost(
     valid ? groupId : null,
     valid ? board : null,
     valid ? post : null,
@@ -44,39 +43,14 @@ export function GroupBoardPostDetailPage() {
       >
         Back to board
       </Link>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {data && (
-          <Card>
-            <CardHeader className="flex items-center gap-3">
-              <Avatar name={data.authorNickname} />
-              <div>
-                <Link
-                  to={`/users/${data.authorId}`}
-                  className="text-sm font-medium text-gray-900 hover:underline"
-                >
-                  {data.authorNickname}
-                </Link>
-                <EditedTimestamp createdAt={data.createdAt} updatedAt={data.updatedAt} />
-              </div>
-              {isAuthor && (
-                <div className="ml-auto flex gap-2">
-                  <Link to={`/groups/${groupId}/boards/${board}/posts/${data.id}/edit`}>
-                    <Button size="sm" variant="secondary">
-                      Edit
-                    </Button>
-                  </Link>
-                  <Button size="sm" variant="danger" onClick={() => setConfirmOpen(true)}>
-                    Delete
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardBody className="flex flex-col gap-3">
-              <h1 className="text-xl font-bold text-gray-900">{data.title}</h1>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{data.content}</p>
-              <MediaGallery assets={data.media} />
-            </CardBody>
-          </Card>
+          <PostDetailCard
+            post={data}
+            isAuthor={isAuthor}
+            editUrl={`/groups/${groupId}/boards/${board}/posts/${data.id}/edit`}
+            onDelete={() => setConfirmOpen(true)}
+          />
         )}
       </QueryBoundary>
 

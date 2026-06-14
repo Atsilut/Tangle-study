@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Button, Card, EmptyState, Modal } from '@/components/ui'
+import { Button, EmptyState, Modal } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
-import { EditedTimestamp } from '@/components/common/EditedTimestamp'
-import { Avatar, Badge } from '@/components/ui'
 import { PostForm, type PostFormValues } from '@/features/posts/components/PostForm'
+import { PostCard } from '@/features/posts/components/PostCard'
 import { useBoardPosts, useBoards, useCreateBoardPost } from '../boardsHooks'
-import type { Post } from '@/features/posts/api'
 
 export function GroupBoardPostsPage() {
   const { id, boardId } = useParams<{ id: string; boardId: string }>()
@@ -38,13 +36,17 @@ export function GroupBoardPostsPage() {
       <QueryBoundary
         isLoading={posts.isLoading}
         isError={posts.isError}
+        error={posts.error}
         onRetry={() => posts.refetch()}
       >
         {posts.data && posts.data.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {posts.data.map((post) => (
               <li key={post.id}>
-                <BoardPostRow groupId={groupId} boardId={board} post={post} />
+                <PostCard
+                  post={post}
+                  to={`/groups/${groupId}/boards/${board}/posts/${post.id}`}
+                />
               </li>
             ))}
           </ul>
@@ -64,30 +66,5 @@ export function GroupBoardPostsPage() {
         />
       </Modal>
     </div>
-  )
-}
-
-function BoardPostRow({
-  groupId,
-  boardId,
-  post,
-}: {
-  groupId: number
-  boardId: number
-  post: Post
-}) {
-  return (
-    <Link to={`/groups/${groupId}/boards/${boardId}/posts/${post.id}`} className="block">
-      <Card className="px-4 py-3 hover:bg-gray-50">
-        <div className="flex items-center gap-2">
-          <Avatar name={post.authorNickname} size="sm" />
-          <span className="text-sm font-medium text-gray-900">{post.authorNickname}</span>
-          <EditedTimestamp createdAt={post.createdAt} updatedAt={post.updatedAt} variant="date" />
-          {post.media.length > 0 && <Badge color="blue">{post.media.length} media</Badge>}
-        </div>
-        <h3 className="mt-2 text-base font-semibold text-gray-900">{post.title}</h3>
-        <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.content}</p>
-      </Card>
-    </Link>
   )
 }

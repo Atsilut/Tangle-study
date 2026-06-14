@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { Button, EmptyState, Tabs } from '@/components/ui'
+import { Button, EmptyState } from '@/components/ui'
 import { CenteredSpinner } from '@/components/common/CenteredSpinner'
-import { QueryBoundary } from '@/components/common/QueryBoundary'
+import { TabbedRequestLayout } from '@/components/common/TabbedRequestLayout'
 import { UserRow } from '@/components/common/UserRow'
 import { GroupRole } from '@/types/api'
 import {
@@ -38,54 +38,54 @@ export function GroupApplicationsPage() {
         Back to group
       </Link>
       <h1 className="text-2xl font-bold text-gray-900">Applications</h1>
-      <Tabs
+      <TabbedRequestLayout
         activeId={tab}
-        onChange={(t) => setTab(t as TabId)}
+        onTabChange={(t) => setTab(t as TabId)}
         tabs={[
           { id: 'pending', label: 'Pending', count: pending.data?.length },
           { id: 'ignored', label: 'Ignored', count: ignored.data?.length },
         ]}
+        panels={[
+          {
+            id: 'pending',
+            isLoading: pending.isLoading,
+            isError: pending.isError,
+            error: pending.error,
+            onRetry: () => pending.refetch(),
+            children:
+              pending.data && pending.data.length > 0 ? (
+                <ul className="flex flex-col gap-2">
+                  {pending.data.map((app) => (
+                    <li key={app.id}>
+                      <ApplicantRow application={app} showApprove />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState title="No pending applications" />
+              ),
+          },
+          {
+            id: 'ignored',
+            isLoading: ignored.isLoading,
+            isError: ignored.isError,
+            error: ignored.error,
+            onRetry: () => ignored.refetch(),
+            children:
+              ignored.data && ignored.data.length > 0 ? (
+                <ul className="flex flex-col gap-2">
+                  {ignored.data.map((app) => (
+                    <li key={app.id}>
+                      <ApplicantRow application={app} showApprove />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState title="No ignored applications" />
+              ),
+          },
+        ]}
       />
-
-      {tab === 'pending' && (
-        <QueryBoundary
-          isLoading={pending.isLoading}
-          isError={pending.isError}
-          onRetry={() => pending.refetch()}
-        >
-          {pending.data && pending.data.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {pending.data.map((app) => (
-                <li key={app.id}>
-                  <ApplicantRow application={app} showApprove />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No pending applications" />
-          )}
-        </QueryBoundary>
-      )}
-
-      {tab === 'ignored' && (
-        <QueryBoundary
-          isLoading={ignored.isLoading}
-          isError={ignored.isError}
-          onRetry={() => ignored.refetch()}
-        >
-          {ignored.data && ignored.data.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {ignored.data.map((app) => (
-                <li key={app.id}>
-                  <ApplicantRow application={app} showApprove />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="No ignored applications" />
-          )}
-        </QueryBoundary>
-      )}
     </div>
   )
 }

@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Button, Card, CardBody, CardHeader, ConfirmDialog } from '@/components/ui'
-import { EditedTimestamp } from '@/components/common/EditedTimestamp'
+import { ConfirmDialog } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { CommentSection } from '@/features/comments'
-import { MediaGallery } from '@/features/media'
 import { useAuthStore } from '@/stores/authStore'
+import { PostDetailCard } from '../components/PostDetailCard'
 import { useDeletePost, usePost } from '../hooks'
 
 export function PostDetailPage() {
@@ -13,7 +12,7 @@ export function PostDetailPage() {
   const postId = Number(id)
   const navigate = useNavigate()
   const currentUserId = useAuthStore((s) => s.userId)
-  const { data: post, isLoading, isError, refetch } = usePost(
+  const { data: post, isLoading, isError, error, refetch } = usePost(
     Number.isFinite(postId) ? postId : null,
   )
   const deletePost = useDeletePost()
@@ -30,39 +29,14 @@ export function PostDetailPage() {
       <Link to="/posts" className="text-sm text-blue-600 hover:underline">
         Back to posts
       </Link>
-      <QueryBoundary isLoading={isLoading} isError={isError} onRetry={() => refetch()}>
+      <QueryBoundary isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
         {post && (
-          <Card>
-            <CardHeader className="flex items-center gap-3">
-              <Avatar name={post.authorNickname} />
-              <div>
-                <Link
-                  to={`/users/${post.authorId}`}
-                  className="text-sm font-medium text-gray-900 hover:underline"
-                >
-                  {post.authorNickname}
-                </Link>
-                <EditedTimestamp createdAt={post.createdAt} updatedAt={post.updatedAt} />
-              </div>
-              {isAuthor && (
-                <div className="ml-auto flex gap-2">
-                  <Link to={`/posts/${post.id}/edit`}>
-                    <Button size="sm" variant="secondary">
-                      Edit
-                    </Button>
-                  </Link>
-                  <Button size="sm" variant="danger" onClick={() => setConfirmOpen(true)}>
-                    Delete
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardBody className="flex flex-col gap-3">
-              <h1 className="text-xl font-bold text-gray-900">{post.title}</h1>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{post.content}</p>
-              <MediaGallery assets={post.media} />
-            </CardBody>
-          </Card>
+          <PostDetailCard
+            post={post}
+            isAuthor={isAuthor}
+            editUrl={`/posts/${post.id}/edit`}
+            onDelete={() => setConfirmOpen(true)}
+          />
         )}
       </QueryBoundary>
 
