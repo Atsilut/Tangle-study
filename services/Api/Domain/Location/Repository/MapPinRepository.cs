@@ -36,6 +36,16 @@ public class MapPinRepository(AppDbContext context) : IMapPinRepository
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
+    public Task<MapPin?> GetMapPinByPostIdAsync(long postId) =>
+        _context.MapPins.FirstOrDefaultAsync(p => p.PostId == postId);
+
+    public Task<List<MapPin>> GetMapPinsByPostIdsAsync(IEnumerable<long> postIds) =>
+        _context.MapPins
+            .Where(p => p.PostId != null && postIds.Contains(p.PostId.Value))
+            .ToListAsync();
+
+    public Task UpdateMapPinAsync(MapPin pin) => _context.SaveChangesAsync();
+
     public Task DeleteMapPinAsync(MapPin pin)
     {
         _context.MapPins.Remove(pin);

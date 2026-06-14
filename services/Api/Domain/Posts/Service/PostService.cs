@@ -1,5 +1,6 @@
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Location.Service;
 using Api.Domain.Media.Dto;
 using Api.Domain.Media.Service;
 using Api.Domain.Posts.Domain;
@@ -18,6 +19,7 @@ namespace Api.Domain.Posts.Service
         AppDbContext db,
         Lazy<CommentService> commentService,
         Lazy<MediaService> mediaService,
+        Lazy<MapPinService> mapPinService,
         IHttpContextAccessor httpContextAccessor,
         UserService userService,
         GroupBoardAccessService groupBoardAccess)
@@ -26,6 +28,7 @@ namespace Api.Domain.Posts.Service
         private readonly AppDbContext _db = db;
         private readonly Lazy<CommentService> _commentService = commentService;
         private readonly Lazy<MediaService> _mediaService = mediaService;
+        private readonly Lazy<MapPinService> _mapPinService = mapPinService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly UserService _userService = userService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
@@ -52,6 +55,8 @@ namespace Api.Domain.Posts.Service
                 await _groupBoardAccess.EnsureCanWritePostAsync(request.GroupId.Value, request.GroupBoardId.Value);
             }
 
+            ValidateOptionalLocation(request.Latitude, request.Longitude);
+
             var post = new Post(
                 userId: userId,
                 title: request.Title,
@@ -63,6 +68,14 @@ namespace Api.Domain.Posts.Service
             {
                 await _repo.CreatePostAsync(post);
                 await _mediaService.Value.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
+                if (request.Latitude.HasValue)
+                {
+                    await _mapPinService.Value.UpsertLocationForPostAsync(
+                        post.Id,
+                        userId,
+                        request.Latitude.Value,
+                        request.Longitude!.Value);
+                }
             });
         }
 
@@ -92,11 +105,21 @@ namespace Api.Domain.Posts.Service
             await _userService.EnsureUserExistsAsync(userId, statusCode: StatusCodes.Status400BadRequest);
             await _groupBoardAccess.EnsureCanWritePostAsync(groupId, boardId);
 
+            ValidateOptionalLocation(request.Latitude, request.Longitude);
+
             var post = new Post(userId, request.Title, request.Content, groupId, boardId);
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreatePostAsync(post);
                 await _mediaService.Value.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
+                if (request.Latitude.HasValue)
+                {
+                    await _mapPinService.Value.UpsertLocationForPostAsync(
+                        post.Id,
+                        userId,
+                        request.Latitude.Value,
+                        request.Longitude!.Value);
+                }
             });
         }
 
@@ -161,23 +184,27 @@ namespace Api.Domain.Posts.Service
             IReadOnlyDictionary<long, string> nicknames)
         {
             var mediaByPostId = await _mediaService.Value.GetMediaByPostIdsAsync([.. posts.Select(p => p.Id)]);
+            var locationsByPostId = await _mapPinService.Value.GetLocationsByPostIdsAsync(posts.Select(p => p.Id));
 
             return [.. posts.Select(post => MapToDto(
                 post,
                 nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User"),
-                mediaByPostId.GetValueOrDefault(post.Id) ?? []))];
+                mediaByPostId.GetValueOrDefault(post.Id) ?? [],
+                locationsByPostId.GetValueOrDefault(post.Id)))];
         }
 
         private async Task<PostGetResponseDto> MapToDtoAsync(Post post, string authorNickname)
         {
             var media = await _mediaService.Value.GetMediaForPostAsync(post.Id);
-            return MapToDto(post, authorNickname, media);
+            var locations = await _mapPinService.Value.GetLocationsByPostIdsAsync([post.Id]);
+            return MapToDto(post, authorNickname, media, locations.GetValueOrDefault(post.Id));
         }
 
         private static PostGetResponseDto MapToDto(
             Post post,
             string authorNickname,
-            IReadOnlyList<MediaAssetGetResponseDto> media) =>
+            IReadOnlyList<MediaAssetGetResponseDto> media,
+            PostLocationGetResponseDto? location) =>
             new(
                 post.Id,
                 post.Title,
@@ -186,7 +213,8 @@ namespace Api.Domain.Posts.Service
                 post.UpdatedAt,
                 post.AuthorUserId,
                 authorNickname,
-                media);
+                media,
+                location);
 
         public async Task<PostPatchResponseDto> UpdatePostAsync(PostPatchRequestDto request)
         {
@@ -194,6 +222,7 @@ namespace Api.Domain.Posts.Service
             var post = await GetPostOrThrowAsync(request.Id);
             if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException();
+            ValidateLocationPatch(request);
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 post.Update(request.Title, request.Content);
@@ -203,6 +232,16 @@ namespace Api.Domain.Posts.Service
                     user.Id,
                     request.AddMediaAssetIds,
                     request.RemoveMediaAssetIds);
+                if (request.ClearLocation)
+                    await _mapPinService.Value.ClearLocationForPostAsync(post.Id, user.Id);
+                else if (request.Latitude.HasValue)
+                {
+                    await _mapPinService.Value.UpsertLocationForPostAsync(
+                        post.Id,
+                        user.Id,
+                        request.Latitude.Value,
+                        request.Longitude!.Value);
+                }
             });
             return new PostPatchResponseDto(
                 Title: post.Title,
@@ -247,6 +286,28 @@ namespace Api.Domain.Posts.Service
                 await _mediaService.Value.DeleteBlobStorageForPostAsync(id);
                 await _repo.DeletePostAsync(post);
             });
+        }
+
+        private static void ValidateOptionalLocation(decimal? latitude, decimal? longitude)
+        {
+            if (latitude.HasValue != longitude.HasValue)
+                throw new ArgumentException("Latitude and longitude must be provided together.");
+
+            if (latitude.HasValue) ValidateLocationBounds(latitude.Value, longitude!.Value);
+        }
+
+        private static void ValidateLocationPatch(PostPatchRequestDto request)
+        {
+            if (request.ClearLocation && (request.Latitude.HasValue || request.Longitude.HasValue))
+                throw new ArgumentException("ClearLocation cannot be combined with latitude or longitude.");
+
+            ValidateOptionalLocation(request.Latitude, request.Longitude);
+        }
+
+        private static void ValidateLocationBounds(decimal latitude, decimal longitude)
+        {
+            if (latitude is < -90 or > 90) throw new ArgumentException("Latitude must be between -90 and 90.");
+            if (longitude is < -180 or > 180) throw new ArgumentException("Longitude must be between -180 and 180.");
         }
     }
 }

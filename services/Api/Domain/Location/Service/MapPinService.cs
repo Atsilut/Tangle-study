@@ -1,6 +1,7 @@
 using Api.Domain.Location.Domain;
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Repository;
+using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -76,6 +77,43 @@ public class MapPinService(
     }
 
     public Task HandleUserDeletionAsync(long userId) => _repo.DeleteAllByUserIdAsync(userId);
+
+    public async Task UpsertLocationForPostAsync(long postId, long userId, decimal latitude, decimal longitude)
+    {
+        ValidateBounds(latitude, longitude);
+        var existing = await _repo.GetMapPinByPostIdAsync(postId);
+        if (existing is not null)
+        {
+            if (existing.OwnerUserId != userId) throw new UnauthorizedAccessException();
+            existing.UpdateCoordinates(latitude, longitude);
+            await _repo.UpdateMapPinAsync(existing);
+            return;
+        }
+
+        await _repo.CreateMapPinAsync(new MapPin(userId, latitude, longitude, postId));
+    }
+
+    public async Task ClearLocationForPostAsync(long postId, long userId)
+    {
+        var pin = await _repo.GetMapPinByPostIdAsync(postId);
+        if (pin is null) return;
+        if (pin.OwnerUserId != userId) throw new UnauthorizedAccessException();
+        await _repo.DeleteMapPinAsync(pin);
+    }
+
+    public async Task<IReadOnlyDictionary<long, PostLocationGetResponseDto>> GetLocationsByPostIdsAsync(
+        IEnumerable<long> postIds)
+    {
+        var ids = postIds.Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<long, PostLocationGetResponseDto>();
+
+        var pins = await _repo.GetMapPinsByPostIdsAsync(ids);
+        return pins
+            .Where(p => p.PostId.HasValue)
+            .ToDictionary(
+                p => p.PostId!.Value,
+                p => new PostLocationGetResponseDto(p.Latitude, p.Longitude));
+    }
 
     private async Task<List<MapPinGetResponseDto>> MapManyAsync(IReadOnlyList<MapPin> pins)
     {

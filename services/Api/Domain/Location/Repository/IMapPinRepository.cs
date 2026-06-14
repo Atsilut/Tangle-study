@@ -12,6 +12,9 @@ public interface IMapPinRepository
         decimal maxLatitude,
         decimal minLongitude,
         decimal maxLongitude);
+    public Task<MapPin?> GetMapPinByPostIdAsync(long postId);
+    public Task<List<MapPin>> GetMapPinsByPostIdsAsync(IEnumerable<long> postIds);
+    public Task UpdateMapPinAsync(MapPin pin);
     public Task DeleteMapPinAsync(MapPin pin);
     public Task DeleteAllByUserIdAsync(long userId);
 }

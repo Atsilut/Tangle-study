@@ -58,6 +58,8 @@ Swagger: `http://localhost:5000/api` under `api/location/pins`.
 
 Coordinates use `decimal(9,6)` (plain lat/lng, no PostGIS in v1).
 
+Posts may optionally attach a location on create or patch (`latitude` / `longitude` on post DTOs). `PostService` upserts or clears the linked `MapPin` via `MapPinService`; post delete cascades the pin via FK.
+
 ---
 
 ## Web client (Memory Map)

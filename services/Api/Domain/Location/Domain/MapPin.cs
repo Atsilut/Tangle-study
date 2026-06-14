@@ -50,4 +50,11 @@ public class MapPin
         UserId = null;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void UpdateCoordinates(decimal latitude, decimal longitude)
+    {
+        Latitude = latitude;
+        Longitude = longitude;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
