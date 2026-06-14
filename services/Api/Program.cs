@@ -9,7 +9,7 @@ using Api.Global.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
