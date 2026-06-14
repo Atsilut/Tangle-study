@@ -469,12 +469,25 @@ public sealed class MediaServiceUnitTests
             nicknameCache,
             new NoOpEventPublisher());
 
+        var groupBoardAccess = new Api.Domain.Groups.Service.GroupBoardAccessService(
+            new FakeGroupBoardRepository(),
+            new Lazy<Api.Domain.Groups.Service.GroupService>(() => null!),
+            new Api.Domain.Groups.Service.GroupMembershipService(
+                new FakeGroupMemberRepository(),
+                new Lazy<Api.Domain.Groups.Service.GroupService>(() => null!),
+                userService,
+                http),
+            http);
+
         return new MediaService(
             new MediaAssetRepository(db),
             CreateMediaStorageProvider(storage),
             new MediaLimitPolicy(mediaOptions),
             userService,
             new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
+            new Lazy<Api.Domain.Posts.Service.PostService>(() => null!),
+            new Lazy<Api.Domain.Comments.Service.CommentService>(() => null!),
+            groupBoardAccess,
             workQueue,
             mediaOptions,
             http);

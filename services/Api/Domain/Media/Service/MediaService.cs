@@ -1,8 +1,11 @@
 using Api.Domain.Chat.Service;
+using Api.Domain.Comments.Service;
+using Api.Domain.Groups.Service;
 using Api.Domain.Media.Domain;
 using Api.Domain.Media.Dto;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Storage;
+using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Config;
 using Api.Global.Exceptions;
@@ -20,6 +23,9 @@ public sealed class MediaService(
     MediaLimitPolicy limitPolicy,
     UserService userService,
     Lazy<ChatMessageService> chatMessageService,
+    Lazy<PostService> postService,
+    Lazy<CommentService> commentService,
+    GroupBoardAccessService groupBoardAccess,
     IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
     IHttpContextAccessor httpContextAccessor)
@@ -31,6 +37,9 @@ public sealed class MediaService(
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly UserService _userService = userService;
     private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
+    private readonly Lazy<PostService> _postService = postService;
+    private readonly Lazy<CommentService> _commentService = commentService;
+    private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -414,7 +423,19 @@ public sealed class MediaService(
         if (string.IsNullOrWhiteSpace(asset.ProcessedObjectKey))
             throw new InvalidOperationException("Processed media object is missing.");
 
-        if (asset.PostId is not null || asset.CommentId is not null) return;
+        if (asset.PostId is long postId)
+        {
+            var ctx = await _postService.Value.TryGetGroupBoardContextAsync(postId);
+            if (ctx is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(ctx.Value.GroupId, ctx.Value.GroupBoardId);
+            return;
+        }
+
+        if (asset.CommentId is long commentId)
+        {
+            await _commentService.Value.EnsureCanViewCommentMediaAsync(commentId);
+            return;
+        }
 
         if (asset.ChatMessageId is long messageId)
         {

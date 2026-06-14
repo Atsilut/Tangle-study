@@ -122,16 +122,6 @@ internal static class DomainServiceTestFactory
             nicknameCacheService,
             eventPublisher);
 
-        mediaService = new MediaService(
-            new MediaAssetRepository(db),
-            CreateMediaStorageProvider(new FakeMediaStorage()),
-            new MediaLimitPolicy(mediaOptions),
-            userService,
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
-            new FakeWorkQueue(),
-            mediaOptions,
-            http);
-
         groupMembershipService = new GroupMembershipService(
             groupMemberRepository,
             new Lazy<GroupService>(() => groupService),
@@ -142,6 +132,19 @@ internal static class DomainServiceTestFactory
             groupBoardRepository,
             new Lazy<GroupService>(() => groupService),
             groupMembershipService,
+            http);
+
+        mediaService = new MediaService(
+            new MediaAssetRepository(db),
+            CreateMediaStorageProvider(new FakeMediaStorage()),
+            new MediaLimitPolicy(mediaOptions),
+            userService,
+            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
+            new Lazy<PostService>(() => postService),
+            new Lazy<CommentService>(() => commentService),
+            groupBoardAccessService,
+            new FakeWorkQueue(),
+            mediaOptions,
             http);
 
         postService = new PostService(
