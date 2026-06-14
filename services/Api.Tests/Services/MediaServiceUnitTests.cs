@@ -1,9 +1,14 @@
+using Api.Domain.Chat.Service;
+using Api.Domain.Comments.Service;
+using Api.Domain.Groups.Service;
+using Api.Domain.Location.Service;
 using Api.Domain.Media;
 using Api.Domain.Media.Domain;
 using Api.Domain.Media.Dto;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
 using Api.Domain.Media.Storage;
+using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Service;
 using Api.Global.Config;
@@ -459,22 +464,23 @@ public sealed class MediaServiceUnitTests
         var userService = new UserService(
             userRepository,
             db,
-            new Lazy<Api.Domain.Posts.Service.PostService>(() => null!),
-            new Lazy<Api.Domain.Comments.Service.CommentService>(() => null!),
+            new Lazy<PostService>(() => null!),
+            new Lazy<CommentService>(() => null!),
             new Lazy<MediaService>(() => null!),
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
-            new Lazy<Api.Domain.Chat.Service.ChatRoomService>(() => null!),
-            new Lazy<Api.Domain.Groups.Service.GroupMembershipService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
+            new Lazy<ChatRoomService>(() => null!),
+            new Lazy<GroupMembershipService>(() => null!),
+            new Lazy<MapPinService>(() => null!),
             http,
             nicknameCache,
             new NoOpEventPublisher());
 
-        var groupBoardAccess = new Api.Domain.Groups.Service.GroupBoardAccessService(
+        var groupBoardAccess = new GroupBoardAccessService(
             new FakeGroupBoardRepository(),
-            new Lazy<Api.Domain.Groups.Service.GroupService>(() => null!),
-            new Api.Domain.Groups.Service.GroupMembershipService(
+            new Lazy<GroupService>(() => null!),
+            new GroupMembershipService(
                 new FakeGroupMemberRepository(),
-                new Lazy<Api.Domain.Groups.Service.GroupService>(() => null!),
+                new Lazy<GroupService>(() => null!),
                 userService,
                 http),
             http);
@@ -484,9 +490,9 @@ public sealed class MediaServiceUnitTests
             CreateMediaStorageProvider(storage),
             new MediaLimitPolicy(mediaOptions),
             userService,
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
-            new Lazy<Api.Domain.Posts.Service.PostService>(() => null!),
-            new Lazy<Api.Domain.Comments.Service.CommentService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
+            new Lazy<PostService>(() => null!),
+            new Lazy<CommentService>(() => null!),
             groupBoardAccess,
             workQueue,
             mediaOptions,

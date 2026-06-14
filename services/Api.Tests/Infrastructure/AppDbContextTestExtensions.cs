@@ -22,6 +22,7 @@ public static class AppDbContextTestExtensions
         await db.GroupInvitations.ExecuteDeleteAsync(ct);
         await db.GroupBlacklists.ExecuteDeleteAsync(ct);
         await db.MediaAssets.ExecuteDeleteAsync(ct);
+        await db.MapPins.ExecuteDeleteAsync(ct);
         await db.Comments.ExecuteDeleteAsync(ct);
         await db.Posts.ExecuteDeleteAsync(ct);
         await db.GroupBoards.ExecuteDeleteAsync(ct);

@@ -1,6 +1,8 @@
+using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Location.Service;
 using Api.Domain.Media;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
@@ -115,9 +117,10 @@ internal static class DomainServiceTestFactory
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             new Lazy<MediaService>(() => mediaService),
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
-            new Lazy<Api.Domain.Chat.Service.ChatRoomService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
+            new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
+            new Lazy<MapPinService>(() => null!),
             http,
             nicknameCacheService,
             eventPublisher);
@@ -139,7 +142,7 @@ internal static class DomainServiceTestFactory
             CreateMediaStorageProvider(new FakeMediaStorage()),
             new MediaLimitPolicy(mediaOptions),
             userService,
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             groupBoardAccessService,

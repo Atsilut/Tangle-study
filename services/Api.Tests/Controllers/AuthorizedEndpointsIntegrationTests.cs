@@ -4,6 +4,7 @@ using Api.Domain.Chat.Dto;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
+using Api.Domain.Location.Dto;
 using Api.Domain.Posts.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
@@ -41,6 +42,12 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
                 "/api/posts",
                 new PostCreateRequestDto { Title = "t", Content = "c" }
             },
+            {
+                HttpMethod.Post,
+                "/api/location/pins",
+                new MapPinCreateRequestDto { Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Delete, "/api/location/pins/1", null },
             {
                 HttpMethod.Post,
                 "/api/friendships/requests",
