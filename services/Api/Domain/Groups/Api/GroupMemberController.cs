@@ -15,7 +15,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "List members of a group")]
-        public async Task<ActionResult<List<GroupMemberResponseDto>?>> GetMembers([FromRoute] long groupId)
+        public async Task<ActionResult<List<GroupMemberGetResponseDto>?>> GetMembers([FromRoute] long groupId)
         {
             var response = await _service.GetMembersAsync(groupId);
             if (response == null) return NoContent();
@@ -24,7 +24,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpPatch("{userId:long}")]
         [SwaggerOperation(Summary = "Promote or demote a member (owner only)")]
-        public async Task<ActionResult<GroupMemberResponseDto>> UpdateRole(
+        public async Task<ActionResult<GroupMemberGetResponseDto>> UpdateRole(
             [FromRoute] long groupId,
             [FromRoute] long userId,
             [FromBody] GroupMemberRolePatchRequestDto request)

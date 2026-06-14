@@ -166,7 +166,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(scenario.Stranger.Id, only.ApplicantId);
@@ -188,7 +188,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         Assert.True(res.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent);
         if (res.StatusCode == HttpStatusCode.OK)
         {
-            var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
+            var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationGetResponseDto>>(TestContext.Current.CancellationToken);
             Assert.NotNull(list);
             Assert.Contains(list, dto => dto.GroupId == group.Id && !dto.IsIncoming);
         }
@@ -417,7 +417,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.True(only.IsPending);
@@ -456,7 +456,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationResponseDto>>(TestContext.Current.CancellationToken);
+        var list = await res.Content.ReadFromJsonAsync<List<GroupApplicationGetResponseDto>>(TestContext.Current.CancellationToken);
         Assert.NotNull(list);
         var only = Assert.Single(list);
         Assert.Equal(application.Id, only.Id);

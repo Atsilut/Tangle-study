@@ -66,7 +66,7 @@ public abstract class ChatIntegrationTestBase(
         return (await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
-    protected async Task<GroupResponseDto> CreateGroupWithMemberAsync(
+    protected async Task<GroupGetResponseDto> CreateGroupWithMemberAsync(
         UserGetResponseDto owner,
         UserGetResponseDto member)
     {

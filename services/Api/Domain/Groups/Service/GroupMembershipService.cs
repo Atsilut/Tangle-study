@@ -122,7 +122,7 @@ namespace Api.Domain.Groups.Service
             await _repo.RemoveAllByUserAsync(userId);
         }
 
-        public async Task<List<GroupMemberResponseDto>?> GetMembersAsync(long groupId)
+        public async Task<List<GroupMemberGetResponseDto>?> GetMembersAsync(long groupId)
         {
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
             var callerId = GetUserIdFromLogin();
@@ -135,7 +135,7 @@ namespace Api.Domain.Groups.Service
             return await MapManyAsync(members);
         }
 
-        public async Task<GroupMemberResponseDto> UpdateRoleAsync(long groupId, long userId, GroupMemberRolePatchRequestDto request)
+        public async Task<GroupMemberGetResponseDto> UpdateRoleAsync(long groupId, long userId, GroupMemberRolePatchRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             await EnsureOwnerAsync(groupId, callerId);
@@ -178,7 +178,7 @@ namespace Api.Domain.Groups.Service
             await _repo.RemoveMemberAsync(target);
         }
 
-        private static GroupMemberResponseDto MapToDto(GroupMember member, string nickname) =>
+        private static GroupMemberGetResponseDto MapToDto(GroupMember member, string nickname) =>
             new(
                 UserId: member.UserId,
                 Nickname: nickname,
@@ -186,7 +186,7 @@ namespace Api.Domain.Groups.Service
                 CreatedAt: member.JoinedAt,
                 UpdatedAt: member.UpdatedAt);
 
-        private async Task<List<GroupMemberResponseDto>> MapManyAsync(IReadOnlyList<GroupMember> members)
+        private async Task<List<GroupMemberGetResponseDto>> MapManyAsync(IReadOnlyList<GroupMember> members)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(members.Select(m => m.UserId));
             return [.. members

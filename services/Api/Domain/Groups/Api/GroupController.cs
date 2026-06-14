@@ -16,7 +16,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpPost]
         [SwaggerOperation(Summary = "Create a group (caller becomes owner)")]
-        public async Task<ActionResult<GroupResponseDto>> CreateGroup([FromBody] GroupCreateRequestDto request)
+        public async Task<ActionResult<GroupGetResponseDto>> CreateGroup([FromBody] GroupCreateRequestDto request)
         {
             var response = await _service.CreateGroupAsync(request);
             return Created($"/api/groups/{response.Id}", response);
@@ -32,7 +32,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "List public groups (discover)")]
-        public async Task<ActionResult<List<GroupResponseDto>>> ListDiscoverable()
+        public async Task<ActionResult<List<GroupGetResponseDto>>> ListDiscoverable()
         {
             var response = await _service.ListDiscoverableGroupsAsync();
             if (response is null) return NoContent();
@@ -41,7 +41,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet("me")]
         [SwaggerOperation(Summary = "List groups the caller is a member of")]
-        public async Task<ActionResult<List<GroupResponseDto>>> ListMine()
+        public async Task<ActionResult<List<GroupGetResponseDto>>> ListMine()
         {
             var response = await _service.ListMyGroupsAsync();
             if (response is null) return NoContent();
@@ -50,7 +50,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet("{id:long}")]
         [SwaggerOperation(Summary = "Get group info (private groups: limited profile for non-members)")]
-        public async Task<ActionResult<GroupResponseDto>> GetGroup([FromRoute] long id)
+        public async Task<ActionResult<GroupGetResponseDto>> GetGroup([FromRoute] long id)
         {
             var response = await _service.GetGroupAsync(id);
             return Ok(response);
@@ -58,7 +58,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpPatch]
         [SwaggerOperation(Summary = "Update group settings (owner/admin)")]
-        public async Task<ActionResult<GroupResponseDto>> UpdateGroup([FromBody] GroupPatchRequestDto request)
+        public async Task<ActionResult<GroupGetResponseDto>> UpdateGroup([FromBody] GroupPatchRequestDto request)
         {
             var response = await _service.UpdateGroupAsync(request);
             return Ok(response);
@@ -66,7 +66,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpPatch("transfer")]
         [SwaggerOperation(Summary = "Transfer ownership to another member (owner only)")]
-        public async Task<ActionResult<GroupResponseDto>> TransferOwnership([FromBody] GroupTransferOwnershipRequestDto request)
+        public async Task<ActionResult<GroupGetResponseDto>> TransferOwnership([FromBody] GroupTransferOwnershipRequestDto request)
         {
             var response = await _service.TransferOwnershipAsync(request);
             return Ok(response);

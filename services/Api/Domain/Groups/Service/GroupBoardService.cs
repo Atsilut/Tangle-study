@@ -23,22 +23,20 @@ namespace Api.Domain.Groups.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
-        public async Task<List<GroupBoardResponseDto>> ListAsync(long groupId)
+        public async Task<List<GroupBoardGetResponseDto>?> ListAsync(long groupId)
         {
             await _groupService.Value.EnsureGroupExistsAsync(groupId);
 
             var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
             var boards = await _repo.GetByGroupAsync(groupId);
             var visible = await _access.FilterViewableBoardsAsync(groupId, boards);
+            if (visible.Count == 0) return null;
 
-            List<GroupBoardResponseDto> dtos = [];
-            foreach (var board in visible)
-                dtos.Add(await MapToDtoAsync(group, board));
-
-            return dtos;
+            var (userId, member) = await _access.GetViewerContextForGroupAsync(group);
+            return [.. visible.Select(board => MapToDto(group, board, userId, member))];
         }
 
-        public async Task<GroupBoardResponseDto> CreateAsync(long groupId, GroupBoardCreateRequestDto request)
+        public async Task<GroupBoardGetResponseDto> CreateAsync(long groupId, GroupBoardCreateRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
@@ -56,7 +54,7 @@ namespace Api.Domain.Groups.Service
             return await MapToDtoAsync(group, board);
         }
 
-        public async Task<GroupBoardResponseDto> UpdateAsync(long groupId, long boardId, GroupBoardPatchRequestDto request)
+        public async Task<GroupBoardGetResponseDto> UpdateAsync(long groupId, long boardId, GroupBoardPatchRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(groupId, callerId);
@@ -87,14 +85,20 @@ namespace Api.Domain.Groups.Service
 
         public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
-        private async Task<GroupBoardResponseDto> MapToDtoAsync(Group group, GroupBoard board) => new(
+        private async Task<GroupBoardGetResponseDto> MapToDtoAsync(Group group, GroupBoard board)
+        {
+            var (userId, member) = await _access.GetViewerContextForGroupAsync(group);
+            return MapToDto(group, board, userId, member);
+        }
+
+        private GroupBoardGetResponseDto MapToDto(Group group, GroupBoard board, long? userId, GroupMember? member) => new(
             Id: board.Id,
             GroupId: board.GroupId,
             Name: board.Name,
             Description: board.Description,
             Visibility: board.Visibility,
             Writeability: board.Writeability,
-            CanWrite: await _access.CanWriteBoardForViewerAsync(group, board),
+            CanWrite: _access.CanWriteBoardForViewer(group, board, userId, member),
             CreatedAt: board.CreatedAt,
             UpdatedAt: board.UpdatedAt);
     }

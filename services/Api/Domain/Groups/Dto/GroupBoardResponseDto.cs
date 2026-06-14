@@ -2,7 +2,7 @@ using Api.Domain.Groups.Domain;
 
 namespace Api.Domain.Groups.Dto
 {
-    public record GroupBoardResponseDto(
+    public record GroupBoardGetResponseDto(
         long Id,
         long GroupId,
         string Name,

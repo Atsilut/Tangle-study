@@ -49,7 +49,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
             if (operation == GroupReadOperation.GetGroup)
             {
-                var dto = await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken);
+                var dto = await res.Content.ReadFromJsonAsync<GroupGetResponseDto>(TestContext.Current.CancellationToken);
                 Assert.NotNull(dto);
                 Assert.Equal(group.Id, dto.Id);
                 if (visibility == GroupVisibility.Private && actor == GroupActorRole.Stranger)
@@ -66,7 +66,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             }
             else
             {
-                var members = await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>(TestContext.Current.CancellationToken);
+                var members = await res.Content.ReadFromJsonAsync<List<GroupMemberGetResponseDto>>(TestContext.Current.CancellationToken);
                 Assert.NotNull(members);
                 Assert.True(members.Count >= 1);
             }
@@ -238,7 +238,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         if (expected == GroupExpectedOutcome.Ok)
         {
             await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-            var body = await res.Content.ReadFromJsonAsync<GroupMemberResponseDto>(TestContext.Current.CancellationToken);
+            var body = await res.Content.ReadFromJsonAsync<GroupMemberGetResponseDto>(TestContext.Current.CancellationToken);
             Assert.NotNull(body);
             Assert.Equal(newRole, body.Role);
         }

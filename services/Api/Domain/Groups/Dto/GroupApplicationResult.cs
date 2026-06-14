@@ -6,5 +6,5 @@ namespace Api.Domain.Groups.Dto
         GroupMembershipCreatedFromReciprocalInvitation,
     }
 
-    public record GroupApplicationResult(GroupApplicationOutcome Outcome, GroupApplicationResponseDto? Application);
+    public record GroupApplicationResult(GroupApplicationOutcome Outcome, GroupApplicationGetResponseDto? Application);
 }

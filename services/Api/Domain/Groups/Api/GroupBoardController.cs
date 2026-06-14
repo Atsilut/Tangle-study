@@ -15,16 +15,16 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet]
         [SwaggerOperation(Summary = "List boards visible to the caller")]
-        public async Task<ActionResult<List<GroupBoardResponseDto>>> List([FromRoute] long groupId)
+        public async Task<ActionResult<List<GroupBoardGetResponseDto>?>> List([FromRoute] long groupId)
         {
             var response = await _service.ListAsync(groupId);
-            if (response.Count == 0) return NoContent();
+            if (response is null) return NoContent();
             return Ok(response);
         }
 
         [HttpPost]
         [SwaggerOperation(Summary = "Create a board (admin/owner)")]
-        public async Task<ActionResult<GroupBoardResponseDto>> Create(
+        public async Task<ActionResult<GroupBoardGetResponseDto>> Create(
             [FromRoute] long groupId,
             [FromBody] GroupBoardCreateRequestDto request)
         {
@@ -34,7 +34,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpPatch("{boardId:long}")]
         [SwaggerOperation(Summary = "Update a board (admin/owner)")]
-        public async Task<ActionResult<GroupBoardResponseDto>> Update(
+        public async Task<ActionResult<GroupBoardGetResponseDto>> Update(
             [FromRoute] long groupId,
             [FromRoute] long boardId,
             [FromBody] GroupBoardPatchRequestDto request)

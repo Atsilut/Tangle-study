@@ -151,7 +151,7 @@ namespace Api.Domain.Groups.Service
             await _repo.DeleteApplicationAsync(application);
         }
 
-        public async Task<List<GroupApplicationResponseDto>> GetPendingByGroupAsync(long groupId)
+        public async Task<List<GroupApplicationGetResponseDto>> GetPendingByGroupAsync(long groupId)
         {
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
@@ -160,7 +160,7 @@ namespace Api.Domain.Groups.Service
             return await MapApplicationsForReviewerAsync(applications);
         }
 
-        public async Task<List<GroupApplicationResponseDto>?> GetIgnoredByGroupAsync(long groupId)
+        public async Task<List<GroupApplicationGetResponseDto>?> GetIgnoredByGroupAsync(long groupId)
         {
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
@@ -170,7 +170,7 @@ namespace Api.Domain.Groups.Service
             return await MapApplicationsForReviewerAsync(applications);
         }
 
-        public async Task<List<GroupApplicationResponseDto>?> GetMyApplicationsAsync()
+        public async Task<List<GroupApplicationGetResponseDto>?> GetMyApplicationsAsync()
         {
             var applicantId = GetUserIdFromLogin();
             var pending = await _repo.GetPendingForApplicantAsync(applicantId);
@@ -184,7 +184,7 @@ namespace Api.Domain.Groups.Service
 
         public Task DeleteAllByUserAsync(long userId) => _repo.DeleteAllByUserAsync(userId);
 
-        private async Task<List<GroupApplicationResponseDto>> MapApplicationsForReviewerAsync(
+        private async Task<List<GroupApplicationGetResponseDto>> MapApplicationsForReviewerAsync(
             IReadOnlyList<GroupApplication> applications)
         {
             if (applications.Count == 0) return [];
@@ -198,7 +198,7 @@ namespace Api.Domain.Groups.Service
                     nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))];
         }
 
-        private async Task<List<GroupApplicationResponseDto>> MapApplicationsForApplicantAsync(
+        private async Task<List<GroupApplicationGetResponseDto>> MapApplicationsForApplicantAsync(
             IReadOnlyList<GroupApplication> applications, long applicantId)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([applicantId]);
@@ -211,7 +211,7 @@ namespace Api.Domain.Groups.Service
                 groupNames.GetValueOrDefault(a.GroupId, "Unknown group")))];
         }
 
-        private async Task<GroupApplicationResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)
+        private async Task<GroupApplicationGetResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)
         {
             var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([application.GroupId]);
             var nickname = (await _userService.GetUserByIdAsync(application.ApplicantId))?.Nickname ?? "Deleted User";
@@ -222,7 +222,7 @@ namespace Api.Domain.Groups.Service
                 groupNames.GetValueOrDefault(application.GroupId, "Unknown group"));
         }
 
-        private static GroupApplicationResponseDto MapForReviewer(
+        private static GroupApplicationGetResponseDto MapForReviewer(
             GroupApplication application,
             string groupName,
             string applicantNickname) => new(
@@ -236,7 +236,7 @@ namespace Api.Domain.Groups.Service
             CreatedAt: application.CreatedAt,
             UpdatedAt: application.UpdatedAt);
 
-        private static GroupApplicationResponseDto MapForApplicant(
+        private static GroupApplicationGetResponseDto MapForApplicant(
             GroupApplication application,
             long viewerId,
             string applicantNickname,

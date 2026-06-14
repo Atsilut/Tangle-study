@@ -47,7 +47,7 @@ namespace Api.Domain.Groups.Service
             if (!await _repo.ExistsGroupByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
 
-        public async Task<GroupResponseDto> CreateGroupAsync(GroupCreateRequestDto request)
+        public async Task<GroupGetResponseDto> CreateGroupAsync(GroupCreateRequestDto request)
         {
             var creatorId = GetUserIdFromLogin();
             await _userService.EnsureUserExistsAsync(creatorId, "Authentication failed", StatusCodes.Status400BadRequest);
@@ -67,7 +67,7 @@ namespace Api.Domain.Groups.Service
             return MapToDto(group, 1);
         }
 
-        public async Task<GroupResponseDto> GetGroupAsync(long id)
+        public async Task<GroupGetResponseDto> GetGroupAsync(long id)
         {
             var group = await GetGroupOrThrowAsync(id);
             var memberCount = await _membership.CountMembersAsync(id);
@@ -80,14 +80,14 @@ namespace Api.Domain.Groups.Service
             return MapToDto(group, memberCount);
         }
 
-        public async Task<List<GroupResponseDto>?> ListDiscoverableGroupsAsync()
+        public async Task<List<GroupGetResponseDto>?> ListDiscoverableGroupsAsync()
         {
             var groups = await _repo.GetPublicGroupsAsync();
             if (groups.Count == 0) return null;
             return await MapManyToDtosAsync(groups);
         }
 
-        public async Task<List<GroupResponseDto>?> ListMyGroupsAsync()
+        public async Task<List<GroupGetResponseDto>?> ListMyGroupsAsync()
         {
             var userId = GetUserIdFromLogin();
             var memberships = await _membership.GetMembershipsByUserAsync(userId);
@@ -98,7 +98,7 @@ namespace Api.Domain.Groups.Service
             return await MapManyToDtosAsync(groups);
         }
 
-        public async Task<GroupResponseDto> UpdateGroupAsync(GroupPatchRequestDto request)
+        public async Task<GroupGetResponseDto> UpdateGroupAsync(GroupPatchRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureAdminOrOwnerAsync(request.Id, callerId);
@@ -116,7 +116,7 @@ namespace Api.Domain.Groups.Service
             return MapToDto(group, memberCount);
         }
 
-        public async Task<GroupResponseDto> TransferOwnershipAsync(GroupTransferOwnershipRequestDto request)
+        public async Task<GroupGetResponseDto> TransferOwnershipAsync(GroupTransferOwnershipRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             var ownerMember = await _membership.EnsureOwnerAsync(request.Id, callerId);
@@ -152,14 +152,14 @@ namespace Api.Domain.Groups.Service
             await _repo.DeleteGroupAsync(group);
         }
 
-        private async Task<List<GroupResponseDto>> MapManyToDtosAsync(IReadOnlyList<Group> groups)
+        private async Task<List<GroupGetResponseDto>> MapManyToDtosAsync(IReadOnlyList<Group> groups)
         {
             var groupIds = groups.Select(g => g.Id).ToList();
             var memberCounts = await _membership.GetMemberCountsByGroupIdsAsync(groupIds);
             return [.. groups.Select(g => MapToDto(g, memberCounts.GetValueOrDefault(g.Id, 0)))];
         }
 
-        private static GroupResponseDto MapToDto(Group group, int memberCount) => new(
+        private static GroupGetResponseDto MapToDto(Group group, int memberCount) => new(
             Id: group.Id,
             Name: group.Name,
             Description: group.Description,
@@ -171,7 +171,7 @@ namespace Api.Domain.Groups.Service
             UpdatedAt: group.UpdatedAt,
             IsLimitedProfile: false);
 
-        private static GroupResponseDto MapToLimitedDto(Group group, int memberCount) => new(
+        private static GroupGetResponseDto MapToLimitedDto(Group group, int memberCount) => new(
             Id: group.Id,
             Name: group.Name,
             Description: string.Empty,

@@ -101,7 +101,7 @@ public sealed class GroupInvitePolicyIntegrationTests(PostgresTestcontainerFixtu
             },
             TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var updated = await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken);
+        var updated = await res.Content.ReadFromJsonAsync<GroupGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(updated);
         Assert.Equal(GroupInvitePolicy.ForAll, updated.InvitePolicy);
     }

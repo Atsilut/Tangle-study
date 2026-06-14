@@ -38,7 +38,7 @@ namespace Api.Domain.Groups.Api
 
         [HttpGet("api/groups/{groupId:long}/applications")]
         [SwaggerOperation(Summary = "List pending applications (owner/admin)")]
-        public async Task<ActionResult<List<GroupApplicationResponseDto>>> GetPending([FromRoute] long groupId)
+        public async Task<ActionResult<List<GroupApplicationGetResponseDto>>> GetPending([FromRoute] long groupId)
         {
             var response = await _service.GetPendingByGroupAsync(groupId);
             return Ok(response);

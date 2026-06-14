@@ -1,6 +1,6 @@
 namespace Api.Domain.Groups.Dto
 {
-    public record GroupBlacklistResponseDto(
+    public record GroupBlacklistGetResponseDto(
         long Id,
         long GroupId,
         long UserId,

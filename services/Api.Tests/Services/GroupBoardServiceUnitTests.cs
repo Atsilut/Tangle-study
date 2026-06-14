@@ -69,6 +69,7 @@ public sealed class GroupBoardServiceUnitTests
         var boards = await graph.GroupBoardService.ListAsync(group.Id);
 
         // Assert
+        Assert.NotNull(boards);
         Assert.Single(boards);
         Assert.Equal(membersBoard.Id, boards[0].Id);
         Assert.DoesNotContain(boards, board => board.Id == adminBoard.Id);

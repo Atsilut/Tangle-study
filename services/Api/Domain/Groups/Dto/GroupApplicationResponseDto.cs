@@ -1,6 +1,6 @@
 namespace Api.Domain.Groups.Dto
 {
-    public record GroupApplicationResponseDto(
+    public record GroupApplicationGetResponseDto(
         long Id,
         long GroupId,
         string GroupName,

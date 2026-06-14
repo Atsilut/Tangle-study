@@ -37,7 +37,7 @@ namespace Api.Domain.Groups.Service
             if (await _repo.ExistsAsync(groupId, userId)) throw new ArgumentException(message ?? "This user is blacklisted from the group.");
         }
 
-        public async Task<GroupBlacklistResponseDto> AddAsync(long groupId, GroupBlacklistCreateRequestDto request)
+        public async Task<GroupBlacklistGetResponseDto> AddAsync(long groupId, GroupBlacklistCreateRequestDto request)
         {
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
@@ -75,7 +75,7 @@ namespace Api.Domain.Groups.Service
             await _repo.DeleteAsync(entry);
         }
 
-        public async Task<List<GroupBlacklistResponseDto>> ListAsync(long groupId)
+        public async Task<List<GroupBlacklistGetResponseDto>> ListAsync(long groupId)
         {
             var callerId = GetUserIdFromLogin();
             await _membershipService.EnsureOwnerAsync(groupId, callerId);
@@ -90,7 +90,7 @@ namespace Api.Domain.Groups.Service
 
         public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
 
-        private static GroupBlacklistResponseDto MapToDto(GroupBlacklist entry, string nickname) => new(
+        private static GroupBlacklistGetResponseDto MapToDto(GroupBlacklist entry, string nickname) => new(
             Id: entry.Id,
             GroupId: entry.GroupId,
             UserId: entry.UserId,

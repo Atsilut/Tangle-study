@@ -67,7 +67,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, null),
     };
 
-    public async Task<GroupResponseDto> SetupGroupAsync(
+    public async Task<GroupGetResponseDto> SetupGroupAsync(
         GroupVisibility visibility,
         bool includeAdmin = true,
         bool includeMember = true,
@@ -88,7 +88,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
         return group;
     }
 
-    public Task<GroupResponseDto> SetupInvitationOnlyGroupAsync(
+    public Task<GroupGetResponseDto> SetupInvitationOnlyGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
         SetupGroupAsync(
@@ -97,7 +97,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
             includeMember: includeMember,
             joinPolicy: GroupJoinPolicy.InvitationOnly);
 
-    public Task<GroupResponseDto> SetupRequestableGroupAsync(
+    public Task<GroupGetResponseDto> SetupRequestableGroupAsync(
         bool includeAdmin = true,
         bool includeMember = false) =>
         SetupGroupAsync(
@@ -106,7 +106,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
             includeMember: includeMember,
             joinPolicy: GroupJoinPolicy.Requestable);
 
-    public async Task<GroupBoardResponseDto> CreateBoardAsync(
+    public async Task<GroupBoardGetResponseDto> CreateBoardAsync(
         long groupId,
         string name,
         BoardVisibility? visibility = null,
@@ -122,10 +122,10 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
             },
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<GroupBoardResponseDto>(TestContext.Current.CancellationToken))!;
+        return (await res.Content.ReadFromJsonAsync<GroupBoardGetResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
-    public async Task<GroupBoardResponseDto> SeedBoardAsync(
+    public async Task<GroupBoardGetResponseDto> SeedBoardAsync(
         long groupId,
         string name,
         BoardVisibility visibility)
@@ -147,7 +147,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
         return (await res.Content.ReadFromJsonAsync<GroupInvitationCreateResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
-    public async Task<GroupApplicationResponseDto> ApplyAsStrangerAsync(long groupId)
+    public async Task<GroupApplicationGetResponseDto> ApplyAsStrangerAsync(long groupId)
     {
         await LoginAsAsync(GroupActorRole.Stranger);
         var res = await client.PostAsync(
@@ -155,7 +155,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
             content: null,
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<GroupApplicationResponseDto>(TestContext.Current.CancellationToken))!;
+        return (await res.Content.ReadFromJsonAsync<GroupApplicationGetResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
     public async Task BlacklistUserAsync(long groupId, long userId)
@@ -168,11 +168,11 @@ public sealed class GroupIntegrationScenario(HttpClient client, ApiWebApplicatio
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
 
-    public async Task<List<GroupMemberResponseDto>> GetMembersAsync(long groupId)
+    public async Task<List<GroupMemberGetResponseDto>> GetMembersAsync(long groupId)
     {
         var res = await client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/members", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<List<GroupMemberResponseDto>>(TestContext.Current.CancellationToken))!;
+        return (await res.Content.ReadFromJsonAsync<List<GroupMemberGetResponseDto>>(TestContext.Current.CancellationToken))!;
     }
 
     public async Task AssertMemberRoleAsync(long groupId, long userId, GroupRole expected)
