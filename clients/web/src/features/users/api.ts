@@ -3,7 +3,7 @@ import type { FriendsListVisibility } from '@/types/api'
 
 export interface User {
   id: number
-  email: string
+  email?: string | null
   nickname: string
   friendsListVisibility: FriendsListVisibility
   createdAt: string
