@@ -13,7 +13,7 @@ x-dotnet-env: &dotnet-env
 
 services:
   redis:
-    image: redis:8.8-alpine
+    image: redis:8.8.0-alpine
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -36,7 +36,7 @@ services:
       - azurite-data:/data
 
   db:
-    image: postgres:18-alpine
+    image: postgres:18.4
     restart: unless-stopped
     environment:
       POSTGRES_USER: tangle
@@ -83,28 +83,25 @@ services:
     restart: unless-stopped
 
   # Nginx edge: reverse-proxies /api and /hubs (SignalR WebSocket) to the api
-  # service, and serves the built React SPA in prod. Config is bind-mounted
-  # from infra/nginx. In dev, the Vite dev server proxies here
-  # (VITE_PROXY_TARGET=http://localhost:8080); in prod, browse it directly
-  # (run `npm run build` in clients/web first so dist/ exists).
+  # service, and serves the built React SPA (built in clients/web/Dockerfile).
+  # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
   nginx:
-    profiles: ["web"]
-    image: nginx:1.31-alpine
+    build:
+      context: .
+      dockerfile: clients/web/Dockerfile
     ports:
       - "8080:80"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./clients/web/dist:/usr/share/nginx/html:ro
     depends_on:
       api:
         condition: service_started
       rust-worker-media:
         condition: service_started
+        required: false
     restart: unless-stopped
 
   prometheus:
     profiles: ["monitoring"]
-    image: prom/prometheus:v3.4.2
+    image: prom/prometheus:v3.12.0
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -132,7 +129,7 @@ services:
 
   postgres-exporter:
     profiles: ["monitoring"]
-    image: prometheuscommunity/postgres-exporter:v0.16.0
+    image: prometheuscommunity/postgres-exporter:v0.19.1
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: postgresql://tangle:tangletangle123@db:5432/tangledb?sslmode=disable
@@ -142,7 +139,7 @@ services:
 
   redis-exporter:
     profiles: ["monitoring"]
-    image: oliver006/redis_exporter:v1.67.0
+    image: oliver006/redis_exporter:v1.86.0
     restart: unless-stopped
     environment:
       REDIS_ADDR: redis:6379
@@ -152,7 +149,7 @@ services:
 
   grafana:
     profiles: ["monitoring"]
-    image: grafana/grafana:11.6.1
+    image: grafana/grafana:13.0.2
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -200,7 +197,7 @@ services:
     restart: unless-stopped
 
   rust-worker-media:
-    profiles: ["web", "workers", "harness"]
+    profiles: ["workers", "harness"]
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile

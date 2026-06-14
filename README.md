@@ -263,21 +263,22 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
-| `nginx` | `web` | no | Edge proxy + SPA host |
+| `nginx` | — | yes | Edge proxy + React SPA (built in [clients/web/Dockerfile](clients/web/Dockerfile)) |
 | `rust-worker` | `workers` | no | Chat queue consumer |
-| `rust-worker-media` | `web`, `workers`, `harness` | no | Media upload processor |
+| `rust-worker-media` | `workers`, `harness` | no | Media upload processor |
 | `prometheus`, `postgres-exporter`, `redis-exporter`, `grafana` | `monitoring` | no | Metrics stack |
 | `sdk` | `tools` | no | One-off .NET CLI (`run --rm`) |
 | `test` | `test` | no | One-off test run (`run --rm`) |
 | `harness` | `harness` | no | One-off harness tests (`run --rm`) |
 
-### Default runtime (API + Postgres + Redis + Azurite)
+### Default runtime (API + Postgres + Redis + Azurite + Web)
 
 ```bash
 docker compose up --build
 ```
 
 - API: http://localhost:5000  
+- Web (Nginx + React SPA): http://localhost:8080  
 - Swagger: http://localhost:5000/api  
 - Postgres: `localhost:5433` (user `tangle`, db `tangledb`)
 - Redis: `localhost:6379` (enabled on the `api` service for cache, SignalR backplane, pub/sub, Streams producer)
@@ -287,42 +288,33 @@ Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT` is `De
 
 Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub contract: [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md).
 
-### Full stack (all long-running services)
+### Full stack (workers + monitoring)
 
-Starts the default stack plus Nginx, both Rust workers, and monitoring:
+Starts the default stack plus both Rust workers and monitoring:
 
 ```bash
-docker compose --profile web --profile workers --profile monitoring up --build
+docker compose --profile workers --profile monitoring up --build
 ```
 
-- Nginx: http://localhost:8080 (serves `clients/web/dist` when built; see [clients/web/README.md](clients/web/README.md))
 - Grafana: http://localhost:3000 (`admin` / `admin`)
 - Prometheus: http://localhost:9090
 
-For day-to-day backend work, the default `docker compose up --build` is enough. Add profiles only when you need the web edge, workers, or dashboards.
+For day-to-day backend work, the default `docker compose up --build` is enough. Add profiles when you need background workers or dashboards.
 
-### Web client (optional, `web` profile)
+### Web client
 
-The React app runs on the host in dev (Vite hot reload) or is built into `dist/` for Nginx. Full setup: [clients/web/README.md](clients/web/README.md).
+The React app is built into the `nginx` Docker image on `docker compose up --build`. For hot reload during UI work, run Vite on the host. Full setup: [clients/web/README.md](clients/web/README.md).
 
 **Dev (hot reload):**
 
 ```bash
-# From repo root — backend + Nginx edge
-docker compose --profile web up api db redis azurite nginx
+# From repo root — backend + Nginx edge (already in default up)
+docker compose up api db redis azurite nginx
 
 # From clients/web
 npm install
 cp .env.example .env
 npm run dev            # http://localhost:5173
-```
-
-**Production-style (SPA served by Nginx):**
-
-```bash
-cd clients/web && npm run build && cd ../..
-docker compose --profile web up --build
-# browse http://localhost:8080
 ```
 
 ### Reset local dev data
@@ -385,7 +377,7 @@ Two workers share the `workers/rust-worker` image with different stream keys:
 | Service | Stream | Notes |
 |---------|--------|-------|
 | `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
-| `rust-worker-media` | `media.uploaded` | Also starts with `web` profile (needed for Nginx media routes) |
+| `rust-worker-media` | `media.uploaded` | Starts with `--profile workers` (processes uploads after Azurite + API) |
 
 Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
 

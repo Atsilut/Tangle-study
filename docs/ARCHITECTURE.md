@@ -83,7 +83,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 | `api` | Monolith |
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
-| `nginx` | Optional (`--profile web`) — edge proxy + SPA host |
+| `nginx` | Default — edge proxy + SPA (built in `clients/web/Dockerfile`) |
 | `rust-worker` | Optional (`--profile workers`) |
 | `prometheus` | Optional (`--profile monitoring`) |
 | `grafana` | Optional (`--profile monitoring`) |

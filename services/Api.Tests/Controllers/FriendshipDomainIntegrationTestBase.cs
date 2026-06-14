@@ -14,8 +14,9 @@ namespace Api.Tests.Controllers;
 public abstract class FriendshipDomainIntegrationTestBase(
     PostgresTestcontainerFixture postgres,
     bool redisEnabled = false,
-    string? redisConnectionString = null)
-    : IntegrationTestBase(postgres, redisEnabled, redisConnectionString)
+    string? redisConnectionString = null,
+    bool mediaEnabled = false)
+    : IntegrationTestBase(postgres, redisEnabled, redisConnectionString, mediaEnabled)
 {
     protected const string RequestsBase = "/api/friendships/requests";
     protected const string FriendshipsBase = "/api/friendships";

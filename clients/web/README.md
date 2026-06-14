@@ -42,7 +42,7 @@ prod:  browser -> Nginx (:8080, serves dist/ + proxies /api,/hubs) -> api (:8080
 
 ```bash
 # 1. Backend + Nginx edge (from repo root)
-docker compose --profile web up api db redis azurite nginx
+docker compose up api db redis azurite nginx
 
 # 2. Web dev server (this folder)
 npm install
@@ -53,8 +53,8 @@ npm run dev            # http://localhost:5173
 ### Production-style (SPA served by Nginx)
 
 ```bash
-npm run build                          # emits dist/
-docker compose --profile web up --build
+# From repo root — SPA is built into the nginx image
+docker compose up --build
 # browse http://localhost:8080
 ```
 
@@ -68,7 +68,7 @@ docker compose --profile web up --build
 | `npm run lint` | ESLint (flat config, zero-warning policy) |
 | `npm run format` | Prettier |
 
-> Node is not installed in the Docker-first backend workflow; run the web scripts on the host (or via the `web` Docker image build for prod).
+> Node is not required for the Docker-first workflow: `docker compose up --build` builds and serves the SPA in the `nginx` image. Run the npm scripts on the host only for Vite dev (hot reload) or local lint/test.
 
 ### Reset dev data (smoke tests)
 

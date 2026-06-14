@@ -9,7 +9,7 @@ namespace Api.Tests.Controllers;
 
 [Collection(IntegrationTestCollection.Name)]
 public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : ChatIntegrationTestBase(postgres)
+    : ChatIntegrationTestBase(postgres, mediaEnabled: true)
 {
     [Fact]
     public async Task CreateAndListMessages_Returns200_ForDirectRoomParticipants()
