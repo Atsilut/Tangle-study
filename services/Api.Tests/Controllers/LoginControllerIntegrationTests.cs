@@ -31,7 +31,9 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
 
         var getAll = await Client.GetAsync("/api/users", TestContext.Current.CancellationToken);
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>(TestContext.Current.CancellationToken);
-        return all!.First(u => u.Email == req.Email);
+        var profile = all!.First(u => u.Nickname == req.Nickname);
+        IntegrationTestAuthHelpers.RegisterTestEmail(profile.Id, req.Email);
+        return profile;
     }
 
     // --- CREATE (POST /api/join) ---
@@ -41,7 +43,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
     {
         // Arrange
         var created = await CreateAndGetUser();
-        var duplicateReq = CreateUserRequest(email: created.Email);
+        var duplicateReq = CreateUserRequest(email: IntegrationTestAuthHelpers.GetTestEmail(created.Id));
 
         // Act
         var res = await Client.PostAsJsonAsync("/api/join", duplicateReq, TestContext.Current.CancellationToken);
@@ -101,11 +103,11 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
     [Fact]
     public async Task CheckNicknameAvailable_Returns400_WhenEmpty()
     {
-        // Act
+        // Act — empty query value fails [ApiController] required binding, not service validation
         var res = await Client.GetAsync("/api/join/nickname-available?nickname=", TestContext.Current.CancellationToken);
 
         // Assert
-        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.BadRequest, "Nickname is required.");
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
     }
 
     // --- LOGIN (POST /api/login) ---
@@ -117,7 +119,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         var created = await CreateAndGetUser();
         var req = new LoginRequestDto
         {
-            Email = created.Email,
+            Email = IntegrationTestAuthHelpers.GetTestEmail(created.Id),
             Password = testUserPassword
         };
 
@@ -139,7 +141,7 @@ public sealed class LoginControllerIntegrationTests(PostgresTestcontainerFixture
         const string wrongPassword = "wrongpassword789!";
         var req = new LoginRequestDto
         {
-            Email = created.Email,
+            Email = IntegrationTestAuthHelpers.GetTestEmail(created.Id),
             Password = wrongPassword
         };
 

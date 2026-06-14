@@ -28,7 +28,7 @@ internal static class GroupIntegrationTestHelpers
     public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null) =>
         IntegrationTestAuthHelpers.LoginAsAsync(client, user, password);
 
-    public static async Task<GroupResponseDto> CreateGroupAsAsync(
+    public static async Task<GroupGetResponseDto> CreateGroupAsAsync(
         HttpClient client,
         UserGetResponseDto user,
         GroupVisibility visibility = GroupVisibility.Private,
@@ -45,7 +45,7 @@ internal static class GroupIntegrationTestHelpers
             InvitePolicy = invitePolicy,
         }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<GroupResponseDto>(TestContext.Current.CancellationToken))!;
+        return (await res.Content.ReadFromJsonAsync<GroupGetResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
     public static async Task BlockUserAsync(HttpClient client, long blockedUserId)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -8,6 +9,16 @@ namespace Api.Tests.Infrastructure;
 internal static class IntegrationTestAuthHelpers
 {
     public const string DefaultPassword = "testtest123!";
+
+    private static readonly ConcurrentDictionary<long, string> TestEmailsByUserId = new();
+
+    internal static void RegisterTestEmail(long userId, string email) =>
+        TestEmailsByUserId[userId] = email;
+
+    internal static string GetTestEmail(long userId) =>
+        TestEmailsByUserId.GetValueOrDefault(userId)
+        ?? throw new InvalidOperationException(
+            $"No test email registered for user id {userId}. Create the user via {nameof(CreateUserForTestAsync)} first.");
 
     public static async Task<UserGetResponseDto> CreateUserForTestAsync(
         HttpClient client,
@@ -29,15 +40,20 @@ internal static class IntegrationTestAuthHelpers
 
         var getAll = await client.GetAsync("/api/users", TestContext.Current.CancellationToken);
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>(TestContext.Current.CancellationToken);
-        return all!.Single(u => u.Email == req.Email);
+        var profile = all!.Single(u => u.Nickname == req.Nickname);
+        RegisterTestEmail(profile.Id, email);
+        return profile;
     }
 
-    public static async Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null)
+    public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null) =>
+        LoginAsWithEmailAsync(client, GetTestEmail(user.Id), password);
+
+    private static async Task LoginAsWithEmailAsync(HttpClient client, string email, string? password)
     {
         password ??= DefaultPassword;
         var req = new LoginRequestDto
         {
-            Email = user.Email,
+            Email = email,
             Password = password,
         };
         var login = await client.PostAsJsonAsync("/api/login", req, TestContext.Current.CancellationToken);
