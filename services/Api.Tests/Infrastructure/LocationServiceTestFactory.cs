@@ -112,6 +112,7 @@ internal static class LocationServiceTestFactory
             db,
             new Lazy<CommentService>(() => commentService),
             new Lazy<MediaService>(() => mediaService),
+            new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
             groupBoardAccessService);

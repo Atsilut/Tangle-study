@@ -64,4 +64,61 @@ public sealed class PostServiceUnitTests
         // Assert
         Assert.Null(dto);
     }
+
+    [Fact]
+    public async Task CreatePostAsync_WithLocation_ReturnsLocationOnGet()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+
+        // Act
+        await graph.PostService.CreatePostAsync(new PostCreateRequestDto
+        {
+            Title = "Geo post",
+            Content = "With coords",
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+        var post = (await graph.PostRepository.GetPostsByUserIdAsync(user.Id)).Single();
+        var dto = await graph.PostService.GetPostByIdAsync(post.Id);
+
+        // Assert
+        Assert.NotNull(dto?.Location);
+        Assert.Equal(37.5665m, dto.Location.Latitude);
+        Assert.Equal(126.9780m, dto.Location.Longitude);
+    }
+
+    [Fact]
+    public async Task UpdatePostAsync_ClearLocation_RemovesLocation()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        await graph.PostService.CreatePostAsync(new PostCreateRequestDto
+        {
+            Title = "Geo post",
+            Content = "With coords",
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+        var post = (await graph.PostRepository.GetPostsByUserIdAsync(user.Id)).Single();
+
+        // Act
+        await graph.PostService.UpdatePostAsync(new PostPatchRequestDto
+        {
+            Id = post.Id,
+            Title = "Geo post",
+            Content = "No coords",
+            ClearLocation = true,
+        });
+        var dto = await graph.PostService.GetPostByIdAsync(post.Id);
+
+        // Assert
+        Assert.Null(dto?.Location);
+    }
 }
