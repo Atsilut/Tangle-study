@@ -12,8 +12,10 @@ const navItems: NavItem[] = [
   { to: '/posts', label: 'Posts' },
   { to: '/users', label: 'Users' },
   { to: '/friends', label: 'Friends' },
+  { to: '/invitations', label: 'Invitations' },
   { to: '/chat', label: 'Chat' },
   { to: '/groups', label: 'Groups' },
+  { to: '/applications', label: 'Applications' },
   { to: '/blocks', label: 'Blocked' },
   { to: '/settings', label: 'Settings' },
 ]

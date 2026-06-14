@@ -12,8 +12,8 @@ const features = [
     description: 'Message one-on-one or in group rooms with live updates.',
   },
   {
-    title: 'Memory map',
-    description: 'Explore location-based memories and shared places.',
+    title: 'Groups',
+    description: 'Create communities with boards, invitations, and member roles.',
   },
 ] as const
 
@@ -49,8 +49,8 @@ export function HomePage() {
             Connect, share, and explore together
           </h1>
           <p className="max-w-2xl text-base text-gray-600">
-            Tangle brings community posts, real-time chat, and a memory map into one place for
-            staying close to the people and places that matter.
+            Tangle brings community posts, real-time chat, and groups into one place for staying
+            close to the people and communities that matter.
           </p>
         </div>
 
