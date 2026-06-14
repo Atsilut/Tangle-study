@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Badge, Card, CardBody, CardHeader, EmptyState } from '@/components/ui'
+import { useState } from 'react'
+import { Badge, Card, CardBody, CardHeader, EmptyState, ErrorState } from '@/components/ui'
 import { QueryBoundary } from '@/components/common/QueryBoundary'
 import { UserRow } from '@/components/common/UserRow'
 import { Button } from '@/components/ui'
 import { formatChatListTimestamp } from '@/lib/format'
+import { getErrorMessage } from '@/lib/apiError'
 import { useAuthStore } from '@/stores/authStore'
 import { useMyFriends } from '@/features/friends/hooks'
 import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
@@ -23,10 +25,13 @@ export function ChatPage() {
   const navigate = useNavigate()
   const openDirect = useGetOrCreateDirectRoom()
   const createMulti = useCreateMultiRoom()
+  const [directError, setDirectError] = useState<string | null>(null)
 
   const startDirect = (otherUserId: number) => {
+    setDirectError(null)
     openDirect.mutate(otherUserId, {
       onSuccess: (room) => navigate(`/chat/${room.id}`),
+      onError: (error) => setDirectError(getErrorMessage(error, 'Could not open chat.')),
     })
   }
 
@@ -37,6 +42,7 @@ export function ChatPage() {
         <QueryBoundary
           isLoading={rooms.isLoading}
           isError={rooms.isError}
+          error={rooms.error}
           onRetry={() => rooms.refetch()}
         >
           {rooms.data && rooms.data.length > 0 ? (
@@ -82,6 +88,7 @@ export function ChatPage() {
         <QueryBoundary
           isLoading={friends.isLoading}
           isError={friends.isError}
+          error={friends.error}
           onRetry={() => friends.refetch()}
         >
           <Card>
@@ -112,9 +119,13 @@ export function ChatPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-gray-900">Start a direct chat</h2>
+        {directError && (
+          <ErrorState title="Could not open chat" message={directError} onRetry={() => setDirectError(null)} />
+        )}
         <QueryBoundary
           isLoading={friends.isLoading}
           isError={friends.isError}
+          error={friends.error}
           onRetry={() => friends.refetch()}
         >
           {friends.data && friends.data.length > 0 ? (

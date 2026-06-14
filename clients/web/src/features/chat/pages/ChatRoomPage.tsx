@@ -77,6 +77,8 @@ function Conversation({
     messages,
     isLoading,
     isError,
+    loadError,
+    retryLoad,
     hasMore,
     isLoadingMore,
     loadOlder,
@@ -88,6 +90,9 @@ function Conversation({
     isDeleting,
     editMessage,
     isEditing,
+    actionError,
+    clearActionError,
+    realtimeError,
   } = useRoomMessages(roomId)
   const [draft, setDraft] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -124,7 +129,12 @@ function Conversation({
             </Button>
           </div>
         )}
-        <QueryBoundary isLoading={isLoading} isError={isError}>
+        <QueryBoundary
+          isLoading={isLoading}
+          isError={isError}
+          error={loadError}
+          onRetry={retryLoad}
+        >
           {messages.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500">No messages yet.</p>
           ) : (
@@ -188,6 +198,19 @@ function Conversation({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-gray-100 p-3">
+        {realtimeError && (
+          <p className="text-sm text-amber-700" role="status">
+            {realtimeError}
+          </p>
+        )}
+        {actionError && (
+          <p className="text-sm text-red-600" role="alert">
+            {actionError}
+            <button type="button" className="ml-2 underline" onClick={clearActionError}>
+              Dismiss
+            </button>
+          </p>
+        )}
         {sendError && (
           <p className="text-sm text-red-600" role="alert">
             {sendError}

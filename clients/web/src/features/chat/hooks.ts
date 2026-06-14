@@ -132,6 +132,8 @@ export interface RoomMessages {
   messages: ChatMessage[]
   isLoading: boolean
   isError: boolean
+  loadError: unknown
+  retryLoad: () => void
   hasMore: boolean
   isLoadingMore: boolean
   loadOlder: () => void
@@ -143,6 +145,9 @@ export interface RoomMessages {
   isDeleting: boolean
   editMessage: (messageId: number, body: string) => Promise<void>
   isEditing: boolean
+  actionError: string | null
+  clearActionError: () => void
+  realtimeError: string | null
 }
 
 // Owns a room's message list: loads the latest page from REST, streams new
@@ -154,12 +159,15 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(roomId != null)
   const [isError, setIsError] = useState(false)
+  const [loadError, setLoadError] = useState<unknown>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [realtimeError, setRealtimeError] = useState<string | null>(null)
 
   const storeUserId = useAuthStore((s) => s.userId)
   const accessToken = useAuthStore((s) => s.accessToken)
@@ -194,9 +202,15 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
         if (!active) return
         setMessages(page)
         setHasMore(page.length === PAGE_SIZE)
+        setIsError(false)
+        setLoadError(null)
         markOthersSeen(page)
       })
-      .catch(() => active && setIsError(true))
+      .catch((error) => {
+        if (!active) return
+        setIsError(true)
+        setLoadError(error)
+      })
       .finally(() => active && setIsLoading(false))
 
     let cleanup: (() => void) | undefined
@@ -206,11 +220,18 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
         markOthersSeen([message])
       })
         .then((fn) => {
-          if (active) cleanup = fn
-          else fn()
+          if (active) {
+            cleanup = fn
+            setRealtimeError(null)
+          } else fn()
         })
         .catch(() => {
-          if (!active || attempt >= 3) return
+          if (!active || attempt >= 3) {
+            if (active) {
+              setRealtimeError('Live updates unavailable. Refresh the page to retry.')
+            }
+            return
+          }
           window.setTimeout(() => connectRealtime(attempt + 1), 1000 * attempt)
         })
     }
@@ -221,6 +242,24 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
       cleanup?.()
     }
   }, [roomId, upsert, markOthersSeen])
+
+  const retryLoad = useCallback(() => {
+    if (roomId == null) return
+    setIsLoading(true)
+    setIsError(false)
+    setLoadError(null)
+    getMessages(roomId, undefined, PAGE_SIZE)
+      .then((page) => {
+        setMessages(page)
+        setHasMore(page.length === PAGE_SIZE)
+        markOthersSeen(page)
+      })
+      .catch((error) => {
+        setIsError(true)
+        setLoadError(error)
+      })
+      .finally(() => setIsLoading(false))
+  }, [roomId, markOthersSeen])
 
   const loadOlder = useCallback(() => {
     if (roomId == null || messages.length === 0 || isLoadingMore) return
@@ -255,13 +294,18 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
   )
 
   const clearSendError = useCallback(() => setSendError(null), [])
+  const clearActionError = useCallback(() => setActionError(null), [])
 
   const deleteMessage = useCallback(
     async (messageId: number) => {
       if (roomId == null) return
       setIsDeleting(true)
+      setActionError(null)
       try {
         await deleteChatMessage(roomId, messageId)
+      } catch (error) {
+        setActionError(getErrorMessage(error, 'Could not delete message.'))
+        throw error
       } finally {
         setIsDeleting(false)
       }
@@ -273,9 +317,13 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     async (messageId: number, body: string) => {
       if (roomId == null) return
       setIsEditing(true)
+      setActionError(null)
       try {
         const updated = await patchChatMessage(roomId, messageId, body)
         upsert([updated])
+      } catch (error) {
+        setActionError(getErrorMessage(error, 'Could not edit message.'))
+        throw error
       } finally {
         setIsEditing(false)
       }
@@ -287,6 +335,8 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     messages,
     isLoading,
     isError,
+    loadError,
+    retryLoad,
     hasMore,
     isLoadingMore,
     loadOlder,
@@ -298,5 +348,8 @@ export function useRoomMessages(roomId: number | null): RoomMessages {
     isDeleting,
     editMessage,
     isEditing,
+    actionError,
+    clearActionError,
+    realtimeError,
   }
 }
