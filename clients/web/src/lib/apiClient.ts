@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { clearAuth, getAccessToken } from '@/stores/authStore'
+import { clearSession } from '@/lib/session'
+import { getAccessToken } from '@/stores/authStore'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -28,7 +29,7 @@ api.interceptors.response.use(
     // JWT expires after ~15 min with no refresh token: drop session and
     // bounce to login. Skip if already on the login/register pages.
     if (error.response?.status === 401 && !error.config?.treatUnauthorizedAsForbidden) {
-      clearAuth()
+      clearSession()
       const path = window.location.pathname
       if (path !== '/login' && path !== '/register') {
         window.location.assign('/login')

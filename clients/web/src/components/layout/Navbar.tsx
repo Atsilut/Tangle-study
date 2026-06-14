@@ -1,14 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { clearSession } from '@/lib/session'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui'
 
 export function Navbar() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const clear = useAuthStore((s) => s.clear)
 
   const onLogout = () => {
-    clear()
+    clearSession()
     navigate('/login')
   }
 
