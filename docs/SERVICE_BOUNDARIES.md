@@ -17,7 +17,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/user-blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
-| **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented (Phase 4) |
+| **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented — [MEDIA.md](../services/Api/Domain/Media/MEDIA.md) |
 | **location** | *(new)* | Geo on content, live location sessions | *(planned)* | Planned (Phase 7) |
 
 ---
@@ -101,7 +101,7 @@ Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
 ### media-service
 
-**Implemented in monolith (Phase 4).** Extract at [MSA step 1](MSA_MIGRATION.md#extraction-order).
+**Implemented in monolith (Phase 4).** Extract at [MSA step 1](MSA_MIGRATION.md#extraction-order). API reference: [MEDIA.md](../services/Api/Domain/Media/MEDIA.md).
 
 **Will own:** `MediaAsset` (storage key, mime, dimensions, processing status, CDN URLs).
 

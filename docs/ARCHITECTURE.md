@@ -84,6 +84,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
 | `nginx` | Default — edge proxy + SPA (built in `clients/web/Dockerfile`) |
+| `azurite` | Default — local Azure Blob storage (media uploads) |
 | `rust-worker` | Optional (`--profile workers`) |
 | `prometheus` | Optional (`--profile monitoring`) |
 | `grafana` | Optional (`--profile monitoring`) |
@@ -171,7 +172,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 ```
 /services
   /Api          ← monolith today; shrinks during Phase 9
-/clients/web    ← React client (Phase 6, in progress); MAUI optional later
+/clients/web    ← React client (Phase 6, done — map UI in Phase 7); MAUI optional later
 /workers
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts

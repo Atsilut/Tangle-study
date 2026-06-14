@@ -1,6 +1,6 @@
 # Tangle Web Client
 
-Phase 6 React web client for the Tangle API. Thin, accessibility-minded UI with backend parity through media (auth, posts, comments, friends, blocks, groups, chat, media). Component and hook reuse is a first-class concern.
+React web client for the Tangle API. Thin, accessibility-minded UI covering auth, posts, comments, friends, blocks, groups, chat, and media. Component and hook reuse is a first-class concern.
 
 Project overview: [../../README.md](../../README.md). Backend feature reference: Swagger at `http://localhost:5000/api`.
 
@@ -67,8 +67,10 @@ docker compose up --build
 | `npm run preview` | Preview the production build |
 | `npm run lint` | ESLint (flat config, zero-warning policy) |
 | `npm run format` | Prettier |
+| `npm run test` | Vitest (unit tests for helpers/stores) |
+| `npm run test:watch` | Vitest watch mode |
 
-> Node is not required for the Docker-first workflow: `docker compose up --build` builds and serves the SPA in the `nginx` image. Run the npm scripts on the host only for Vite dev (hot reload) or local lint/test.
+> Node is not required for the Docker-first workflow: `docker compose up --build` builds and serves the SPA in the `nginx` image. Run the npm scripts on the host only for Vite dev (hot reload) or local lint/test. From repo root, `./scripts/run-all-tests.sh` runs web tests in Docker along with API, Rust, and harness suites — see [README.md](../../README.md#tests-testcontainers-needs-docker-socket).
 
 ### Reset dev data (smoke tests)
 
@@ -117,21 +119,3 @@ src/
 5. **List endpoints** that return HTTP 204 are normalized to `[]` by `getList()` in [src/lib/apiClient.ts](src/lib/apiClient.ts).
 6. **Auth**: the axios request interceptor attaches `Authorization: Bearer`; a 401 clears the session and redirects to `/login`. There is no `/api/users/me` and no refresh token — `userId` is decoded from the JWT `sub` claim, and an expired token (~15 min) sends the user back to login.
 7. **Accessibility**: semantic elements, `<label>`/`aria-*` wiring (see `FormField`), visible focus states, `role="dialog"` modals.
-
----
-
-## Phase 6 status
-
-**Complete.** Routes are in [src/routes.tsx](src/routes.tsx); each API area has a vertical slice under `src/features/`.
-
-| Area | Coverage |
-|------|----------|
-| Auth | Register, login, JWT session, protected routes |
-| Users | List, profile, settings, privacy, delete account |
-| Posts & comments | Feed, CRUD, threaded comments, media on create |
-| Friends & blocks | Friendships, requests, block list |
-| Groups | Core, members, invitations, applications, blacklist, boards & board posts |
-| Chat | Direct, multi-user, and group rooms; REST history + SignalR |
-| Media | Direct-to-storage upload, gallery, chat attachments |
-
-**Not in this client yet:** location / memory map (Phase 7 API), personalized home feed, `/metrics` through the SPA edge.

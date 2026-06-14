@@ -113,7 +113,7 @@ Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SER
 
 * **GitHub Actions**
 
-  * CI/CD pipeline
+  * CI/CD pipeline (planned — run `./scripts/run-all-tests.sh` locally until workflows land)
 
 * **Go**
 
@@ -142,14 +142,15 @@ Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SER
 All services, workers, and tools are managed in a single repository for clarity
 
 ```
-/services
-  /api
-/clients
-  /web
-/workers
-/libs
-/tools
-/infra
+services/
+  Api/              ← ASP.NET Core monolith (+ Api.Tests)
+clients/
+  web/              ← React SPA (Phase 6)
+workers/
+  rust-worker/      ← Redis Streams consumer
+infra/              ← Nginx edge, Prometheus, Grafana
+docs/               ← architecture and migration hub
+scripts/            ← docker-dotnet.sh, docker-test.sh, run-all-tests.sh
 ```
 
 ---
@@ -205,6 +206,9 @@ Central index: [docs/README.md](docs/README.md)
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Current monolith vs target MSA |
 | [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md) | Domain → microservice mapping |
 | [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
+| [clients/web/README.md](clients/web/README.md) | React web client |
+| [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
+| [services/Api/Domain/Media/MEDIA.md](services/Api/Domain/Media/MEDIA.md) | Media upload and processing |
 
 ---
 
@@ -217,7 +221,7 @@ Central index: [docs/README.md](docs/README.md)
 | 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
 | 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | Done (`chat.message.created` worker handler is an intentional stub; delivery is SignalR) |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
-| 6 | Web client (React) in [clients/web](clients/web/README.md) — scaffold + UI kit done; features in progress, map UI after Phase 7 | In progress |
+| 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media; map UI after Phase 7 | Done |
 | 7 | Location / Memory Map in monolith — [SERVICE_BOUNDARIES.md#location-service](docs/SERVICE_BOUNDARIES.md#location-service) | Planned |
 | 8 | MSA prep — cross-service contracts during Phase 7; document events in [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Planned |
 | 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
