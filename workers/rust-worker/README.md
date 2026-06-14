@@ -139,11 +139,17 @@ src/
 
 ## Tests
 
-Unit tests (decode, encode planning, callback URLs):
+Unit tests (decode, encode planning, callback URLs). Also run via `./scripts/run-all-tests.sh` from the repo root.
 
 ```bash
 cd workers/rust-worker
 cargo test
+```
+
+Or Docker-only (no host Rust / MSVC):
+
+```bash
+docker run --rm -v "$(pwd):/src" -w /src/workers/rust-worker rust:1.96.0-bookworm cargo test
 ```
 
 ### Automated media pipeline harness (API + worker)

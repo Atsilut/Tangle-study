@@ -349,6 +349,22 @@ docker compose --profile tools run --rm sdk ef migrations add MyMigration --proj
 
 ### Tests (Testcontainers needs Docker socket)
 
+**All suites** (API, Rust, harness, web — Docker only; no host Node/Rust required):
+
+```bash
+chmod +x scripts/run-all-tests.sh
+
+./scripts/run-all-tests.sh
+
+# Rust + web in parallel, then API + harness
+./scripts/run-all-tests.sh --parallel-frontend
+
+# Skip slow harness during day-to-day runs
+./scripts/run-all-tests.sh --skip-harness
+```
+
+**API only** (Testcontainers):
+
 ```bash
 chmod +x scripts/docker-test.sh
 
