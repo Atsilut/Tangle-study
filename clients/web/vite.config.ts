@@ -17,6 +17,10 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    test: {
+      environment: 'node',
+      include: ['src/**/*.test.ts'],
+    },
     server: {
       port: 5173,
       proxy: {
