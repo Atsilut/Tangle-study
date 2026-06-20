@@ -22,6 +22,7 @@ public class MapPinController(MapPinService service) : ControllerBase
     }
 
     [HttpGet]
+    [Authorize]
     [SwaggerOperation(Summary = "Get map pins in bounding box")]
     public async Task<ActionResult<List<MapPinGetResponseDto>?>> GetMapPinsInBounds([FromQuery] MapPinBoundsQueryDto query)
     {
@@ -31,6 +32,7 @@ public class MapPinController(MapPinService service) : ControllerBase
     }
 
     [HttpGet("{id:long}")]
+    [Authorize]
     [SwaggerOperation(Summary = "Get map pin by id")]
     public async Task<ActionResult<MapPinGetResponseDto?>> GetMapPinById([FromRoute] long id)
     {

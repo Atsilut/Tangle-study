@@ -1,12 +1,16 @@
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Service;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Api.Domain.Location.Api;
 
 [ApiController]
+[Authorize]
 [Route("api/location/clusters")]
+[EnableRateLimiting("location-clusters")]
 public class LocationClusterController(LocationClusterService service) : ControllerBase
 {
     private readonly LocationClusterService _service = service;

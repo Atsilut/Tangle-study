@@ -46,6 +46,8 @@ builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
 builder.Services.Configure<LocationSafetyOptions>(
     builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
+builder.Services.Configure<LocationClusterOptions>(
+    builder.Configuration.GetSection(LocationClusterOptions.SectionName));
 builder.Services.AddHostedService<LocationSafetyMonitorHostedService>();
 builder.Services.AddSingleton<TokenProvider>();
 
@@ -101,6 +103,22 @@ builder.Services.AddRateLimiter(options =>
             {
                 AutoReplenishment = true,
                 PermitLimit = placesOptions.RateLimitPerMinute,
+                Window = TimeSpan.FromMinutes(1),
+            });
+    });
+    options.AddPolicy("location-clusters", context =>
+    {
+        var clusterOptions = context.RequestServices.GetRequiredService<IOptions<LocationClusterOptions>>().Value;
+        if (clusterOptions.RateLimitPerMinute <= 0)
+            return RateLimitPartition.GetNoLimiter("location-clusters-disabled");
+
+        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = clusterOptions.RateLimitPerMinute,
                 Window = TimeSpan.FromMinutes(1),
             });
     });

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Location.Dto;
+using Api.Domain.Posts.Dto;
 using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
@@ -75,9 +76,16 @@ public sealed class InternalLocationControllerIntegrationTests(PostgresTestconta
         const string testMethodName = nameof(GetClusterPoints_Returns200_WithVisiblePin);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var postRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "cluster post", Content = "content" },
+            TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var posts = await Client.GetFromJsonAsync<List<PostGetResponseDto>>("/api/posts", TestContext.Current.CancellationToken);
+        var post = posts!.Single();
         await Client.PostAsJsonAsync(
             "/api/location/pins",
-            new MapPinCreateRequestDto { Latitude = TestLat, Longitude = TestLng },
+            new MapPinCreateRequestDto { Latitude = TestLat, Longitude = TestLng, PostId = post.Id },
             TestContext.Current.CancellationToken);
 
         var query = BuildBoundsQuery();
