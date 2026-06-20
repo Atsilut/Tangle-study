@@ -9,16 +9,18 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
     () => new Map(),
   )
   const [endedSessionIds, setEndedSessionIds] = useState<Set<number>>(() => new Set())
+  const [trackedGroupId, setTrackedGroupId] = useState(groupId)
+
+  if (trackedGroupId !== groupId) {
+    setTrackedGroupId(groupId)
+    setEndedSessionIds(new Set())
+    setRealtimeOverrides(new Map())
+  }
 
   const sessionIds = useMemo(
     () => initial.map((location) => location.sessionId).sort((a, b) => a - b).join(','),
     [initial],
   )
-
-  useEffect(() => {
-    setEndedSessionIds(new Set())
-    setRealtimeOverrides(new Map())
-  }, [groupId])
 
   useEffect(() => {
     if (!enabled || groupId == null || sessionIds.length === 0) return
