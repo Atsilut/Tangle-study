@@ -113,7 +113,9 @@ Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SER
 
 * **GitHub Actions**
 
-  * CI/CD pipeline (planned — run `./scripts/run-all-tests.sh` locally until workflows land)
+  * CI on pull requests and pushes to `main` / `develop` — [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+  * Jobs: .NET build, Rust tests, web lint/test/build, API integration tests (Testcontainers); media harness E2E on pushes to `main`
+  * Local parity: `./scripts/run-all-tests.sh` (add `--skip-harness` for faster runs)
 
 * **Go**
 
@@ -369,6 +371,8 @@ docker compose --profile tools run --rm sdk ef migrations add MyMigration --proj
 ```
 
 ### Tests (Testcontainers needs Docker socket)
+
+**CI:** GitHub Actions runs the same Docker-first suites on every PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 **All suites** (API, Rust, harness, web — Docker only; no host Node/Rust required):
 

@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  RUST_IMAGE: rust:1.96.0-bookworm
+  NODE_IMAGE: node:26.3-bookworm-slim
+
+jobs:
+  build:
+    name: Build (.NET)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build solution
+        run: bash scripts/docker-dotnet.sh build Tangle.slnx
+
+  rust:
+    name: Rust worker tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cargo test
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src/workers/rust-worker \
+            "${{ env.RUST_IMAGE }}" \
+            cargo test
+
+  web:
+    name: Web lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: npm ci, lint, test, build
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src/clients/web \
+            "${{ env.NODE_IMAGE }}" \
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm run build"
+
+  api:
+    name: API integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: dotnet test (Testcontainers)
+        run: bash scripts/docker-test.sh
+
+  harness:
+    name: Media harness E2E
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: run-media-harness.sh
+        run: bash scripts/run-media-harness.sh
