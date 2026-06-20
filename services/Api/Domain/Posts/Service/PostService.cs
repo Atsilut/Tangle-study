@@ -6,6 +6,7 @@ using Api.Domain.Media.Service;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -22,6 +23,7 @@ namespace Api.Domain.Posts.Service
         Lazy<MapPinService> mapPinService,
         IHttpContextAccessor httpContextAccessor,
         UserService userService,
+        UserBlockService userBlockService,
         GroupBoardAccessService groupBoardAccess)
     {
         private readonly IPostRepository _repo = repo;
@@ -31,7 +33,34 @@ namespace Api.Domain.Posts.Service
         private readonly Lazy<MapPinService> _mapPinService = mapPinService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly UserService _userService = userService;
+        private readonly UserBlockService _userBlockService = userBlockService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
+
+        private long? TryGetViewerUserId()
+        {
+            var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
+            return long.TryParse(sub, out var id) ? id : null;
+        }
+
+        private async Task<List<Post>> FilterPostsByBlockAsync(long? viewerUserId, List<Post> posts)
+        {
+            if (viewerUserId is null || posts.Count == 0) return posts;
+
+            var blockedAuthorIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(
+                viewerUserId.Value,
+                posts.Select(p => p.AuthorUserId).Distinct().ToList());
+            if (blockedAuthorIds.Count == 0) return posts;
+
+            return [.. posts.Where(p => !blockedAuthorIds.Contains(p.AuthorUserId))];
+        }
+
+        private async Task<bool> IsAuthorBlockedByViewerAsync(long? viewerUserId, long authorUserId)
+        {
+            if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
+
+            var blockedIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
+            return blockedIds.Contains(authorUserId);
+        }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -84,6 +113,9 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetAllPostsAsync();
             if (posts.Count == 0) return null;
 
+            posts = await FilterPostsByBlockAsync(TryGetViewerUserId(), posts);
+            if (posts.Count == 0) return null;
+
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
             return await MapManyAsync(posts, nicknames);
         }
@@ -92,6 +124,8 @@ namespace Api.Domain.Posts.Service
         {
             var post = await _repo.GetPostByIdAsync(id);
             if (post == null) return null;
+
+            if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return null;
 
             if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
@@ -105,10 +139,40 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetPostByIdAsync(id);
             if (post is null) return false;
 
+            if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return false;
+
             if (post.GroupId is not null && post.GroupBoardId is not null)
                 return await _groupBoardAccess.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
             return true;
+        }
+
+        public async Task<HashSet<long>> GetViewablePostIdsAsync(IEnumerable<long> postIds, long? viewerUserId)
+        {
+            var posts = await _repo.GetPostsByIdsAsync(postIds);
+            if (posts.Count == 0) return [];
+
+            var blockedAuthorIds = viewerUserId is null
+                ? []
+                : await _userBlockService.GetMutuallyBlockedUserIdsAsync(
+                    viewerUserId.Value,
+                    posts.Select(p => p.AuthorUserId).Distinct().ToList());
+
+            HashSet<long> viewable = [];
+            foreach (var post in posts)
+            {
+                if (viewerUserId is not null && blockedAuthorIds.Contains(post.AuthorUserId)) continue;
+
+                if (post.GroupId is not null && post.GroupBoardId is not null)
+                {
+                    if (!await _groupBoardAccess.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value))
+                        continue;
+                }
+
+                viewable.Add(post.Id);
+            }
+
+            return viewable;
         }
 
         public async Task CreateGroupBoardPostAsync(long groupId, long boardId, GroupBoardPostCreateRequestDto request)
@@ -141,6 +205,9 @@ namespace Api.Domain.Posts.Service
             var posts = await _repo.GetPostsByGroupBoardAsync(groupId, boardId);
             if (posts.Count == 0) return null;
 
+            posts = await FilterPostsByBlockAsync(TryGetViewerUserId(), posts);
+            if (posts.Count == 0) return null;
+
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
             return await MapManyAsync(posts, nicknames);
         }
@@ -151,6 +218,8 @@ namespace Api.Domain.Posts.Service
             var post = await _repo.GetGroupBoardPostAsync(groupId, boardId, postId);
             if (post == null) return null;
 
+            if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return null;
+
             var user = await _userService.GetUserByIdAsync(post.AuthorUserId);
             return await MapToDtoAsync(post, user?.Nickname ?? "Deleted User");
         }
@@ -158,20 +227,18 @@ namespace Api.Domain.Posts.Service
         public async Task<IReadOnlyDictionary<long, (long GroupId, long GroupBoardId)>> GetGroupBoardContextsByPostIdsAsync(
             IEnumerable<long> postIds)
         {
-            var result = new Dictionary<long, (long GroupId, long GroupBoardId)>();
-            foreach (var postId in postIds.Distinct())
-            {
-                var ctx = await TryGetGroupBoardContextAsync(postId);
-                if (ctx is not null) result[postId] = ctx.Value;
-            }
-
-            return result;
+            var posts = await _repo.GetPostsByIdsAsync(postIds);
+            return posts
+                .Where(p => p.GroupId is not null && p.GroupBoardId is not null)
+                .ToDictionary(p => p.Id, p => (p.GroupId!.Value, p.GroupBoardId!.Value));
         }
 
         public async Task<List<PostGetResponseDto>?> GetPostsByUserNicknameAsync(string nickname)
         {
+            var viewerUserId = TryGetViewerUserId();
             var user = await _userService.GetUserByNicknameAsync(nickname);
             if (user == null) return null;
+            if (await IsAuthorBlockedByViewerAsync(viewerUserId, user.Id)) return null;
             var posts = await _repo.GetPostsByUserIdAsync(user.Id);
 
             var boardKeys = posts
@@ -232,7 +299,7 @@ namespace Api.Domain.Posts.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(request.Id);
-            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException();
             ValidateLocationPatch(request);
             await _db.ExecuteInTransactionAsync(async () =>
@@ -289,7 +356,7 @@ namespace Api.Domain.Posts.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var post = await GetPostOrThrowAsync(id);
-            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            if (post.GroupId is not null && post.GroupBoardId is not null) await _groupBoardAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
             if (post.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
 
             await _db.ExecuteInTransactionAsync(async () =>

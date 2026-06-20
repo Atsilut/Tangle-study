@@ -28,6 +28,7 @@ internal static class LocationServiceTestFactory
         MapPinService MapPinService,
         LocationClusterService LocationClusterService,
         LocationAccessService LocationAccessService,
+        PostService PostService,
         FakeUserRepository UserRepository,
         IMapPinRepository MapPinRepository);
 
@@ -96,6 +97,12 @@ internal static class LocationServiceTestFactory
             groupMembershipService,
             http);
 
+        var userBlockService = new UserBlockService(
+            new FakeUserBlockRepository(),
+            new Lazy<FriendRequestService>(() => friendRequestService),
+            userService,
+            http);
+
         mediaService = new MediaService(
             new MediaAssetRepository(db),
             CreateMediaStorageProvider(new FakeMediaStorage()),
@@ -117,6 +124,7 @@ internal static class LocationServiceTestFactory
             new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
+            userBlockService,
             groupBoardAccessService);
 
         commentService = new CommentService(
@@ -126,15 +134,10 @@ internal static class LocationServiceTestFactory
             postService,
             groupBoardAccessService,
             userService,
+            userBlockService,
             new Lazy<MediaService>(() => mediaService));
 
         friendshipService = new FriendshipService(new FakeFriendshipRepository(), userService, http);
-
-        var userBlockService = new UserBlockService(
-            new FakeUserBlockRepository(),
-            new Lazy<FriendRequestService>(() => friendRequestService),
-            userService,
-            http);
 
         friendRequestService = new FriendRequestService(
             new FakeFriendRequestRepository(),
@@ -176,6 +179,7 @@ internal static class LocationServiceTestFactory
             mapPinService,
             locationClusterService,
             locationAccessService,
+            postService,
             userRepository,
             mapPinRepository);
     }

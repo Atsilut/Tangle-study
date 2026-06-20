@@ -142,6 +142,12 @@ internal static class DomainServiceTestFactory
             groupMembershipService,
             http);
 
+        var userBlockService = new UserBlockService(
+            userBlockRepository,
+            new Lazy<FriendRequestService>(() => friendRequestService),
+            userService,
+            http);
+
         var mapPinRepository = new MapPinRepository(db);
 
         mediaService = new MediaService(
@@ -165,6 +171,7 @@ internal static class DomainServiceTestFactory
             new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
+            userBlockService,
             groupBoardAccessService);
 
         commentService = new CommentService(
@@ -174,6 +181,7 @@ internal static class DomainServiceTestFactory
             postService,
             groupBoardAccessService,
             userService,
+            userBlockService,
             new Lazy<MediaService>(() => mediaService));
 
         friendshipService = new FriendshipService(
@@ -181,13 +189,8 @@ internal static class DomainServiceTestFactory
             userService,
             http);
 
-        var userBlockService = new UserBlockService(
-            userBlockRepository,
-            new Lazy<FriendRequestService>(() => friendRequestService),
-            userService,
-            http);
-
         var locationAccessService = new LocationAccessService(postService, userBlockService, http);
+
         var locationClusterService = new LocationClusterService(
             mapPinRepository,
             locationAccessService,

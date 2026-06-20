@@ -37,6 +37,14 @@ namespace Api.Domain.Posts.Repository
 
         public Task<Post?> GetPostByIdAsync(long id) => _context.Posts.FindAsync(id).AsTask();
 
+        public Task<List<Post>> GetPostsByIdsAsync(IEnumerable<long> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0) return Task.FromResult<List<Post>>([]);
+
+            return _context.Posts.Where(p => idList.Contains(p.Id)).ToListAsync();
+        }
+
         public Task<bool> ExistsPostByIdAsync(long id) =>
             _context.Posts.AnyAsync(p => p.Id == id);
 
