@@ -19,6 +19,6 @@ internal static class LocationRealtimeTestHelpers
             })
             .Build();
 
-    public static string GetLiveLocationKey(RedisOptions options, long userId) =>
-        $"{options.InstanceName}location:live:{userId}";
+    public static string GetLiveLocationKey(RedisOptions options, long groupId, long userId) =>
+        $"{options.InstanceName}location:live:{groupId}:{userId}";
 }
