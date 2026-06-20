@@ -50,6 +50,21 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
             { HttpMethod.Delete, "/api/location/pins/1", null },
             {
                 HttpMethod.Post,
+                "/api/location/sessions",
+                new LocationSessionCreateRequestDto { GroupId = 1, Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Get, "/api/location/sessions/mine?groupId=1", null },
+            { HttpMethod.Get, "/api/location/sessions/active?groupId=1", null },
+            { HttpMethod.Get, "/api/location/sessions/members?groupId=1", null },
+            {
+                HttpMethod.Patch,
+                "/api/location/sessions/1/position",
+                new LocationPositionUpdateRequestDto { Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Delete, "/api/location/sessions/1", null },
+            { HttpMethod.Post, "/api/location/sessions/1/sos", null },
+            {
+                HttpMethod.Post,
                 "/api/friendships/requests",
                 new FriendRequestCreateRequestDto { AddresseeId = 1 }
             },
