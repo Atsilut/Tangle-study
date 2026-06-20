@@ -42,11 +42,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 - **users** — author nickname enrichment, user existence
 - **groups** — board context for group-board posts (`GroupId`, `GroupBoardId` on Post)
 
-**Cross-route today:** group-board posts are created via `GroupBoardPostController` under Groups routes but the aggregate is `Post` ([AGENTS.md](../services/Api/AGENTS.md)). At MSA time, choose one:
-- **BFF composes** — client calls gateway; gateway calls groups for access check then posts for create, or
-- **groups-service proxies** — groups validates membership and forwards to posts-service.
-
-Document the chosen contract before extracting either service.
+**Cross-route today:** group-board posts are created via `GroupBoardPostController` under Groups routes but the aggregate is `Post` ([AGENTS.md](../services/Api/AGENTS.md)). **Phase 9 default:** BFF / gateway compose — gateway calls groups for access check, then posts for CRUD. Full contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md).
 
 ### comments-service
 
@@ -64,8 +60,8 @@ Document the chosen contract before extracting either service.
 
 **Depends on:**
 - **users** — member identity, inviter/invitee
-- **posts** — board posts (see posts-service cross-route note)
-- **chat** — `PlatformGroup` chat rooms link a `ChatRoom` to a `Group`
+- **posts** — board posts (see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md))
+- **chat** — `PlatformGroup` chat rooms link a `ChatRoom` to a `Group` (see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md))
 
 **Orchestrators:** `GroupJoinResolutionService`, `GroupJoinService` — keep workflow logic inside this service at extraction; do not scatter across posts/chat.
 
@@ -91,7 +87,7 @@ Document the chosen contract before extracting either service.
 
 **Depends on:**
 - **users** — participants, sender identity
-- **groups** — `PlatformGroup` room type ties to a group ID
+- **groups** — `PlatformGroup` room type ties to a group ID — cross-service contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
 
 **Async:** enqueues `chat.message.created` to Redis Streams after persist ([QUEUE.md](../services/Api/Global/Queue/QUEUE.md)).
 
@@ -182,11 +178,11 @@ Apply these during Phase 7 (location in monolith) so later extraction does not r
 
 2. **Reference by ID** — store `userId`, `postId`, `groupId`, `mediaAssetId` across boundaries. No FK joins to another service's tables after split.
 
-3. **Versioned job and event payloads** — new Streams entries and pub/sub events get documented rows in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md). Include a schema version field when payloads evolve.
+3. **Versioned job and event payloads** — Streams in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md); pub/sub in [EVENTS.md](../services/Api/Global/Events/EVENTS.md). Every payload includes `schemaVersion` (currently `1`).
 
 4. **No shared mutable tables for async work** — workers read jobs from Streams and write results back through the owning service's API or a well-defined storage contract, not ad-hoc shared tables.
 
-5. **Explicit contracts before extraction** — for Groups ↔ Posts (board posts) and Groups ↔ Chat (`PlatformGroup` rooms), write the HTTP/event contract in QUEUE.md or a domain doc before moving code to separate deployables.
+5. **Explicit contracts before extraction** — Groups ↔ Posts and Groups ↔ Chat documented in [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) (BFF compose for board posts).
 
 6. **Gateway owns auth context** — JWT validation at the edge; services receive user identity claims, not raw credentials.
 
