@@ -32,6 +32,7 @@ namespace Api.Global.Db
         public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
         public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
         public DbSet<MapPin> MapPins => Set<MapPin>();
+        public DbSet<LocationSession> LocationSessions => Set<LocationSession>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -324,6 +325,25 @@ namespace Api.Global.Db
 
             modelBuilder.Entity<MapPin>()
                 .HasIndex(p => p.UserId);
+
+            modelBuilder.Entity<LocationSession>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<LocationSession>()
+                .HasOne(s => s.Group)
+                .WithMany()
+                .HasForeignKey(s => s.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LocationSession>()
+                .HasIndex(s => new { s.GroupId, s.EndedAt });
+
+            modelBuilder.Entity<LocationSession>()
+                .HasIndex(s => new { s.UserId, s.GroupId, s.EndedAt });
         }
     }
 }

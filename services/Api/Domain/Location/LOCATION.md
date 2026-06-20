@@ -1,6 +1,6 @@
 # Location API
 
-Memory Map pins in the monolith. Live location sessions and SignalR land in later milestones.
+Memory Map pins and live location sharing in the monolith. Safety alerts land in a later milestone.
 
 Related: [SERVICE_BOUNDARIES.md](../../../../docs/SERVICE_BOUNDARIES.md#location-service).
 
@@ -157,12 +157,28 @@ Worker: `docker compose --profile workers up -d rust-worker-location`.
 
 ---
 
+## Live location sharing
+
+Authenticated **group members** can share live position within a group:
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| `POST` | `/api/location/sessions` | Bearer | Start sharing; body includes `groupId`, `latitude`, `longitude` |
+| `GET` | `/api/location/sessions/mine?groupId=` | Bearer | Active session in that group or `204` |
+| `GET` | `/api/location/sessions/active?groupId=` | Bearer | Other members' live locations in that group or `204` |
+| `PATCH` | `/api/location/sessions/{id}/position` | Bearer | Update position; pushes `LocationUpdated` via SignalR |
+| `DELETE` | `/api/location/sessions/{id}` | Bearer | Stop sharing |
+
+SignalR hub: `/hubs/location` — `JoinSession(sessionId)` / `LeaveSession(sessionId)`; event `LocationUpdated`. Viewers must be members of the session's group.
+
+Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with a five-minute TTL, refreshed on each position update. Session headers live in Postgres (`LocationSession` with `groupId`).
+
+---
+
 ## Planned (later milestones)
 
 | Feature | Mechanism |
 |---------|-----------|
-| Live location sharing | Redis TTL store + REST session endpoints |
-| Client push | SignalR hub at `/hubs/location` |
 | Safety alerts | SignalR events |
 
 Job and event contracts will be documented in [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) as they are added.

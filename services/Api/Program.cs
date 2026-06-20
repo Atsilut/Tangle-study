@@ -1,5 +1,6 @@
 using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Realtime;
+using Api.Domain.Location.Realtime;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -143,6 +144,7 @@ app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<LocationHub>("/hubs/location");
 app.MapHealthChecks("/health");
 app.MapMetrics();
 

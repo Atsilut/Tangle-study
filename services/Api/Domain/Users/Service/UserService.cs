@@ -26,6 +26,7 @@ namespace Api.Domain.Users.Service
         Lazy<ChatRoomService> chatRoomService,
         Lazy<GroupMembershipService> groupMembershipService,
         Lazy<MapPinService> mapPinService,
+        Lazy<LocationSessionService> locationSessionService,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
@@ -40,6 +41,7 @@ namespace Api.Domain.Users.Service
         private readonly Lazy<ChatRoomService> _chatRoomService = chatRoomService;
         private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
         private readonly Lazy<MapPinService> _mapPinService = mapPinService;
+        private readonly Lazy<LocationSessionService> _locationSessionService = locationSessionService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
@@ -173,6 +175,7 @@ namespace Api.Domain.Users.Service
                 await _chatRoomService.Value.DetachUserFromDeletedUserAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
                 await _mapPinService.Value.HandleUserDeletionAsync(id);
+                await _locationSessionService.Value.HandleUserDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
 
