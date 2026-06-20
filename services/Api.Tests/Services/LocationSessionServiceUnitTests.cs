@@ -101,6 +101,41 @@ public sealed class LocationSessionServiceUnitTests
     }
 
     [Fact]
+    public async Task GetGroupMemberSharingStatusAsync_ReturnsSharingAndNotSharingMembers()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = LocationSessionServiceTestFactory.Create(http);
+        var sharer = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, nickname: "Sharer");
+        var idle = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, nickname: "Idle");
+        var viewer = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, nickname: "Viewer");
+        var groupId = await LocationSessionServiceTestFactory.SeedGroupWithMembersAsync(
+            graph.GroupMemberRepository,
+            sharer.Id,
+            idle.Id,
+            viewer.Id);
+
+        http.HttpContext = ServiceTestHelpers.ContextFor(sharer.Id);
+        await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
+        {
+            GroupId = groupId,
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+
+        http.HttpContext = ServiceTestHelpers.ContextFor(viewer.Id);
+
+        // Act
+        var status = await graph.LocationSessionService.GetGroupMemberSharingStatusAsync(groupId);
+
+        // Assert
+        Assert.Equal(2, status.Count);
+        Assert.Contains(status, s => s.UserNickname == "Sharer" && s.IsSharing);
+        Assert.Contains(status, s => s.UserNickname == "Idle" && !s.IsSharing);
+        Assert.DoesNotContain(status, s => s.UserNickname == "Viewer");
+    }
+
+    [Fact]
     public async Task StopSessionAsync_ClearsActiveSession()
     {
         // Arrange

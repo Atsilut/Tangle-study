@@ -103,4 +103,54 @@ public sealed class LocationRedisRealtimeIntegrationTests(
 
         await hubConnection.DisposeAsync();
     }
+
+    [Fact]
+    public async Task TriggerSos_PushesSafetyAlertRaised_ToJoinedGroupMember()
+    {
+        const string testMethodName = nameof(TriggerSos_PushesSafetyAlertRaised_ToJoinedGroupMember);
+
+        // Arrange
+        var owner = await CreateUserForTest(testMethodName, 1);
+        var member = await CreateUserForTest(testMethodName, 2);
+        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
+        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, member.Id, GroupRole.Member);
+
+        await LoginAs(owner);
+        var startRes = await Client.PostAsJsonAsync(
+            SessionsBase,
+            new LocationSessionCreateRequestDto
+            {
+                GroupId = group.Id,
+                Latitude = 37.5m,
+                Longitude = 126.9m,
+            },
+            TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(startRes, HttpStatusCode.Created);
+        var session = (await startRes.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(
+            TestContext.Current.CancellationToken))!;
+
+        await LoginAs(member);
+        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
+        var received = new TaskCompletionSource<LocationSafetyAlertDto>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        hubConnection.On<LocationSafetyAlertDto>(LocationHub.SafetyAlertRaisedEvent, dto => received.TrySetResult(dto));
+        await hubConnection.StartAsync(TestContext.Current.CancellationToken);
+        await hubConnection.InvokeAsync("JoinGroupAlerts", group.Id, TestContext.Current.CancellationToken);
+
+        // Act
+        await LoginAs(owner);
+        var sosRes = await Client.PostAsync(
+            $"{SessionsBase}/{session.Id}/sos",
+            null,
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(sosRes, HttpStatusCode.OK);
+        var pushed = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(LocationSafetyAlertType.Sos, pushed.Type);
+        Assert.Equal(group.Id, pushed.GroupId);
+        Assert.Equal(session.Id, pushed.SessionId);
+
+        await hubConnection.DisposeAsync();
+    }
 }

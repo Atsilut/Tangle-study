@@ -2,6 +2,7 @@ using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Service;
+using Api.Domain.Location.Config;
 using Api.Domain.Location.Realtime;
 using Api.Domain.Location.Repository;
 using Api.Domain.Location.Service;
@@ -25,6 +26,8 @@ internal static class LocationSessionServiceTestFactory
 {
     internal sealed record Graph(
         LocationSessionService LocationSessionService,
+        LocationSafetyAlertService SafetyAlertService,
+        LiveLocationRedisStore LiveStore,
         FakeGroupMemberRepository GroupMemberRepository,
         FakeUserRepository UserRepository,
         FakeLocationRealtimeNotifier RealtimeNotifier);
@@ -32,10 +35,19 @@ internal static class LocationSessionServiceTestFactory
     internal sealed class FakeLocationRealtimeNotifier : ILocationRealtimeNotifier
     {
         public Domain.Location.Dto.LiveLocationGetResponseDto? LastNotification { get; private set; }
+        public Domain.Location.Dto.LocationSafetyAlertDto? LastSafetyAlert { get; set; }
+        public int SafetyAlertCount { get; private set; }
 
         public Task NotifyLocationUpdatedAsync(long sessionId, Domain.Location.Dto.LiveLocationGetResponseDto location)
         {
             LastNotification = location;
+            return Task.CompletedTask;
+        }
+
+        public Task NotifySafetyAlertAsync(Domain.Location.Dto.LocationSafetyAlertDto alert)
+        {
+            LastSafetyAlert = alert;
+            SafetyAlertCount++;
             return Task.CompletedTask;
         }
     }
@@ -98,6 +110,15 @@ internal static class LocationSessionServiceTestFactory
             new Lazy<GroupBoardService>(() => null!),
             new Lazy<PostService>(() => null!));
 
+        var safetyAlertService = new LocationSafetyAlertService(
+            sessionRepository,
+            liveStore,
+            userService,
+            realtimeNotifier,
+            distributedCache,
+            Options.Create(new LocationSafetyOptions()),
+            http);
+
         var locationSessionService = new LocationSessionService(
             sessionRepository,
             groupMembershipService,
@@ -105,10 +126,13 @@ internal static class LocationSessionServiceTestFactory
             userService,
             liveStore,
             realtimeNotifier,
+            safetyAlertService,
             http);
 
         return new Graph(
             locationSessionService,
+            safetyAlertService,
+            liveStore,
             groupMemberRepository,
             userRepository,
             realtimeNotifier);
