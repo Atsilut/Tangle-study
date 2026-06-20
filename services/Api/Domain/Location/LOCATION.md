@@ -15,8 +15,8 @@ Related: [SERVICE_BOUNDARIES.md](../../../../docs/SERVICE_BOUNDARIES.md#location
 | `GET` | `/api/location/pins/{id}` | Anonymous* | Single pin by id |
 | `DELETE` | `/api/location/pins/{id}` | Bearer | Delete own pin |
 | `GET` | `/api/location/clusters` | Anonymous* | Bounding box + `zoom` (2–4); returns cached clusters or `204` while worker computes |
-| `GET` | `/api/location/places/search` | Anonymous | `q`, optional `limit` — Google Places text search |
-| `GET` | `/api/location/places/reverse` | Anonymous | `latitude`, `longitude` — Google reverse geocode for pin popups |
+| `GET` | `/api/location/places/search` | Bearer | `q`, optional `limit` — Google Places text search |
+| `GET` | `/api/location/places/reverse` | Bearer | `latitude`, `longitude` — Google reverse geocode for pin popups |
 
 \* Visibility follows post and block rules: pins linked to posts the viewer cannot read are omitted; pins from blocked users are hidden for authenticated viewers.
 

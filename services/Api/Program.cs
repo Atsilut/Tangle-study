@@ -126,6 +126,9 @@ healthChecksBuilder.ForwardToPrometheus();
 
 var app = builder.Build();
 
+var jwtOptions = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+JwtStartupValidator.Validate(app.Environment, jwtOptions);
+
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 

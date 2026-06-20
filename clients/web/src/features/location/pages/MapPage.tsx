@@ -55,7 +55,16 @@ export function MapPage() {
       </div>
 
       <section className="flex flex-col gap-3" aria-label="Map controls">
-        <MapSearchBox onSelectPlace={setSearchFlyToPlace} />
+        {isAuthenticated ? (
+          <MapSearchBox onSelectPlace={setSearchFlyToPlace} />
+        ) : (
+          <p className="text-sm text-gray-600">
+            <Link to="/login" className="font-medium text-blue-700 hover:underline">
+              Sign in
+            </Link>{' '}
+            to search places on the map.
+          </p>
+        )}
         {isAuthenticated && (
           <>
             <GroupLocationSelector value={selectedGroupId} onChange={setSelectedGroupId} />

@@ -1,3 +1,6 @@
+# JWT signing and validation. Loaded at startup (see Program.cs).
+# Replace Secret before any non-Development / non-Docker deployment; the placeholder
+# is allowed only in those environments (see JwtStartupValidator).
 Jwt:
   Issuer: "Tangle"
   Audience: "TangleClient"

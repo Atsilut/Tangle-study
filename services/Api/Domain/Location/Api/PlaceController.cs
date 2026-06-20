@@ -1,5 +1,6 @@
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Service;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
@@ -7,6 +8,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Api.Domain.Location.Api;
 
 [ApiController]
+[Authorize]
 [Route("api/location/places")]
 [EnableRateLimiting("places")]
 public class PlaceController(GooglePlacesService service) : ControllerBase

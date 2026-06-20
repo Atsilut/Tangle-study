@@ -1,6 +1,7 @@
 import Map, { Marker, NavigationControl } from 'react-map-gl/maplibre'
 import { Link } from 'react-router-dom'
 import { maplibregl } from '@/lib/maplibreSetup'
+import { useAuthStore } from '@/stores/authStore'
 import { usePlaceReverse } from '@/features/location/hooks'
 import { OSM_RASTER_STYLE, OSM_TILE_MAX_ZOOM } from '@/features/location/mapStyle'
 import type { PostLocation } from '../api'
@@ -14,7 +15,11 @@ export interface PostLocationPreviewProps {
 }
 
 export function PostLocationPreview({ location }: PostLocationPreviewProps) {
-  const { data: placeName } = usePlaceReverse(location.latitude, location.longitude)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const { data: placeName } = usePlaceReverse(
+    isAuthenticated ? location.latitude : null,
+    isAuthenticated ? location.longitude : null,
+  )
 
   return (
     <section

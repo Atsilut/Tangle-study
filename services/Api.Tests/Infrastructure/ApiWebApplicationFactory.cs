@@ -47,6 +47,7 @@ public sealed class ApiWebApplicationFactory(
                 ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
                 ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
+                ["Jwt:Secret"] = "integration-test-jwt-secret-at-least-32-characters-long",
             });
         });
 

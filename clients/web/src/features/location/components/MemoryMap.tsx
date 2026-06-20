@@ -134,8 +134,8 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
   const { position: myPosition, error: myLocationError, refresh: refreshMyLocation } =
     useMyGeolocation(true)
   const { data: selectedPlaceName } = usePlaceReverse(
-    selectedPin?.latitude ?? null,
-    selectedPin?.longitude ?? null,
+    isAuthenticated ? selectedPin?.latitude ?? null : null,
+    isAuthenticated ? selectedPin?.longitude ?? null : null,
   )
 
   const syncBounds = useCallback(() => {
