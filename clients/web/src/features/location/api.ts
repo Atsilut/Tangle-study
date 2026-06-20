@@ -31,6 +31,38 @@ export interface MapCluster {
   samplePinId: number | null
 }
 
+export interface LocationSession {
+  id: number
+  groupId: number
+  userId: number
+  userNickname: string
+  latitude: number
+  longitude: number
+  startedAt: string
+  positionUpdatedAt: string
+}
+
+export interface LiveLocation {
+  sessionId: number
+  groupId: number
+  userId: number
+  userNickname: string
+  latitude: number
+  longitude: number
+  updatedAt: string
+}
+
+export interface LocationSessionCreateRequest {
+  groupId: number
+  latitude: number
+  longitude: number
+}
+
+export interface LocationPositionUpdateRequest {
+  latitude: number
+  longitude: number
+}
+
 /** Individual pins load at city/regional zoom and closer. */
 export const MIN_PIN_FETCH_ZOOM = 5
 
@@ -90,4 +122,38 @@ export function getMapClustersInBounds(bounds: MapBounds, zoom: number): Promise
 export async function createMapPin(body: MapPinCreateRequest): Promise<MapPin> {
   const res = await api.post<MapPin>('/location/pins', body)
   return res.data
+}
+
+// POST /api/location/sessions (JWT) -> 201 session
+export async function startLocationSession(
+  body: LocationSessionCreateRequest,
+): Promise<LocationSession> {
+  const res = await api.post<LocationSession>('/location/sessions', body)
+  return res.data
+}
+
+// GET /api/location/sessions/mine?groupId= (JWT) -> 200 session | 204 none
+export async function getMyLocationSession(groupId: number): Promise<LocationSession | null> {
+  const res = await api.get<LocationSession>('/location/sessions/mine', { params: { groupId } })
+  if (res.status === 204) return null
+  return res.data
+}
+
+// GET /api/location/sessions/active?groupId= (JWT) -> 200 list | 204 empty
+export function getActiveGroupLocations(groupId: number): Promise<LiveLocation[]> {
+  return getList<LiveLocation>('/location/sessions/active', { params: { groupId } })
+}
+
+// PATCH /api/location/sessions/{id}/position (JWT) -> 200 session
+export async function updateLocationSessionPosition(
+  sessionId: number,
+  body: LocationPositionUpdateRequest,
+): Promise<LocationSession> {
+  const res = await api.patch<LocationSession>(`/location/sessions/${sessionId}/position`, body)
+  return res.data
+}
+
+// DELETE /api/location/sessions/{id} (JWT) -> 204
+export async function stopLocationSession(sessionId: number): Promise<void> {
+  await api.delete(`/location/sessions/${sessionId}`)
 }

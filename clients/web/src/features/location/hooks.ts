@@ -1,10 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createMapPin,
+  getActiveGroupLocations,
   getMapClustersInBounds,
   getMapPinsInBounds,
+  getMyLocationSession,
+  startLocationSession,
+  stopLocationSession,
+  updateLocationSessionPosition,
   MIN_CLUSTER_ZOOM,
   MAX_CLUSTER_ZOOM,
+  type LocationPositionUpdateRequest,
+  type LocationSessionCreateRequest,
   type MapBounds,
   type MapPinCreateRequest,
 } from './api'
@@ -18,6 +25,10 @@ export const locationKeys = {
     [...locationKeys.all, 'clusters', bounds, zoom] as const,
   reverse: (latitude: number, longitude: number) =>
     [...locationKeys.all, 'reverse', latitude, longitude] as const,
+  mySession: (groupId: number | null) =>
+    [...locationKeys.all, 'sessions', 'mine', groupId] as const,
+  activeGroup: (groupId: number | null) =>
+    [...locationKeys.all, 'sessions', 'active', groupId] as const,
 }
 
 export function useMapClusters(bounds: MapBounds | null, zoom: number | null) {
@@ -52,6 +63,65 @@ export function useCreateMapPin() {
   return useMutation({
     mutationFn: (body: MapPinCreateRequest) => createMapPin(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: locationKeys.all }),
+  })
+}
+
+export function useMyLocationSession(groupId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: locationKeys.mySession(groupId),
+    queryFn: () => getMyLocationSession(groupId as number),
+    enabled: enabled && groupId != null,
+    staleTime: 10_000,
+  })
+}
+
+export function useActiveGroupLocations(groupId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: locationKeys.activeGroup(groupId),
+    queryFn: () => getActiveGroupLocations(groupId as number),
+    enabled: enabled && groupId != null,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  })
+}
+
+export function useStartLocationSession(groupId: number | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Omit<LocationSessionCreateRequest, 'groupId'>) =>
+      startLocationSession({ ...body, groupId: groupId as number }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+    },
+  })
+}
+
+export function useUpdateLocationSessionPosition(groupId: number | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      body,
+    }: {
+      sessionId: number
+      body: LocationPositionUpdateRequest
+    }) => updateLocationSessionPosition(sessionId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+    },
+  })
+}
+
+export function useStopLocationSession(groupId: number | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (sessionId: number) => stopLocationSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+    },
   })
 }
 
