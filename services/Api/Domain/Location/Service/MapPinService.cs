@@ -13,11 +13,13 @@ public class MapPinService(
     IMapPinRepository repo,
     UserService userService,
     LocationAccessService access,
+    Lazy<LocationClusterService> clusterService,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IMapPinRepository _repo = repo;
     private readonly UserService _userService = userService;
     private readonly LocationAccessService _access = access;
+    private readonly Lazy<LocationClusterService> _clusterService = clusterService;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -32,6 +34,7 @@ public class MapPinService(
 
         var pin = new MapPin(userId, request.Latitude, request.Longitude, request.PostId);
         await _repo.CreateMapPinAsync(pin);
+        await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
 
         var nickname = (await _userService.GetNicknamesByUserIdsAsync([userId])).GetValueOrDefault(userId, "Deleted User");
         return MapToDto(pin, nickname);
@@ -74,6 +77,7 @@ public class MapPinService(
         var pin = await _repo.GetMapPinByIdAsync(id) ?? throw new EntityNotFoundException("Map pin not found");
         _access.EnsureCanDeleteMapPin(pin, userId);
         await _repo.DeleteMapPinAsync(pin);
+        await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
     }
 
     public Task HandleUserDeletionAsync(long userId) => _repo.DeleteAllByUserIdAsync(userId);
@@ -87,10 +91,12 @@ public class MapPinService(
             if (existing.OwnerUserId != userId) throw new UnauthorizedAccessException();
             existing.UpdateCoordinates(latitude, longitude);
             await _repo.UpdateMapPinAsync(existing);
+            await _clusterService.Value.RefreshClustersNearPinAsync(latitude, longitude);
             return;
         }
 
         await _repo.CreateMapPinAsync(new MapPin(userId, latitude, longitude, postId));
+        await _clusterService.Value.RefreshClustersNearPinAsync(latitude, longitude);
     }
 
     public async Task ClearLocationForPostAsync(long postId, long userId)
@@ -99,6 +105,7 @@ public class MapPinService(
         if (pin is null) return;
         if (pin.OwnerUserId != userId) throw new UnauthorizedAccessException();
         await _repo.DeleteMapPinAsync(pin);
+        await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
     }
 
     public async Task<IReadOnlyDictionary<long, PostLocationGetResponseDto>> GetLocationsByPostIdsAsync(
