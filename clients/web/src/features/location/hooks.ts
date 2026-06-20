@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createMapPin,
+  getMapClustersInBounds,
   getMapPinsInBounds,
+  MIN_CLUSTER_ZOOM,
+  MAX_CLUSTER_ZOOM,
   type MapBounds,
   type MapPinCreateRequest,
 } from './api'
@@ -11,8 +14,27 @@ export const locationKeys = {
   all: ['location'] as const,
   pins: (bounds: MapBounds | null) =>
     [...locationKeys.all, 'pins', bounds] as const,
+  clusters: (bounds: MapBounds | null, zoom: number | null) =>
+    [...locationKeys.all, 'clusters', bounds, zoom] as const,
   reverse: (latitude: number, longitude: number) =>
     [...locationKeys.all, 'reverse', latitude, longitude] as const,
+}
+
+export function useMapClusters(bounds: MapBounds | null, zoom: number | null) {
+  const clusterZoom =
+    zoom != null
+      ? Math.min(MAX_CLUSTER_ZOOM, Math.max(MIN_CLUSTER_ZOOM, Math.floor(zoom)))
+      : null
+
+  return useQuery({
+    queryKey: locationKeys.clusters(bounds, clusterZoom),
+    queryFn: () => getMapClustersInBounds(bounds as MapBounds, clusterZoom as number),
+    enabled: bounds != null && clusterZoom != null,
+    staleTime: 30_000,
+    refetchInterval: (query) =>
+      query.state.fetchStatus === 'idle' && (query.state.data?.length ?? 0) === 0 ? 2000 : false,
+    placeholderData: (previous) => previous,
+  })
 }
 
 export function useMapPins(bounds: MapBounds | null) {

@@ -14,9 +14,9 @@ import { Button } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
 import { maplibregl } from '@/lib/maplibreSetup'
 import { useAuthStore } from '@/stores/authStore'
-import type { MapBounds, MapPin } from '../api'
+import type { MapBounds, MapCluster, MapPin } from '../api'
 import { MIN_PIN_FETCH_ZOOM, sanitizeBoundsForQuery } from '../api'
-import { useCreateMapPin, useMapPins, usePlaceReverse } from '../hooks'
+import { useCreateMapPin, useMapClusters, useMapPins, usePlaceReverse } from '../hooks'
 import { OSM_RASTER_STYLE, OSM_TILE_MAX_ZOOM } from '../mapStyle'
 import type { Place } from '../places'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -30,6 +30,8 @@ const INITIAL_VIEW = {
 const FLY_TO_ZOOM = 14
 const BOUNDS_DEBOUNCE_MS = 300
 const PINS_LAYER_ID = 'memory-map-pins'
+const CLUSTERS_LAYER_ID = 'memory-map-clusters'
+const CLUSTER_CLICK_ZOOM_STEP = 2
 
 function boundsFromMap(map: MapLibreMap): MapBounds {
   const box = map.getBounds()
@@ -57,10 +59,29 @@ function pinsToGeoJson(pins: MapPin[]): FeatureCollection<Point> {
     features: pins.map((pin) => ({
       type: 'Feature',
       id: pin.id,
-      properties: { id: pin.id },
+      properties: { id: pin.id, kind: 'pin' },
       geometry: {
         type: 'Point',
         coordinates: [pin.longitude, pin.latitude],
+      },
+    })),
+  }
+}
+
+function clustersToGeoJson(clusters: MapCluster[]): FeatureCollection<Point> {
+  return {
+    type: 'FeatureCollection',
+    features: clusters.map((cluster, index) => ({
+      type: 'Feature',
+      id: `cluster-${index}`,
+      properties: {
+        clusterId: index,
+        pinCount: cluster.pinCount,
+        kind: 'cluster',
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [cluster.longitude, cluster.latitude],
       },
     })),
   }
@@ -74,13 +95,29 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
   const mapRef = useRef<MapRef>(null)
   const boundsDebounceRef = useRef<number | null>(null)
   const [bounds, setBounds] = useState<MapBounds | null>(null)
+  const [clusterBounds, setClusterBounds] = useState<MapBounds | null>(null)
+  const [mapZoom, setMapZoom] = useState<number>(INITIAL_VIEW.zoom)
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: pins = [], isFetching, isError, error, refetch } = useMapPins(bounds)
+  const {
+    data: clusters = [],
+    isFetching: isFetchingClusters,
+    isError: isClusterError,
+    error: clusterError,
+    refetch: refetchClusters,
+  } = useMapClusters(clusterBounds, mapZoom)
   const visiblePins = useMemo(() => (bounds == null ? [] : pins), [bounds, pins])
+  const visibleClusters = useMemo(
+    () => (clusterBounds == null ? [] : clusters),
+    [clusterBounds, clusters],
+  )
   const pinsGeoJson = useMemo(() => pinsToGeoJson(visiblePins), [visiblePins])
+  const clustersGeoJson = useMemo(() => clustersToGeoJson(visibleClusters), [visibleClusters])
+  const showPinLayer = bounds != null
+  const showClusterLayer = clusterBounds != null
   const createPin = useCreateMapPin()
   const { data: selectedPlaceName } = usePlaceReverse(
     selectedPin?.latitude ?? null,
@@ -90,15 +127,32 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
   const syncBounds = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
-    if (map.getZoom() < MIN_PIN_FETCH_ZOOM) {
-      setBounds(null)
-      return
-    }
+
+    const zoom = map.getZoom()
+    setMapZoom(zoom)
+
     const next = sanitizeBoundsForQuery(quantizeBounds(boundsFromMap(map)))
     if (next == null) {
       setBounds(null)
+      setClusterBounds(null)
       return
     }
+
+    if (zoom < MIN_PIN_FETCH_ZOOM) {
+      setBounds(null)
+      setClusterBounds((prev) =>
+        prev &&
+        prev.minLatitude === next.minLatitude &&
+        prev.maxLatitude === next.maxLatitude &&
+        prev.minLongitude === next.minLongitude &&
+        prev.maxLongitude === next.maxLongitude
+          ? prev
+          : next,
+      )
+      return
+    }
+
+    setClusterBounds(null)
     setBounds((prev) =>
       prev &&
       prev.minLatitude === next.minLatitude &&
@@ -132,6 +186,20 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
   const handleMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
       const feature = event.features?.[0]
+      if (feature?.properties?.kind === 'cluster') {
+        const clusterId = Number(feature.properties.clusterId)
+        const cluster = visibleClusters[clusterId]
+        if (cluster) {
+          setSelectedPin(null)
+          mapRef.current?.flyTo({
+            center: [cluster.longitude, cluster.latitude],
+            zoom: Math.min(mapZoom + CLUSTER_CLICK_ZOOM_STEP, MIN_PIN_FETCH_ZOOM),
+            duration: 800,
+          })
+        }
+        return
+      }
+
       if (feature?.properties?.id != null) {
         const pinId = Number(feature.properties.id)
         setSelectedPin(visiblePins.find((pin) => pin.id === pinId) ?? null)
@@ -139,7 +207,7 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
       }
       setSelectedPin(null)
     },
-    [visiblePins],
+    [mapZoom, visibleClusters, visiblePins],
   )
 
   useEffect(() => {
@@ -186,7 +254,7 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
             minZoom={2}
             maxZoom={OSM_TILE_MAX_ZOOM}
             attributionControl={false}
-            interactiveLayerIds={[PINS_LAYER_ID]}
+            interactiveLayerIds={[CLUSTERS_LAYER_ID, PINS_LAYER_ID]}
             style={{ width: '100%', height: '100%' }}
             onLoad={syncBounds}
             onMoveEnd={scheduleBoundsSync}
@@ -195,7 +263,13 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
               handleDropPin(event.lngLat.lat, event.lngLat.lng)
             }}
             onMouseEnter={(event) => {
-              if (event.features?.some((feature) => feature.layer.id === PINS_LAYER_ID)) {
+              if (
+                event.features?.some(
+                  (feature) =>
+                    feature.layer.id === PINS_LAYER_ID ||
+                    feature.layer.id === CLUSTERS_LAYER_ID,
+                )
+              ) {
                 event.target.getCanvas().style.cursor = 'pointer'
               }
             }}
@@ -210,18 +284,42 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
             }}
           >
             <NavigationControl position="top-right" />
-            <Source id="memory-map-pins" type="geojson" data={pinsGeoJson}>
-              <Layer
-                id={PINS_LAYER_ID}
-                type="circle"
-                paint={{
-                  'circle-radius': 8,
-                  'circle-color': '#2563eb',
-                  'circle-stroke-width': 2,
-                  'circle-stroke-color': '#ffffff',
-                }}
-              />
-            </Source>
+            {showClusterLayer && (
+              <Source id="memory-map-clusters" type="geojson" data={clustersGeoJson}>
+                <Layer
+                  id={CLUSTERS_LAYER_ID}
+                  type="circle"
+                  paint={{
+                    'circle-radius': [
+                      'step',
+                      ['get', 'pinCount'],
+                      14,
+                      10,
+                      18,
+                      50,
+                      24,
+                    ],
+                    'circle-color': '#1d4ed8',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                  }}
+                />
+              </Source>
+            )}
+            {showPinLayer && (
+              <Source id="memory-map-pins" type="geojson" data={pinsGeoJson}>
+                <Layer
+                  id={PINS_LAYER_ID}
+                  type="circle"
+                  paint={{
+                    'circle-radius': 8,
+                    'circle-color': '#2563eb',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                  }}
+                />
+              </Source>
+            )}
             {selectedPin && (
               <Popup
                 longitude={selectedPin.longitude}
@@ -257,6 +355,11 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
             Loading pins…
           </p>
         )}
+        {isFetchingClusters && clusterBounds != null && (
+          <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-600 shadow">
+            Loading clusters…
+          </p>
+        )}
         {createPin.isPending && (
           <p className="pointer-events-none absolute bottom-10 left-3 z-10 rounded-md bg-white/90 px-2 py-1 text-xs text-gray-600 shadow">
             Saving pin…
@@ -284,10 +387,29 @@ export function MemoryMap({ flyToPlace = null }: MemoryMapProps) {
           </Button>
         </div>
       )}
-      {!isFetching && !isError && bounds != null && visiblePins.length === 0 && (
+      {isClusterError && clusterBounds != null && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <span>{getErrorMessage(clusterError)}</span>
+          <Button size="sm" variant="secondary" onClick={() => refetchClusters()}>
+            Retry
+          </Button>
+        </div>
+      )}
+      {!isFetching &&
+        !isError &&
+        bounds != null &&
+        visiblePins.length === 0 && (
         <p className="text-sm text-gray-600">
           No pins in this area yet.
           {isAuthenticated ? ' Double-click the map to add one.' : ' Sign in to add pins.'}
+        </p>
+      )}
+      {!isFetchingClusters &&
+        !isClusterError &&
+        clusterBounds != null &&
+        visibleClusters.length === 0 && (
+        <p className="text-sm text-gray-600">
+          Clustering pins for this view… zoom in to see individual pins.
         </p>
       )}
     </div>
