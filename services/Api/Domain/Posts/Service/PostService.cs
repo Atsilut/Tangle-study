@@ -99,6 +99,18 @@ namespace Api.Domain.Posts.Service
             return await MapToDtoAsync(post, user?.Nickname ?? "Deleted User");
         }
 
+        /// <summary>Non-throwing visibility check for callers that filter collections (e.g. map pins).</summary>
+        public async Task<bool> TryCanViewPostAsync(long id)
+        {
+            var post = await _repo.GetPostByIdAsync(id);
+            if (post is null) return false;
+
+            if (post.GroupId is not null && post.GroupBoardId is not null)
+                return await _groupBoardAccess.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+
+            return true;
+        }
+
         public async Task CreateGroupBoardPostAsync(long groupId, long boardId, GroupBoardPostCreateRequestDto request)
         {
             var userId = GetUserIdFromLogin();

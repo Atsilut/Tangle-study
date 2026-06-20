@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Api.Domain.Groups.Domain;
 using Api.Domain.Location.Dto;
 using Api.Domain.Posts.Dto;
 using Api.Domain.UserBlocks.Dto;
@@ -225,5 +226,91 @@ public sealed class MapPinControllerIntegrationTests(PostgresTestcontainerFixtur
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task GetMapPinsInBounds_Returns204_Not401_WhenPrivateGroupPostPinInBounds()
+    {
+        // Arrange — private group post with location; stranger must not trigger 401 on the whole bbox query
+        const string testMethodName = "MapPinPrivateGroupFilter";
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 1);
+        var member = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 2);
+        var stranger = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 3);
+
+        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner, GroupVisibility.Private);
+        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, member.Id, GroupRole.Member);
+        var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
+            Factory, group.Id, "MembersOnly", BoardVisibility.MembersOnly);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, member);
+        var postRes = await Client.PostAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
+            new GroupBoardPostCreateRequestDto
+            {
+                Title = "Secret place",
+                Content = "Only members see this",
+                Latitude = SeoulLat,
+                Longitude = SeoulLng,
+            },
+            TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, stranger);
+
+        // Act
+        var res = await Client.GetAsync(
+            "/api/location/pins?minLatitude=37&maxLatitude=38&minLongitude=126&maxLongitude=127",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task GetMapPinsInBounds_OmitsPrivateGroupPostPin_ButReturnsVisiblePins()
+    {
+        // Arrange — public standalone pin plus hidden private group post pin in the same bbox
+        const string testMethodName = "MapPinMixedVisibility";
+        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 1);
+        var member = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 2);
+        var stranger = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName, index: 3);
+
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
+        await Client.PostAsJsonAsync(
+            "/api/location/pins",
+            new MapPinCreateRequestDto { Latitude = SeoulLat, Longitude = SeoulLng },
+            TestContext.Current.CancellationToken);
+
+        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner, GroupVisibility.Private);
+        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, member.Id, GroupRole.Member);
+        var board = await GroupIntegrationTestHelpers.SeedBoardAsync(
+            Factory, group.Id, "MembersOnly", BoardVisibility.MembersOnly);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, member);
+        await Client.PostAsJsonAsync(
+            $"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}/boards/{board.Id}/posts",
+            new GroupBoardPostCreateRequestDto
+            {
+                Title = "Secret place",
+                Content = "Only members see this",
+                Latitude = 37.57m,
+                Longitude = 126.98m,
+            },
+            TestContext.Current.CancellationToken);
+
+        await GroupIntegrationTestHelpers.LoginAsAsync(Client, stranger);
+
+        // Act
+        var res = await Client.GetAsync(
+            "/api/location/pins?minLatitude=37&maxLatitude=38&minLongitude=126&maxLongitude=127",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var list = await res.Content.ReadFromJsonAsync<List<MapPinGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(list);
+        Assert.Single(list);
+        Assert.Equal(SeoulLat, list[0].Latitude);
+        Assert.Null(list[0].PostId);
     }
 }

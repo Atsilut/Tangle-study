@@ -47,7 +47,7 @@ public class LocationAccessService(
 
         if (pin.PostId is null) return true;
 
-        return await _postService.GetPostByIdAsync(pin.PostId.Value) is not null;
+        return await _postService.TryCanViewPostAsync(pin.PostId.Value);
     }
 
     public async Task<List<MapPin>> FilterViewableMapPinsAsync(IReadOnlyList<MapPin> pins, long? viewerUserId)
@@ -70,7 +70,7 @@ public class LocationAccessService(
         var viewablePostIds = new HashSet<long>();
         foreach (var postId in postIds)
         {
-            if (await _postService.GetPostByIdAsync(postId) is not null) viewablePostIds.Add(postId);
+            if (await _postService.TryCanViewPostAsync(postId)) viewablePostIds.Add(postId);
         }
 
         List<MapPin> visible = [];
