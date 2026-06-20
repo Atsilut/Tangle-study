@@ -11,6 +11,17 @@ x-dotnet-env: &dotnet-env
   Redis__SignalRChannelPrefix: "tangle:signalr:"
   Redis__WorkQueueStreamPrefix: "tangle:queue:"
 
+# Integration tests use Testcontainers Postgres; do not inject the compose db connection string.
+x-dotnet-test-env: &dotnet-test-env
+  DOTNET_CLI_HOME: /tmp/dotnet-cli
+  NUGET_PACKAGES: /tmp/nuget-packages
+  DOTNET_NOLOGO: "1"
+  Redis__Enabled: "false"
+  Redis__ConnectionString: "redis:6379"
+  Redis__InstanceName: "tangle:"
+  Redis__SignalRChannelPrefix: "tangle:signalr:"
+  Redis__WorkQueueStreamPrefix: "tangle:queue:"
+
 services:
   redis:
     image: redis:8.8.0-alpine
@@ -290,7 +301,7 @@ services:
       dockerfile: docker/Dockerfile.sdk
     working_dir: /src
     environment:
-      <<: *dotnet-env
+      <<: *dotnet-test-env
       DOCKER_HOST: unix:///var/run/docker.sock
       # Testcontainers talks to the host Docker engine via the mounted socket.
       TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock

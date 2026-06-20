@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 using StackExchange.Redis;
 
 namespace Api.Tests.Infrastructure;
@@ -31,6 +32,7 @@ public sealed class ApiWebApplicationFactory(
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Production);
+        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -79,6 +81,24 @@ public sealed class ApiWebApplicationFactory(
                 services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
                 services.AddSingleton<IEventPublisher, RedisEventPublisher>();
             });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            try
+            {
+                using var connection = new NpgsqlConnection(_connectionString);
+                NpgsqlConnection.ClearPool(connection);
+            }
+            catch
+            {
+                // Best-effort pool cleanup between per-test factory instances.
+            }
+        }
+
+        base.Dispose(disposing);
     }
 
     private static void RemoveService<T>(IServiceCollection services)

@@ -17,6 +17,26 @@ internal static class IntegrationAssertions
         Assert.Fail($"Expected {expected} but got {response.StatusCode}. Body: {body}");
     }
 
+    public static async Task AssertHealthOkAsync(HttpClient client, TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(30));
+        HttpStatusCode lastStatus = 0;
+        var lastBody = string.Empty;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            using var response = await client.GetAsync("/health", TestContext.Current.CancellationToken);
+            if (response.StatusCode == HttpStatusCode.OK)
+                return;
+
+            lastStatus = response.StatusCode;
+            lastBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        }
+
+        Assert.Fail($"Expected OK but got {lastStatus}. Body: {lastBody}");
+    }
+
     public static async Task AssertProblemDetailContainsAsync(
         HttpResponseMessage response,
         string expectedSubstring)

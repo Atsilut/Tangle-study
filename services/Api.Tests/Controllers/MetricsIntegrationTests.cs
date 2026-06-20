@@ -12,8 +12,7 @@ public sealed class MetricsIntegrationTests(PostgresTestcontainerFixture postgre
     [Fact]
     public async Task Health_ReturnsOk_WhenDependenciesAreHealthy()
     {
-        var response = await Client.GetAsync("/health", TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
+        await IntegrationAssertions.AssertHealthOkAsync(Client);
     }
 
     [Fact]

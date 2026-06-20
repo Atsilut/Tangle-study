@@ -17,7 +17,7 @@ public sealed class PostgresTestcontainerFixture : IAsyncLifetime
             .Build();
     }
 
-    public string ConnectionString => _postgres.GetConnectionString();
+    public string ConnectionString => AppendTestPoolSettings(_postgres.GetConnectionString());
 
     public async ValueTask InitializeAsync()
     {
@@ -32,4 +32,12 @@ public sealed class PostgresTestcontainerFixture : IAsyncLifetime
     }
 
     public ValueTask DisposeAsync() => _postgres.DisposeAsync();
+
+    internal static string AppendTestPoolSettings(string connectionString)
+    {
+        if (connectionString.Contains("Maximum Pool Size", StringComparison.OrdinalIgnoreCase))
+            return connectionString;
+
+        return connectionString + ";Maximum Pool Size=30;Timeout=30";
+    }
 }
