@@ -53,3 +53,29 @@ impl MediaUploadedJob {
         MediaKind::parse(&self.kind)
     }
 }
+
+/// Matches `Api.Global.Queue.LocationClusterJob` (System.Text.Json web defaults).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LocationClusterJob {
+    pub min_latitude: f64,
+    pub max_latitude: f64,
+    pub min_longitude: f64,
+    pub max_longitude: f64,
+    pub zoom: i32,
+}
+
+impl LocationClusterJob {
+    pub fn validate(&self) -> Result<()> {
+        if self.min_latitude > self.max_latitude {
+            bail!("min_latitude must be less than or equal to max_latitude");
+        }
+        if self.min_longitude > self.max_longitude {
+            bail!("min_longitude must be less than or equal to max_longitude");
+        }
+        if !(2..=4).contains(&self.zoom) {
+            bail!("zoom must be between 2 and 4");
+        }
+        Ok(())
+    }
+}

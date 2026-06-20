@@ -101,6 +101,13 @@ impl Config {
                 }
                 Ok(())
             }
+            "location.cluster" => {
+                if consumer {
+                    require_non_empty(&self.worker_callback_secret, "WORKER_CALLBACK_SECRET")?;
+                    require_non_empty(&self.api_base_url, "API_BASE_URL")?;
+                }
+                Ok(())
+            }
             other => bail!("unsupported worker stream key {other}"),
         }
     }
@@ -195,6 +202,13 @@ mod tests {
         config.azure_storage_connection_string.clear();
         config.worker_callback_secret.clear();
         config.validate(false).unwrap();
+    }
+
+    #[test]
+    fn validate_allows_location_cluster_consumer_without_azure_env() {
+        let mut config = test_config("location.cluster");
+        config.azure_storage_connection_string.clear();
+        config.validate(true).unwrap();
     }
 
     #[test]
