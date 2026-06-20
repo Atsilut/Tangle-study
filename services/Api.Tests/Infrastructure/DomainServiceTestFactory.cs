@@ -125,6 +125,7 @@ internal static class DomainServiceTestFactory
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
             new Lazy<MapPinService>(() => mapPinService),
+            new Lazy<LocationSessionService>(() => null!),
             http,
             nicknameCacheService,
             eventPublisher);

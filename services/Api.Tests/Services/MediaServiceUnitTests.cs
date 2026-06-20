@@ -471,6 +471,7 @@ public sealed class MediaServiceUnitTests
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => null!),
             new Lazy<MapPinService>(() => null!),
+            new Lazy<LocationSessionService>(() => null!),
             http,
             nicknameCache,
             new NoOpEventPublisher());
