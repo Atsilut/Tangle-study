@@ -162,6 +162,34 @@ public sealed class LocationSessionServiceUnitTests
     }
 
     [Fact]
+    public async Task StopSessionAsync_NotifiesSessionEnded()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = LocationSessionServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var groupId = await LocationSessionServiceTestFactory.SeedGroupWithMembersAsync(
+            graph.GroupMemberRepository,
+            user.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
+        {
+            GroupId = groupId,
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+
+        // Act
+        await graph.LocationSessionService.StopSessionAsync(started.Id);
+
+        // Assert
+        Assert.NotNull(graph.RealtimeNotifier.LastSessionEnded);
+        Assert.Equal(started.Id, graph.RealtimeNotifier.LastSessionEnded!.SessionId);
+        Assert.Equal(groupId, graph.RealtimeNotifier.LastSessionEnded.GroupId);
+        Assert.Equal(user.Id, graph.RealtimeNotifier.LastSessionEnded.UserId);
+    }
+
+    [Fact]
     public async Task ReconcileGhostSessionsAsync_EndsSession_WhenRedisMissing()
     {
         // Arrange

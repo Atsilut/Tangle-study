@@ -60,3 +60,8 @@ public record GroupMemberLocationStatusDto(
     decimal? Latitude,
     decimal? Longitude,
     DateTime? UpdatedAt);
+
+public record LocationSessionEndedDto(
+    long SessionId,
+    long GroupId,
+    long UserId);

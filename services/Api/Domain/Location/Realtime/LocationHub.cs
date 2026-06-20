@@ -11,6 +11,7 @@ public class LocationHub(
     GroupMembershipService groupMembership) : Hub
 {
     public const string LocationUpdatedEvent = "LocationUpdated";
+    public const string LocationSessionEndedEvent = "LocationSessionEnded";
     public const string SafetyAlertRaisedEvent = "SafetyAlertRaised";
 
     private readonly LocationSessionService _sessionService = sessionService;

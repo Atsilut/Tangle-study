@@ -35,12 +35,19 @@ internal static class LocationSessionServiceTestFactory
     internal sealed class FakeLocationRealtimeNotifier : ILocationRealtimeNotifier
     {
         public Domain.Location.Dto.LiveLocationGetResponseDto? LastNotification { get; private set; }
+        public Domain.Location.Dto.LocationSessionEndedDto? LastSessionEnded { get; private set; }
         public Domain.Location.Dto.LocationSafetyAlertDto? LastSafetyAlert { get; set; }
         public int SafetyAlertCount { get; private set; }
 
         public Task NotifyLocationUpdatedAsync(long sessionId, Domain.Location.Dto.LiveLocationGetResponseDto location)
         {
             LastNotification = location;
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyLocationSessionEndedAsync(long sessionId, Domain.Location.Dto.LocationSessionEndedDto ended)
+        {
+            LastSessionEnded = ended;
             return Task.CompletedTask;
         }
 

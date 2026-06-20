@@ -344,6 +344,11 @@ namespace Api.Global.Db
 
             modelBuilder.Entity<LocationSession>()
                 .HasIndex(s => new { s.UserId, s.GroupId, s.EndedAt });
+
+            modelBuilder.Entity<LocationSession>()
+                .HasIndex(s => new { s.UserId, s.GroupId })
+                .IsUnique()
+                .HasFilter("\"EndedAt\" IS NULL");
         }
     }
 }

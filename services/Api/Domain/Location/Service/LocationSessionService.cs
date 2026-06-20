@@ -196,9 +196,7 @@ public class LocationSessionService(
     {
         var userId = GetUserIdFromLogin();
         var session = await GetActiveSessionOwnedByUserOrThrowAsync(sessionId, userId);
-        session.End();
-        await _repo.UpdateSessionAsync(session);
-        await _liveStore.RemoveLiveLocationAsync(session.GroupId, userId);
+        await EndSessionAsync(session);
     }
 
     public async Task EnsureCanViewSessionAsync(long sessionId, long viewerUserId)
@@ -226,7 +224,10 @@ public class LocationSessionService(
         await _repo.EndAllActiveSessionsForUserAsync(userId);
 
         foreach (var session in sessions)
+        {
             await _liveStore.RemoveLiveLocationAsync(session.GroupId, userId);
+            await NotifySessionEndedAsync(session);
+        }
     }
 
     public async Task ReconcileGhostSessionsAsync()
@@ -245,12 +246,16 @@ public class LocationSessionService(
 
     private async Task EndActiveSessionForUserInGroupAsync(long userId, long groupId)
     {
-        var active = await _repo.GetActiveSessionForUserInGroupAsync(userId, groupId);
-        if (active is null) return;
+        var actives = (await _repo.GetActiveSessionsForGroupAsync(groupId))
+            .Where(s => s.UserId == userId)
+            .ToList();
+        if (actives.Count == 0) return;
 
-        active.End();
-        await _repo.UpdateSessionAsync(active);
+        await _repo.EndActiveSessionForUserInGroupAsync(userId, groupId);
         await _liveStore.RemoveLiveLocationAsync(groupId, userId);
+
+        foreach (var session in actives)
+            await NotifySessionEndedAsync(session);
     }
 
     private async Task<LocationSession> GetActiveSessionOwnedByUserOrThrowAsync(long sessionId, long userId)
@@ -264,7 +269,10 @@ public class LocationSessionService(
         return session;
     }
 
-    private async Task EndGhostSessionAsync(LocationSession session)
+    private async Task EndGhostSessionAsync(LocationSession session) =>
+        await EndSessionAsync(session);
+
+    private async Task EndSessionAsync(LocationSession session)
     {
         if (!session.IsActive || session.UserId is null) return;
 
@@ -272,7 +280,13 @@ public class LocationSessionService(
         await _repo.UpdateSessionAsync(session);
         await _liveStore.RemoveLiveLocationAsync(session.GroupId, session.UserId.Value);
         await _safetyAlerts.ClearStaleAlertStateAsync(session.Id);
+        await NotifySessionEndedAsync(session);
     }
+
+    private Task NotifySessionEndedAsync(LocationSession session) =>
+        _realtime.NotifyLocationSessionEndedAsync(
+            session.Id,
+            new LocationSessionEndedDto(session.Id, session.GroupId, session.OwnerUserId));
 
     private async Task<LiveLocationSnapshot> WriteLiveLocationAsync(
         LocationSession session,

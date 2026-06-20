@@ -8,11 +8,17 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
   const [realtimeOverrides, setRealtimeOverrides] = useState<Map<number, LiveLocation>>(
     () => new Map(),
   )
+  const [endedSessionIds, setEndedSessionIds] = useState<Set<number>>(() => new Set())
 
   const sessionIds = useMemo(
     () => initial.map((location) => location.sessionId).sort((a, b) => a - b).join(','),
     [initial],
   )
+
+  useEffect(() => {
+    setEndedSessionIds(new Set())
+    setRealtimeOverrides(new Map())
+  }, [groupId])
 
   useEffect(() => {
     if (!enabled || groupId == null || sessionIds.length === 0) return
@@ -22,14 +28,26 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
 
     void (async () => {
       for (const location of initial) {
-        const unsubscribe = await subscribeToLocationSession(location.sessionId, (update) => {
-          if (update.groupId !== groupId) return
-          setRealtimeOverrides((prev) => {
-            const next = new Map(prev)
-            next.set(update.sessionId, update)
-            return next
-          })
-        })
+        const unsubscribe = await subscribeToLocationSession(
+          location.sessionId,
+          (update) => {
+            if (update.groupId !== groupId) return
+            setRealtimeOverrides((prev) => {
+              const next = new Map(prev)
+              next.set(update.sessionId, update)
+              return next
+            })
+          },
+          () => {
+            setEndedSessionIds((prev) => new Set(prev).add(location.sessionId))
+            setRealtimeOverrides((prev) => {
+              if (!prev.has(location.sessionId)) return prev
+              const next = new Map(prev)
+              next.delete(location.sessionId)
+              return next
+            })
+          },
+        )
         if (cancelled) {
           unsubscribe()
           return
@@ -52,6 +70,6 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
       if (!allowedSessionIds.has(sessionId)) continue
       merged.set(sessionId, location)
     }
-    return Array.from(merged.values())
-  }, [groupId, initial, realtimeOverrides])
+    return Array.from(merged.values()).filter((location) => !endedSessionIds.has(location.sessionId))
+  }, [groupId, initial, realtimeOverrides, endedSessionIds])
 }

@@ -8,6 +8,7 @@ import { getAccessToken } from '@/stores/authStore'
 import type { LiveLocation, LocationSafetyAlert, LocationSafetyAlertType } from './api'
 
 export const LOCATION_UPDATED_EVENT = 'LocationUpdated'
+export const LOCATION_SESSION_ENDED_EVENT = 'LocationSessionEnded'
 export const SAFETY_ALERT_RAISED_EVENT = 'SafetyAlertRaised'
 
 let connection: HubConnection | null = null
@@ -15,6 +16,7 @@ let startPromise: Promise<void> | null = null
 let handlersInstalled = false
 
 const sessionListeners = new Map<number, Set<(location: LiveLocation) => void>>()
+const sessionEndedListeners = new Map<number, Set<() => void>>()
 const groupAlertListeners = new Map<number, Set<(alert: LocationSafetyAlert) => void>>()
 const joinedSessions = new Set<number>()
 const joinedGroupAlerts = new Set<number>()
@@ -92,6 +94,18 @@ function normalizeSafetyAlert(raw: unknown): LocationSafetyAlert | null {
   }
 }
 
+function normalizeSessionEnded(raw: unknown): Pick<LiveLocation, 'sessionId' | 'groupId' | 'userId'> | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = raw as Record<string, unknown>
+  const sessionId = Number(value.sessionId)
+  const groupId = Number(value.groupId)
+  const userId = Number(value.userId)
+
+  if (!Number.isFinite(sessionId) || !Number.isFinite(groupId) || !Number.isFinite(userId)) return null
+
+  return { sessionId, groupId, userId }
+}
+
 function dispatchLocation(raw: unknown) {
   const location = normalizeLiveLocation(raw)
   if (!location) return
@@ -104,11 +118,18 @@ function dispatchSafetyAlert(raw: unknown) {
   groupAlertListeners.get(alert.groupId)?.forEach((listener) => listener(alert))
 }
 
+function dispatchSessionEnded(raw: unknown) {
+  const ended = normalizeSessionEnded(raw)
+  if (!ended) return
+  sessionEndedListeners.get(ended.sessionId)?.forEach((listener) => listener())
+}
+
 function installConnectionHandlers(conn: HubConnection) {
   if (handlersInstalled) return
   handlersInstalled = true
 
   conn.on(LOCATION_UPDATED_EVENT, dispatchLocation)
+  conn.on(LOCATION_SESSION_ENDED_EVENT, dispatchSessionEnded)
   conn.on(SAFETY_ALERT_RAISED_EVENT, dispatchSafetyAlert)
 
   conn.onreconnected(async () => {
@@ -178,6 +199,7 @@ export async function disconnectLocationHub(): Promise<void> {
     await startPromise.catch(() => {})
   }
   sessionListeners.clear()
+  sessionEndedListeners.clear()
   groupAlertListeners.clear()
   joinedSessions.clear()
   joinedGroupAlerts.clear()
@@ -208,6 +230,7 @@ export async function ensureLocationConnected(): Promise<HubConnection> {
 export async function subscribeToLocationSession(
   sessionId: number,
   onLocation: (location: LiveLocation) => void,
+  onEnded?: () => void,
 ): Promise<() => void> {
   const conn = await ensureLocationConnected()
 
@@ -218,6 +241,15 @@ export async function subscribeToLocationSession(
   }
   listeners.add(onLocation)
 
+  if (onEnded) {
+    let endedListeners = sessionEndedListeners.get(sessionId)
+    if (!endedListeners) {
+      endedListeners = new Set()
+      sessionEndedListeners.set(sessionId, endedListeners)
+    }
+    endedListeners.add(onEnded)
+  }
+
   await joinSession(conn, sessionId)
 
   return () => {
@@ -226,6 +258,12 @@ export async function subscribeToLocationSession(
     if (set?.size === 0) {
       sessionListeners.delete(sessionId)
       void leaveSession(conn, sessionId)
+    }
+
+    if (onEnded) {
+      const endedSet = sessionEndedListeners.get(sessionId)
+      endedSet?.delete(onEnded)
+      if (endedSet?.size === 0) sessionEndedListeners.delete(sessionId)
     }
   }
 }
