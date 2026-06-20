@@ -5,7 +5,8 @@ public sealed record ChatMessageCreatedJob(
     long ChatRoomId,
     long SenderUserId,
     string Body,
-    DateTimeOffset SentAt);
+    DateTimeOffset SentAt,
+    int SchemaVersion = 1);
 
 public sealed record MediaUploadedJob(
     long MediaAssetId,
@@ -14,11 +15,13 @@ public sealed record MediaUploadedJob(
     string MimeType,
     string OriginalObjectKey,
     long OriginalSizeBytes,
-    long TargetMaxBytes);
+    long TargetMaxBytes,
+    int SchemaVersion = 1);
 
 public sealed record LocationClusterJob(
     decimal MinLatitude,
     decimal MaxLatitude,
     decimal MinLongitude,
     decimal MaxLongitude,
-    int Zoom);
+    int Zoom,
+    int SchemaVersion = 1);

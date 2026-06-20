@@ -5,10 +5,12 @@ public sealed record ChatMessageCreatedEvent(
     long ChatRoomId,
     long SenderUserId,
     string Body,
-    DateTimeOffset SentAt);
+    DateTimeOffset SentAt,
+    int SchemaVersion = 1);
 
 public sealed record UserNicknameChangedEvent(
     long UserId,
     string? Nickname,
     bool IsDeleted,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    int SchemaVersion = 1);
