@@ -23,6 +23,7 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
     void (async () => {
       for (const location of initial) {
         const unsubscribe = await subscribeToLocationSession(location.sessionId, (update) => {
+          if (update.groupId !== groupId) return
           setRealtimeOverrides((prev) => {
             const next = new Map(prev)
             next.set(update.sessionId, update)
@@ -44,10 +45,13 @@ export function useLiveGroupLocations(groupId: number | null, enabled: boolean):
   }, [enabled, groupId, initial, sessionIds])
 
   return useMemo(() => {
+    const allowedSessionIds = new Set(initial.map((location) => location.sessionId))
     const merged = new Map(initial.map((location) => [location.sessionId, location]))
     for (const [sessionId, location] of realtimeOverrides) {
-      if (merged.has(sessionId)) merged.set(sessionId, location)
+      if (location.groupId !== groupId) continue
+      if (!allowedSessionIds.has(sessionId)) continue
+      merged.set(sessionId, location)
     }
     return Array.from(merged.values())
-  }, [initial, realtimeOverrides])
+  }, [groupId, initial, realtimeOverrides])
 }

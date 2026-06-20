@@ -38,6 +38,10 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
   useEffect(() => {
     if (!mySession) return
 
+    void pushCurrentPosition().catch((err: unknown) => {
+      setError(getErrorMessage(err, 'Could not refresh live location.'))
+    })
+
     const intervalId = window.setInterval(() => {
       void pushCurrentPosition().catch((err: unknown) => {
         setError(getErrorMessage(err, 'Could not refresh live location.'))
