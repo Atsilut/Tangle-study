@@ -81,13 +81,8 @@ public class LocationSessionService(
             .ToList();
         if (memberIds.Count == 0) return null;
 
-        var visibleMemberIds = new List<long>();
-        foreach (var memberId in memberIds)
-        {
-            if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerId, [memberId])) continue;
-            visibleMemberIds.Add(memberId);
-        }
-
+        var blockedMemberIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(viewerId, memberIds);
+        var visibleMemberIds = memberIds.Where(id => !blockedMemberIds.Contains(id)).ToList();
         if (visibleMemberIds.Count == 0) return null;
 
         var liveByUserId = await _liveStore.GetLiveLocationsAsync(groupId, visibleMemberIds);
@@ -121,14 +116,10 @@ public class LocationSessionService(
         var otherMembers = members.Where(m => m.UserId != viewerId).ToList();
         if (otherMembers.Count == 0) return [];
 
-        var visibleMembers = new List<GroupMemberGetResponseDto>();
-        foreach (var member in otherMembers)
-        {
-            if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerId, [member.UserId]))
-                continue;
-            visibleMembers.Add(member);
-        }
-
+        var blockedMemberIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(
+            viewerId,
+            otherMembers.Select(m => m.UserId).ToList());
+        var visibleMembers = otherMembers.Where(m => !blockedMemberIds.Contains(m.UserId)).ToList();
         if (visibleMembers.Count == 0) return [];
 
         var sessions = await _repo.GetActiveSessionsForGroupAsync(groupId);

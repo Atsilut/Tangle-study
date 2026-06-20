@@ -12,6 +12,7 @@ namespace Api.Domain.Posts.Repository
         public Task<List<long>> GetPostIdsByGroupAsync(long groupId);
 
         public Task<Post?> GetPostByIdAsync(long id);
+        public Task<List<Post>> GetPostsByIdsAsync(IEnumerable<long> ids);
         public Task<bool> ExistsPostByIdAsync(long id);
         public Task<List<Post>> GetPostsByUserIdAsync(long userId);
         public Task UpdatePostAsync(Post post);

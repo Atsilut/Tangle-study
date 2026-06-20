@@ -45,7 +45,7 @@ public class LocationAccessService(
             await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [pin.OwnerUserId]))
             return false;
 
-        if (pin.PostId is null) return true;
+        if (pin.PostId is null) return false;
 
         return await _postService.TryCanViewPostAsync(pin.PostId.Value);
     }
@@ -55,23 +55,14 @@ public class LocationAccessService(
         if (pins.Count == 0) return [];
 
         var ownerIds = pins.Select(p => p.OwnerUserId).Distinct().ToList();
-        var blockedOwnerIds = new HashSet<long>();
-        if (viewerUserId is not null)
-        {
-            foreach (var ownerId in ownerIds)
-            {
-                if (ownerId == viewerUserId.Value) continue;
-                if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [ownerId]))
-                    blockedOwnerIds.Add(ownerId);
-            }
-        }
+        var blockedOwnerIds = viewerUserId is null
+            ? []
+            : await _userBlockService.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, ownerIds);
 
         var postIds = pins.Where(p => p.PostId is not null).Select(p => p.PostId!.Value).Distinct().ToList();
-        var viewablePostIds = new HashSet<long>();
-        foreach (var postId in postIds)
-        {
-            if (await _postService.TryCanViewPostAsync(postId)) viewablePostIds.Add(postId);
-        }
+        var viewablePostIds = postIds.Count == 0
+            ? []
+            : await _postService.GetViewablePostIdsAsync(postIds, viewerUserId);
 
         List<MapPin> visible = [];
         foreach (var pin in pins)
@@ -84,7 +75,7 @@ public class LocationAccessService(
 
             if (blockedOwnerIds.Contains(pin.OwnerUserId)) continue;
 
-            if (pin.PostId is null || viewablePostIds.Contains(pin.PostId.Value)) visible.Add(pin);
+            if (pin.PostId is not null && viewablePostIds.Contains(pin.PostId.Value)) visible.Add(pin);
         }
 
         return visible;

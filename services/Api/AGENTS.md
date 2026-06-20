@@ -12,6 +12,10 @@ Cross-domain access follows the same rule (for example `GroupService` calls `Pos
 
 Use `AppDbContext` in a service only for **transaction boundaries** (`ExecuteInTransactionAsync`). Do not query another aggregate’s `DbSet` directly (for example `CommentService` must not use `_db.Posts`; use `PostService` instead).
 
+## Async contracts
+
+New Redis Streams jobs require a record in [`Global/Queue/WorkQueueContracts.cs`](Global/Queue/WorkQueueContracts.cs) and a row in [`Global/Queue/QUEUE.md`](Global/Queue/QUEUE.md). New pub/sub events require a record in [`Global/Events/RedisEventContracts.cs`](Global/Events/RedisEventContracts.cs) and a row in [`Global/Events/EVENTS.md`](Global/Events/EVENTS.md). Include `SchemaVersion = 1` on new payload records.
+
 ## Circular dependencies
 
 When two services need each other, inject `Lazy<T>` on at least one side (see `GroupApplicationService` / `GroupInvitationService`, `GroupService` / `GroupMembershipService`). The project registers `Lazy<>` in DI via `LazyService<T>`.
@@ -74,7 +78,7 @@ Services throw typed exceptions; `GlobalExceptionHandler` maps them to HTTP stat
 
 **Friendships**: two aggregates (`Friendship`, `FriendRequest`) in one folder; friend-request acceptance is resolved inside `FriendRequestService` (parallel to group join resolution, without a separate resolver type).
 
-**Second service on one repository:** `GroupBoardAccessService` and `GroupBoardService` both use `IGroupBoardRepository` — access checks vs CRUD. Do not add further services on the same repo without the same clear split.
+**Second service on one repository:** `GroupBoardAccessService` and `GroupBoardService` both use `IGroupBoardRepository` — access checks vs CRUD. `MapPinService` and `LocationClusterService` both use `IMapPinRepository` — pin CRUD vs clustering reads. `LocationSessionService` and `LocationSafetyAlertService` both use `ILocationSessionRepository` — session CRUD vs stale monitor. Do not add further services on the same repo without the same clear split.
 
 ## Mapping
 
@@ -134,6 +138,12 @@ Update the **Status** column when a fix group lands.
 | C-3 | Chat | `ChatRoomAccessService.EnsureInviteeCanBeAddedAsync` | Add participant | fixed |
 | U-1 | Users | `NicknameCacheService.GetNicknamesByUserIdsAsync` | Redis MGET/pipeline; parallel cache I/O fallback | fixed |
 | CM-1 | Comments | `CommentService.GetCommentByIdAsync` | Single-comment GET only | fixed |
+| L-1 | Location | `LocationAccessService.FilterViewableMapPinsAsync` | Map bbox GET | fixed |
+| L-2 | Location | `LocationSessionService` live sharing lists | Active locations + sharing status | fixed |
+| L-3 | Location | `LocationSafetyAlertService` stale/SOS recipients | Safety alerts | fixed |
+| P-3 | Posts | `PostService.GetGroupBoardContextsByPostIdsAsync` | User comment list | fixed |
+| G-4 | Groups | `GroupBoardAccessService.ResolveViewableBoardKeysAsync` | Post search by nickname | fixed |
+| C-4 | Chat | `ChatMessageService.MarkMessagesSeenAsync` | Mark seen | fixed |
 
 **Clean (no action):** Friendships and UserBlocks list paths; `ChatMessageService` list mapping; `GetAllUsersAsync`; single-item GET enrichment (`GetPostByIdAsync`, `GetCommentByIdAsync`).
 

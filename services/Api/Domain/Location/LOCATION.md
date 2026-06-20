@@ -11,14 +11,14 @@ Related: [SERVICE_BOUNDARIES.md](../../../../docs/SERVICE_BOUNDARIES.md#location
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | `POST` | `/api/location/pins` | Bearer | Create a pin at `latitude` / `longitude`; optional `postId` (caller must own the post) |
-| `GET` | `/api/location/pins` | Anonymous* | Bounding-box query: `minLatitude`, `maxLatitude`, `minLongitude`, `maxLongitude` |
-| `GET` | `/api/location/pins/{id}` | Anonymous* | Single pin by id |
+| `GET` | `/api/location/pins` | Bearer | Bounding-box query: `minLatitude`, `maxLatitude`, `minLongitude`, `maxLongitude` |
+| `GET` | `/api/location/pins/{id}` | Bearer | Single pin by id |
 | `DELETE` | `/api/location/pins/{id}` | Bearer | Delete own pin |
-| `GET` | `/api/location/clusters` | Anonymous* | Bounding box + `zoom` (2–4); returns cached clusters or `204` while worker computes |
+| `GET` | `/api/location/clusters` | Bearer | Bounding box + `zoom` (2–4); rate-limited; returns cached clusters or `204` while worker computes |
 | `GET` | `/api/location/places/search` | Bearer | `q`, optional `limit` — Google Places text search |
 | `GET` | `/api/location/places/reverse` | Bearer | `latitude`, `longitude` — Google reverse geocode for pin popups |
 
-\* Visibility follows post and block rules: pins linked to posts the viewer cannot read are omitted; pins from blocked users are hidden for authenticated viewers.
+\* Visibility: standalone pins (no `postId`) are visible only to the owner. Post-linked pins follow board/post visibility. Blocked users' pins are hidden. Cluster reads require sign-in and share the `location-clusters` rate limit (default 120/min per IP).
 
 ### Google Places configuration
 
@@ -155,6 +155,8 @@ This interim path lacks content metadata, density resolution, and precomputed ti
 
 Worker: `docker compose --profile workers up -d rust-worker-location`.
 
+Internal worker routes (`GET /internal/location/cluster-points`, `PUT /internal/location/clusters`) use the same `X-Worker-Callback-Secret` header as media — configured via `Media:WorkerCallbackSecret` (see [MEDIA.md](../Media/MEDIA.md)).
+
 ---
 
 ## Live location sharing
@@ -178,6 +180,12 @@ SignalR hub: `/hubs/location`
 | `JoinSession(sessionId)` / `LeaveSession(sessionId)` | Live position updates (`LocationUpdated`) |
 | `JoinGroupAlerts(groupId)` / `LeaveGroupAlerts(groupId)` | Safety alerts for a group (`SafetyAlertRaised`) |
 
+| Server event | Payload | When |
+|--------------|---------|------|
+| `LocationUpdated` | `LiveLocationGetResponseDto` | After position update while sharing |
+| `LocationSessionEnded` | `LocationSessionEndedDto` | Session stopped, ghost reconciled, or user leaves group |
+| `SafetyAlertRaised` | `LocationSafetyAlertDto` | Stale position or SOS |
+
 Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with a five-minute TTL, refreshed on each position update. Session headers live in Postgres (`LocationSession` with `groupId`).
 
 ---
@@ -193,15 +201,7 @@ Group members subscribed via `JoinGroupAlerts` receive `SafetyAlertRaised` event
 
 Stale alerts dedupe per session until the next position update. Monitor interval: `LocationSafety:MonitorIntervalSeconds` (default **60**).
 
----
-
-## Planned (later milestones)
-
-| Feature | Mechanism |
-|---------|-----------|
-| _(none — Phase 7 location milestones complete in monolith)_ |
-
-Job and event contracts will be documented in [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) as they are added.
+Async job contract for map clustering: [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) (`location.cluster`).
 
 ---
 

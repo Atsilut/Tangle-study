@@ -1,5 +1,6 @@
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Service;
+using Api.Domain.Posts.Dto;
 using Api.Tests.Infrastructure;
 using Api.Tests.Repositories;
 
@@ -51,10 +52,18 @@ public sealed class LocationClusterServiceUnitTests
         var graph = LocationServiceTestFactory.Create(http);
         var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        await graph.PostService.CreatePostAsync(new PostCreateRequestDto
+        {
+            Title = "cluster post",
+            Content = "content",
+        });
+        var posts = await graph.PostService.GetAllPostsAsync();
+        var postId = posts!.Single().Id;
         await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
             Latitude = 37.5665m,
             Longitude = 126.9780m,
+            PostId = postId,
         });
 
         // Act

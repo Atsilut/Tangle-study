@@ -68,16 +68,19 @@ public class ChatMessageService(
         if (request.MessageIds.Length == 0) return;
 
         var viewerUserId = GetUserIdFromLogin();
-        foreach (var messageId in request.MessageIds.Distinct())
+        var messageIds = request.MessageIds.Distinct().ToArray();
+        var messages = await _repo.GetChatMessagesByIdsAsync(messageIds);
+
+        foreach (var messageId in messageIds)
         {
-            var message = await _repo.GetChatMessageByIdAsync(messageId)
-                ?? throw new EntityNotFoundException("Message not found", StatusCodes.Status400BadRequest);
+            if (!messages.TryGetValue(messageId, out var message))
+                throw new EntityNotFoundException("Message not found", StatusCodes.Status400BadRequest);
 
             if (message.ChatRoomId != roomId)
                 throw new ArgumentException("Message does not belong to this chat room.");
         }
 
-        await _repo.MarkMessagesSeenByUserAsync(viewerUserId, request.MessageIds);
+        await _repo.MarkMessagesSeenByUserAsync(viewerUserId, messageIds);
     }
 
     public async Task<ChatMessageGetResponseDto> CreateMessageAsync(long roomId, ChatMessageCreateRequestDto request)

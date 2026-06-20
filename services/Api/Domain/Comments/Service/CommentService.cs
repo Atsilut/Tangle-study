@@ -4,6 +4,7 @@ using Api.Domain.Media.Dto;
 using Api.Domain.Comments.Repository;
 using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Domain.Groups.Service;
 using Api.Global.Db;
@@ -20,6 +21,7 @@ namespace Api.Domain.Comments.Service
         PostService postService,
         GroupBoardAccessService groupBoardAccess,
         UserService userService,
+        UserBlockService userBlockService,
         Lazy<MediaService> mediaService)
     {
         private readonly ICommentRepository _repo = repo;
@@ -29,6 +31,35 @@ namespace Api.Domain.Comments.Service
         private readonly PostService _postService = postService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
         private readonly UserService _userService = userService;
+        private readonly UserBlockService _userBlockService = userBlockService;
+
+        private long? TryGetViewerUserId()
+        {
+            var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
+            return long.TryParse(sub, out var id) ? id : null;
+        }
+
+        private async Task<bool> IsAuthorBlockedByViewerAsync(long authorUserId)
+        {
+            var viewerUserId = TryGetViewerUserId();
+            if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
+
+            var blockedIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
+            return blockedIds.Contains(authorUserId);
+        }
+
+        private async Task<List<Comment>> FilterCommentsByBlockAsync(IReadOnlyList<Comment> comments)
+        {
+            var viewerUserId = TryGetViewerUserId();
+            if (viewerUserId is null || comments.Count == 0) return [.. comments];
+
+            var blockedAuthorIds = await _userBlockService.GetMutuallyBlockedUserIdsAsync(
+                viewerUserId.Value,
+                comments.Select(c => c.AuthorUserId).Distinct().ToList());
+            if (blockedAuthorIds.Count == 0) return [.. comments];
+
+            return [.. comments.Where(c => !blockedAuthorIds.Contains(c.AuthorUserId))];
+        }
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -82,6 +113,7 @@ namespace Api.Domain.Comments.Service
         {
             var comment = await _repo.GetCommentByIdAsync(id);
             if (comment == null) return null;
+            if (await IsAuthorBlockedByViewerAsync(comment.AuthorUserId)) return null;
             if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
             var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([comment.Id]);
@@ -97,6 +129,8 @@ namespace Api.Domain.Comments.Service
             await EnsureGroupBoardViewAccessForPostAsync(postId);
             var comments = await _repo.GetCommentsByPostIdAsync(postId);
             if (comments.Count == 0) return null;
+            comments = await FilterCommentsByBlockAsync(comments);
+            if (comments.Count == 0) return null;
             return await BuildCommentTreeAsync(comments);
         }
 
@@ -110,6 +144,8 @@ namespace Api.Domain.Comments.Service
 
         public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
         {
+            if (await IsAuthorBlockedByViewerAsync(userId)) return null;
+
             var comments = await _repo.GetCommentsByUserIdAsync(userId);
             if (comments.Count == 0)
             {
@@ -192,7 +228,7 @@ namespace Api.Domain.Comments.Service
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(request.Id);
             if (comment.PostId is null && comment.DeletedPostId is not null) throw new ArgumentException("Post is not reachable. Comments are readonly.");
-            if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            if (comment.PostId is not null) await EnsureGroupBoardWriteAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             comment.UpdateContent(request.Content);
             await _repo.UpdateCommentAsync(comment);
@@ -226,7 +262,7 @@ namespace Api.Domain.Comments.Service
         {
             var user = await _userService.GetLoggedInUserEntityOrThrowAsync();
             var comment = await GetCommentOrThrowAsync(id);
-            if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            if (comment.PostId is not null) await EnsureGroupBoardWriteAccessForPostAsync(comment.PostId.Value);
             if (comment.AuthorUserId != user.Id) throw new UnauthorizedAccessException("Unauthorized access");
             await _db.ExecuteInTransactionAsync(async () =>
             {

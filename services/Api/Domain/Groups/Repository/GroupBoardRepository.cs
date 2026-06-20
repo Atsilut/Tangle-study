@@ -22,6 +22,15 @@ namespace Api.Domain.Groups.Repository
         public Task<GroupBoard?> GetByGroupAndIdAsync(long groupId, long boardId) =>
             _context.GroupBoards.FirstOrDefaultAsync(b => b.GroupId == groupId && b.Id == boardId);
 
+        public Task<List<GroupBoard>> GetByGroupAndIdsAsync(long groupId, IReadOnlyCollection<long> boardIds)
+        {
+            if (boardIds.Count == 0) return Task.FromResult<List<GroupBoard>>([]);
+
+            return _context.GroupBoards
+                .Where(b => b.GroupId == groupId && boardIds.Contains(b.Id))
+                .ToListAsync();
+        }
+
         public Task<List<GroupBoard>> GetByGroupAsync(long groupId) =>
             _context.GroupBoards
                 .Where(b => b.GroupId == groupId)

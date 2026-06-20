@@ -92,9 +92,8 @@ public sealed class MapPinControllerIntegrationTests(PostgresTestcontainerFixtur
             new MapPinCreateRequestDto { Latitude = SeoulLat, Longitude = SeoulLng },
             TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        Client.DefaultRequestHeaders.Authorization = null;
 
-        // Act
+        // Act — authenticated viewer sees own standalone pin
         var res = await Client.GetAsync(
             $"/api/location/pins?minLatitude=37&maxLatitude=38&minLongitude=126&maxLongitude=127",
             TestContext.Current.CancellationToken);
@@ -108,8 +107,25 @@ public sealed class MapPinControllerIntegrationTests(PostgresTestcontainerFixtur
     }
 
     [Fact]
+    public async Task GetMapPinsInBounds_Returns401_WhenUnauthenticated()
+    {
+        // Act
+        var res = await Client.GetAsync(
+            "/api/location/pins?minLatitude=37&maxLatitude=38&minLongitude=126&maxLongitude=127",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task GetMapPinsInBounds_Returns204_WhenNoPins()
     {
+        // Arrange
+        const string testMethodName = "MapPinBoundsEmpty";
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+
         // Act
         var res = await Client.GetAsync(
             "/api/location/pins?minLatitude=0&maxLatitude=1&minLongitude=0&maxLongitude=1",
@@ -146,6 +162,11 @@ public sealed class MapPinControllerIntegrationTests(PostgresTestcontainerFixtur
     [Fact]
     public async Task GetMapPinById_Returns404_WhenMissing()
     {
+        // Arrange
+        const string testMethodName = "MapPinGetMissing";
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+
         // Act
         var res = await Client.GetAsync("/api/location/pins/99999", TestContext.Current.CancellationToken);
 
@@ -305,12 +326,7 @@ public sealed class MapPinControllerIntegrationTests(PostgresTestcontainerFixtur
             "/api/location/pins?minLatitude=37&maxLatitude=38&minLongitude=126&maxLongitude=127",
             TestContext.Current.CancellationToken);
 
-        // Assert
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        var list = await res.Content.ReadFromJsonAsync<List<MapPinGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.NotNull(list);
-        Assert.Single(list);
-        Assert.Equal(SeoulLat, list[0].Latitude);
-        Assert.Null(list[0].PostId);
+        // Assert — stranger sees neither the private post pin nor the owner's standalone pin
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }
 }

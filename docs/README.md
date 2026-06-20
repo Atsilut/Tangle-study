@@ -29,7 +29,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
 | 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
 | 7 | Location / Memory Map (monolith) | [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) — **Done** |
-| 8 | MSA prep (contracts, QUEUE rows) | [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **In progress** |
+| 8 | MSA prep (contracts, QUEUE rows) | [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](../services/Api/Global/Events/EVENTS.md), [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **Done** |
 | 9 | MSA migration | [MSA_MIGRATION.md](MSA_MIGRATION.md) |
 
 ## Subsystem deep-dives
@@ -39,6 +39,8 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Api service layer | [services/Api/AGENTS.md](../services/Api/AGENTS.md) | Repository boundaries, DTO naming, HTTP semantics |
 | Redis | [services/Api/Global/REDIS.md](../services/Api/Global/REDIS.md) | Cache, SignalR backplane, pub/sub, Streams producer |
 | Work queue | [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) | Redis Streams contracts, API → worker flow |
+| Domain events | [services/Api/Global/Events/EVENTS.md](../services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
+| Groups | [services/Api/Domain/Groups/GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) | Cross-service contracts (board posts, platform chat) |
 | Chat | [services/Api/Domain/Chat/CHAT.md](../services/Api/Domain/Chat/CHAT.md) | REST routes, SignalR hub contract |
 | Media | [services/Api/Domain/Media/MEDIA.md](../services/Api/Domain/Media/MEDIA.md) | Upload flow, limits, worker callback |
 | Location | [services/Api/Domain/Location/LOCATION.md](../services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |

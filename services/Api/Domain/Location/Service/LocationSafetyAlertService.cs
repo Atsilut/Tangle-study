@@ -75,6 +75,7 @@ public class LocationSafetyAlertService(
 
         var threshold = TimeSpan.FromMinutes(_options.StalePositionMinutes);
         var now = DateTime.UtcNow;
+        List<(LocationSession Session, LiveLocationSnapshot Live)> staleSessions = [];
 
         foreach (var session in sessions)
         {
@@ -85,7 +86,17 @@ public class LocationSafetyAlertService(
             if (now - live.UpdatedAt < threshold) continue;
             if (await WasStaleAlertSentAsync(session.Id)) continue;
 
-            var nickname = await GetNicknameAsync(session.OwnerUserId);
+            staleSessions.Add((session, live));
+        }
+
+        if (staleSessions.Count == 0) return;
+
+        var nicknames = await _userService.GetNicknamesByUserIdsAsync(
+            staleSessions.Select(s => s.Session.OwnerUserId).Distinct());
+
+        foreach (var (session, live) in staleSessions)
+        {
+            var nickname = nicknames.GetValueOrDefault(session.OwnerUserId, "Deleted User");
             var alert = new LocationSafetyAlertDto(
                 LocationSafetyAlertType.StalePosition,
                 session.GroupId,
@@ -146,17 +157,11 @@ public class LocationSafetyAlertService(
     private async Task<List<long>> GetAlertRecipientUserIdsAsync(long groupId, long subjectUserId)
     {
         var memberIds = await _groupMembership.GetMemberUserIdsAsync(groupId);
-        if (memberIds.Count == 0) return [];
+        var candidateIds = memberIds.Where(id => id != subjectUserId).ToList();
+        if (candidateIds.Count == 0) return [];
 
-        List<long> recipients = [];
-        foreach (var memberId in memberIds)
-        {
-            if (memberId == subjectUserId) continue;
-            if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(memberId, [subjectUserId])) continue;
-            recipients.Add(memberId);
-        }
-
-        return recipients;
+        var blockedWithSubject = await _userBlockService.GetMutuallyBlockedUserIdsAsync(subjectUserId, candidateIds);
+        return candidateIds.Where(id => !blockedWithSubject.Contains(id)).ToList();
     }
 
     private async Task<string> GetNicknameAsync(long userId) =>

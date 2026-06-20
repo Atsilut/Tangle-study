@@ -45,7 +45,8 @@ internal static class MediaIntegrationTestHelpers
         HttpClient client,
         long mediaAssetId,
         string processedObjectKey,
-        long storedSizeBytes)
+        long storedSizeBytes,
+        string? workerSecret = ApiWebApplicationFactory.TestWorkerCallbackSecret)
     {
         var req = new MediaProcessedRequestDto
         {
@@ -56,9 +57,25 @@ internal static class MediaIntegrationTestHelpers
         {
             Content = JsonContent.Create(req),
         };
-        message.Headers.Add(WorkerCallbackAuthorizationFilter.HeaderName, ApiWebApplicationFactory.TestWorkerCallbackSecret);
+        if (workerSecret is not null)
+            message.Headers.Add(WorkerCallbackAuthorizationFilter.HeaderName, workerSecret);
         var res = await client.SendAsync(message, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
+
+    public static Task<HttpResponseMessage> SendProcessedCallbackAsync(
+        HttpClient client,
+        long mediaAssetId,
+        MediaProcessedRequestDto request,
+        string? workerSecret = ApiWebApplicationFactory.TestWorkerCallbackSecret)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Patch, $"/internal/media/{mediaAssetId}/processed")
+        {
+            Content = JsonContent.Create(request),
+        };
+        if (workerSecret is not null)
+            message.Headers.Add(WorkerCallbackAuthorizationFilter.HeaderName, workerSecret);
+        return client.SendAsync(message, TestContext.Current.CancellationToken);
     }
 
     public static async Task<long> UploadAndMarkReadyAsync(

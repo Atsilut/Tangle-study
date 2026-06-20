@@ -121,11 +121,14 @@ namespace Api.Domain.Groups.Service
                 var groupId = groupKeys.Key;
                 var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
                 var (userId, member) = await GetViewerContextAsync(group);
+                var boardIds = groupKeys.Select(k => k.BoardId).Distinct().ToList();
+                var boards = await _repo.GetByGroupAndIdsAsync(groupId, boardIds);
+                var boardsById = boards.ToDictionary(b => b.Id);
 
-                foreach (var boardId in groupKeys.Select(k => k.BoardId).Distinct())
+                foreach (var boardId in boardIds)
                 {
-                    var board = await _repo.GetByGroupAndIdAsync(groupId, boardId);
-                    if (board is not null && CanViewBoard(group, board, userId, member))
+                    if (!boardsById.TryGetValue(boardId, out var board)) continue;
+                    if (CanViewBoard(group, board, userId, member))
                         viewable.Add((groupId, boardId));
                 }
             }
