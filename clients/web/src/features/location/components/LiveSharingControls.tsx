@@ -14,11 +14,12 @@ const POSITION_REFRESH_MS = 30_000
 
 export interface LiveSharingControlsProps {
   groupId: number | null
+  enabled?: boolean
 }
 
-export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
-  const enabled = groupId != null
-  const { data: mySession, isLoading } = useMyLocationSession(groupId, enabled)
+export function LiveSharingControls({ groupId, enabled = true }: LiveSharingControlsProps) {
+  const controlsEnabled = enabled && groupId != null
+  const { data: mySession, isLoading } = useMyLocationSession(groupId, controlsEnabled)
   const startSession = useStartLocationSession(groupId)
   const stopSession = useStopLocationSession(groupId)
   const updatePosition = useUpdateLocationSessionPosition(groupId)
@@ -63,6 +64,11 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
   }, [rememberPosition, updatePosition])
 
   useEffect(() => {
+    if (!controlsEnabled) {
+      sessionIdRef.current = null
+      return
+    }
+
     const sessionId = mySession?.id
     if (sessionId == null) return
 
@@ -77,7 +83,7 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
     }, POSITION_REFRESH_MS)
 
     return () => window.clearInterval(intervalId)
-  }, [mySession?.id, pushCurrentPosition])
+  }, [controlsEnabled, mySession?.id, pushCurrentPosition])
 
   useEffect(() => {
     if (mySession == null) return

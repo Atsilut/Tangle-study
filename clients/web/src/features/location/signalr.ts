@@ -173,6 +173,26 @@ async function leaveSession(conn: HubConnection, sessionId: number) {
   }
 }
 
+export async function disconnectLocationHub(): Promise<void> {
+  if (startPromise) {
+    await startPromise.catch(() => {})
+  }
+  sessionListeners.clear()
+  groupAlertListeners.clear()
+  joinedSessions.clear()
+  joinedGroupAlerts.clear()
+  if (connection) {
+    try {
+      await connection.stop()
+    } catch {
+      // Hub may already be stopped.
+    }
+    connection = null
+  }
+  handlersInstalled = false
+  startPromise = null
+}
+
 export async function ensureLocationConnected(): Promise<HubConnection> {
   const conn = getConnection()
   if (conn.state === HubConnectionState.Connected) return conn

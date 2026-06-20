@@ -85,6 +85,24 @@ async function leaveRoom(conn: HubConnection, roomId: number) {
   }
 }
 
+export async function disconnectChatHub(): Promise<void> {
+  if (startPromise) {
+    await startPromise.catch(() => {})
+  }
+  roomListeners.clear()
+  joinedRooms.clear()
+  if (connection) {
+    try {
+      await connection.stop()
+    } catch {
+      // Hub may already be stopped.
+    }
+    connection = null
+  }
+  handlersInstalled = false
+  startPromise = null
+}
+
 export async function ensureConnected(): Promise<HubConnection> {
   const conn = getConnection()
   if (conn.state === HubConnectionState.Connected) return conn

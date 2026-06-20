@@ -77,32 +77,35 @@ export function useCreateMapPin() {
 }
 
 export function useMyLocationSession(groupId: number | null, enabled: boolean) {
+  const queryEnabled = enabled && groupId != null
   return useQuery({
     queryKey: locationKeys.mySession(groupId),
     queryFn: () => getMyLocationSession(groupId as number),
-    enabled: enabled && groupId != null,
+    enabled: queryEnabled,
     staleTime: 10_000,
-    placeholderData: (previous) => previous,
+    placeholderData: (previous) => (queryEnabled ? previous : undefined),
   })
 }
 
 export function useActiveGroupLocations(groupId: number | null, enabled: boolean) {
+  const queryEnabled = enabled && groupId != null
   return useQuery({
     queryKey: locationKeys.activeGroup(groupId),
     queryFn: () => getActiveGroupLocations(groupId as number),
-    enabled: enabled && groupId != null,
+    enabled: queryEnabled,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: queryEnabled ? 30_000 : false,
   })
 }
 
 export function useGroupMemberSharingStatus(groupId: number | null, enabled: boolean) {
+  const queryEnabled = enabled && groupId != null
   return useQuery({
     queryKey: locationKeys.memberStatus(groupId),
     queryFn: () => getGroupMemberSharingStatus(groupId as number),
-    enabled: enabled && groupId != null,
+    enabled: queryEnabled,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: queryEnabled ? 30_000 : false,
   })
 }
 

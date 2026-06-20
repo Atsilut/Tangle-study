@@ -59,7 +59,10 @@ export function MapPage() {
         {isAuthenticated && (
           <>
             <GroupLocationSelector value={selectedGroupId} onChange={setSelectedGroupId} />
-            <LiveSharingControls groupId={selectedGroupId} />
+            <LiveSharingControls
+              groupId={selectedGroupId}
+              enabled={isAuthenticated && selectedGroupId != null}
+            />
             <GroupSharingStatusList
               groupId={selectedGroupId}
               enabled={isAuthenticated && selectedGroupId != null}
