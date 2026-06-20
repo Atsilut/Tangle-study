@@ -27,9 +27,9 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | 1–3 | Core API, chat, Redis | [AGENTS.md](../services/Api/AGENTS.md), [CHAT.md](../services/Api/Domain/Chat/CHAT.md), [REDIS.md](../services/Api/Global/REDIS.md) |
 | 4 | Rust worker + media | [MEDIA.md](../services/Api/Domain/Media/MEDIA.md), [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [rust-worker README](../workers/rust-worker/README.md) — **Done** |
 | 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
-| 6 | Web client (React) — backend parity through media; map UI in Phase 7 | [clients/web](../clients/web/README.md) — **Done** |
-| 7 | Location / Memory Map (monolith first) | [SERVICE_BOUNDARIES.md#location-service](SERVICE_BOUNDARIES.md#location-service) |
-| 8 | MSA prep (during Phase 7) | [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) |
+| 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
+| 7 | Location / Memory Map (monolith) | [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) — **Done** |
+| 8 | MSA prep (contracts, QUEUE rows) | [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **In progress** |
 | 9 | MSA migration | [MSA_MIGRATION.md](MSA_MIGRATION.md) |
 
 ## Subsystem deep-dives
@@ -41,6 +41,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Work queue | [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) | Redis Streams contracts, API → worker flow |
 | Chat | [services/Api/Domain/Chat/CHAT.md](../services/Api/Domain/Chat/CHAT.md) | REST routes, SignalR hub contract |
 | Media | [services/Api/Domain/Media/MEDIA.md](../services/Api/Domain/Media/MEDIA.md) | Upload flow, limits, worker callback |
+| Location | [services/Api/Domain/Location/LOCATION.md](../services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |
 | Rust worker | [workers/rust-worker/README.md](../workers/rust-worker/README.md) | Consumer, retry, DLQ, replay |
 | Web client | [clients/web/README.md](../clients/web/README.md) | React SPA, Nginx proxy, feature slices |
 | Monitoring | [infra/README.md](../infra/README.md) | Prometheus, Grafana, alerts, scrape auth |

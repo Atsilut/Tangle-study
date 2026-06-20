@@ -72,3 +72,13 @@ Runs opt-in xUnit tests (`Category=Harness`) against a live Compose stack. Valid
 | Redis Streams (`IWorkQueue`) | Durable async jobs for workers |
 
 Do not use Streams as the client realtime channel.
+
+## Location jobs
+
+Live position sharing uses Redis string keys and SignalR (see [REDIS.md](../REDIS.md)). Only map **clustering** uses Streams today:
+
+| Stream | Worker service | Callback |
+|--------|----------------|----------|
+| `location.cluster` | `rust-worker-location` | `PUT /internal/location/clusters` |
+
+Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../Domain/Location/LOCATION.md).

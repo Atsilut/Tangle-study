@@ -18,7 +18,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/user-blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
 | **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented — [MEDIA.md](../services/Api/Domain/Media/MEDIA.md) |
-| **location** | *(new)* | Geo on content, live location sessions | *(planned)* | Planned (Phase 7) |
+| **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
 ---
 
@@ -120,21 +120,23 @@ Client upload → media-service (presigned URL or direct) → object storage
 
 ### location-service
 
-**Planned (Phase 7).** Not in the repo yet. **Build in the monolith first** (`Domain/Location/` or equivalent), then extract at [MSA step 3](MSA_MIGRATION.md#extraction-order) after the Phase 6 map client proves the feature. Do not greenfield `location-service` before monolith validation.
+**Implemented in monolith** (`Domain/Location/`). Extraction target at [MSA step 3](MSA_MIGRATION.md#extraction-order) after Phase 7 E2E proof. See [LOCATION.md](../services/Api/Domain/Location/LOCATION.md).
 
-**Will own:**
-- Geo metadata on content (posts, map pins) — durable in Postgres
-- Live location sessions — Redis TTL store ([REDIS.md](../services/Api/Global/REDIS.md) mentions TTL-based location data)
+**Owns:**
+- Geo metadata on content (`MapPin`, optional post location) — Postgres
+- Live location sessions (`LocationSession` with `groupId`) — Postgres headers + Redis TTL positions
+- Safety alerts (stale position monitor, manual SOS) — SignalR `SafetyAlertRaised`
 
-**Will depend on:**
-- **users** — who is sharing location
+**Depends on:**
+- **users** — nicknames, blocks
+- **groups** — membership for live sharing and alerts
 - **posts** (optional) — location-tagged content for Memory Map
 
-**Realtime:** SignalR for live location updates and safety alerts.
+**Realtime:** SignalR `/hubs/location` — `LocationUpdated`, `SafetyAlertRaised`; group-scoped live sharing.
 
-**Async:** rust-worker `location.cluster` (or similar) for Memory Map aggregation/clustering.
+**Async:** `location.cluster` stream → `rust-worker-location` for interim pin clustering (zoom 2–4).
 
-**Features (from roadmap):** Memory Map visualization, real-time location sharing, safety alerts.
+**Web:** React `/map` — MapLibre, pins, clusters, group live overlay, sharing status, SOS.
 
 ---
 

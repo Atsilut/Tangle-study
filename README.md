@@ -209,6 +209,7 @@ Central index: [docs/README.md](docs/README.md)
 | [clients/web/README.md](clients/web/README.md) | React web client |
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
 | [services/Api/Domain/Media/MEDIA.md](services/Api/Domain/Media/MEDIA.md) | Media upload and processing |
+| [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 
 ---
 
@@ -221,9 +222,9 @@ Central index: [docs/README.md](docs/README.md)
 | 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
 | 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | Done (`chat.message.created` worker handler is an intentional stub; delivery is SignalR) |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
-| 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media; map UI after Phase 7 | Done |
-| 7 | Location / Memory Map in monolith — [SERVICE_BOUNDARIES.md#location-service](docs/SERVICE_BOUNDARIES.md#location-service) | Planned |
-| 8 | MSA prep — cross-service contracts during Phase 7; document events in [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Planned |
+| 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
+| 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
+| 8 | MSA prep — cross-service contracts; [QUEUE.md](services/Api/Global/Queue/QUEUE.md) documents `location.cluster` | In progress |
 | 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
 
 Phase 9 starts only after Phases 5–7 are complete end-to-end (metrics, location API, React map). MAUI remains optional after the React path works.
@@ -270,6 +271,7 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 | `nginx` | — | yes | Edge proxy + React SPA (built in [clients/web/Dockerfile](clients/web/Dockerfile)) |
 | `rust-worker` | `workers` | no | Chat queue consumer |
 | `rust-worker-media` | `workers`, `harness` | no | Media upload processor |
+| `rust-worker-location` | `workers` | no | Memory Map pin clustering (`location.cluster`) |
 | `prometheus`, `postgres-exporter`, `redis-exporter`, `grafana` | `monitoring` | no | Metrics stack |
 | `sdk` | `tools` | no | One-off .NET CLI (`run --rm`) |
 | `test` | `test` | no | One-off test run (`run --rm`) |
@@ -290,7 +292,20 @@ docker compose up --build
 
 Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Docker`.
 
-Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub contract: [services/Api/Domain/Chat/CHAT.md](services/Api/Domain/Chat/CHAT.md).
+Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Api/Domain/Chat/CHAT.md). Location: [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+
+### Phase 7 E2E gate (Memory Map)
+
+With the default stack running (`docker compose up --build`), verify:
+
+1. **Web** — http://localhost:8080/map loads the basemap and search box.
+2. **API** — `curl -s http://localhost:5000/health` returns `Healthy`.
+3. **Pins** — signed-in user double-clicks the map to drop a pin; pin appears after refresh/pan.
+4. **Workers** (optional clustering at zoom 2–4): `docker compose --profile workers up -d rust-worker-location`.
+5. **Live sharing** — two users in the same group: one starts sharing; the other sees a green marker and sharing status in the member list.
+6. **Tests** — `./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~Location"`.
+
+Full UI dev uses Vite at http://localhost:5173 with the same API via Nginx proxy (see [clients/web/README.md](clients/web/README.md)).
 
 ### Full stack (workers + monitoring)
 
@@ -397,9 +412,10 @@ Two workers share the `workers/rust-worker` image with different stream keys:
 | Service | Stream | Notes |
 |---------|--------|-------|
 | `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
-| `rust-worker-media` | `media.uploaded` | Starts with `--profile workers` (processes uploads after Azurite + API) |
+| `rust-worker-media` | `media.uploaded` | Processes uploads after Azurite + API |
+| `rust-worker-location` | `location.cluster` | Clusters map pins for low-zoom `/map` view |
 
-Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md).
+Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 
 ```bash
 # Chat worker only (with core stack)

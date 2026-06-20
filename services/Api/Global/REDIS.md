@@ -24,8 +24,33 @@ Compose `api` sets `Redis__Enabled=true` and depends on the `redis` service. The
 | SignalR scale-out | `AddStackExchangeRedis` backplane | Live chat across multiple API replicas |
 | Domain events | `IEventPublisher` / Redis pub/sub | Server-side; subscriber currently logs |
 | Async jobs (producer) | `IWorkQueue` / Redis Streams | Consumed by [rust-worker](../../../workers/rust-worker/README.md) — see [Queue/QUEUE.md](Queue/QUEUE.md) |
+| Live location positions | `LiveLocationRedisStore` (direct Redis / `IDistributedCache`) | Group-scoped TTL keys; refreshed on position update |
+| Map cluster cache | `LocationClusterService` (direct Redis) | Interim clustering results (5 min TTL) |
+| Safety alert dedupe | `IDistributedCache` | Per-session stale-alert keys |
 
 Chat message delivery to clients is **SignalR**, not pub/sub or Streams.
+
+## Location keys (live sharing)
+
+| Key pattern | TTL | Purpose |
+|-------------|-----|---------|
+| `{InstanceName}location:live:{groupId}:{userId}` | 5 min (reset on update) | Live position snapshot JSON |
+| `location:safety:stale:{sessionId}` | 12 h | Dedupe stale-position alerts until next position push |
+
+Cluster cache keys are written by the API after `rust-worker-location` callbacks — see [LOCATION.md](../Domain/Location/LOCATION.md).
+
+## Location data flow
+
+```text
+POST/PATCH session position → Postgres (LocationSession)
+                           → Redis location:live:{groupId}:{userId}
+                           → SignalR session:{sessionId} (LocationUpdated)
+                           → SignalR group-alerts:{groupId} (SafetyAlertRaised, when rules fire)
+
+GET active/members → Postgres sessions + Redis live snapshots
+```
+
+Live sharing does **not** use Streams or pub/sub for client delivery.
 
 ## Chat data flow
 
@@ -55,7 +80,7 @@ docker compose exec redis redis-cli XLEN tangle:queue:chat.message.created
 | Collection | Redis | Scope |
 |------------|-------|--------|
 | `IntegrationTests` (default) | Off | REST / matrix tests; `ChatInProcessRealtimeIntegrationTests.cs` |
-| `RedisRealtimeIntegrationTests` | Testcontainers Redis | `ChatRedisRealtimeIntegrationTests.cs`, `UserNicknameCacheRedisIntegrationTests.cs` |
+| `RedisRealtimeIntegrationTests` | Testcontainers Redis | Chat hub, location hub, nickname cache |
 
 SignalR scale-out across multiple API replicas is not covered by integration tests (requires real networked hosts). Verify with scaled Compose when needed; see [QUEUE.md](Queue/QUEUE.md) for Streams/worker E2E later.
 
@@ -64,4 +89,5 @@ Run all tests: `docker compose --profile test run --rm test`
 ## Related docs
 
 - [Domain/Chat/CHAT.md](../Domain/Chat/CHAT.md) — hub contract and client flow
-- [Global/Queue/QUEUE.md](Queue/QUEUE.md) — Streams producer and phase 4 workers
+- [Domain/Location/LOCATION.md](../Domain/Location/LOCATION.md) — live sharing, Redis keys, SignalR events
+- [Global/Queue/QUEUE.md](Queue/QUEUE.md) — Streams producer and workers

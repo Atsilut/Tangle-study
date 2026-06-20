@@ -172,7 +172,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 ```
 /services
   /Api          ← monolith today; shrinks during Phase 9
-/clients/web    ← React client (Phase 6, done — map UI in Phase 7); MAUI optional later
+/clients/web    ← React client (Phase 6–7: includes Memory Map at /map); MAUI optional later
 /workers
   /rust-worker  ← async job processor
 /libs           ← planned shared contracts
