@@ -3,6 +3,11 @@ import { Button } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
 import { readCurrentPosition, watchCurrentPosition, type GeoCoordinates } from '../geolocation'
 import {
+  clearActiveLocationSession,
+  registerActiveLocationSession,
+  stopActiveLocationSession,
+} from '../liveSharingRegistry'
+import {
   useMyLocationSession,
   useStartLocationSession,
   useStopLocationSession,
@@ -31,6 +36,25 @@ export function LiveSharingControls({ groupId, enabled = true }: LiveSharingCont
   useEffect(() => {
     sessionIdRef.current = mySession?.id ?? null
   }, [mySession?.id])
+
+  const activeSessionId = mySession?.id ?? null
+
+  useEffect(() => {
+    if (!controlsEnabled || activeSessionId == null || groupId == null) return
+    registerActiveLocationSession(activeSessionId, groupId)
+  }, [controlsEnabled, groupId, activeSessionId])
+
+  useEffect(() => {
+    return () => {
+      void stopActiveLocationSession()
+    }
+  }, [groupId])
+
+  useEffect(() => {
+    return () => {
+      void stopActiveLocationSession()
+    }
+  }, [])
 
   const rememberPosition = useCallback((position: Pick<GeoCoordinates, 'latitude' | 'longitude'>) => {
     lastPositionRef.current = position
@@ -114,6 +138,7 @@ export function LiveSharingControls({ groupId, enabled = true }: LiveSharingCont
     setError(null)
     try {
       await stopSession.mutateAsync(mySession.id)
+      clearActiveLocationSession()
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Could not stop live sharing.'))
     }
