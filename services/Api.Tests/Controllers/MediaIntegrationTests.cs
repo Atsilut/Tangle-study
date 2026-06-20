@@ -133,6 +133,66 @@ public sealed class MediaIntegrationTests(
         Assert.Equal(40_000, asset.StoredSizeBytes);
     }
 
+    [Fact]
+    public async Task WorkerCallback_Returns401_WithoutWorkerSecret()
+    {
+        // Arrange
+        const string testMethodName = nameof(WorkerCallback_Returns401_WithoutWorkerSecret);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var init = await MediaIntegrationTestHelpers.InitUploadAsync(
+            Client,
+            MediaIntendedContext.Post,
+            "image/jpeg",
+            "no-secret.jpg",
+            sizeBytes: 50_000);
+        await MediaIntegrationTestHelpers.CompleteUploadAsync(Client, init.MediaAssetId);
+
+        // Act
+        var res = await MediaIntegrationTestHelpers.SendProcessedCallbackAsync(
+            Client,
+            init.MediaAssetId,
+            new MediaProcessedRequestDto
+            {
+                ProcessedObjectKey = $"processed/{init.MediaAssetId}/no-secret.jpg",
+                StoredSizeBytes = 40_000,
+            },
+            workerSecret: null);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task WorkerCallback_Returns401_WithInvalidWorkerSecret()
+    {
+        // Arrange
+        const string testMethodName = nameof(WorkerCallback_Returns401_WithInvalidWorkerSecret);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var init = await MediaIntegrationTestHelpers.InitUploadAsync(
+            Client,
+            MediaIntendedContext.Post,
+            "image/jpeg",
+            "bad-secret.jpg",
+            sizeBytes: 50_000);
+        await MediaIntegrationTestHelpers.CompleteUploadAsync(Client, init.MediaAssetId);
+
+        // Act
+        var res = await MediaIntegrationTestHelpers.SendProcessedCallbackAsync(
+            Client,
+            init.MediaAssetId,
+            new MediaProcessedRequestDto
+            {
+                ProcessedObjectKey = $"processed/{init.MediaAssetId}/bad-secret.jpg",
+                StoredSizeBytes = 40_000,
+            },
+            workerSecret: "wrong-secret");
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+    }
+
     // --- Attach to post ---
 
     [Fact]

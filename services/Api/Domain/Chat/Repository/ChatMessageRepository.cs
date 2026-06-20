@@ -19,6 +19,18 @@ public class ChatMessageRepository(AppDbContext context) : IChatMessageRepositor
     public Task<ChatMessage?> GetChatMessageByIdAsync(long id) =>
         _context.ChatMessages.FindAsync(id).AsTask();
 
+    public async Task<IReadOnlyDictionary<long, ChatMessage>> GetChatMessagesByIdsAsync(IReadOnlyCollection<long> ids)
+    {
+        if (ids.Count == 0) return new Dictionary<long, ChatMessage>();
+
+        var idList = ids.Distinct().ToList();
+        var messages = await _context.ChatMessages
+            .Where(m => idList.Contains(m.Id))
+            .ToListAsync();
+
+        return messages.ToDictionary(m => m.Id);
+    }
+
     public async Task<List<ChatMessage>> GetChatMessagesForRoomAsync(
         long chatRoomId,
         long? beforeMessageId,

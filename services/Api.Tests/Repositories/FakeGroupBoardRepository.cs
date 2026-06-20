@@ -23,6 +23,9 @@ public sealed class FakeGroupBoardRepository : IGroupBoardRepository
     public Task<GroupBoard?> GetByGroupAndIdAsync(long groupId, long boardId) =>
         Task.FromResult(_boards.FirstOrDefault(b => b.GroupId == groupId && b.Id == boardId));
 
+    public Task<List<GroupBoard>> GetByGroupAndIdsAsync(long groupId, IReadOnlyCollection<long> boardIds) =>
+        Task.FromResult(_boards.Where(b => b.GroupId == groupId && boardIds.Contains(b.Id)).ToList());
+
     public Task<List<GroupBoard>> GetByGroupAsync(long groupId) =>
         Task.FromResult(_boards.Where(b => b.GroupId == groupId).OrderBy(b => b.Name).ToList());
 

@@ -6,6 +6,7 @@ public interface IChatMessageRepository
 {
     public Task CreateChatMessageAsync(ChatMessage message);
     public Task<ChatMessage?> GetChatMessageByIdAsync(long id);
+    public Task<IReadOnlyDictionary<long, ChatMessage>> GetChatMessagesByIdsAsync(IReadOnlyCollection<long> ids);
     public Task<List<ChatMessage>> GetChatMessagesForRoomAsync(long chatRoomId, long? beforeMessageId, int limit);
     public Task<IReadOnlyDictionary<long, ChatMessage>> GetLatestChatMessagesByRoomIdsAsync(
         IReadOnlyCollection<long> roomIds);
