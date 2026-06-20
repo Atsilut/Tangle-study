@@ -1,5 +1,8 @@
 using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Realtime;
+using Api.Domain.Location.Config;
+using Api.Domain.Location.Realtime;
+using Api.Domain.Location.Service;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -7,10 +10,13 @@ using Api.Global.Infrastructure;
 using Api.Global.Security;
 using Api.Global.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Prometheus;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +44,9 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
+builder.Services.Configure<LocationSafetyOptions>(
+    builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
+builder.Services.AddHostedService<LocationSafetyMonitorHostedService>();
 builder.Services.AddSingleton<TokenProvider>();
 
 builder.Services
@@ -73,8 +82,32 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("places", context =>
+    {
+        var placesOptions = context.RequestServices.GetRequiredService<IOptions<PlacesOptions>>().Value;
+        if (placesOptions.RateLimitPerMinute <= 0)
+        {
+            return RateLimitPartition.GetNoLimiter("places-disabled");
+        }
+
+        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = placesOptions.RateLimitPerMinute,
+                Window = TimeSpan.FromMinutes(1),
+            });
+    });
+});
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMedia(builder.Configuration);
+builder.Services.AddTanglePlaces(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -93,6 +126,9 @@ healthChecksBuilder.ForwardToPrometheus();
 
 var app = builder.Build();
 
+var jwtOptions = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+JwtStartupValidator.Validate(app.Environment, jwtOptions);
+
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
@@ -103,6 +139,11 @@ else logger.LogInformation("Redis disabled; using in-memory distributed cache an
 var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Value;
 if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
 else logger.LogInformation("Media uploads disabled.");
+
+var placesOptions = app.Services.GetRequiredService<IOptions<PlacesOptions>>().Value;
+if (placesOptions.Enabled && !string.IsNullOrWhiteSpace(placesOptions.ApiKey))
+    logger.LogInformation("Google Places search enabled.");
+else logger.LogInformation("Google Places search disabled (set Places:Enabled and Places:ApiKey).");
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
@@ -126,6 +167,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseHttpMetrics();
 
 app.UseExceptionHandler();
@@ -137,6 +179,7 @@ app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<LocationHub>("/hubs/location");
 app.MapHealthChecks("/health");
 app.MapMetrics();
 

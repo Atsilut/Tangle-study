@@ -19,6 +19,7 @@ import {
   GroupBoardPostEditPage,
   GroupBlacklistPage,
 } from '@/features/groups'
+import { MapPage } from '@/features/location'
 import {
   PostCreatePage,
   PostDetailPage,
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'map', element: <MapPage /> },
       { path: 'posts', element: <PostsListPage /> },
       {
         path: 'posts/new',

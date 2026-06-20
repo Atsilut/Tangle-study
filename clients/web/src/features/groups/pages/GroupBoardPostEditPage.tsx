@@ -57,6 +57,7 @@ function EditForm({
       <CardBody>
         <PostForm
           initial={{ title: post.title, content: post.content }}
+          initialLocation={post.location ?? null}
           existingMedia={post.media}
           enableMedia
           submitLabel="Save changes"
@@ -70,6 +71,9 @@ function EditForm({
                 content: values.content,
                 addMediaAssetIds: values.addMediaAssetIds,
                 removeMediaAssetIds: values.removeMediaAssetIds,
+                latitude: values.latitude,
+                longitude: values.longitude,
+                clearLocation: values.clearLocation,
               },
               {
                 onSuccess: () =>

@@ -1,6 +1,6 @@
 import { api, getList } from '@/lib/apiClient'
 import type { BoardVisibility, BoardWriteability } from '@/types/api'
-import type { Post } from '@/features/posts/api'
+import { parsePost, parsePosts, type Post } from '@/features/posts/api'
 
 const asForbidden = { treatUnauthorizedAsForbidden: true }
 
@@ -35,6 +35,8 @@ export interface CreateBoardPostRequest {
   title: string
   content: string
   mediaAssetIds?: number[]
+  latitude?: number
+  longitude?: number
 }
 
 // GET /api/groups/{groupId}/boards -> 200 list | 204 empty
@@ -71,8 +73,10 @@ export async function deleteBoard(groupId: number, boardId: number): Promise<voi
 }
 
 // GET /api/groups/{groupId}/boards/{boardId}/posts -> 200 list | 204 empty
-export function getBoardPosts(groupId: number, boardId: number): Promise<Post[]> {
-  return getList<Post>(`/groups/${groupId}/boards/${boardId}/posts`, asForbidden)
+export async function getBoardPosts(groupId: number, boardId: number): Promise<Post[]> {
+  return parsePosts(
+    await getList<Post>(`/groups/${groupId}/boards/${boardId}/posts`, asForbidden),
+  )
 }
 
 // GET /api/groups/{groupId}/boards/{boardId}/posts/{postId} -> 200 | 404
@@ -85,7 +89,7 @@ export async function getBoardPost(
     `/groups/${groupId}/boards/${boardId}/posts/${postId}`,
     asForbidden,
   )
-  return res.data
+  return parsePost(res.data)
 }
 
 // POST /api/groups/{groupId}/boards/{boardId}/posts -> 201 (empty body)

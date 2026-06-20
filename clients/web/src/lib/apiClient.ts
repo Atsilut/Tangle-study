@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { clearSession } from '@/lib/session'
+import { isAccessTokenExpired } from '@/lib/authToken'
+import { handleSessionExpired } from '@/lib/session'
 import { getAccessToken } from '@/stores/authStore'
 
 declare module 'axios' {
@@ -17,23 +18,28 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (!token) return config
+
+  if (isAccessTokenExpired(token)) {
+    handleSessionExpired()
+    return Promise.reject(new axios.CanceledError('Session expired'))
   }
+
+  config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (axios.isCancel(error)) {
+      return Promise.reject(error)
+    }
+
     // JWT expires after ~15 min with no refresh token: drop session and
     // bounce to login. Skip if already on the login/register pages.
     if (error.response?.status === 401 && !error.config?.treatUnauthorizedAsForbidden) {
-      clearSession()
-      const path = window.location.pathname
-      if (path !== '/login' && path !== '/register') {
-        window.location.assign('/login')
-      }
+      handleSessionExpired()
     }
     return Promise.reject(error)
   },

@@ -8,6 +8,9 @@ Producer-only foundation for phase 4 Rust workers. Chat and the API work without
 |--------------------------------|---------|---------------|
 | `chat.message.created` | `ChatMessageCreatedJob` | After a chat message is persisted (`ChatMessageService`) |
 | `media.uploaded` | `MediaUploadedJob` | After upload is confirmed in blob storage (`MediaService.CompleteUploadAsync`) |
+| `location.cluster` | `LocationClusterJob` | When clustered pins are requested or pins change (`LocationClusterService` / `MapPinService`) |
+
+`LocationClusterJob` fields: `minLatitude`, `maxLatitude`, `minLongitude`, `maxLongitude`, `zoom` (2–4). Worker fetches pin coordinates via `GET /internal/location/cluster-points`, clusters them, and stores results with `PUT /internal/location/clusters` (Redis cache, 5 min TTL). Public read: `GET /api/location/clusters`.
 
 `MediaUploadedJob` fields: `mediaAssetId`, `intendedContext`, `kind`, `mimeType`, `originalObjectKey`, `originalSizeBytes`, `targetMaxBytes`. `targetMaxBytes` is the per-file **storage** cap from [`media-limits.yml`](../../media-limits.yml) (not the ingress cap).
 
@@ -69,3 +72,13 @@ Runs opt-in xUnit tests (`Category=Harness`) against a live Compose stack. Valid
 | Redis Streams (`IWorkQueue`) | Durable async jobs for workers |
 
 Do not use Streams as the client realtime channel.
+
+## Location jobs
+
+Live position sharing uses Redis string keys and SignalR (see [REDIS.md](../REDIS.md)). Only map **clustering** uses Streams today:
+
+| Stream | Worker service | Callback |
+|--------|----------------|----------|
+| `location.cluster` | `rust-worker-location` | `PUT /internal/location/clusters` |
+
+Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../Domain/Location/LOCATION.md).

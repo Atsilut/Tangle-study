@@ -26,6 +26,12 @@ namespace Api.Domain.Posts.Dto
 
         [SwaggerSchema(Description = "Ready media asset IDs to attach (post context; multiple allowed)")]
         public long[]? MediaAssetIds { get; init; }
+
+        [SwaggerSchema(Description = "Optional latitude (-90 to 90); must be provided with Longitude")]
+        public decimal? Latitude { get; init; }
+
+        [SwaggerSchema(Description = "Optional longitude (-180 to 180); must be provided with Latitude")]
+        public decimal? Longitude { get; init; }
     }
 
     public record PostPatchRequestDto
@@ -51,5 +57,15 @@ namespace Api.Domain.Posts.Dto
 
         [SwaggerSchema(Description = "Media asset IDs currently on the post to delete")]
         public long[]? RemoveMediaAssetIds { get; init; }
+
+        [SwaggerSchema(Description = "Optional latitude (-90 to 90); must be provided with Longitude")]
+        public decimal? Latitude { get; init; }
+
+        [SwaggerSchema(Description = "Optional longitude (-180 to 180); must be provided with Latitude")]
+        public decimal? Longitude { get; init; }
+
+        [SwaggerSchema(Description = "When true, removes any location linked to the post")]
+        [DefaultValue(false)]
+        public bool ClearLocation { get; init; }
     }
 }

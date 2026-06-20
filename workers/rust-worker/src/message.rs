@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use redis::streams::StreamId;
 use redis::Value;
 
-use crate::job::{ChatMessageCreatedJob, MediaUploadedJob};
+use crate::job::{ChatMessageCreatedJob, LocationClusterJob, MediaUploadedJob};
 
 pub fn decode_chat_message_created(
     expected_type: &str,
@@ -13,6 +13,12 @@ pub fn decode_chat_message_created(
 
 pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
     let job: MediaUploadedJob = decode_job(expected_type, entry)?;
+    job.validate()?;
+    Ok(job)
+}
+
+pub fn decode_location_cluster(expected_type: &str, entry: &StreamId) -> Result<LocationClusterJob> {
+    let job: LocationClusterJob = decode_job(expected_type, entry)?;
     job.validate()?;
     Ok(job)
 }
@@ -67,6 +73,9 @@ pub fn is_malformed_entry(err: &anyhow::Error) -> bool {
             || message.contains("unexpected job type")
             || message.contains("deserialize payload")
             || message.contains("target_max_bytes must be greater than zero")
+            || message.contains("min_latitude must be less than or equal to max_latitude")
+            || message.contains("min_longitude must be less than or equal to max_longitude")
+            || message.contains("zoom must be between 2 and 4")
     })
 }
 

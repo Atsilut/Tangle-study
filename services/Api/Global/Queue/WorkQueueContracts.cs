@@ -15,3 +15,10 @@ public sealed record MediaUploadedJob(
     string OriginalObjectKey,
     long OriginalSizeBytes,
     long TargetMaxBytes);
+
+public sealed record LocationClusterJob(
+    decimal MinLatitude,
+    decimal MaxLatitude,
+    decimal MinLongitude,
+    decimal MaxLongitude,
+    int Zoom);

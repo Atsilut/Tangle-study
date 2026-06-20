@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudio,dotnetcore,linux,macos,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudio,dotnetcore,linux,macos,windows
 
+.env
+docker-compose.override.yml
+
 ### DotnetCore ###
 # .NET Core build folders
 bin/

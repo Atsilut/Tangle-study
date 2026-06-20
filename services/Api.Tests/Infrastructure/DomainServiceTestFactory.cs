@@ -1,6 +1,9 @@
+using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
+using Api.Domain.Location.Repository;
+using Api.Domain.Location.Service;
 using Api.Domain.Media;
 using Api.Domain.Media.Repository;
 using Api.Domain.Media.Service;
@@ -48,7 +51,9 @@ internal static class DomainServiceTestFactory
         FakeGroupBlacklistRepository GroupBlacklistRepository,
         FakeGroupBoardRepository GroupBoardRepository,
         GroupBoardAccessService GroupBoardAccessService,
-        GroupBoardService GroupBoardService);
+        GroupBoardService GroupBoardService,
+        MapPinService MapPinService,
+        IMapPinRepository MapPinRepository);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
@@ -85,6 +90,7 @@ internal static class DomainServiceTestFactory
         GroupBlacklistService groupBlacklistService = null!;
         GroupService groupService = null!;
         GroupBoardService groupBoardService = null!;
+        MapPinService mapPinService = null!;
 
         var mediaOptions = Options.Create(new MediaOptions
         {
@@ -115,9 +121,11 @@ internal static class DomainServiceTestFactory
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             new Lazy<MediaService>(() => mediaService),
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
-            new Lazy<Api.Domain.Chat.Service.ChatRoomService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
+            new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
+            new Lazy<MapPinService>(() => mapPinService),
+            new Lazy<LocationSessionService>(() => null!),
             http,
             nicknameCacheService,
             eventPublisher);
@@ -134,12 +142,14 @@ internal static class DomainServiceTestFactory
             groupMembershipService,
             http);
 
+        var mapPinRepository = new MapPinRepository(db);
+
         mediaService = new MediaService(
             new MediaAssetRepository(db),
             CreateMediaStorageProvider(new FakeMediaStorage()),
             new MediaLimitPolicy(mediaOptions),
             userService,
-            new Lazy<Api.Domain.Chat.Service.ChatMessageService>(() => null!),
+            new Lazy<ChatMessageService>(() => null!),
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
             groupBoardAccessService,
@@ -152,6 +162,7 @@ internal static class DomainServiceTestFactory
             db,
             new Lazy<CommentService>(() => commentService),
             new Lazy<MediaService>(() => mediaService),
+            new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
             groupBoardAccessService);
@@ -174,6 +185,19 @@ internal static class DomainServiceTestFactory
             userBlockRepository,
             new Lazy<FriendRequestService>(() => friendRequestService),
             userService,
+            http);
+
+        var locationAccessService = new LocationAccessService(postService, userBlockService, http);
+        var locationClusterService = new LocationClusterService(
+            mapPinRepository,
+            locationAccessService,
+            distributedCache,
+            new FakeWorkQueue());
+        mapPinService = new MapPinService(
+            mapPinRepository,
+            userService,
+            locationAccessService,
+            new Lazy<LocationClusterService>(() => locationClusterService),
             http);
 
         friendRequestService = new FriendRequestService(
@@ -278,7 +302,9 @@ internal static class DomainServiceTestFactory
             groupBlacklistRepository,
             groupBoardRepository,
             groupBoardAccessService,
-            groupBoardService);
+            groupBoardService,
+            mapPinService,
+            mapPinRepository);
     }
 
     internal static NicknameCacheService CreateNicknameCacheService(

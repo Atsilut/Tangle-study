@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { jwtDecode } from 'jwt-decode'
+import { isAccessTokenExpired } from '@/lib/authToken'
+import { resetSessionExpiryGuard } from '@/lib/sessionExpiry'
 
 interface JwtClaims {
   sub?: string
@@ -38,14 +40,23 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       userId: null,
       isAuthenticated: false,
-      setToken: (token) =>
-        set({ accessToken: token, userId: userIdFromToken(token), isAuthenticated: true }),
+      setToken: (token) => {
+        resetSessionExpiryGuard()
+        set({ accessToken: token, userId: userIdFromToken(token), isAuthenticated: true })
+      },
       clear: () => set({ accessToken: null, userId: null, isAuthenticated: false }),
     }),
     {
       name: 'tangle-auth',
       onRehydrateStorage: () => (state) => {
-        if (state?.accessToken && state.userId == null) {
+        if (!state?.accessToken) return
+        if (isAccessTokenExpired(state.accessToken)) {
+          state.accessToken = null
+          state.userId = null
+          state.isAuthenticated = false
+          return
+        }
+        if (state.userId == null) {
           state.userId = userIdFromToken(state.accessToken)
         }
       },

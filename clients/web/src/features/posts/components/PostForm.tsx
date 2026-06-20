@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Button, ErrorState, FormField, Input, TextArea } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
+import { LocationPicker, type PostLocation } from '@/features/location'
 import { MediaIntendedContext, type MediaAsset } from '@/types/api'
 import {
   ExistingMediaAttachments,
@@ -15,10 +16,14 @@ export interface PostFormValues {
   mediaAssetIds?: number[]
   addMediaAssetIds?: number[]
   removeMediaAssetIds?: number[]
+  latitude?: number
+  longitude?: number
+  clearLocation?: boolean
 }
 
 export interface PostFormProps {
   initial?: Pick<PostFormValues, 'title' | 'content'>
+  initialLocation?: PostLocation | null
   existingMedia?: MediaAsset[]
   submitLabel: string
   isPending: boolean
@@ -32,6 +37,7 @@ export interface PostFormProps {
 // PostPatchRequestDto (both capped at 100 chars by the backend).
 export function PostForm({
   initial,
+  initialLocation = null,
   existingMedia,
   submitLabel,
   isPending,
@@ -42,9 +48,31 @@ export function PostForm({
 }: PostFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [content, setContent] = useState(initial?.content ?? '')
+  const [location, setLocation] = useState<PostLocation | null>(initialLocation)
   const [removedExistingIds, setRemovedExistingIds] = useState<ReadonlySet<number>>(() => new Set())
   const media = useMediaUploads(MediaIntendedContext.Post)
   const isEdit = existingMedia != null
+
+  const locationPayload = (): Pick<PostFormValues, 'latitude' | 'longitude' | 'clearLocation'> => {
+    if (isEdit) {
+      const hadLocation = initialLocation != null
+      const cleared = hadLocation && location == null
+      const changed =
+        location != null &&
+        (initialLocation?.latitude !== location.latitude ||
+          initialLocation?.longitude !== location.longitude)
+
+      if (cleared) return { clearLocation: true }
+      if (changed || (!hadLocation && location != null)) {
+        return { latitude: location!.latitude, longitude: location!.longitude }
+      }
+      return {}
+    }
+
+    return location != null
+      ? { latitude: location.latitude, longitude: location.longitude }
+      : {}
+  }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -59,6 +87,7 @@ export function PostForm({
 
       onSubmit({
         ...trimmed,
+        ...locationPayload(),
         ...(addMediaAssetIds != null ? { addMediaAssetIds } : {}),
         ...(removeMediaAssetIds.length > 0 ? { removeMediaAssetIds } : {}),
       })
@@ -67,6 +96,7 @@ export function PostForm({
 
     onSubmit({
       ...trimmed,
+      ...locationPayload(),
       mediaAssetIds:
         enableMedia && media.readyIds.length > 0 ? media.readyIds : undefined,
     })
@@ -99,6 +129,17 @@ export function PostForm({
             onChange={(e) => setContent(e.target.value)}
             required
           />
+        )}
+      </FormField>
+      <FormField label="Location">
+        {() => (
+          <div className="flex flex-col gap-2">
+            <LocationPicker value={location} onChange={setLocation} />
+            <p className="text-xs text-gray-500">
+              Pins dropped on the Memory Map page are separate. Attach a place here to show it on this
+              post.
+            </p>
+          </div>
         )}
       </FormField>
       {enableMedia && (

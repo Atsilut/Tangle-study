@@ -129,6 +129,39 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
+    public async Task CreatePost_WithLocation_ReturnsLocationOnGet()
+    {
+        // Arrange
+        const string testMethodName = "PostCreateWithLocation";
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var createReq = new PostCreateRequestDto
+        {
+            Title = "Geo title",
+            Content = "Geo content",
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        };
+        var createRes = await Client.PostAsJsonAsync("/api/posts", createReq, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        var allPosts = await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(allPosts);
+        var created = allPosts.Single(post => post.Title == "Geo title");
+
+        // Act
+        var getRes = await Client.GetAsync($"/api/posts/{created.Id}", TestContext.Current.CancellationToken);
+        var dto = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(TestContext.Current.CancellationToken);
+
+        // Assert
+        await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.OK);
+        Assert.NotNull(dto?.Location);
+        Assert.Equal(37.5665m, dto.Location.Latitude);
+        Assert.Equal(126.9780m, dto.Location.Longitude);
+    }
+
+    [Fact]
     public async Task GetPostById_Returns404_WhenPostMissing()
     {
         // Arrange

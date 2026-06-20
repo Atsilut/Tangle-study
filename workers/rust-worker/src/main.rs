@@ -1,4 +1,5 @@
 mod api_callback;
+mod cluster;
 mod config;
 mod consumer;
 mod dlq;

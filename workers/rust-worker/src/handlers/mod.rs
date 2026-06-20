@@ -1,11 +1,12 @@
 pub mod chat_message_created;
+pub mod location_cluster;
 pub mod media_uploaded;
 
 use anyhow::{bail, Result};
 use redis::streams::StreamId;
 
 use crate::config::Config;
-use crate::job::{ChatMessageCreatedJob, MediaUploadedJob};
+use crate::job::{ChatMessageCreatedJob, LocationClusterJob, MediaUploadedJob};
 use crate::message;
 
 /// Decode and process a stream entry for the configured worker stream.
@@ -23,6 +24,10 @@ pub async fn dispatch_entry(
             let job = message::decode_media_uploaded(&config.stream_key, entry)?;
             dispatch_media_uploaded(&job, config, http).await
         }
+        "location.cluster" => {
+            let job = message::decode_location_cluster(&config.stream_key, entry)?;
+            dispatch_location_cluster(&job, config, http).await
+        }
         other => bail!("unsupported worker stream key {other}"),
     }
 }
@@ -38,4 +43,12 @@ pub async fn dispatch_media_uploaded(
     http: &reqwest::Client,
 ) -> Result<()> {
     media_uploaded::handle(job, config, http).await
+}
+
+pub async fn dispatch_location_cluster(
+    job: &LocationClusterJob,
+    config: &Config,
+    http: &reqwest::Client,
+) -> Result<()> {
+    location_cluster::handle(job, config, http).await
 }

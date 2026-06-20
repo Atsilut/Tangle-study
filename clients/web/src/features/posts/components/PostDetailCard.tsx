@@ -3,6 +3,7 @@ import { Avatar, Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { EditedTimestamp } from '@/components/common/EditedTimestamp'
 import { MediaGallery } from '@/features/media'
 import type { Post } from '@/features/posts/api'
+import { PostLocationPreview } from './PostLocationPreview'
 
 export interface PostDetailCardProps {
   post: Post
@@ -45,6 +46,7 @@ export function PostDetailCard({ post, isAuthor, editUrl, onDelete }: PostDetail
       <CardBody className="flex flex-col gap-3">
         <h1 className="text-xl font-bold text-gray-900">{post.title}</h1>
         <p className="whitespace-pre-wrap text-sm text-gray-700">{post.content}</p>
+        {post.location && <PostLocationPreview location={post.location} />}
         <MediaGallery assets={post.media} />
       </CardBody>
     </Card>

@@ -20,5 +20,11 @@ namespace Api.Domain.Posts.Dto
 
         [SwaggerSchema(Description = "Ready media asset IDs to attach (post context; multiple allowed)")]
         public long[]? MediaAssetIds { get; init; }
+
+        [SwaggerSchema(Description = "Optional latitude (-90 to 90); must be provided with Longitude")]
+        public decimal? Latitude { get; init; }
+
+        [SwaggerSchema(Description = "Optional longitude (-180 to 180); must be provided with Latitude")]
+        public decimal? Longitude { get; init; }
     }
 }

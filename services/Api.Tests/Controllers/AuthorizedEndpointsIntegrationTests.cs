@@ -4,6 +4,7 @@ using Api.Domain.Chat.Dto;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
+using Api.Domain.Location.Dto;
 using Api.Domain.Posts.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
@@ -41,6 +42,27 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
                 "/api/posts",
                 new PostCreateRequestDto { Title = "t", Content = "c" }
             },
+            {
+                HttpMethod.Post,
+                "/api/location/pins",
+                new MapPinCreateRequestDto { Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Delete, "/api/location/pins/1", null },
+            {
+                HttpMethod.Post,
+                "/api/location/sessions",
+                new LocationSessionCreateRequestDto { GroupId = 1, Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Get, "/api/location/sessions/mine?groupId=1", null },
+            { HttpMethod.Get, "/api/location/sessions/active?groupId=1", null },
+            { HttpMethod.Get, "/api/location/sessions/members?groupId=1", null },
+            {
+                HttpMethod.Patch,
+                "/api/location/sessions/1/position",
+                new LocationPositionUpdateRequestDto { Latitude = 37.5665m, Longitude = 126.9780m }
+            },
+            { HttpMethod.Delete, "/api/location/sessions/1", null },
+            { HttpMethod.Post, "/api/location/sessions/1/sos", null },
             {
                 HttpMethod.Post,
                 "/api/friendships/requests",

@@ -1,0 +1,22 @@
+using Api.Domain.Location.Dto;
+using Api.Domain.Location.Service;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+
+namespace Api.Domain.Location.Api;
+
+[ApiController]
+[Route("api/location/clusters")]
+public class LocationClusterController(LocationClusterService service) : ControllerBase
+{
+    private readonly LocationClusterService _service = service;
+
+    [HttpGet]
+    [SwaggerOperation(Summary = "Get clustered map pins for a bounding box and zoom level")]
+    public async Task<ActionResult<List<MapClusterGetResponseDto>?>> GetClusters([FromQuery] MapClusterBoundsQueryDto query)
+    {
+        var result = await _service.GetClustersAsync(query);
+        if (result is null) return NoContent();
+        return Ok(result);
+    }
+}
