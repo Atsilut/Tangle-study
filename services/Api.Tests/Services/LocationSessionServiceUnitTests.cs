@@ -160,4 +160,83 @@ public sealed class LocationSessionServiceUnitTests
         // Assert
         Assert.Null(mine);
     }
+
+    [Fact]
+    public async Task ReconcileGhostSessionsAsync_EndsSession_WhenRedisMissing()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = LocationSessionServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var groupId = await LocationSessionServiceTestFactory.SeedGroupWithMembersAsync(
+            graph.GroupMemberRepository,
+            user.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
+        {
+            GroupId = groupId,
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+        await graph.LiveStore.RemoveLiveLocationAsync(groupId, user.Id);
+
+        // Act
+        await graph.LocationSessionService.ReconcileGhostSessionsAsync();
+        var mine = await graph.LocationSessionService.GetMyActiveSessionAsync(groupId);
+
+        // Assert
+        Assert.Null(mine);
+    }
+
+    [Fact]
+    public async Task HandleUserDeletionAsync_PurgesRedisLiveLocation()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = LocationSessionServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var groupId = await LocationSessionServiceTestFactory.SeedGroupWithMembersAsync(
+            graph.GroupMemberRepository,
+            user.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
+        {
+            GroupId = groupId,
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+        Assert.NotNull(await graph.LiveStore.GetLiveLocationAsync(groupId, user.Id));
+
+        // Act
+        await graph.LocationSessionService.HandleUserDeletionAsync(user.Id);
+
+        // Assert
+        Assert.Null(await graph.LiveStore.GetLiveLocationAsync(groupId, user.Id));
+    }
+
+    [Fact]
+    public async Task GetMyActiveSessionAsync_EndsGhostSession_WhenRedisMissing()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = LocationSessionServiceTestFactory.Create(http);
+        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var groupId = await LocationSessionServiceTestFactory.SeedGroupWithMembersAsync(
+            graph.GroupMemberRepository,
+            user.Id);
+        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
+        {
+            GroupId = groupId,
+            Latitude = 37.5665m,
+            Longitude = 126.9780m,
+        });
+        await graph.LiveStore.RemoveLiveLocationAsync(groupId, user.Id);
+
+        // Act
+        var mine = await graph.LocationSessionService.GetMyActiveSessionAsync(groupId);
+
+        // Assert
+        Assert.Null(mine);
+    }
 }

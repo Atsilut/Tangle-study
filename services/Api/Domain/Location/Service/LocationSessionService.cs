@@ -57,7 +57,11 @@ public class LocationSessionService(
         if (session is null) return null;
 
         var live = await _liveStore.GetLiveLocationAsync(groupId, userId);
-        if (live is null || live.SessionId != session.Id) return null;
+        if (live is null || live.SessionId != session.Id)
+        {
+            await EndGhostSessionAsync(session);
+            return null;
+        }
 
         return await MapSessionAsync(session, live);
     }
@@ -213,8 +217,31 @@ public class LocationSessionService(
             throw new UnauthorizedAccessException("You must be a group member to view this location session.");
     }
 
-    public Task HandleUserDeletionAsync(long userId) =>
-        _repo.EndAllActiveSessionsForUserAsync(userId);
+    public async Task HandleUserDeletionAsync(long userId)
+    {
+        var sessions = (await _repo.GetAllActiveSessionsAsync())
+            .Where(s => s.UserId == userId)
+            .ToList();
+
+        await _repo.EndAllActiveSessionsForUserAsync(userId);
+
+        foreach (var session in sessions)
+            await _liveStore.RemoveLiveLocationAsync(session.GroupId, userId);
+    }
+
+    public async Task ReconcileGhostSessionsAsync()
+    {
+        var sessions = await _repo.GetAllActiveSessionsAsync();
+        foreach (var session in sessions)
+        {
+            if (session.UserId is null) continue;
+
+            var live = await _liveStore.GetLiveLocationAsync(session.GroupId, session.UserId.Value);
+            if (live is not null && live.SessionId == session.Id) continue;
+
+            await EndGhostSessionAsync(session);
+        }
+    }
 
     private async Task EndActiveSessionForUserInGroupAsync(long userId, long groupId)
     {
@@ -235,6 +262,16 @@ public class LocationSessionService(
         if (session.OwnerUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
 
         return session;
+    }
+
+    private async Task EndGhostSessionAsync(LocationSession session)
+    {
+        if (!session.IsActive || session.UserId is null) return;
+
+        session.End();
+        await _repo.UpdateSessionAsync(session);
+        await _liveStore.RemoveLiveLocationAsync(session.GroupId, session.UserId.Value);
+        await _safetyAlerts.ClearStaleAlertStateAsync(session.Id);
     }
 
     private async Task<LiveLocationSnapshot> WriteLiveLocationAsync(

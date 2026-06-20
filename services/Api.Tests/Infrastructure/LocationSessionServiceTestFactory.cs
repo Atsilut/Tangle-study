@@ -67,7 +67,8 @@ internal static class LocationSessionServiceTestFactory
         var liveStore = new LiveLocationRedisStore(
             distributedCache,
             new ServiceCollection().BuildServiceProvider(),
-            redisOptions);
+            redisOptions,
+            Options.Create(new LocationSafetyOptions()));
         var nicknameCacheService = DomainServiceTestFactory.CreateNicknameCacheService(userRepository, distributedCache);
 
         var userService = new UserService(

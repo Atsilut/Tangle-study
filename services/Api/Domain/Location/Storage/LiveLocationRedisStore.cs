@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Api.Domain.Location.Config;
 using Api.Global.Config;
 using Api.Global.Infrastructure;
 using Microsoft.Extensions.Caching.Distributed;
@@ -20,15 +21,19 @@ public record LiveLocationSnapshot(
 public class LiveLocationRedisStore(
     IDistributedCache cache,
     IServiceProvider serviceProvider,
-    IOptions<RedisOptions> redisOptions)
+    IOptions<RedisOptions> redisOptions,
+    IOptions<LocationSafetyOptions> locationSafetyOptions)
 {
     private const string KeyPrefix = "location:live:";
-    private static readonly TimeSpan LiveLocationTtl = TimeSpan.FromMinutes(5);
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IDistributedCache _cache = cache;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly RedisOptions _redisOptions = redisOptions.Value;
+    private readonly LocationSafetyOptions _locationSafetyOptions = locationSafetyOptions.Value;
+
+    private TimeSpan LiveLocationTtl =>
+        TimeSpan.FromMinutes(_locationSafetyOptions.ResolveLivePositionTtlMinutes());
 
     public Task SetLiveLocationAsync(LiveLocationSnapshot snapshot)
     {

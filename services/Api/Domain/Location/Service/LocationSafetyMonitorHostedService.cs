@@ -22,8 +22,10 @@ public sealed class LocationSafetyMonitorHostedService(
             {
                 await Task.Delay(interval, stoppingToken);
                 using var scope = _scopeFactory.CreateScope();
-                var service = scope.ServiceProvider.GetRequiredService<LocationSafetyAlertService>();
-                await service.EvaluateStaleSessionsAsync();
+                var sessionService = scope.ServiceProvider.GetRequiredService<LocationSessionService>();
+                await sessionService.ReconcileGhostSessionsAsync();
+                var safetyService = scope.ServiceProvider.GetRequiredService<LocationSafetyAlertService>();
+                await safetyService.EvaluateStaleSessionsAsync();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
