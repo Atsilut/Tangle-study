@@ -5,16 +5,19 @@ import {
   LogLevel,
 } from '@microsoft/signalr'
 import { getAccessToken } from '@/stores/authStore'
-import type { LiveLocation } from './api'
+import type { LiveLocation, LocationSafetyAlert, LocationSafetyAlertType } from './api'
 
 export const LOCATION_UPDATED_EVENT = 'LocationUpdated'
+export const SAFETY_ALERT_RAISED_EVENT = 'SafetyAlertRaised'
 
 let connection: HubConnection | null = null
 let startPromise: Promise<void> | null = null
 let handlersInstalled = false
 
 const sessionListeners = new Map<number, Set<(location: LiveLocation) => void>>()
+const groupAlertListeners = new Map<number, Set<(alert: LocationSafetyAlert) => void>>()
 const joinedSessions = new Set<number>()
+const joinedGroupAlerts = new Set<number>()
 
 function getConnection(): HubConnection {
   if (!connection) {
@@ -54,10 +57,51 @@ function normalizeLiveLocation(raw: unknown): LiveLocation | null {
   return { sessionId, groupId, userId, userNickname, latitude, longitude, updatedAt }
 }
 
+function normalizeSafetyAlert(raw: unknown): LocationSafetyAlert | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = raw as Record<string, unknown>
+  const type = value.type
+  const groupId = Number(value.groupId)
+  const sessionId = Number(value.sessionId)
+  const userId = Number(value.userId)
+  const userNickname = typeof value.userNickname === 'string' ? value.userNickname : ''
+  const occurredAt = typeof value.occurredAt === 'string' ? value.occurredAt : new Date().toISOString()
+  const message = typeof value.message === 'string' ? value.message : ''
+  const latitude = value.latitude == null ? null : Number(value.latitude)
+  const longitude = value.longitude == null ? null : Number(value.longitude)
+
+  if (
+    (type !== 'StalePosition' && type !== 'Sos') ||
+    !Number.isFinite(groupId) ||
+    !Number.isFinite(sessionId) ||
+    !Number.isFinite(userId)
+  ) {
+    return null
+  }
+
+  return {
+    type: type as LocationSafetyAlertType,
+    groupId,
+    sessionId,
+    userId,
+    userNickname,
+    latitude: latitude != null && Number.isFinite(latitude) ? latitude : null,
+    longitude: longitude != null && Number.isFinite(longitude) ? longitude : null,
+    occurredAt,
+    message,
+  }
+}
+
 function dispatchLocation(raw: unknown) {
   const location = normalizeLiveLocation(raw)
   if (!location) return
   sessionListeners.get(location.sessionId)?.forEach((listener) => listener(location))
+}
+
+function dispatchSafetyAlert(raw: unknown) {
+  const alert = normalizeSafetyAlert(raw)
+  if (!alert) return
+  groupAlertListeners.get(alert.groupId)?.forEach((listener) => listener(alert))
 }
 
 function installConnectionHandlers(conn: HubConnection) {
@@ -65,9 +109,11 @@ function installConnectionHandlers(conn: HubConnection) {
   handlersInstalled = true
 
   conn.on(LOCATION_UPDATED_EVENT, dispatchLocation)
+  conn.on(SAFETY_ALERT_RAISED_EVENT, dispatchSafetyAlert)
 
   conn.onreconnected(async () => {
     await rejoinAllSessions(conn)
+    await rejoinAllGroupAlerts(conn)
   })
 }
 
@@ -77,6 +123,34 @@ async function rejoinAllSessions(conn: HubConnection) {
       await conn.invoke('JoinSession', sessionId)
     } catch {
       // Session access may have changed while disconnected.
+    }
+  }
+}
+
+async function rejoinAllGroupAlerts(conn: HubConnection) {
+  for (const groupId of joinedGroupAlerts) {
+    try {
+      await conn.invoke('JoinGroupAlerts', groupId)
+    } catch {
+      // Group access may have changed while disconnected.
+    }
+  }
+}
+
+async function joinGroupAlerts(conn: HubConnection, groupId: number) {
+  if (joinedGroupAlerts.has(groupId)) return
+  await conn.invoke('JoinGroupAlerts', groupId)
+  joinedGroupAlerts.add(groupId)
+}
+
+async function leaveGroupAlerts(conn: HubConnection, groupId: number) {
+  if (!joinedGroupAlerts.has(groupId)) return
+  joinedGroupAlerts.delete(groupId)
+  if (conn.state === HubConnectionState.Connected) {
+    try {
+      await conn.invoke('LeaveGroupAlerts', groupId)
+    } catch {
+      // Best-effort leave when unsubscribing.
     }
   }
 }
@@ -132,6 +206,31 @@ export async function subscribeToLocationSession(
     if (set?.size === 0) {
       sessionListeners.delete(sessionId)
       void leaveSession(conn, sessionId)
+    }
+  }
+}
+
+export async function subscribeToGroupSafetyAlerts(
+  groupId: number,
+  onAlert: (alert: LocationSafetyAlert) => void,
+): Promise<() => void> {
+  const conn = await ensureLocationConnected()
+
+  let listeners = groupAlertListeners.get(groupId)
+  if (!listeners) {
+    listeners = new Set()
+    groupAlertListeners.set(groupId, listeners)
+  }
+  listeners.add(onAlert)
+
+  await joinGroupAlerts(conn, groupId)
+
+  return () => {
+    const set = groupAlertListeners.get(groupId)
+    set?.delete(onAlert)
+    if (set?.size === 0) {
+      groupAlertListeners.delete(groupId)
+      void leaveGroupAlerts(conn, groupId)
     }
   }
 }

@@ -4,7 +4,21 @@ export interface GeoCoordinates {
   accuracy: number | null
 }
 
-export function readCurrentPosition(): Promise<GeoCoordinates> {
+export interface ReadCurrentPositionOptions {
+  /** Prefer a fresh GPS fix (start sharing). Default false for periodic heartbeats. */
+  highAccuracy?: boolean
+  /** Accept a cached fix up to this age in ms. Heartbeats use a longer cache to avoid timeouts. */
+  maximumAge?: number
+  timeout?: number
+}
+
+export function readCurrentPosition(
+  options: ReadCurrentPositionOptions = {},
+): Promise<GeoCoordinates> {
+  const highAccuracy = options.highAccuracy ?? false
+  const maximumAge = options.maximumAge ?? (highAccuracy ? 10_000 : 120_000)
+  const timeout = options.timeout ?? (highAccuracy ? 15_000 : 10_000)
+
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation is not supported in this browser.'))
@@ -20,9 +34,9 @@ export function readCurrentPosition(): Promise<GeoCoordinates> {
         }),
       (error) => reject(new Error(error.message || 'Could not read your location.')),
       {
-        enableHighAccuracy: true,
-        maximumAge: 10_000,
-        timeout: 15_000,
+        enableHighAccuracy: highAccuracy,
+        maximumAge,
+        timeout,
       },
     )
   })

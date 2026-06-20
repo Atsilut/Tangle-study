@@ -2,11 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createMapPin,
   getActiveGroupLocations,
+  getGroupMemberSharingStatus,
   getMapClustersInBounds,
   getMapPinsInBounds,
   getMyLocationSession,
   startLocationSession,
   stopLocationSession,
+  triggerLocationSos,
   updateLocationSessionPosition,
   MIN_CLUSTER_ZOOM,
   MAX_CLUSTER_ZOOM,
@@ -29,6 +31,8 @@ export const locationKeys = {
     [...locationKeys.all, 'sessions', 'mine', groupId] as const,
   activeGroup: (groupId: number | null) =>
     [...locationKeys.all, 'sessions', 'active', groupId] as const,
+  memberStatus: (groupId: number | null) =>
+    [...locationKeys.all, 'sessions', 'members', groupId] as const,
 }
 
 export function useMapClusters(bounds: MapBounds | null, zoom: number | null) {
@@ -58,6 +62,12 @@ export function useMapPins(bounds: MapBounds | null) {
   })
 }
 
+export function useTriggerLocationSos() {
+  return useMutation({
+    mutationFn: (sessionId: number) => triggerLocationSos(sessionId),
+  })
+}
+
 export function useCreateMapPin() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -72,6 +82,7 @@ export function useMyLocationSession(groupId: number | null, enabled: boolean) {
     queryFn: () => getMyLocationSession(groupId as number),
     enabled: enabled && groupId != null,
     staleTime: 10_000,
+    placeholderData: (previous) => previous,
   })
 }
 
@@ -79,6 +90,16 @@ export function useActiveGroupLocations(groupId: number | null, enabled: boolean
   return useQuery({
     queryKey: locationKeys.activeGroup(groupId),
     queryFn: () => getActiveGroupLocations(groupId as number),
+    enabled: enabled && groupId != null,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  })
+}
+
+export function useGroupMemberSharingStatus(groupId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: locationKeys.memberStatus(groupId),
+    queryFn: () => getGroupMemberSharingStatus(groupId as number),
     enabled: enabled && groupId != null,
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -93,6 +114,7 @@ export function useStartLocationSession(groupId: number | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
       queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.memberStatus(groupId) })
     },
   })
 }
@@ -107,9 +129,10 @@ export function useUpdateLocationSessionPosition(groupId: number | null) {
       sessionId: number
       body: LocationPositionUpdateRequest
     }) => updateLocationSessionPosition(sessionId, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
+    onSuccess: (updated) => {
+      queryClient.setQueryData(locationKeys.mySession(groupId), updated)
       queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.memberStatus(groupId) })
     },
   })
 }
@@ -121,6 +144,7 @@ export function useStopLocationSession(groupId: number | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: locationKeys.mySession(groupId) })
       queryClient.invalidateQueries({ queryKey: locationKeys.activeGroup(groupId) })
+      queryClient.invalidateQueries({ queryKey: locationKeys.memberStatus(groupId) })
     },
   })
 }

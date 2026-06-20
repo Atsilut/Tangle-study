@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
-import { readCurrentPosition } from '../geolocation'
+import { readCurrentPosition, watchCurrentPosition, type GeoCoordinates } from '../geolocation'
 import {
   useMyLocationSession,
   useStartLocationSession,
   useStopLocationSession,
+  useTriggerLocationSos,
   useUpdateLocationSessionPosition,
 } from '../hooks'
 
@@ -21,22 +22,49 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
   const startSession = useStartLocationSession(groupId)
   const stopSession = useStopLocationSession(groupId)
   const updatePosition = useUpdateLocationSessionPosition(groupId)
+  const triggerSos = useTriggerLocationSos()
   const [error, setError] = useState<string | null>(null)
-
-  const pushCurrentPosition = useCallback(async () => {
-    if (!mySession) return
-    const position = await readCurrentPosition()
-    await updatePosition.mutateAsync({
-      sessionId: mySession.id,
-      body: {
-        latitude: position.latitude,
-        longitude: position.longitude,
-      },
-    })
-  }, [mySession, updatePosition])
+  const sessionIdRef = useRef<number | null>(null)
+  const lastPositionRef = useRef<Pick<GeoCoordinates, 'latitude' | 'longitude'> | null>(null)
 
   useEffect(() => {
-    if (!mySession) return
+    sessionIdRef.current = mySession?.id ?? null
+  }, [mySession?.id])
+
+  const rememberPosition = useCallback((position: Pick<GeoCoordinates, 'latitude' | 'longitude'>) => {
+    lastPositionRef.current = position
+  }, [])
+
+  const pushCurrentPosition = useCallback(async () => {
+    const sessionId = sessionIdRef.current
+    if (sessionId == null) return
+
+    let latitude: number
+    let longitude: number
+    try {
+      const position = await readCurrentPosition()
+      latitude = position.latitude
+      longitude = position.longitude
+      rememberPosition(position)
+    } catch (readError: unknown) {
+      const last = lastPositionRef.current
+      if (last == null) throw readError
+      // Heartbeat: re-send last known coords so the server refreshes UpdatedAt even when
+      // getCurrentPosition times out (common on desktop) or the device has not moved.
+      latitude = last.latitude
+      longitude = last.longitude
+    }
+
+    await updatePosition.mutateAsync({
+      sessionId,
+      body: { latitude, longitude },
+    })
+    setError(null)
+  }, [rememberPosition, updatePosition])
+
+  useEffect(() => {
+    const sessionId = mySession?.id
+    if (sessionId == null) return
 
     void pushCurrentPosition().catch((err: unknown) => {
       setError(getErrorMessage(err, 'Could not refresh live location.'))
@@ -49,13 +77,23 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
     }, POSITION_REFRESH_MS)
 
     return () => window.clearInterval(intervalId)
-  }, [mySession, pushCurrentPosition])
+  }, [mySession?.id, pushCurrentPosition])
+
+  useEffect(() => {
+    if (mySession == null) return
+
+    return watchCurrentPosition(
+      (position) => rememberPosition(position),
+      () => {},
+    )
+  }, [mySession, rememberPosition])
 
   const handleStart = async () => {
     if (groupId == null) return
     setError(null)
     try {
-      const position = await readCurrentPosition()
+      const position = await readCurrentPosition({ highAccuracy: true })
+      rememberPosition(position)
       await startSession.mutateAsync({
         latitude: position.latitude,
         longitude: position.longitude,
@@ -75,7 +113,19 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
     }
   }
 
-  const isBusy = startSession.isPending || stopSession.isPending || updatePosition.isPending
+  const handleSos = async () => {
+    if (!mySession) return
+    setError(null)
+    try {
+      await triggerSos.mutateAsync(mySession.id)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Could not send SOS alert.'))
+    }
+  }
+
+  const isSharing = mySession != null
+  const isUserActionBusy =
+    startSession.isPending || stopSession.isPending || triggerSos.isPending
 
   if (groupId == null) {
     return (
@@ -96,12 +146,22 @@ export function LiveSharingControls({ groupId }: LiveSharingControlsProps) {
               : 'Share your current position with members of the selected group.'}
           </p>
         </div>
-        {mySession ? (
-          <Button size="sm" variant="secondary" disabled={isBusy || isLoading} onClick={handleStop}>
-            Stop sharing
-          </Button>
+        {isSharing ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={isUserActionBusy}
+              onClick={handleSos}
+            >
+              SOS
+            </Button>
+            <Button size="sm" variant="secondary" disabled={isUserActionBusy} onClick={handleStop}>
+              Stop sharing
+            </Button>
+          </div>
         ) : (
-          <Button size="sm" disabled={isBusy || isLoading} onClick={handleStart}>
+          <Button size="sm" disabled={isUserActionBusy || isLoading} onClick={handleStart}>
             Start sharing
           </Button>
         )}

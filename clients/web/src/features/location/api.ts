@@ -31,6 +31,30 @@ export interface MapCluster {
   samplePinId: number | null
 }
 
+export type LocationSafetyAlertType = 'StalePosition' | 'Sos'
+
+export interface LocationSafetyAlert {
+  type: LocationSafetyAlertType
+  groupId: number
+  sessionId: number
+  userId: number
+  userNickname: string
+  latitude: number | null
+  longitude: number | null
+  occurredAt: string
+  message: string
+}
+
+export interface GroupMemberLocationStatus {
+  userId: number
+  userNickname: string
+  isSharing: boolean
+  sessionId: number | null
+  latitude: number | null
+  longitude: number | null
+  updatedAt: string | null
+}
+
 export interface LocationSession {
   id: number
   groupId: number
@@ -144,6 +168,11 @@ export function getActiveGroupLocations(groupId: number): Promise<LiveLocation[]
   return getList<LiveLocation>('/location/sessions/active', { params: { groupId } })
 }
 
+// GET /api/location/sessions/members?groupId= (JWT) -> 200 list (may be empty)
+export function getGroupMemberSharingStatus(groupId: number): Promise<GroupMemberLocationStatus[]> {
+  return getList<GroupMemberLocationStatus>('/location/sessions/members', { params: { groupId } })
+}
+
 // PATCH /api/location/sessions/{id}/position (JWT) -> 200 session
 export async function updateLocationSessionPosition(
   sessionId: number,
@@ -156,4 +185,10 @@ export async function updateLocationSessionPosition(
 // DELETE /api/location/sessions/{id} (JWT) -> 204
 export async function stopLocationSession(sessionId: number): Promise<void> {
   await api.delete(`/location/sessions/${sessionId}`)
+}
+
+// POST /api/location/sessions/{id}/sos (JWT) -> 200 alert
+export async function triggerLocationSos(sessionId: number): Promise<LocationSafetyAlert> {
+  const res = await api.post<LocationSafetyAlert>(`/location/sessions/${sessionId}/sos`)
+  return res.data
 }
