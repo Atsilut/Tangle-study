@@ -187,7 +187,17 @@ internal static class DomainServiceTestFactory
             http);
 
         var locationAccessService = new LocationAccessService(postService, userBlockService, http);
-        mapPinService = new MapPinService(mapPinRepository, userService, locationAccessService, http);
+        var locationClusterService = new LocationClusterService(
+            mapPinRepository,
+            locationAccessService,
+            distributedCache,
+            new FakeWorkQueue());
+        mapPinService = new MapPinService(
+            mapPinRepository,
+            userService,
+            locationAccessService,
+            new Lazy<LocationClusterService>(() => locationClusterService),
+            http);
 
         friendRequestService = new FriendRequestService(
             friendRequestRepository,

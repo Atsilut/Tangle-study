@@ -26,6 +26,7 @@ internal static class LocationServiceTestFactory
 {
     internal sealed record Graph(
         MapPinService MapPinService,
+        LocationClusterService LocationClusterService,
         LocationAccessService LocationAccessService,
         FakeUserRepository UserRepository,
         IMapPinRepository MapPinRepository);
@@ -157,9 +158,25 @@ internal static class LocationServiceTestFactory
 
         var locationAccessService = new LocationAccessService(postService, userBlockService, http);
 
-        mapPinService = new MapPinService(mapPinRepository, userService, locationAccessService, http);
+        var locationClusterService = new LocationClusterService(
+            mapPinRepository,
+            locationAccessService,
+            distributedCache,
+            new FakeWorkQueue());
 
-        return new Graph(mapPinService, locationAccessService, userRepository, mapPinRepository);
+        mapPinService = new MapPinService(
+            mapPinRepository,
+            userService,
+            locationAccessService,
+            new Lazy<LocationClusterService>(() => locationClusterService),
+            http);
+
+        return new Graph(
+            mapPinService,
+            locationClusterService,
+            locationAccessService,
+            userRepository,
+            mapPinRepository);
     }
 
     private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>
