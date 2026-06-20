@@ -1,12 +1,14 @@
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Service;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Api.Domain.Location.Api;
 
 [ApiController]
 [Route("api/location/places")]
+[EnableRateLimiting("places")]
 public class PlaceController(GooglePlacesService service) : ControllerBase
 {
     private readonly GooglePlacesService _service = service;
@@ -33,6 +35,8 @@ public class PlaceController(GooglePlacesService service) : ControllerBase
         [FromQuery] decimal longitude,
         CancellationToken cancellationToken = default)
     {
+        LocationCoordinateValidation.Validate(latitude, longitude);
+
         var displayName = await _service.ReverseGeocodeAsync(latitude, longitude, cancellationToken);
         if (displayName is null) return NoContent();
         return Ok(new PlaceReverseResponseDto(displayName));

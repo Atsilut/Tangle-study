@@ -30,6 +30,8 @@ internal static class LocationSessionServiceTestFactory
         LiveLocationRedisStore LiveStore,
         FakeGroupMemberRepository GroupMemberRepository,
         FakeUserRepository UserRepository,
+        FakeUserBlockRepository UserBlockRepository,
+        UserBlockService UserBlockService,
         FakeLocationRealtimeNotifier RealtimeNotifier);
 
     internal sealed class FakeLocationRealtimeNotifier : ILocationRealtimeNotifier
@@ -37,6 +39,7 @@ internal static class LocationSessionServiceTestFactory
         public Domain.Location.Dto.LiveLocationGetResponseDto? LastNotification { get; private set; }
         public Domain.Location.Dto.LocationSessionEndedDto? LastSessionEnded { get; private set; }
         public Domain.Location.Dto.LocationSafetyAlertDto? LastSafetyAlert { get; set; }
+        public IReadOnlyList<long> LastSafetyAlertRecipients { get; private set; } = [];
         public int SafetyAlertCount { get; private set; }
 
         public Task NotifyLocationUpdatedAsync(long sessionId, Domain.Location.Dto.LiveLocationGetResponseDto location)
@@ -51,9 +54,10 @@ internal static class LocationSessionServiceTestFactory
             return Task.CompletedTask;
         }
 
-        public Task NotifySafetyAlertAsync(Domain.Location.Dto.LocationSafetyAlertDto alert)
+        public Task NotifySafetyAlertAsync(Domain.Location.Dto.LocationSafetyAlertDto alert, IReadOnlyList<long> recipientUserIds)
         {
             LastSafetyAlert = alert;
+            LastSafetyAlertRecipients = recipientUserIds;
             SafetyAlertCount++;
             return Task.CompletedTask;
         }
@@ -93,8 +97,9 @@ internal static class LocationSessionServiceTestFactory
             nicknameCacheService,
             new NoOpEventPublisher());
 
+        var userBlockRepository = new FakeUserBlockRepository();
         var userBlockService = new UserBlockService(
-            new FakeUserBlockRepository(),
+            userBlockRepository,
             new Lazy<FriendRequestService>(() => null!),
             userService,
             http);
@@ -122,6 +127,8 @@ internal static class LocationSessionServiceTestFactory
             sessionRepository,
             liveStore,
             userService,
+            groupMembershipService,
+            userBlockService,
             realtimeNotifier,
             distributedCache,
             Options.Create(new LocationSafetyOptions()),
@@ -143,6 +150,8 @@ internal static class LocationSessionServiceTestFactory
             liveStore,
             groupMemberRepository,
             userRepository,
+            userBlockRepository,
+            userBlockService,
             realtimeNotifier);
     }
 

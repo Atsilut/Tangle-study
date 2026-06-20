@@ -1,9 +1,11 @@
+using Api.Domain.Groups.Service;
 using Api.Domain.Location.Config;
 using Api.Domain.Location.Domain;
 using Api.Domain.Location.Dto;
 using Api.Domain.Location.Realtime;
 using Api.Domain.Location.Repository;
 using Api.Domain.Location.Storage;
+using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Exceptions;
 using Api.Global.Infrastructure;
@@ -17,25 +19,35 @@ public class LocationSafetyAlertService(
     ILocationSessionRepository repo,
     LiveLocationRedisStore liveStore,
     UserService userService,
+    GroupMembershipService groupMembership,
+    UserBlockService userBlockService,
     ILocationRealtimeNotifier realtime,
     IDistributedCache cache,
     IOptions<LocationSafetyOptions> options,
     IHttpContextAccessor httpContextAccessor)
 {
     private const string StaleAlertSentKeyPrefix = "location:safety:stale:";
+    private const string SosCooldownKeyPrefix = "location:safety:sos:";
 
     private readonly ILocationSessionRepository _repo = repo;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly UserService _userService = userService;
+    private readonly GroupMembershipService _groupMembership = groupMembership;
+    private readonly UserBlockService _userBlockService = userBlockService;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly IDistributedCache _cache = cache;
     private readonly LocationSafetyOptions _options = options.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
+    public Task EnsureCanJoinGroupAlertsAsync(long groupId, long userId) =>
+        _groupMembership.EnsureMemberAsync(groupId, userId, "Group not found");
+
     public async Task<LocationSafetyAlertDto> TriggerSosAsync(long sessionId)
     {
         var userId = GetUserIdFromLogin();
         var session = await GetActiveSessionOwnedByUserOrThrowAsync(sessionId, userId);
+        await EnsureSosCooldownAllowsAsync(session.Id);
+
         var live = await _liveStore.GetLiveLocationAsync(session.GroupId, userId);
         var nickname = await GetNicknameAsync(session.OwnerUserId);
 
@@ -50,7 +62,9 @@ public class LocationSafetyAlertService(
             DateTime.UtcNow,
             $"{nickname} requested help via live location.");
 
-        await _realtime.NotifySafetyAlertAsync(alert);
+        var recipients = await GetAlertRecipientUserIdsAsync(session.GroupId, session.OwnerUserId);
+        await _realtime.NotifySafetyAlertAsync(alert, recipients);
+        await MarkSosSentAsync(session.Id);
         return alert;
     }
 
@@ -83,7 +97,8 @@ public class LocationSafetyAlertService(
                 now,
                 $"{nickname}'s live location has not updated in {_options.StalePositionMinutes} minutes.");
 
-            await _realtime.NotifySafetyAlertAsync(alert);
+            var recipients = await GetAlertRecipientUserIdsAsync(session.GroupId, session.OwnerUserId);
+            await _realtime.NotifySafetyAlertAsync(alert, recipients);
             await MarkStaleAlertSentAsync(session.Id);
         }
     }
@@ -107,6 +122,42 @@ public class LocationSafetyAlertService(
             });
 
     private static string GetStaleAlertSentKey(long sessionId) => $"{StaleAlertSentKeyPrefix}{sessionId}";
+
+    private static string GetSosCooldownKey(long sessionId) => $"{SosCooldownKeyPrefix}{sessionId}";
+
+    private async Task EnsureSosCooldownAllowsAsync(long sessionId)
+    {
+        if (_options.SosCooldownSeconds <= 0) return;
+
+        var value = await _cache.GetStringAsync(GetSosCooldownKey(sessionId));
+        if (!string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Please wait before sending another SOS alert.");
+    }
+
+    private Task MarkSosSentAsync(long sessionId) =>
+        _cache.SetStringAsync(
+            GetSosCooldownKey(sessionId),
+            "1",
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.SosCooldownSeconds),
+            });
+
+    private async Task<List<long>> GetAlertRecipientUserIdsAsync(long groupId, long subjectUserId)
+    {
+        var memberIds = await _groupMembership.GetMemberUserIdsAsync(groupId);
+        if (memberIds.Count == 0) return [];
+
+        List<long> recipients = [];
+        foreach (var memberId in memberIds)
+        {
+            if (memberId == subjectUserId) continue;
+            if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(memberId, [subjectUserId])) continue;
+            recipients.Add(memberId);
+        }
+
+        return recipients;
+    }
 
     private async Task<string> GetNicknameAsync(long userId) =>
         (await _userService.GetNicknamesByUserIdsAsync([userId]))

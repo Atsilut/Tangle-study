@@ -325,9 +325,6 @@ public class LocationSessionService(
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
-    private static void ValidateCoordinates(decimal latitude, decimal longitude)
-    {
-        if (latitude is < -90 or > 90) throw new ArgumentException("Latitude must be between -90 and 90.");
-        if (longitude is < -180 or > 180) throw new ArgumentException("Longitude must be between -180 and 180.");
-    }
+    private static void ValidateCoordinates(decimal latitude, decimal longitude) =>
+        LocationCoordinateValidation.Validate(latitude, longitude);
 }

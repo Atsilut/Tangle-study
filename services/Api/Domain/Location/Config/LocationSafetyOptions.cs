@@ -18,4 +18,7 @@ public class LocationSafetyOptions
 
     public int ResolveLivePositionTtlMinutes() =>
         LivePositionTtlMinutes > 0 ? LivePositionTtlMinutes : StalePositionMinutes + 2;
+
+    /// <summary>Minimum seconds between SOS alerts from the same live session.</summary>
+    public int SosCooldownSeconds { get; set; } = 60;
 }

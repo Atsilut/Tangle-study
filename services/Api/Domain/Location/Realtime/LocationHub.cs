@@ -8,14 +8,14 @@ namespace Api.Domain.Location.Realtime;
 [Authorize]
 public class LocationHub(
     LocationSessionService sessionService,
-    GroupMembershipService groupMembership) : Hub
+    LocationSafetyAlertService safetyAlerts) : Hub
 {
     public const string LocationUpdatedEvent = "LocationUpdated";
     public const string LocationSessionEndedEvent = "LocationSessionEnded";
     public const string SafetyAlertRaisedEvent = "SafetyAlertRaised";
 
     private readonly LocationSessionService _sessionService = sessionService;
-    private readonly GroupMembershipService _groupMembership = groupMembership;
+    private readonly LocationSafetyAlertService _safetyAlerts = safetyAlerts;
 
     public static string SessionGroup(long sessionId) => $"session:{sessionId}";
     public static string GroupAlertsGroup(long groupId) => $"group-alerts:{groupId}";
@@ -31,7 +31,7 @@ public class LocationHub(
 
     public async Task JoinGroupAlerts(long groupId)
     {
-        await _groupMembership.EnsureMemberAsync(groupId, GetUserId(), "Group not found");
+        await _safetyAlerts.EnsureCanJoinGroupAlertsAsync(groupId, GetUserId());
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupAlertsGroup(groupId));
     }
 

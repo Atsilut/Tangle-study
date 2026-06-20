@@ -44,6 +44,12 @@ namespace Api.Domain.Groups.Service
             _ = await _repo.GetMemberAsync(groupId, userId) ?? throw new EntityNotFoundException(notFoundMessage);
         }
 
+        public async Task<IReadOnlyList<long>> GetMemberUserIdsAsync(long groupId)
+        {
+            var members = await _repo.GetMembersByGroupAsync(groupId);
+            return members.Select(m => m.UserId).Distinct().ToList();
+        }
+
         public async Task<List<GroupMemberGetResponseDto>> GetMembersForMemberAsync(long groupId, long callerId)
         {
             await EnsureMemberAsync(groupId, callerId, "Group not found");
