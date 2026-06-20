@@ -141,6 +141,69 @@ Recommend **B → C**: move to schema-per-service during first extraction, then 
 
 ---
 
+## Post-split database constraints
+
+The monolith uses EF foreign keys across future service boundaries. Application code already references **IDs** via services; at extraction **drop cross-service FKs and navigations**, keep ID columns.
+
+Grouped by [extraction order](#extraction-order). Configured in [`AppDbContext.cs`](../services/Api/Global/Db/AppDbContext.cs).
+
+### Step 1 — media-service
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `MediaAssets` | `UploaderId` | users |
+| `MediaAssets` | `PostId`, `CommentId`, `ChatMessageId` | posts, comments, chat |
+
+### Step 2 — chat-service
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `ChatRooms` | `PlatformGroupId` | **groups** (cross-route; keep ID column) |
+| `ChatRooms` | `CreatedByUserId`, `UserLowId`, `UserHighId` | users |
+| `ChatRoomParticipants` | `UserId` | users |
+| `ChatMessages` | `SenderUserId` | users |
+| `ChatMessageReceipts` | `UserId` | users |
+
+### Step 3 — location-service
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `MapPins` | `UserId`, `PostId` | users, posts |
+| `LocationSessions` | `UserId`, `GroupId` | users, groups |
+
+### Step 4 — posts-service + comments-service
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `Posts` | `UserId` | users |
+| `Posts` | `GroupId`, `GroupBoardId` | **groups** (cross-route; keep ID columns) |
+| `Comments` | `UserId`, `PostId`, `ParentId` | users, posts, comments |
+
+### Step 5 — groups-service
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `GroupMembers`, `GroupInvitations`, `GroupApplications`, `GroupBlacklists` | `UserId` / user refs | users |
+
+### Step 6 — friendships + user-blocks
+
+| Table | FK columns | Drop FK to |
+|-------|------------|------------|
+| `Friendships` | `UserLowId`, `UserHighId` | users |
+| `FriendRequests` | `RequesterId`, `AddresseeId` | users |
+| `UserBlocks` | `BlockerId`, `BlockedUserId` | users |
+
+### Step 7 — users-service
+
+No inbound cross-service FKs remain on `Users` after prior steps.
+
+**Highest-impact cross-route FKs** (document before groups extraction):
+
+- `Posts.GroupId` / `Posts.GroupBoardId` → groups — see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
+- `ChatRooms.PlatformGroupId` → groups — see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
+
+---
+
 ## Non-goals (v1 MSA)
 
 Keep scope realistic for a learning project:

@@ -193,15 +193,7 @@ Group members subscribed via `JoinGroupAlerts` receive `SafetyAlertRaised` event
 
 Stale alerts dedupe per session until the next position update. Monitor interval: `LocationSafety:MonitorIntervalSeconds` (default **60**).
 
----
-
-## Planned (later milestones)
-
-| Feature | Mechanism |
-|---------|-----------|
-| _(none — Phase 7 location milestones complete in monolith)_ |
-
-Job and event contracts will be documented in [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) as they are added.
+Async job contract for map clustering: [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) (`location.cluster`).
 
 ---
 

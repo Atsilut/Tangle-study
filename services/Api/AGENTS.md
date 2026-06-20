@@ -12,6 +12,10 @@ Cross-domain access follows the same rule (for example `GroupService` calls `Pos
 
 Use `AppDbContext` in a service only for **transaction boundaries** (`ExecuteInTransactionAsync`). Do not query another aggregate’s `DbSet` directly (for example `CommentService` must not use `_db.Posts`; use `PostService` instead).
 
+## Async contracts
+
+New Redis Streams jobs require a record in [`Global/Queue/WorkQueueContracts.cs`](Global/Queue/WorkQueueContracts.cs) and a row in [`Global/Queue/QUEUE.md`](Global/Queue/QUEUE.md). New pub/sub events require a record in [`Global/Events/RedisEventContracts.cs`](Global/Events/RedisEventContracts.cs) and a row in [`Global/Events/EVENTS.md`](Global/Events/EVENTS.md). Include `SchemaVersion = 1` on new payload records.
+
 ## Circular dependencies
 
 When two services need each other, inject `Lazy<T>` on at least one side (see `GroupApplicationService` / `GroupInvitationService`, `GroupService` / `GroupMembershipService`). The project registers `Lazy<>` in DI via `LazyService<T>`.

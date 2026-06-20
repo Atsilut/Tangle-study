@@ -210,6 +210,8 @@ Central index: [docs/README.md](docs/README.md)
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
 | [services/Api/Domain/Media/MEDIA.md](services/Api/Domain/Media/MEDIA.md) | Media upload and processing |
 | [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
+| [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
+| [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 
 ---
 
@@ -224,7 +226,7 @@ Central index: [docs/README.md](docs/README.md)
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
-| 8 | MSA prep — cross-service contracts; [QUEUE.md](services/Api/Global/Queue/QUEUE.md) documents `location.cluster` | In progress |
+| 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
 | 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
 
 Phase 9 starts only after Phases 5–7 are complete end-to-end (metrics, location API, React map). MAUI remains optional after the React path works.
