@@ -29,6 +29,21 @@ namespace Api.Domain.UserBlocks.Repository
                 || (otherUserIds.Contains(b.BlockerId) && b.BlockedUserId == userId));
         }
 
+        public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(long userId, IReadOnlyCollection<long> otherUserIds)
+        {
+            if (otherUserIds.Count == 0) return [];
+
+            var ids = otherUserIds.Distinct().ToList();
+            var blockedIds = await _context.UserBlocks
+                .Where(b => (b.BlockerId == userId && ids.Contains(b.BlockedUserId))
+                    || (ids.Contains(b.BlockerId) && b.BlockedUserId == userId))
+                .Select(b => b.BlockerId == userId ? b.BlockedUserId : b.BlockerId)
+                .Distinct()
+                .ToListAsync();
+
+            return blockedIds.ToHashSet();
+        }
+
         public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>
             _context.UserBlocks.FindAsync(id).AsTask();
 

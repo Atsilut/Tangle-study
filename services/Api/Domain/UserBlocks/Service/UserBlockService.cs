@@ -62,6 +62,9 @@ namespace Api.Domain.UserBlocks.Service
         public Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds) =>
             _repo.AnyBlockExistsBetweenUserAndOthersAsync(userId, otherUserIds);
 
+        public Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(long userId, IReadOnlyCollection<long> otherUserIds) =>
+            _repo.GetMutuallyBlockedUserIdsAsync(userId, otherUserIds);
+
         public async Task EnsureNoBlockBetweenUserAndOthersAsync(long userId, IReadOnlyCollection<long> otherUserIds)
         {
             if (await AnyBlockExistsBetweenUserAndOthersAsync(userId, otherUserIds))
