@@ -51,3 +51,12 @@ public record LiveLocationGetResponseDto(
     decimal Latitude,
     decimal Longitude,
     DateTime UpdatedAt);
+
+public record GroupMemberLocationStatusDto(
+    long UserId,
+    string UserNickname,
+    bool IsSharing,
+    long? SessionId,
+    decimal? Latitude,
+    decimal? Longitude,
+    DateTime? UpdatedAt);

@@ -4,11 +4,12 @@ namespace Api.Domain.Location.Repository;
 
 public interface ILocationSessionRepository
 {
-    Task CreateSessionAsync(LocationSession session);
-    Task<LocationSession?> GetSessionByIdAsync(long id);
-    Task<LocationSession?> GetActiveSessionForUserInGroupAsync(long userId, long groupId);
-    Task<List<LocationSession>> GetActiveSessionsForGroupAsync(long groupId);
-    Task UpdateSessionAsync(LocationSession session);
-    Task EndActiveSessionForUserInGroupAsync(long userId, long groupId);
-    Task EndAllActiveSessionsForUserAsync(long userId);
+    public Task CreateSessionAsync(LocationSession session);
+    public Task<LocationSession?> GetSessionByIdAsync(long id);
+    public Task<LocationSession?> GetActiveSessionForUserInGroupAsync(long userId, long groupId);
+    public Task<List<LocationSession>> GetActiveSessionsForGroupAsync(long groupId);
+    public Task<List<LocationSession>> GetAllActiveSessionsAsync();
+    public Task UpdateSessionAsync(LocationSession session);
+    public Task EndActiveSessionForUserInGroupAsync(long userId, long groupId);
+    public Task EndAllActiveSessionsForUserAsync(long userId);
 }

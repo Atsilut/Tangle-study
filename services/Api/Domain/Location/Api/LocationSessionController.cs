@@ -9,9 +9,12 @@ namespace Api.Domain.Location.Api;
 [ApiController]
 [Route("api/location/sessions")]
 [Authorize]
-public class LocationSessionController(LocationSessionService service) : ControllerBase
+public class LocationSessionController(
+    LocationSessionService service,
+    LocationSafetyAlertService safetyAlertService) : ControllerBase
 {
     private readonly LocationSessionService _service = service;
+    private readonly LocationSafetyAlertService _safetyAlertService = safetyAlertService;
 
     [HttpPost]
     [SwaggerOperation(Summary = "Start live location sharing with a group")]
@@ -40,6 +43,12 @@ public class LocationSessionController(LocationSessionService service) : Control
         return Ok(result);
     }
 
+    [HttpGet("members")]
+    [SwaggerOperation(Summary = "Get sharing status for other members in a group")]
+    public async Task<ActionResult<List<GroupMemberLocationStatusDto>>> GetGroupMemberSharingStatus(
+        [FromQuery] long groupId) =>
+        Ok(await _service.GetGroupMemberSharingStatusAsync(groupId));
+
     [HttpPatch("{id:long}/position")]
     [SwaggerOperation(Summary = "Update live location position")]
     public async Task<ActionResult<LocationSessionGetResponseDto>> UpdatePosition(
@@ -54,4 +63,9 @@ public class LocationSessionController(LocationSessionService service) : Control
         await _service.StopSessionAsync(id);
         return NoContent();
     }
+
+    [HttpPost("{id:long}/sos")]
+    [SwaggerOperation(Summary = "Send an SOS safety alert to group members")]
+    public async Task<ActionResult<LocationSafetyAlertDto>> TriggerSos([FromRoute] long id) =>
+        Ok(await _safetyAlertService.TriggerSosAsync(id));
 }

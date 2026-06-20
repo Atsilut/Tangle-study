@@ -13,4 +13,9 @@ public class LocationRealtimeNotifier(IHubContext<LocationHub> hub) : ILocationR
         _hub.Clients
             .Group(LocationHub.SessionGroup(sessionId))
             .SendAsync(LocationHub.LocationUpdatedEvent, location);
+
+    public Task NotifySafetyAlertAsync(LocationSafetyAlertDto alert) =>
+        _hub.Clients
+            .Group(LocationHub.GroupAlertsGroup(alert.GroupId))
+            .SendAsync(LocationHub.SafetyAlertRaisedEvent, alert);
 }

@@ -5,4 +5,5 @@ namespace Api.Domain.Location.Realtime;
 public interface ILocationRealtimeNotifier
 {
     Task NotifyLocationUpdatedAsync(long sessionId, LiveLocationGetResponseDto location);
+    Task NotifySafetyAlertAsync(LocationSafetyAlertDto alert);
 }

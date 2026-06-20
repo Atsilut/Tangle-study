@@ -1,3 +1,4 @@
+using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Service;
 using Api.Domain.Location.Domain;
 using Api.Domain.Location.Dto;
@@ -19,6 +20,7 @@ public class LocationSessionService(
     UserService userService,
     LiveLocationRedisStore liveStore,
     ILocationRealtimeNotifier realtime,
+    LocationSafetyAlertService safetyAlerts,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly ILocationSessionRepository _repo = repo;
@@ -27,6 +29,7 @@ public class LocationSessionService(
     private readonly UserService _userService = userService;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
+    private readonly LocationSafetyAlertService _safetyAlerts = safetyAlerts;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public async Task<LocationSessionGetResponseDto> StartSessionAsync(LocationSessionCreateRequestDto request)
@@ -107,6 +110,60 @@ public class LocationSessionService(
         return result.Count == 0 ? null : result;
     }
 
+    public async Task<List<GroupMemberLocationStatusDto>> GetGroupMemberSharingStatusAsync(long groupId)
+    {
+        var viewerId = GetUserIdFromLogin();
+        var members = await _groupMembership.GetMembersForMemberAsync(groupId, viewerId);
+        var otherMembers = members.Where(m => m.UserId != viewerId).ToList();
+        if (otherMembers.Count == 0) return [];
+
+        var visibleMembers = new List<GroupMemberGetResponseDto>();
+        foreach (var member in otherMembers)
+        {
+            if (await _userBlockService.AnyBlockExistsBetweenUserAndOthersAsync(viewerId, [member.UserId]))
+                continue;
+            visibleMembers.Add(member);
+        }
+
+        if (visibleMembers.Count == 0) return [];
+
+        var sessions = await _repo.GetActiveSessionsForGroupAsync(groupId);
+        var sessionByUserId = sessions
+            .Where(s => s.UserId is not null)
+            .GroupBy(s => s.UserId!.Value)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.StartedAt).First());
+
+        var sharingUserIds = sessionByUserId.Keys.ToList();
+        var liveByUserId = sharingUserIds.Count == 0
+            ? new Dictionary<long, LiveLocationSnapshot>()
+            : await _liveStore.GetLiveLocationsAsync(groupId, sharingUserIds);
+
+        List<GroupMemberLocationStatusDto> result = [];
+        foreach (var member in visibleMembers)
+        {
+            LiveLocationSnapshot? live = null;
+            LocationSession? session = null;
+            if (sessionByUserId.TryGetValue(member.UserId, out session)
+                && liveByUserId.TryGetValue(member.UserId, out var snapshot)
+                && snapshot.SessionId == session.Id)
+                live = snapshot;
+
+            result.Add(new GroupMemberLocationStatusDto(
+                member.UserId,
+                member.Nickname,
+                live is not null,
+                live?.SessionId,
+                live?.Latitude,
+                live?.Longitude,
+                live?.UpdatedAt));
+        }
+
+        return result
+            .OrderByDescending(m => m.IsSharing)
+            .ThenBy(m => m.UserNickname, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public async Task<LocationSessionGetResponseDto> UpdatePositionAsync(
         long sessionId,
         LocationPositionUpdateRequestDto request)
@@ -127,6 +184,7 @@ public class LocationSessionService(
             snapshot.UpdatedAt);
 
         await _realtime.NotifyLocationUpdatedAsync(session.Id, dto);
+        await _safetyAlerts.ClearStaleAlertStateAsync(session.Id);
         return await MapSessionAsync(session, snapshot);
     }
 

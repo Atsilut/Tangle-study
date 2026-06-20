@@ -1,6 +1,8 @@
 using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Realtime;
+using Api.Domain.Location.Config;
 using Api.Domain.Location.Realtime;
+using Api.Domain.Location.Service;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -39,6 +41,9 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
+builder.Services.Configure<LocationSafetyOptions>(
+    builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
+builder.Services.AddHostedService<LocationSafetyMonitorHostedService>();
 builder.Services.AddSingleton<TokenProvider>();
 
 builder.Services

@@ -1,6 +1,6 @@
 # Location API
 
-Memory Map pins and live location sharing in the monolith. Safety alerts land in a later milestone.
+Memory Map pins and live location sharing in the monolith, including group safety alerts.
 
 Related: [SERVICE_BOUNDARIES.md](../../../../docs/SERVICE_BOUNDARIES.md#location-service).
 
@@ -166,12 +166,32 @@ Authenticated **group members** can share live position within a group:
 | `POST` | `/api/location/sessions` | Bearer | Start sharing; body includes `groupId`, `latitude`, `longitude` |
 | `GET` | `/api/location/sessions/mine?groupId=` | Bearer | Active session in that group or `204` |
 | `GET` | `/api/location/sessions/active?groupId=` | Bearer | Other members' live locations in that group or `204` |
+| `GET` | `/api/location/sessions/members?groupId=` | Bearer | Sharing status for other group members (`isSharing` true/false) |
 | `PATCH` | `/api/location/sessions/{id}/position` | Bearer | Update position; pushes `LocationUpdated` via SignalR |
 | `DELETE` | `/api/location/sessions/{id}` | Bearer | Stop sharing |
+| `POST` | `/api/location/sessions/{id}/sos` | Bearer | Manual SOS alert to group members |
 
-SignalR hub: `/hubs/location` — `JoinSession(sessionId)` / `LeaveSession(sessionId)`; event `LocationUpdated`. Viewers must be members of the session's group.
+SignalR hub: `/hubs/location`
+
+| Client method | Description |
+|---------------|-------------|
+| `JoinSession(sessionId)` / `LeaveSession(sessionId)` | Live position updates (`LocationUpdated`) |
+| `JoinGroupAlerts(groupId)` / `LeaveGroupAlerts(groupId)` | Safety alerts for a group (`SafetyAlertRaised`) |
 
 Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with a five-minute TTL, refreshed on each position update. Session headers live in Postgres (`LocationSession` with `groupId`).
+
+---
+
+## Safety alerts
+
+Group members subscribed via `JoinGroupAlerts` receive `SafetyAlertRaised` events.
+
+| Alert type | Trigger |
+|------------|---------|
+| `StalePosition` | Background monitor: active session with no position update for `LocationSafety:StalePositionMinutes` (default **3**) |
+| `Sos` | `POST /api/location/sessions/{id}/sos` while sharing |
+
+Stale alerts dedupe per session until the next position update. Monitor interval: `LocationSafety:MonitorIntervalSeconds` (default **60**).
 
 ---
 
@@ -179,7 +199,7 @@ Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with a f
 
 | Feature | Mechanism |
 |---------|-----------|
-| Safety alerts | SignalR events |
+| _(none — Phase 7 location milestones complete in monolith)_ |
 
 Job and event contracts will be documented in [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) as they are added.
 

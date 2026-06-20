@@ -30,6 +30,11 @@ public class LocationSessionRepository(AppDbContext context) : ILocationSessionR
             .Where(s => s.GroupId == groupId && s.EndedAt == null)
             .ToListAsync();
 
+    public Task<List<LocationSession>> GetAllActiveSessionsAsync() =>
+        _context.LocationSessions
+            .Where(s => s.EndedAt == null)
+            .ToListAsync();
+
     public Task UpdateSessionAsync(LocationSession session) =>
         _context.SaveChangesAsync();
 
