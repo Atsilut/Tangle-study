@@ -220,7 +220,7 @@ services:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: chat.message.created
-      WORKER_CONSUMER_GROUP: tangle-workers
+      WORKER_CONSUMER_GROUP: tangle-study-workers
       WORKER_METRICS_PORT: "9090"
       RUST_LOG: info
     expose:
@@ -240,7 +240,7 @@ services:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: media.uploaded
-      WORKER_CONSUMER_GROUP: tangle-workers
+      WORKER_CONSUMER_GROUP: tangle-study-workers
       API_BASE_URL: http://api:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
@@ -268,7 +268,7 @@ services:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: location.cluster
-      WORKER_CONSUMER_GROUP: tangle-workers
+      WORKER_CONSUMER_GROUP: tangle-study-workers
       API_BASE_URL: http://api:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret
       WORKER_METRICS_PORT: "9090"

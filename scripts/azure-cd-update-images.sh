@@ -23,17 +23,17 @@ update_app() {
     --output none
 }
 
-update_app "tangle-api" "tangle-api"
-update_app "tangle-web" "tangle-web"
-update_app "tangle-worker-chat" "tangle-worker"
-update_app "tangle-worker-media" "tangle-worker"
-update_app "tangle-worker-location" "tangle-worker"
+update_app "tangle-study-api" "tangle-study-api"
+update_app "tangle-study-web" "tangle-study-web"
+update_app "tangle-study-worker-chat" "tangle-study-worker"
+update_app "tangle-study-worker-media" "tangle-study-worker"
+update_app "tangle-study-worker-location" "tangle-study-worker"
 
 echo "==> Updating migrate job image"
 az containerapp job update \
-  --name "tangle-migrate" \
+  --name "tangle-study-migrate" \
   --resource-group "$AZURE_RESOURCE_GROUP" \
-  --image "${CONTAINER_REGISTRY}/tangle-api:${IMAGE_TAG}" \
+  --image "${CONTAINER_REGISTRY}/tangle-study-api:${IMAGE_TAG}" \
   --output none
 
 echo "==> Container app images updated."

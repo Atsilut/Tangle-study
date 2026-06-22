@@ -6,8 +6,8 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 
 | Service | Alternative |
 |---------|-------------|
-| Azure Database for PostgreSQL | **`tangle-postgres`** Container App (`postgres:18` + Azure File persistence) |
-| Azure Cache for Redis | **`tangle-redis`** Container App (`redis:8-alpine`) |
+| Azure Database for PostgreSQL | **`tangle-study-postgres`** Container App (`postgres:18` + Azure File persistence) |
+| Azure Cache for Redis | **`tangle-study-redis`** Container App (`redis:8-alpine`) |
 | Azure Container Registry (ACR) | **[GitHub Container Registry (GHCR)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)** — free for public packages |
 
 ## What stays on Azure
@@ -59,9 +59,9 @@ Public GHCR images need **no** registry username/password on Container Apps.
 
 CD builds and pushes:
 
-- `ghcr.io/<org>/tangle-study/tangle-api:<tag>`
-- `ghcr.io/<org>/tangle-study/tangle-web:<tag>`
-- `ghcr.io/<org>/tangle-study/tangle-worker:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-api:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-web:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker:<tag>`
 
 Set `containerRegistry` in `parameters.prod.json` to match your org.
 
@@ -71,12 +71,12 @@ Set `containerRegistry` in `parameters.prod.json` to match your org.
 
 | App | Hostname (within environment) |
 |-----|------------------------------|
-| Postgres | `tangle-postgres:5432` |
-| Redis | `tangle-redis:6379` |
-| API | `tangle-api:8080` (internal ingress) |
+| Postgres | `tangle-study-postgres:5432` |
+| Redis | `tangle-study-redis:6379` |
+| API | `tangle-study-api:8080` (internal ingress) |
 | Web | public FQDN → proxies to API |
 
-Postgres password is injected by CD from GitHub secret `POSTGRES_ADMIN_PASSWORD` (API, migrate job, and postgres container). Use the same value at infra deploy for first-time Postgres init. Redis URL is plain env (`redis://tangle-redis:6379`).
+Postgres password is injected by CD from GitHub secret `POSTGRES_ADMIN_PASSWORD` (API, migrate job, and postgres container). Use the same value at infra deploy for first-time Postgres init. Redis URL is plain env (`redis://tangle-study-redis:6379`).
 
 ## After Bicep deploy
 

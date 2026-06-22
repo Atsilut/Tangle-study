@@ -40,8 +40,8 @@ Study-friendly stack — **no managed PostgreSQL, Redis, or ACR** (those lack a 
 
 | Compose (local) | Azure |
 |-----------------|-------|
-| `db` | `tangle-postgres` Container App |
-| `redis` | `tangle-redis` Container App |
+| `db` | `tangle-study-postgres` Container App |
+| `redis` | `tangle-study-redis` Container App |
 | `azurite` | Storage account (blob) |
 | Built images | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
 
@@ -99,10 +99,10 @@ Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_S
 
 After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
 
-1. Builds and pushes `tangle-api`, `tangle-web`, `tangle-worker` to GHCR
+1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker` to GHCR
 2. Injects secrets into Container Apps
 3. Updates app images to the commit SHA
-4. Runs `tangle-migrate` job
+4. Runs `tangle-study-migrate` job
 
 Manual deploy: **Actions → Deploy → Run workflow** (uses `production` environment).
 
@@ -144,7 +144,7 @@ Store these on GitHub Environment **`production`**. The deploy workflow maps eac
 | `GHCR_REGISTRY_USERNAME` | (registry pull on all apps + migrate job) | No | Only if GHCR packages are **private** |
 | `GHCR_REGISTRY_PASSWORD` | (registry pull) | No | GitHub PAT with `read:packages` |
 
-**Not GitHub secrets:** Redis host is set by Bicep (`tangle-redis:6379`). Blob public endpoint and media container name are non-secret Bicep outputs.
+**Not GitHub secrets:** Redis host is set by Bicep (`tangle-study-redis:6379`). Blob public endpoint and media container name are non-secret Bicep outputs.
 
 Non-secret config can be GitHub **variables** or Bicep parameters:
 
@@ -168,7 +168,7 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 | `BLOB_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | Media worker only | Same storage account as API |
 | `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET` | Media worker only | Must match `Media__WorkerCallbackSecret` |
 
-Redis URL is set by Bicep (`REDIS_URL=redis://tangle-redis:6379`).
+Redis URL is set by Bicep (`REDIS_URL=redis://tangle-study-redis:6379`).
 
 Per-worker settings (Bicep or GitHub variables):
 
@@ -214,7 +214,7 @@ ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
 The deploy workflow runs migrations automatically before the new API revision serves traffic:
 
 1. Build and push API image to GHCR (same tag as app deploy).
-2. Update migrate job image, then `az containerapp job start` on `tangle-migrate`.
+2. Update migrate job image, then `az containerapp job start` on `tangle-study-migrate`.
 3. Proceed only if the job execution status is `Succeeded`.
 
 Skip on manual runs: **Deploy → Run workflow → Skip EF migrate job**.
@@ -227,7 +227,7 @@ Development/Docker still auto-migrate on API startup for local convenience.
 
 ### Application Insights
 
-Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on `tangle-api`. The API enables [Azure Monitor OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=aspnetcore) when that variable is present — see [`AzureMonitorTelemetryExtensions.cs`](../services/Api/Global/Telemetry/AzureMonitorTelemetryExtensions.cs).
+Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on `tangle-study-api`. The API enables [Azure Monitor OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=aspnetcore) when that variable is present — see [`AzureMonitorTelemetryExtensions.cs`](../services/Api/Global/Telemetry/AzureMonitorTelemetryExtensions.cs).
 
 Container Apps platform logs go to the same Log Analytics workspace. Local Prometheus/Grafana under [`infra/`](../infra/) remains for Docker Compose.
 
@@ -235,8 +235,8 @@ Container Apps platform logs go to the same Log Analytics workspace. Local Prome
 
 After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh):
 
-- `GET https://<tangle-web-fqdn>/health` — expects `Healthy` (proxied to API)
-- `GET https://<tangle-web-fqdn>/` — SPA shell loads
+- `GET https://<tangle-study-web-fqdn>/health` — expects `Healthy` (proxied to API)
+- `GET https://<tangle-study-web-fqdn>/` — SPA shell loads
 
 Manual run:
 
@@ -253,7 +253,7 @@ Complete this checklist **manually in production** after the first successful CD
 **Web URL:** resolve the public FQDN once:
 
 ```bash
-az containerapp show --name tangle-web --resource-group tangle-prod \
+az containerapp show --name tangle-study-web --resource-group tangle-prod \
   --query properties.configuration.ingress.fqdn -o tsv
 ```
 
@@ -316,7 +316,7 @@ Requires `PLACES_API_KEY` for place search. Workers may cold-start from zero rep
 
 ### Workers & async paths
 
-Confirm worker Container Apps (`tangle-worker-media`, `tangle-worker-chat`, `tangle-worker-location`) scale up after triggering the feature above. Check execution logs in Log Analytics if a job stalls.
+Confirm worker Container Apps (`tangle-study-worker-media`, `tangle-study-worker-chat`, `tangle-study-worker-location`) scale up after triggering the feature above. Check execution logs in Log Analytics if a job stalls.
 
 - [ ] Media upload → thumbnail/variant available in UI
 - [ ] Chat message → delivered without page reload
@@ -325,7 +325,7 @@ Confirm worker Container Apps (`tangle-worker-media`, `tangle-worker-chat`, `tan
 ### Observability
 
 - [ ] API requests visible in Application Insights (Live Metrics or Transactions)
-- [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-api -g tangle-prod --tail 50`)
+- [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-study-api -g tangle-prod --tail 50`)
 - [ ] No sustained 5xx on `/api/*` during the walkthrough
 
 ### Sign-off
@@ -363,7 +363,7 @@ docker compose build nginx
 # Azure / production edge
 docker build -f clients/web/Dockerfile \
   --build-arg NGINX_CONF=nginx.production.conf \
-  -t tangle-web .
+  -t tangle-study-web .
 ```
 
 ---

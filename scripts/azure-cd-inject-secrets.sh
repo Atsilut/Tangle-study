@@ -30,7 +30,7 @@ PLACES_API_KEY="${PLACES_API_KEY:-}"
 POSTGRES_ADMIN_LOGIN="${POSTGRES_ADMIN_LOGIN:-tangle}"
 APP_INSIGHTS_NAME="${APP_INSIGHTS_NAME:-tanglestudyprod-appi}"
 
-POSTGRES_CONNECTION_STRING="Host=tangle-postgres;Port=5432;Database=tangledb;Username=${POSTGRES_ADMIN_LOGIN};Password=${POSTGRES_ADMIN_PASSWORD};Pooling=true"
+POSTGRES_CONNECTION_STRING="Host=tangle-study-postgres;Port=5432;Database=tangledb;Username=${POSTGRES_ADMIN_LOGIN};Password=${POSTGRES_ADMIN_PASSWORD};Pooling=true"
 
 if [[ -z "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
   echo "==> Resolving Application Insights connection string from Azure (${APP_INSIGHTS_NAME})"
@@ -42,20 +42,20 @@ if [[ -z "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
 fi
 : "${APPLICATIONINSIGHTS_CONNECTION_STRING:?APPLICATIONINSIGHTS_CONNECTION_STRING is required (set secret or ensure App Insights exists)}"
 
-echo "==> Postgres container (tangle-postgres)"
+echo "==> Postgres container (tangle-study-postgres)"
 az containerapp secret set \
-  --name tangle-postgres \
+  --name tangle-study-postgres \
   --resource-group "$RG" \
   --secrets "postgres-password=${POSTGRES_ADMIN_PASSWORD}" \
   --output none
 
 az containerapp update \
-  --name tangle-postgres \
+  --name tangle-study-postgres \
   --resource-group "$RG" \
   --set-env-vars "POSTGRES_PASSWORD=secretref:postgres-password" \
   --output none
 
-echo "==> API secrets (tangle-api)"
+echo "==> API secrets (tangle-study-api)"
 SECRET_ARGS=(
   "postgres-conn=${POSTGRES_CONNECTION_STRING}"
   "blob-conn=${BLOB_CONNECTION_STRING}"
@@ -69,7 +69,7 @@ if [[ -n "$PLACES_API_KEY" ]]; then
 fi
 
 az containerapp secret set \
-  --name tangle-api \
+  --name tangle-study-api \
   --resource-group "$RG" \
   --secrets "${SECRET_ARGS[@]}" \
   --output none
@@ -87,27 +87,27 @@ if [[ -n "$PLACES_API_KEY" ]]; then
 fi
 
 az containerapp update \
-  --name tangle-api \
+  --name tangle-study-api \
   --resource-group "$RG" \
   --set-env-vars "${API_ENV[@]}" \
   --output none
 
-echo "==> Migrate job secrets (tangle-migrate)"
+echo "==> Migrate job secrets (tangle-study-migrate)"
 az containerapp job secret set \
-  --name tangle-migrate \
+  --name tangle-study-migrate \
   --resource-group "$RG" \
   --secrets "postgres-conn=${POSTGRES_CONNECTION_STRING}" \
   --output none
 
 az containerapp job update \
-  --name tangle-migrate \
+  --name tangle-study-migrate \
   --resource-group "$RG" \
   --set-env-vars "ConnectionStrings__DefaultConnection=secretref:postgres-conn" \
   --output none
 
-echo "==> Media worker secrets (tangle-worker-media)"
+echo "==> Media worker secrets (tangle-study-worker-media)"
 az containerapp secret set \
-  --name tangle-worker-media \
+  --name tangle-study-worker-media \
   --resource-group "$RG" \
   --secrets \
     "blob-conn=${BLOB_CONNECTION_STRING}" \
@@ -115,7 +115,7 @@ az containerapp secret set \
   --output none
 
 az containerapp update \
-  --name tangle-worker-media \
+  --name tangle-study-worker-media \
   --resource-group "$RG" \
   --set-env-vars \
     "AZURE_STORAGE_CONNECTION_STRING=secretref:blob-conn" \
@@ -125,11 +125,11 @@ az containerapp update \
 if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then
   echo "==> GHCR registry credentials (private packages)"
   REGISTRY_APPS=(
-    tangle-api
-    tangle-web
-    tangle-worker-chat
-    tangle-worker-media
-    tangle-worker-location
+    tangle-study-api
+    tangle-study-web
+    tangle-study-worker-chat
+    tangle-study-worker-media
+    tangle-study-worker-location
   )
   for app in "${REGISTRY_APPS[@]}"; do
     az containerapp registry set \
@@ -141,7 +141,7 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
       --output none
   done
   az containerapp job registry set \
-    --name tangle-migrate \
+    --name tangle-study-migrate \
     --resource-group "$RG" \
     --server ghcr.io \
     --username "$GHCR_REGISTRY_USERNAME" \

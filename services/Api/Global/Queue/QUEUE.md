@@ -52,7 +52,7 @@ API → XADD stream → Rust worker (XREADGROUP) → process → result storage
 
 Workers should:
 
-- Use a consumer group per stream (e.g. `tangle-workers`)
+- Use a consumer group per stream (e.g. `tangle-study-workers`)
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
 

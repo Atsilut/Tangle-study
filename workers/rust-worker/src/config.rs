@@ -38,7 +38,7 @@ impl Config {
             redis_url: env_var("REDIS_URL", "redis://127.0.0.1:6379")?,
             stream_prefix: env_var("WORKER_STREAM_PREFIX", "tangle:queue:")?,
             stream_key: env_var("WORKER_STREAM_KEY", "chat.message.created")?,
-            consumer_group: env_var("WORKER_CONSUMER_GROUP", "tangle-workers")?,
+            consumer_group: env_var("WORKER_CONSUMER_GROUP", "tangle-study-workers")?,
             consumer_name: env_var(
                 "WORKER_CONSUMER_NAME",
                 &format!(

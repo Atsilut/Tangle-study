@@ -6,7 +6,7 @@
       "value": "dev"
     },
     "containerRegistry": {
-      "value": "ghcr.io/your-org/tangle-study"
+      "value": "ghcr.io/atsilut/tangle-study"
     },
     "usePlaceholderImages": {
       "value": true

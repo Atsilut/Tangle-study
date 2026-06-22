@@ -5,14 +5,14 @@
 #   AZURE_RESOURCE_GROUP
 #
 # Optional env:
-#   WEB_APP_NAME (default: tangle-web)
+#   WEB_APP_NAME (default: tangle-study-web)
 #   SMOKE_TIMEOUT_SEC (default: 300)
 #
 set -euo pipefail
 
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 
-WEB_APP="${WEB_APP_NAME:-tangle-web}"
+WEB_APP="${WEB_APP_NAME:-tangle-study-web}"
 TIMEOUT="${SMOKE_TIMEOUT_SEC:-300}"
 RG="$AZURE_RESOURCE_GROUP"
 

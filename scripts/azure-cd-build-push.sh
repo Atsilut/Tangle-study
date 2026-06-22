@@ -34,16 +34,16 @@ build_push() {
   docker push "$tag"
 }
 
-build_push services/Api/Dockerfile tangle-api \
+build_push services/Api/Dockerfile tangle-study-api \
   --build-arg "DOTNET_SDK_IMAGE=${DOTNET_SDK_IMAGE}" \
   --build-arg "DOTNET_ASPNET_IMAGE=${DOTNET_ASPNET_IMAGE}"
 
-build_push clients/web/Dockerfile tangle-web \
+build_push clients/web/Dockerfile tangle-study-web \
   --build-arg "NGINX_CONF=nginx.production.conf" \
   --build-arg "NODE_IMAGE=${NODE_IMAGE}" \
   --build-arg "NGINX_IMAGE=${NGINX_IMAGE}"
 
-build_push workers/rust-worker/Dockerfile tangle-worker \
+build_push workers/rust-worker/Dockerfile tangle-study-worker \
   --build-arg "RUST_IMAGE=${RUST_IMAGE}" \
   --build-arg "DEBIAN_IMAGE=${DEBIAN_IMAGE}"
 

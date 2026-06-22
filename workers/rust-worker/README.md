@@ -36,7 +36,7 @@ With the default stack (`docker compose up`), start Redis, the API, and Azurite 
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection URL |
 | `WORKER_STREAM_PREFIX` | `tangle:queue:` | Prefix for stream keys (matches API `Redis:WorkQueueStreamPrefix`) |
 | `WORKER_STREAM_KEY` | `chat.message.created` | Stream key suffix; one worker process per key |
-| `WORKER_CONSUMER_GROUP` | `tangle-workers` | Redis consumer group name |
+| `WORKER_CONSUMER_GROUP` | `tangle-study-workers` | Redis consumer group name |
 | `WORKER_CONSUMER_NAME` | `tangle-worker-{hostname}-{pid}` | Consumer name within the group |
 | `WORKER_BLOCK_MS` | `5000` | `XREADGROUP` block timeout (ms) |
 | `WORKER_BATCH_COUNT` | `10` | Max entries per read |

@@ -5,14 +5,14 @@
 #   AZURE_RESOURCE_GROUP
 #
 # Optional env:
-#   MIGRATE_JOB_NAME (default: tangle-migrate)
+#   MIGRATE_JOB_NAME (default: tangle-study-migrate)
 #   MIGRATE_TIMEOUT_SEC (default: 600)
 #
 set -euo pipefail
 
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 
-JOB_NAME="${MIGRATE_JOB_NAME:-tangle-migrate}"
+JOB_NAME="${MIGRATE_JOB_NAME:-tangle-study-migrate}"
 TIMEOUT="${MIGRATE_TIMEOUT_SEC:-600}"
 RG="$AZURE_RESOURCE_GROUP"
 

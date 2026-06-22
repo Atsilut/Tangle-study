@@ -43,11 +43,11 @@ param tags object = {
 
 var namePrefix = '${baseName}${environment}'
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
-var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-api:${imageTag}'
-var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-web:${imageTag}'
-var workerImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-worker:${imageTag}'
+var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-api:${imageTag}'
+var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-web:${imageTag}'
+var workerImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker:${imageTag}'
 
-var redisConnectionString = 'tangle-redis:6379'
+var redisConnectionString = 'tangle-study-redis:6379'
 var redisUrl = 'redis://${redisConnectionString}'
 
 var apiSecretEnvVars = [
@@ -112,7 +112,7 @@ module postgresStorage 'modules/environment-storage.bicep' = {
 module postgres 'modules/infra-container.bicep' = {
   name: 'infra-postgres'
   params: {
-    name: 'tangle-postgres'
+    name: 'tangle-study-postgres'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: postgresImage
@@ -136,7 +136,7 @@ module postgres 'modules/infra-container.bicep' = {
 module redis 'modules/infra-container.bicep' = {
   name: 'infra-redis'
   params: {
-    name: 'tangle-redis'
+    name: 'tangle-study-redis'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: redisImage
@@ -152,7 +152,7 @@ module redis 'modules/infra-container.bicep' = {
 module api 'modules/container-app.bicep' = {
   name: 'container-app-api'
   params: {
-    name: 'tangle-api'
+    name: 'tangle-study-api'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: apiImage
@@ -183,7 +183,7 @@ module api 'modules/container-app.bicep' = {
 module web 'modules/container-app.bicep' = {
   name: 'container-app-web'
   params: {
-    name: 'tangle-web'
+    name: 'tangle-study-web'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: webImage
@@ -199,7 +199,7 @@ module web 'modules/container-app.bicep' = {
     registryPassword: registryPassword
     tags: tags
     envVars: [
-      { name: 'TANGLE_API_UPSTREAM', value: 'tangle-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'TANGLE_API_UPSTREAM', value: 'tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
     ]
     secretEnvVars: []
   }
@@ -208,7 +208,7 @@ module web 'modules/container-app.bicep' = {
 module workerChat 'modules/container-app.bicep' = {
   name: 'container-app-worker-chat'
   params: {
-    name: 'tangle-worker-chat'
+    name: 'tangle-study-worker-chat'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
@@ -224,7 +224,7 @@ module workerChat 'modules/container-app.bicep' = {
       { name: 'REDIS_URL', value: redisUrl }
       { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
       { name: 'WORKER_STREAM_KEY', value: 'chat.message.created' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-workers' }
+      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]
@@ -235,7 +235,7 @@ module workerChat 'modules/container-app.bicep' = {
 module workerMedia 'modules/container-app.bicep' = {
   name: 'container-app-worker-media'
   params: {
-    name: 'tangle-worker-media'
+    name: 'tangle-study-worker-media'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
@@ -251,8 +251,8 @@ module workerMedia 'modules/container-app.bicep' = {
       { name: 'REDIS_URL', value: redisUrl }
       { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
       { name: 'WORKER_STREAM_KEY', value: 'media.uploaded' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-workers' }
-      { name: 'API_BASE_URL', value: 'http://tangle-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
+      { name: 'API_BASE_URL', value: 'http://tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
       { name: 'MEDIA_CONTAINER_NAME', value: storage.outputs.containerName }
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
@@ -267,7 +267,7 @@ module workerMedia 'modules/container-app.bicep' = {
 module workerLocation 'modules/container-app.bicep' = {
   name: 'container-app-worker-location'
   params: {
-    name: 'tangle-worker-location'
+    name: 'tangle-study-worker-location'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
@@ -283,8 +283,8 @@ module workerLocation 'modules/container-app.bicep' = {
       { name: 'REDIS_URL', value: redisUrl }
       { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
       { name: 'WORKER_STREAM_KEY', value: 'location.cluster' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-workers' }
-      { name: 'API_BASE_URL', value: 'http://tangle-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
+      { name: 'API_BASE_URL', value: 'http://tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]
@@ -295,7 +295,7 @@ module workerLocation 'modules/container-app.bicep' = {
 module migrateJob 'modules/migrate-job.bicep' = {
   name: 'migrate-job'
   params: {
-    name: 'tangle-migrate'
+    name: 'tangle-study-migrate'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: apiImage
