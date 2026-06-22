@@ -239,6 +239,100 @@ AZURE_RESOURCE_GROUP=tangle-prod ./scripts/azure-cd-smoke.sh
 
 ---
 
+## Production E2E validation (before MSA)
+
+Complete this checklist **manually in production** after the first successful CD run. It is the gate for [Phase 9 service extraction](MSA_MIGRATION.md): do not start MSA until every required item passes.
+
+**Web URL:** resolve the public FQDN once:
+
+```bash
+az containerapp show --name tangle-web --resource-group tangle-prod \
+  --query properties.configuration.ingress.fqdn -o tsv
+```
+
+Open `https://<fqdn>/` in a browser. Use two test accounts (User A and User B) for social features.
+
+Automated smoke tests ([`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh)) only cover `/health` and the SPA shell — they do not replace this checklist.
+
+### Pre-flight
+
+- [ ] CD workflow succeeded (build → secrets → image update → migrate → smoke)
+- [ ] `GET https://<fqdn>/health` returns `Healthy`
+- [ ] Blob CORS allows `PUT` from the web origin (required for browser uploads)
+- [ ] `Media__PublicBlobEndpoint` points at the HTTPS blob endpoint clients use for SAS uploads
+- [ ] Application Insights shows incoming requests after browsing the app (Azure portal → `tangle-prod-appi`)
+
+### Auth & users
+
+- [ ] Register a new account (`/register`)
+- [ ] Log in and reach the home page (`/login`)
+- [ ] Session persists across refresh (JWT in local storage)
+- [ ] View another user's profile (`/users/:id`)
+- [ ] Log out; protected routes redirect to `/login`
+
+### Posts & comments
+
+- [ ] Create a text post (`/posts/new`)
+- [ ] View post detail; add a comment
+- [ ] Edit and delete own post/comment
+- [ ] Upload an image on a post (media worker processes thumbnail — allow ~30s if workers scaled to zero)
+
+### Friends & blocks
+
+- [ ] Send friend request (User A → User B); accept on B
+- [ ] Block a user; verify blocked content is hidden
+- [ ] Unblock
+
+### Groups
+
+- [ ] Create a group (`/groups/new`)
+- [ ] Invite / accept member
+- [ ] Create a board; add a board post with optional media
+- [ ] Group chat room appears; send a message
+
+### Chat (SignalR)
+
+- [ ] Open group chat room; message appears in realtime for another member (no manual refresh)
+- [ ] Send a chat message with an image attachment (media worker)
+
+### Memory Map & location (Phase 7 gate)
+
+Requires `PLACES_API_KEY` for place search. Workers may cold-start from zero replicas — wait up to ~1 min for cluster jobs.
+
+- [ ] Map loads at `/map` (OpenStreetMap tiles)
+- [ ] Place search returns results (if Places API key configured)
+- [ ] Double-click to drop a pin; pin visible after refresh
+- [ ] Start live location sharing in a group; User B sees User A's marker
+- [ ] Stop sharing; marker disappears for User B
+- [ ] SOS alert received by group members while sharing (SignalR `/hubs/location`)
+- [ ] Zoom out to cluster view (zoom 2–4); clusters appear after location worker runs
+
+### Workers & async paths
+
+Confirm worker Container Apps (`tangle-worker-media`, `tangle-worker-chat`, `tangle-worker-location`) scale up after triggering the feature above. Check execution logs in Log Analytics if a job stalls.
+
+- [ ] Media upload → thumbnail/variant available in UI
+- [ ] Chat message → delivered without page reload
+- [ ] Location cluster job completes (cluster markers at low zoom)
+
+### Observability
+
+- [ ] API requests visible in Application Insights (Live Metrics or Transactions)
+- [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-api -g tangle-prod --tail 50`)
+- [ ] No sustained 5xx on `/api/*` during the walkthrough
+
+### Sign-off
+
+When all required boxes are checked, record the validating commit SHA and date here (or in your project notes):
+
+```
+Validated: <YYYY-MM-DD> @ <git-sha> on https://<fqdn>
+```
+
+Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
+
+---
+
 ## Production API checklist
 
 Before first deploy:
