@@ -16,6 +16,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/lib/compose-env.sh
+source "$ROOT/scripts/lib/compose-env.sh"
 
 MODE="${1:-local}"
 
@@ -25,14 +27,14 @@ if [[ "$MODE" == "--production" ]]; then
     exit 1
   fi
 
-  docker compose build api
-  docker compose run --rm --no-deps \
+  tangle_compose build api
+  tangle_compose run --rm --no-deps \
     -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}" \
     -e "ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}" \
     api dotnet Api.dll --migrate
 elif [[ "$MODE" == "local" ]]; then
-  docker compose build api
-  docker compose run --rm --no-deps api dotnet Api.dll --migrate
+  tangle_compose build api
+  tangle_compose run --rm --no-deps api dotnet Api.dll --migrate
 else
   echo "Usage: $0 [local|--production]" >&2
   exit 1

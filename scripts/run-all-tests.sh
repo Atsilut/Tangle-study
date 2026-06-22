@@ -15,8 +15,20 @@ else
 fi
 export MSYS_NO_PATHCONV=1
 
-RUST_IMAGE="${RUST_IMAGE:-rust:1.96.0-bookworm}"
-NODE_IMAGE="${NODE_IMAGE:-node:26.3-bookworm-slim}"
+# CI parity: pinned images from docker/versions.prod.env (override with COMPOSE_ENV_FILE).
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"
+# shellcheck source=scripts/lib/compose-env.sh
+source "$ROOT/scripts/lib/compose-env.sh"
+
+env_file_path="$COMPOSE_ENV_FILE"
+[[ "$env_file_path" != /* ]] && env_file_path="$ROOT/$env_file_path"
+if [[ -f "$env_file_path" ]]; then
+  # shellcheck disable=SC1090
+  set -a && source "$env_file_path" && set +a
+fi
+
+RUST_IMAGE="${RUST_IMAGE:-rust:bookworm}"
+NODE_IMAGE="${NODE_IMAGE:-node:bookworm-slim}"
 
 run_rust() {
   echo "==> Rust worker unit tests"

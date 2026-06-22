@@ -3,14 +3,21 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/lib/compose-env.sh
+source "$ROOT/scripts/lib/compose-env.sh"
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.harness.yml --profile harness"
+COMPOSE_ARGS=(-f docker-compose.yml -f docker-compose.harness.yml --profile harness)
+if [[ -n "${COMPOSE_ENV_FILE:-}" ]]; then
+  env_path="$COMPOSE_ENV_FILE"
+  [[ "$env_path" != /* ]] && env_path="$ROOT/$env_path"
+  COMPOSE_ARGS=(--env-file "$env_path" "${COMPOSE_ARGS[@]}")
+fi
 
 cleanup() {
-  $COMPOSE down -v
+  docker compose "${COMPOSE_ARGS[@]}" down -v
 }
 trap cleanup EXIT
 
-$COMPOSE build api rust-worker-media harness
-$COMPOSE up -d --wait
-$COMPOSE run --rm harness
+docker compose "${COMPOSE_ARGS[@]}" build api rust-worker-media harness
+docker compose "${COMPOSE_ARGS[@]}" up -d --wait
+docker compose "${COMPOSE_ARGS[@]}" run --rm harness

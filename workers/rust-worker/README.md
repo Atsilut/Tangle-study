@@ -149,7 +149,7 @@ cargo test
 Or Docker-only (no host Rust / MSVC):
 
 ```bash
-docker run --rm -v "$(pwd):/src" -w /src/workers/rust-worker rust:1.96.0-bookworm cargo test
+docker run --rm -v "$(pwd):/src" -w /src/workers/rust-worker rust:bookworm cargo test
 ```
 
 ### Automated media pipeline harness (API + worker)

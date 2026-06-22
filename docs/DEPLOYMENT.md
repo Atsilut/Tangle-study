@@ -18,6 +18,22 @@ Set `ASPNETCORE_ENVIRONMENT=Production` on the API Container App so [`appsetting
 
 ---
 
+## Container image versions
+
+Build and deploy use **pinned** base images from [`docker/versions.prod.env`](../docker/versions.prod.env). Pass the same values as Docker build-args when building for ACR:
+
+| Build-arg | Prod value (example) |
+|-----------|---------------------|
+| `DOTNET_SDK_IMAGE` / `DOTNET_ASPNET_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` |
+| `NODE_IMAGE` / `NGINX_IMAGE` | `node:26.3-bookworm-slim`, `nginx:1.31.1-alpine` |
+| `RUST_IMAGE` / `DEBIAN_IMAGE` | `rust:1.96.0-bookworm`, `debian:bookworm-slim` |
+
+Managed Azure services (Postgres, Redis, Blob) replace Compose infrastructure images in deployed environments. Bump pins in `versions.prod.env` only; verify with `./scripts/run-all-tests.sh`.
+
+See [`docker/README.md`](../docker/README.md).
+
+---
+
 ## Configuration sources
 
 | Layer | Purpose |

@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/lib/compose-env.sh
+source "$ROOT/scripts/lib/compose-env.sh"
 
 if [[ $# -eq 0 ]]; then
   echo "Usage: $0 <dotnet-args...>" >&2
@@ -10,5 +12,5 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-docker compose --profile tools build sdk
-docker compose --profile tools run --rm sdk "$@"
+tangle_compose --profile tools build sdk
+tangle_compose --profile tools run --rm sdk "$@"

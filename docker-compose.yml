@@ -1,4 +1,22 @@
-name: tangle
+name: tangle-study
+
+# Image tags: defaults are latest (dev). Pin with --env-file docker/versions.prod.env
+# See docker/README.md.
+
+x-dotnet-build-args: &dotnet-build-args
+  DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
+
+x-api-build-args: &api-build-args
+  DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
+  DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+x-web-build-args: &web-build-args
+  NODE_IMAGE: ${NODE_IMAGE:-node:bookworm-slim}
+  NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+
+x-rust-build-args: &rust-build-args
+  RUST_IMAGE: ${RUST_IMAGE:-rust:bookworm}
+  DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
 
 x-dotnet-env: &dotnet-env
   DOTNET_CLI_HOME: /tmp/dotnet-cli
@@ -24,7 +42,7 @@ x-dotnet-test-env: &dotnet-test-env
 
 services:
   redis:
-    image: redis:8.8.0-alpine
+    image: ${REDIS_IMAGE:-redis:alpine}
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -38,7 +56,7 @@ services:
       start_period: 5s
 
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    image: ${AZURITE_IMAGE:-mcr.microsoft.com/azure-storage/azurite:latest}
     restart: unless-stopped
     # Azure.Storage.Blobs 12.29+ sends API version 2026-06-06; Azurite 3.35 supports 2025-11-05.
     command: azurite --blobHost 0.0.0.0 --location /data --skipApiVersionCheck
@@ -48,7 +66,7 @@ services:
       - azurite-data:/data
 
   db:
-    image: postgres:18.4
+    image: ${POSTGRES_IMAGE:-postgres:latest}
     restart: unless-stopped
     environment:
       POSTGRES_USER: tangle
@@ -69,6 +87,7 @@ services:
     build:
       context: .
       dockerfile: services/Api/Dockerfile
+      args: *api-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -101,6 +120,7 @@ services:
     build:
       context: .
       dockerfile: clients/web/Dockerfile
+      args: *web-build-args
     ports:
       - "8080:80"
     depends_on:
@@ -113,7 +133,7 @@ services:
 
   prometheus:
     profiles: ["monitoring"]
-    image: prom/prometheus:v3.12.0
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:latest}
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -141,7 +161,7 @@ services:
 
   postgres-exporter:
     profiles: ["monitoring"]
-    image: prometheuscommunity/postgres-exporter:v0.19.1
+    image: ${POSTGRES_EXPORTER_IMAGE:-prometheuscommunity/postgres-exporter:latest}
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: postgresql://tangle:tangletangle123@db:5432/tangledb?sslmode=disable
@@ -151,7 +171,7 @@ services:
 
   redis-exporter:
     profiles: ["monitoring"]
-    image: oliver006/redis_exporter:v1.86.0
+    image: ${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:latest}
     restart: unless-stopped
     environment:
       REDIS_ADDR: redis:6379
@@ -161,7 +181,7 @@ services:
 
   grafana:
     profiles: ["monitoring"]
-    image: grafana/grafana:13.0.2
+    image: ${GRAFANA_IMAGE:-grafana/grafana:latest}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -180,7 +200,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.sdk
-    image: tangle-sdk:local
+      args: *dotnet-build-args
+    image: tangle-study-sdk:local
     working_dir: /src
     environment: *dotnet-env
     volumes:
@@ -194,6 +215,7 @@ services:
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
@@ -213,6 +235,7 @@ services:
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
@@ -240,6 +263,7 @@ services:
     build:
       context: .
       dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
       WORKER_STREAM_PREFIX: "tangle:queue:"
@@ -260,10 +284,11 @@ services:
 
   harness:
     profiles: ["harness"]
-    image: tangle-sdk:local
+    image: tangle-study-sdk:local
     build:
       context: .
       dockerfile: docker/Dockerfile.sdk
+      args: *dotnet-build-args
     working_dir: /src
     environment:
       <<: *dotnet-env
@@ -295,10 +320,11 @@ services:
 
   test:
     profiles: ["test"]
-    image: tangle-sdk:local
+    image: tangle-study-sdk:local
     build:
       context: .
       dockerfile: docker/Dockerfile.sdk
+      args: *dotnet-build-args
     working_dir: /src
     environment:
       <<: *dotnet-test-env

@@ -1,5 +1,6 @@
 # SDK image for build, test, and EF tooling. Keeps packages/tools inside the container.
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:latest
+FROM ${DOTNET_SDK_IMAGE}
 
 ENV DOTNET_CLI_HOME=/tmp/dotnet-cli \
     NUGET_PACKAGES=/tmp/nuget-packages \

@@ -1,8 +1,10 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:latest
+FROM ${DOTNET_ASPNET_IMAGE} AS base
 WORKDIR /app
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:latest
+FROM ${DOTNET_SDK_IMAGE} AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 

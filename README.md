@@ -262,6 +262,8 @@ All .NET build, test, EF, and API runtime run in Docker so nothing writes `.nuge
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
+**Container versions:** Local `docker compose up` pulls **latest** tags by default. CI and deployment use pinned versions from [`docker/versions.prod.env`](docker/versions.prod.env) — see [`docker/README.md`](docker/README.md).
+
 Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows, run the equivalent `docker compose` commands shown below from PowerShell in the repo root.
 
 ### Compose services and profiles
@@ -285,6 +287,12 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 ```bash
 docker compose up --build
+```
+
+Prod-like local stack (pinned images, same as CI):
+
+```bash
+docker compose --env-file docker/versions.prod.env up --build
 ```
 
 - API: http://localhost:5000  

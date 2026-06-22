@@ -24,6 +24,8 @@ docker compose --profile tools run --rm sdk <dotnet-args...>
 
 Build the SDK image first if needed: `docker compose --profile tools build sdk`.
 
+**Image versions:** Dev compose defaults to latest tags. CI and prod-like runs use `COMPOSE_ENV_FILE=docker/versions.prod.env` (see `docker/README.md`). Scripts honor `COMPOSE_ENV_FILE` when set.
+
 ## Tests
 
 Run tests via `scripts/docker-test.sh` (wraps `docker compose --profile test`). The `test` service mounts the host Docker socket — required for Testcontainers. Do **not** use `docker-dotnet.sh` / `sdk` for integration tests; that container has no Docker access.

@@ -1,7 +1,8 @@
 # Builds the React SPA and serves it with Nginx (edge proxy + static host).
 # Build context: repo root (see docker-compose.yml).
 
-FROM node:26.3-bookworm-slim AS build
+ARG NODE_IMAGE=node:bookworm-slim
+FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 
 COPY clients/web/package.json clients/web/package-lock.json ./
@@ -10,7 +11,8 @@ RUN npm ci
 COPY clients/web/ ./
 RUN npm run build
 
-FROM nginx:1.31.1-alpine AS final
+ARG NGINX_IMAGE=nginx:alpine
+FROM ${NGINX_IMAGE} AS final
 
 # Local Compose: default nginx.conf (includes Azurite proxy).
 # Azure / production: --build-arg NGINX_CONF=nginx.production.conf
