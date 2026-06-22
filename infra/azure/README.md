@@ -17,6 +17,7 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 | Container Apps Environment | Core hosting (consumption / free grant) |
 | Storage account | Blob media (cheap; free tier eligible) + Azure File for Postgres data |
 | Log Analytics | Container Apps diagnostics (minimal volume for study) |
+| Application Insights | API telemetry (workspace-based, free tier eligible) |
 
 ## Layout
 
@@ -29,6 +30,7 @@ infra/azure/
     infra-container.bicep    # Postgres + Redis (internal, no ingress)
     environment-storage.bicep
     storage.bicep            # Blob + file share
+    app-insights.bicep       # Application Insights (linked to Log Analytics)
     container-app.bicep        # API, web, workers (GHCR pull)
     migrate-job.bicep
     ...
@@ -55,7 +57,7 @@ Public GHCR images need **no** registry username/password on Container Apps.
 
 ## Images (GHCR)
 
-CD (planned) builds and pushes:
+CD builds and pushes:
 
 - `ghcr.io/<org>/tangle-study/tangle-api:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-web:<tag>`
@@ -82,6 +84,7 @@ Postgres connection string is set at deploy time from `POSTGRES_ADMIN_PASSWORD` 
 2. Configure GitHub Environment **`production`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)).
 3. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and updates Container Apps.
 4. Migrate runs automatically via `scripts/azure-cd-migrate.sh` in the deploy workflow.
+5. Smoke tests run via `scripts/azure-cd-smoke.sh` (`/health` + SPA shell).
 
 ## Resource groups
 

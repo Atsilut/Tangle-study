@@ -69,6 +69,16 @@ module logAnalytics 'modules/log-analytics.bicep' = {
   }
 }
 
+module appInsights 'modules/app-insights.bicep' = {
+  name: 'app-insights'
+  params: {
+    name: '${namePrefix}-appi'
+    location: location
+    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    tags: tags
+  }
+}
+
 module storage 'modules/storage.bicep' = {
   name: 'storage'
   params: {
@@ -165,6 +175,7 @@ module api 'modules/container-app.bicep' = {
       { name: 'Media__ContainerName', value: storage.outputs.containerName }
       { name: 'Media__PublicBlobEndpoint', value: storage.outputs.blobEndpoint }
       { name: 'Metrics__RequireScrapeSecret', value: 'true' }
+      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.outputs.connectionString }
     ]
     secretEnvVars: apiSecretEnvVars
   }
@@ -306,6 +317,7 @@ output webUrl string = 'https://${web.outputs.fqdn}'
 output postgresAppName string = postgres.outputs.name
 output redisAppName string = redis.outputs.name
 output blobEndpoint string = storage.outputs.blobEndpoint
+output appInsightsConnectionString string = appInsights.outputs.connectionString
 output containerAppsEnvironmentId string = containerAppsEnv.outputs.id
 output migrateJobName string = migrateJob.outputs.name
 output containerAppNames object = {

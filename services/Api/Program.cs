@@ -26,6 +26,8 @@ if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddTangleAzureMonitor();
+
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddControllers();
