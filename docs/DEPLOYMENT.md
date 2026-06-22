@@ -20,7 +20,7 @@ Set `ASPNETCORE_ENVIRONMENT=Production` on the API Container App so [`appsetting
 
 ## Container image versions
 
-Build and deploy use **pinned** base images from [`docker/versions.prod.env`](../docker/versions.prod.env). Pass the same values as Docker build-args when building for ACR:
+Build and deploy use **pinned** base images from [`docker/versions.prod.env`](../docker/versions.prod.env). App images are published to **GHCR** (not ACR). Pass the same build-args when building in CI:
 
 | Build-arg | Prod value (example) |
 |-----------|---------------------|
@@ -28,9 +28,28 @@ Build and deploy use **pinned** base images from [`docker/versions.prod.env`](..
 | `NODE_IMAGE` / `NGINX_IMAGE` | `node:26.3-bookworm-slim`, `nginx:1.31.1-alpine` |
 | `RUST_IMAGE` / `DEBIAN_IMAGE` | `rust:1.96.0-bookworm`, `debian:bookworm-slim` |
 
-Managed Azure services (Postgres, Redis, Blob) replace Compose infrastructure images in deployed environments. Bump pins in `versions.prod.env` only; verify with `./scripts/run-all-tests.sh`.
+On Azure, **Postgres and Redis run as Container Apps** (same pattern as local Compose), not managed Azure Database / Azure Cache. Blob storage uses a standard Storage account. See [`infra/azure/README.md`](../infra/azure/README.md).
 
 See [`docker/README.md`](../docker/README.md).
+
+---
+
+## Azure infrastructure (Bicep)
+
+Study-friendly stack — **no managed PostgreSQL, Redis, or ACR** (those lack a useful free tier). Templates: [`infra/azure/`](../infra/azure/).
+
+| Compose (local) | Azure |
+|-----------------|-------|
+| `db` | `tangle-postgres` Container App |
+| `redis` | `tangle-redis` Container App |
+| `azurite` | Storage account (blob) |
+| Built images | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
+
+```bash
+POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh dev
+```
+
+Bicep sets the Postgres connection string and Redis URL from internal app hostnames. **App secrets** (JWT, blob, etc.) are injected after deploy via GitHub Actions. Details: [`infra/azure/README.md`](../infra/azure/README.md).
 
 ---
 
@@ -58,13 +77,14 @@ Store these per GitHub Environment (`dev`, `staging`, `prod`). The deploy workfl
 
 | GitHub secret | Container App env var | Required | Notes |
 |---------------|----------------------|----------|-------|
-| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes | Npgsql connection string for Azure Database for PostgreSQL |
-| `REDIS_CONNECTION_STRING` | `Redis__ConnectionString` | Yes | Azure Cache for Redis hostname:port (TLS if enabled) |
 | `BLOB_CONNECTION_STRING` | `Media__ConnectionString` | Yes | Azure Storage account connection string |
 | `JWT_SECRET` | `Jwt__Secret` | Yes | Min 32 chars; overrides `security.yml` placeholder |
 | `WORKER_CALLBACK_SECRET` | `Media__WorkerCallbackSecret` | Yes | Shared with media worker for internal callbacks |
 | `METRICS_SCRAPE_SECRET` | `Metrics__ScrapeSecret` | Yes | Required when `Metrics:RequireScrapeSecret` is true |
 | `PLACES_API_KEY` | `Places__ApiKey` | No | Google Places / Geocoding; leave empty to disable search |
+| `GHCR_REGISTRY_PASSWORD` | (deploy workflow) | No | Only if GHCR packages are **private** |
+
+**Not GitHub secrets:** Postgres password is passed at infra deploy (`POSTGRES_ADMIN_PASSWORD`). Redis host is set by Bicep (`tangle-redis:6379`). Do not use managed Azure Postgres/Redis/ACR in this study setup.
 
 Non-secret config can be GitHub **variables** or Bicep parameters:
 
@@ -85,9 +105,10 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 
 | GitHub secret | Env var | Required | Notes |
 |---------------|---------|----------|-------|
-| `REDIS_CONNECTION_STRING` | `REDIS_URL` | Yes | Prefix with `redis://` or `rediss://` as required by Azure Redis |
 | `BLOB_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | Media worker only | Same storage account as API |
 | `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET` | Media worker only | Must match `Media__WorkerCallbackSecret` |
+
+Redis URL is set by Bicep (`REDIS_URL=redis://tangle-redis:6379`).
 
 Per-worker settings (Bicep or GitHub variables):
 
@@ -132,8 +153,8 @@ ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
 
 The deploy workflow will run the same command using the API image:
 
-1. Build and push API image to ACR.
-2. Start a **Container Apps Job** (or one-shot `az containerapp exec`) with `dotnet Api.dll --migrate` and `POSTGRES_CONNECTION_STRING`.
+1. Build and push API image to GHCR.
+2. Start the **Container Apps Job** `tangle-migrate` (connection string already set at infra deploy).
 3. Roll out the new API revision only if migrations succeed.
 
 Development/Docker still auto-migrate on API startup for local convenience.

@@ -1,0 +1,96 @@
+# Azure infrastructure (Bicep)
+
+Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / low-cost** setup.
+
+## What we avoid (no free tier)
+
+| Service | Alternative |
+|---------|-------------|
+| Azure Database for PostgreSQL | **`tangle-postgres`** Container App (`postgres:18` + Azure File persistence) |
+| Azure Cache for Redis | **`tangle-redis`** Container App (`redis:8-alpine`) |
+| Azure Container Registry (ACR) | **[GitHub Container Registry (GHCR)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)** — free for public packages |
+
+## What stays on Azure
+
+| Resource | Why |
+|----------|-----|
+| Container Apps Environment | Core hosting (consumption / free grant) |
+| Storage account | Blob media (cheap; free tier eligible) + Azure File for Postgres data |
+| Log Analytics | Container Apps diagnostics (minimal volume for study) |
+
+## Layout
+
+```
+infra/azure/
+  main.bicep                 # Per-environment stack
+  parameters.dev.json
+  modules/
+    infra-container.bicep    # Postgres + Redis (internal, no ingress)
+    environment-storage.bicep
+    storage.bicep            # Blob + file share
+    container-app.bicep        # API, web, workers (GHCR pull)
+    migrate-job.bicep
+    ...
+```
+
+## Manual deploy (dev)
+
+```bash
+chmod +x scripts/azure-deploy-infra.sh
+
+POSTGRES_ADMIN_PASSWORD='your-secure-password' ./scripts/azure-deploy-infra.sh dev
+```
+
+Optional private GHCR auth:
+
+```bash
+GHCR_REGISTRY_USERNAME='your-github-user' \
+GHCR_REGISTRY_PASSWORD='ghp_...' \
+POSTGRES_ADMIN_PASSWORD='...' \
+./scripts/azure-deploy-infra.sh dev
+```
+
+Public GHCR images need **no** registry username/password on Container Apps.
+
+## Images (GHCR)
+
+CD (planned) builds and pushes:
+
+- `ghcr.io/<org>/tangle-study/tangle-api:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-web:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-worker:<tag>`
+
+Set `containerRegistry` in `parameters.dev.json` to match your org.
+
+`usePlaceholderImages: true` allows infra deploy before images exist.
+
+## Internal networking
+
+| App | Hostname (within environment) |
+|-----|------------------------------|
+| Postgres | `tangle-postgres:5432` |
+| Redis | `tangle-redis:6379` |
+| API | `tangle-api:8080` (internal ingress) |
+| Web | public FQDN → proxies to API |
+
+Postgres connection string is set at deploy time from `POSTGRES_ADMIN_PASSWORD` (not stored in git). Redis URL is plain env (`redis://tangle-redis:6379`).
+
+## After Bicep deploy
+
+1. Inject remaining secrets (JWT, blob, worker callback, metrics) via GitHub Actions or `az containerapp secret set` — see [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).
+2. Push images to GHCR and set `usePlaceholderImages: false` + `imageTag` on redeploy, or update revisions via CD.
+3. Run migrate job: `az containerapp job start --name tangle-migrate --resource-group tangle-dev`
+
+## Resource groups
+
+| Group | Purpose |
+|-------|---------|
+| `tangle-dev` | Dev environment (single RG — no shared ACR) |
+| `tangle-staging` | Staging (parameters file planned) |
+| `tangle-prod` | Production (parameters file planned) |
+
+## Trade-offs (study project)
+
+- Container Postgres/Redis share ACA compute — fine for learning, not production HA.
+- Postgres data persists on Azure File; Redis is ephemeral (acceptable for cache/streams in dev).
+- Scale-to-zero workers (`workerMinReplicas: 0`) save cost; Postgres/Redis stay at `minReplicas: 1`.
