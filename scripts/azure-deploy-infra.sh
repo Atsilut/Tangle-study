@@ -6,8 +6,8 @@
 #
 # Prerequisites: Azure CLI (`az`), logged in (`az login`).
 #
-# Dev environment:
-#   POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh dev
+# Production (matches GitHub Environment `production` / CD on main):
+#   POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
 #
 set -euo pipefail
 
@@ -24,12 +24,13 @@ fi
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/azure-deploy-infra.sh dev
+Usage: ./scripts/azure-deploy-infra.sh <dev|prod>
 
-  dev  Deploy dev stack into resource group tangle-dev
+  dev   Deploy dev stack into resource group tangle-dev (local experiments)
+  prod  Deploy production stack into resource group tangle-prod (CD target)
 
 Environment variables:
-  AZURE_SUBSCRIPTION_ID    Optional subscription override
+  AZURE_SUBSCRIPTION_ID     Optional subscription override
   AZURE_LOCATION            Azure region (default: eastus)
   POSTGRES_ADMIN_PASSWORD   Required (min 8 chars) — Postgres container + API connection
   GHCR_REGISTRY_USERNAME    Optional — only for private GHCR packages
@@ -37,13 +38,15 @@ Environment variables:
 EOF
 }
 
-deploy_dev() {
+deploy_env() {
+  local rg="$1"
+  local parameters_file="$2"
+
   if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
-    echo "POSTGRES_ADMIN_PASSWORD is required for dev deploy." >&2
+    echo "POSTGRES_ADMIN_PASSWORD is required." >&2
     exit 1
   fi
 
-  local rg="tangle-dev"
   local extra_params=(
     --parameters "postgresAdminPassword=${POSTGRES_ADMIN_PASSWORD}"
   )
@@ -59,13 +62,14 @@ deploy_dev() {
   az deployment group create \
     --resource-group "$rg" \
     --template-file infra/azure/main.bicep \
-    --parameters @infra/azure/parameters.dev.json \
+    --parameters "@${parameters_file}" \
     "${extra_params[@]}" \
     --output table
 }
 
 case "$TARGET" in
-  dev) deploy_dev ;;
+  dev) deploy_env "tangle-dev" "infra/azure/parameters.dev.json" ;;
+  prod) deploy_env "tangle-prod" "infra/azure/parameters.prod.json" ;;
   -h|--help|"") usage; exit "${TARGET:+0}" 1 ;;
   *) echo "Unknown target: $TARGET" >&2; usage >&2; exit 1 ;;
 esac

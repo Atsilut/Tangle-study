@@ -23,7 +23,8 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 ```
 infra/azure/
   main.bicep                 # Per-environment stack
-  parameters.dev.json
+  parameters.dev.json        # Optional local experiments (tangle-dev)
+  parameters.prod.json       # Production (tangle-prod) — CD target
   modules/
     infra-container.bicep    # Postgres + Redis (internal, no ingress)
     environment-storage.bicep
@@ -33,12 +34,12 @@ infra/azure/
     ...
 ```
 
-## Manual deploy (dev)
+## Manual deploy (production)
 
 ```bash
 chmod +x scripts/azure-deploy-infra.sh
 
-POSTGRES_ADMIN_PASSWORD='your-secure-password' ./scripts/azure-deploy-infra.sh dev
+POSTGRES_ADMIN_PASSWORD='your-secure-password' ./scripts/azure-deploy-infra.sh prod
 ```
 
 Optional private GHCR auth:
@@ -60,7 +61,7 @@ CD (planned) builds and pushes:
 - `ghcr.io/<org>/tangle-study/tangle-web:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-worker:<tag>`
 
-Set `containerRegistry` in `parameters.dev.json` to match your org.
+Set `containerRegistry` in `parameters.prod.json` to match your org.
 
 `usePlaceholderImages: true` allows infra deploy before images exist.
 
@@ -77,17 +78,17 @@ Postgres connection string is set at deploy time from `POSTGRES_ADMIN_PASSWORD` 
 
 ## After Bicep deploy
 
-1. Inject remaining secrets (JWT, blob, worker callback, metrics) via GitHub Actions or `az containerapp secret set` — see [docs/DEPLOYMENT.md](../../docs/DEPLOYMENT.md).
-2. Push images to GHCR and set `usePlaceholderImages: false` + `imageTag` on redeploy, or update revisions via CD.
-3. Run migrate job: `az containerapp job start --name tangle-migrate --resource-group tangle-dev`
+1. Copy storage connection string → GitHub secret `BLOB_CONNECTION_STRING`.
+2. Configure GitHub Environment **`production`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)).
+3. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and updates Container Apps.
+4. Migrate runs automatically via `scripts/azure-cd-migrate.sh` in the deploy workflow.
 
 ## Resource groups
 
 | Group | Purpose |
 |-------|---------|
-| `tangle-dev` | Dev environment (single RG — no shared ACR) |
-| `tangle-staging` | Staging (parameters file planned) |
-| `tangle-prod` | Production (parameters file planned) |
+| `tangle-dev` | Optional local / experiment stack |
+| `tangle-prod` | **Production** — GitHub Environment `production`, CD on `main` |
 
 ## Trade-offs (study project)
 

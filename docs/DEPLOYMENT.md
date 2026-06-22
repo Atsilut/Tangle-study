@@ -1,6 +1,6 @@
 # Deployment
 
-Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via the CD workflow (`deploy.yml`, planned).
+Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
 
 Local development continues to use Docker Compose — see [README](../README.md).
 
@@ -8,11 +8,11 @@ Local development continues to use Docker Compose — see [README](../README.md)
 
 ## Environments
 
-| Environment | GitHub Environment | Trigger (planned) |
-|-------------|-------------------|-------------------|
-| dev | `dev` | Push to `develop` |
-| staging | `staging` | Push to `main` |
-| prod | `prod` | Release / manual approval |
+| Environment | GitHub Environment | Trigger |
+|-------------|-------------------|---------|
+| production | `production` | CI success on `main`, or manual `workflow_dispatch` |
+
+`develop` runs CI only — no automatic deploy. Local experiments may use `tangle-dev` via `./scripts/azure-deploy-infra.sh dev`.
 
 Set `ASPNETCORE_ENVIRONMENT=Production` on the API Container App so [`appsettings.Production.json`](../services/Api/appsettings.Production.json) loads.
 
@@ -46,14 +46,65 @@ Study-friendly stack — **no managed PostgreSQL, Redis, or ACR** (those lack a 
 | Built images | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
 
 ```bash
-POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh dev
+POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
 ```
 
 Bicep sets the Postgres connection string and Redis URL from internal app hostnames. **App secrets** (JWT, blob, etc.) are injected after deploy via GitHub Actions. Details: [`infra/azure/README.md`](../infra/azure/README.md).
 
 ---
 
-## Configuration sources
+## GitHub setup (one-time)
+
+### 1. Azure OIDC federated credential
+
+Create an app registration and federated credential for GitHub Actions ([Microsoft docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)). Use subject `repo:<owner>/<repo>:environment:production`. Grant **Contributor** on resource group `tangle-prod`.
+
+### 2. GitHub Environment `production`
+
+**Variables:**
+
+| Variable | Example |
+|----------|---------|
+| `AZURE_CLIENT_ID` | App registration client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Subscription GUID |
+| `AZURE_RESOURCE_GROUP` | `tangle-prod` |
+| `CONTAINER_REGISTRY` | `ghcr.io/your-org/tangle-study` (optional; defaults from repo owner) |
+
+**Secrets:**
+
+| Secret | Notes |
+|--------|-------|
+| `BLOB_CONNECTION_STRING` | From Azure Storage account (created by Bicep) |
+| `JWT_SECRET` | Min 32 chars |
+| `WORKER_CALLBACK_SECRET` | Shared with media worker |
+| `METRICS_SCRAPE_SECRET` | Random string |
+| `PLACES_API_KEY` | Optional |
+
+Postgres password: set at **infra deploy** (`POSTGRES_ADMIN_PASSWORD`), not a GitHub secret.
+
+### 3. Provision infra (once)
+
+```bash
+POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
+```
+
+Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_STRING` on the `production` environment.
+
+### 4. CD pipeline
+
+After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
+
+1. Builds and pushes `tangle-api`, `tangle-web`, `tangle-worker` to GHCR
+2. Injects secrets into Container Apps
+3. Updates app images to the commit SHA
+4. Runs `tangle-migrate` job
+
+Manual deploy: **Actions → Deploy → Run workflow** (uses `production` environment).
+
+Optional: add **required reviewers** on the `production` environment in GitHub for approval gates.
+
+---
 
 | Layer | Purpose |
 |-------|---------|
@@ -71,7 +122,7 @@ ASP.NET Core binds nested config with double underscores, e.g. `Redis__Connectio
 
 ## GitHub Environment secrets
 
-Store these per GitHub Environment (`dev`, `staging`, `prod`). The deploy workflow maps each secret to a Container App secret ref, then to the env vars below.
+Store these on GitHub Environment **`production`**. The deploy workflow maps each secret to a Container App secret ref, then to the env vars below.
 
 ### API (`services/Api`)
 
@@ -149,13 +200,15 @@ ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
   ./scripts/migrate.sh --production
 ```
 
-### Planned CD step (Container Apps Job)
+### CD step (Container Apps Job)
 
-The deploy workflow will run the same command using the API image:
+The deploy workflow runs migrations automatically before the new API revision serves traffic:
 
-1. Build and push API image to GHCR.
-2. Start the **Container Apps Job** `tangle-migrate` (connection string already set at infra deploy).
-3. Roll out the new API revision only if migrations succeed.
+1. Build and push API image to GHCR (same tag as app deploy).
+2. Update migrate job image, then `az containerapp job start` on `tangle-migrate`.
+3. Proceed only if the job execution status is `Succeeded`.
+
+Skip on manual runs: **Deploy → Run workflow → Skip EF migrate job**.
 
 Development/Docker still auto-migrate on API startup for local convenience.
 
