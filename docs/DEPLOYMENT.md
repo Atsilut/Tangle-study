@@ -106,6 +106,8 @@ Optional: add **required reviewers** on the `production` environment in GitHub f
 
 ---
 
+## Configuration sources
+
 | Layer | Purpose |
 |-------|---------|
 | `appsettings.json` | Base defaults |
@@ -211,6 +213,29 @@ The deploy workflow runs migrations automatically before the new API revision se
 Skip on manual runs: **Deploy → Run workflow → Skip EF migrate job**.
 
 Development/Docker still auto-migrate on API startup for local convenience.
+
+---
+
+## Observability
+
+### Application Insights
+
+Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on `tangle-api`. The API enables [Azure Monitor OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=aspnetcore) when that variable is present — see [`AzureMonitorTelemetryExtensions.cs`](../services/Api/Global/Telemetry/AzureMonitorTelemetryExtensions.cs).
+
+Container Apps platform logs go to the same Log Analytics workspace. Local Prometheus/Grafana under [`infra/`](../infra/) remains for Docker Compose.
+
+### Post-deploy smoke tests
+
+After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh):
+
+- `GET https://<tangle-web-fqdn>/health` — expects `Healthy` (proxied to API)
+- `GET https://<tangle-web-fqdn>/` — SPA shell loads
+
+Manual run:
+
+```bash
+AZURE_RESOURCE_GROUP=tangle-prod ./scripts/azure-cd-smoke.sh
+```
 
 ---
 
