@@ -47,17 +47,17 @@ var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/t
 var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-web:${imageTag}'
 var workerImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-worker:${imageTag}'
 
-var postgresConnectionString = 'Host=tangle-postgres;Port=5432;Database=tangledb;Username=${postgresAdminLogin};Password=${postgresAdminPassword};Pooling=true'
 var redisConnectionString = 'tangle-redis:6379'
 var redisUrl = 'redis://${redisConnectionString}'
 
 var apiSecretEnvVars = [
-  { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection', value: postgresConnectionString }
+  { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection' }
   { name: 'blob-conn', envName: 'Media__ConnectionString' }
   { name: 'jwt-secret', envName: 'Jwt__Secret' }
   { name: 'worker-callback', envName: 'Media__WorkerCallbackSecret' }
   { name: 'metrics-secret', envName: 'Metrics__ScrapeSecret' }
   { name: 'places-api-key', envName: 'Places__ApiKey' }
+  { name: 'appinsights-conn', envName: 'APPLICATIONINSIGHTS_CONNECTION_STRING' }
 ]
 
 module logAnalytics 'modules/log-analytics.bicep' = {
@@ -175,7 +175,6 @@ module api 'modules/container-app.bicep' = {
       { name: 'Media__ContainerName', value: storage.outputs.containerName }
       { name: 'Media__PublicBlobEndpoint', value: storage.outputs.blobEndpoint }
       { name: 'Metrics__RequireScrapeSecret', value: 'true' }
-      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.outputs.connectionString }
     ]
     secretEnvVars: apiSecretEnvVars
   }
@@ -308,7 +307,7 @@ module migrateJob 'modules/migrate-job.bicep' = {
       { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
     ]
     secretEnvVars: [
-      { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection', value: postgresConnectionString }
+      { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection' }
     ]
   }
 }

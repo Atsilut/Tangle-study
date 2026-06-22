@@ -76,12 +76,12 @@ Set `containerRegistry` in `parameters.prod.json` to match your org.
 | API | `tangle-api:8080` (internal ingress) |
 | Web | public FQDN → proxies to API |
 
-Postgres connection string is set at deploy time from `POSTGRES_ADMIN_PASSWORD` (not stored in git). Redis URL is plain env (`redis://tangle-redis:6379`).
+Postgres password is injected by CD from GitHub secret `POSTGRES_ADMIN_PASSWORD` (API, migrate job, and postgres container). Use the same value at infra deploy for first-time Postgres init. Redis URL is plain env (`redis://tangle-redis:6379`).
 
 ## After Bicep deploy
 
 1. Copy storage connection string → GitHub secret `BLOB_CONNECTION_STRING`.
-2. Configure GitHub Environment **`production`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)).
+2. Set GitHub Environment **`production`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_ADMIN_PASSWORD` matching infra deploy.
 3. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and updates Container Apps.
 4. Migrate runs automatically via `scripts/azure-cd-migrate.sh` in the deploy workflow.
 5. Smoke tests run via `scripts/azure-cd-smoke.sh` (`/health` + SPA shell).

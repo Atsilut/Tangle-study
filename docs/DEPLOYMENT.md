@@ -73,15 +73,19 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 
 **Secrets:**
 
-| Secret | Notes |
-|--------|-------|
-| `BLOB_CONNECTION_STRING` | From Azure Storage account (created by Bicep) |
-| `JWT_SECRET` | Min 32 chars |
-| `WORKER_CALLBACK_SECRET` | Shared with media worker |
-| `METRICS_SCRAPE_SECRET` | Random string |
-| `PLACES_API_KEY` | Optional |
+| Secret | Required | Notes |
+|--------|----------|-------|
+| `BLOB_CONNECTION_STRING` | Yes | From Azure Storage account (created by Bicep) |
+| `JWT_SECRET` | Yes | Min 32 chars |
+| `WORKER_CALLBACK_SECRET` | Yes | Shared with media worker |
+| `METRICS_SCRAPE_SECRET` | Yes | Random string |
+| `POSTGRES_ADMIN_PASSWORD` | Yes | Must match the password used at infra deploy (min 8 chars) |
+| `PLACES_API_KEY` | No | Google Places / Geocoding |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-fetched from Azure App Insights when unset |
+| `GHCR_REGISTRY_USERNAME` | No | Only for **private** GHCR packages |
+| `GHCR_REGISTRY_PASSWORD` | No | GitHub PAT with `read:packages` |
 
-Postgres password: set at **infra deploy** (`POSTGRES_ADMIN_PASSWORD`), not a GitHub secret.
+Use the **same** `POSTGRES_ADMIN_PASSWORD` at infra deploy and in GitHub. Postgres initializes its data directory on first boot — changing the password later requires a manual DB reset or `ALTER USER`.
 
 ### 3. Provision infra (once)
 
@@ -89,7 +93,7 @@ Postgres password: set at **infra deploy** (`POSTGRES_ADMIN_PASSWORD`), not a Gi
 POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
 ```
 
-Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_STRING` on the `production` environment.
+Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_STRING`. Set `POSTGRES_ADMIN_PASSWORD` in GitHub to the **same** value you pass to infra deploy.
 
 ### 4. CD pipeline
 
@@ -134,10 +138,13 @@ Store these on GitHub Environment **`production`**. The deploy workflow maps eac
 | `JWT_SECRET` | `Jwt__Secret` | Yes | Min 32 chars; overrides `security.yml` placeholder |
 | `WORKER_CALLBACK_SECRET` | `Media__WorkerCallbackSecret` | Yes | Shared with media worker for internal callbacks |
 | `METRICS_SCRAPE_SECRET` | `Metrics__ScrapeSecret` | Yes | Required when `Metrics:RequireScrapeSecret` is true |
+| `POSTGRES_ADMIN_PASSWORD` | `ConnectionStrings__DefaultConnection` (API + migrate), `POSTGRES_PASSWORD` (postgres app) | Yes | Same value as infra deploy; CD builds the Npgsql connection string |
 | `PLACES_API_KEY` | `Places__ApiKey` | No | Google Places / Geocoding; leave empty to disable search |
-| `GHCR_REGISTRY_PASSWORD` | (deploy workflow) | No | Only if GHCR packages are **private** |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-resolved from `tanglestudyprod-appi` when unset |
+| `GHCR_REGISTRY_USERNAME` | (registry pull on all apps + migrate job) | No | Only if GHCR packages are **private** |
+| `GHCR_REGISTRY_PASSWORD` | (registry pull) | No | GitHub PAT with `read:packages` |
 
-**Not GitHub secrets:** Postgres password is passed at infra deploy (`POSTGRES_ADMIN_PASSWORD`). Redis host is set by Bicep (`tangle-redis:6379`). Do not use managed Azure Postgres/Redis/ACR in this study setup.
+**Not GitHub secrets:** Redis host is set by Bicep (`tangle-redis:6379`). Blob public endpoint and media container name are non-secret Bicep outputs.
 
 Non-secret config can be GitHub **variables** or Bicep parameters:
 

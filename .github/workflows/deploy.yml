@@ -84,7 +84,11 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           WORKER_CALLBACK_SECRET: ${{ secrets.WORKER_CALLBACK_SECRET }}
           METRICS_SCRAPE_SECRET: ${{ secrets.METRICS_SCRAPE_SECRET }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          GHCR_REGISTRY_USERNAME: ${{ secrets.GHCR_REGISTRY_USERNAME }}
+          GHCR_REGISTRY_PASSWORD: ${{ secrets.GHCR_REGISTRY_PASSWORD }}
         run: bash scripts/azure-cd-inject-secrets.sh
 
       - name: Update Container App images

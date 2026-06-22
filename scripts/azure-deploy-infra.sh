@@ -32,8 +32,8 @@ Usage: ./scripts/azure-deploy-infra.sh <dev|prod>
 Environment variables:
   AZURE_SUBSCRIPTION_ID     Optional subscription override
   AZURE_LOCATION            Azure region (default: eastus)
-  POSTGRES_ADMIN_PASSWORD   Required (min 8 chars) — Postgres container + API connection
-  GHCR_REGISTRY_USERNAME    Optional — only for private GHCR packages
+  POSTGRES_ADMIN_PASSWORD   Required (min 8 chars) — must match GitHub secret POSTGRES_ADMIN_PASSWORD
+  GHCR_REGISTRY_USERNAME    Optional — prefer GitHub secret + CD inject for private GHCR
   GHCR_REGISTRY_PASSWORD    Optional — GitHub PAT with read:packages
 EOF
 }
