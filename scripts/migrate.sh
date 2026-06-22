@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Apply EF Core migrations against the configured database.
+#
+# Local (Compose db):
+#   ./scripts/migrate.sh
+#
+# Production / staging (connection string from env or GitHub secret):
+#   ASPNETCORE_ENVIRONMENT=Production \
+#   ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
+#   ./scripts/migrate.sh --production
+#
+# Azure Container Apps Job (planned CD step):
+#   dotnet Api.dll --migrate
+#
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+MODE="${1:-local}"
+
+if [[ "$MODE" == "--production" ]]; then
+  if [[ -z "${ConnectionStrings__DefaultConnection:-}" ]]; then
+    echo "ConnectionStrings__DefaultConnection is required for --production." >&2
+    exit 1
+  fi
+
+  docker compose build api
+  docker compose run --rm --no-deps \
+    -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}" \
+    -e "ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}" \
+    api dotnet Api.dll --migrate
+elif [[ "$MODE" == "local" ]]; then
+  docker compose build api
+  docker compose run --rm --no-deps api dotnet Api.dll --migrate
+else
+  echo "Usage: $0 [local|--production]" >&2
+  exit 1
+fi

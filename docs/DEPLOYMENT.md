@@ -83,6 +83,47 @@ Per-worker settings (Bicep or GitHub variables):
 
 ---
 
+## Database migrations
+
+Production and staging **do not** apply migrations on API startup. Migrations run as a separate step before rolling out a new API revision.
+
+### Command
+
+```bash
+dotnet Api.dll --migrate
+```
+
+Implemented in [`DatabaseMigrationRunner.cs`](../services/Api/Global/Db/DatabaseMigrationRunner.cs). Requires `ConnectionStrings__DefaultConnection` (or `appsettings.Production.json` + env override).
+
+### Local (Compose Postgres)
+
+```bash
+./scripts/migrate.sh
+```
+
+Uses the `api` image against the compose `db` service (`ASPNETCORE_ENVIRONMENT=Docker`).
+
+### Staging / production
+
+Run before deploying a new API revision:
+
+```bash
+ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
+  ./scripts/migrate.sh --production
+```
+
+### Planned CD step (Container Apps Job)
+
+The deploy workflow will run the same command using the API image:
+
+1. Build and push API image to ACR.
+2. Start a **Container Apps Job** (or one-shot `az containerapp exec`) with `dotnet Api.dll --migrate` and `POSTGRES_CONNECTION_STRING`.
+3. Roll out the new API revision only if migrations succeed.
+
+Development/Docker still auto-migrate on API startup for local convenience.
+
+---
+
 ## Production API checklist
 
 Before first deploy:
@@ -91,7 +132,7 @@ Before first deploy:
 2. Set `Media__PublicBlobEndpoint` to the blob account URL clients use for SAS uploads (HTTPS).
 3. Configure blob CORS on the storage account for the web app origin (`PUT` from browser).
 4. Enable Redis — required for SignalR backplane and work queues when the API scales beyond one replica.
-5. Do **not** rely on startup migrations in Production; use the migrate job (Todo 2).
+5. Run `./scripts/migrate.sh --production` (or the Container Apps migrate job) before each API deploy — startup does not migrate in Production.
 
 JWT placeholder in [`security.yml`](../services/Api/security.yml) causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
 

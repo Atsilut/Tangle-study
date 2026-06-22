@@ -18,6 +18,12 @@ using Prometheus;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 
+if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+{
+    var exitCode = await DatabaseMigrationRunner.RunAsync(args);
+    Environment.Exit(exitCode);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
@@ -174,6 +180,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
         options.RoutePrefix = "api";
     });
 
+    // Production applies migrations via `dotnet Api.dll --migrate` (see scripts/migrate.sh).
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
