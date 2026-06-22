@@ -39,7 +39,9 @@ builder.Services.AddCustomDependencies();
 
 builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
-    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true);
+    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true)
+    // YAML is loaded after the host's default env vars; re-add so deploy secrets win.
+    .AddEnvironmentVariables();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
