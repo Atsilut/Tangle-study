@@ -54,6 +54,16 @@ var registrySecrets = hasRegistry ? [
   }
 ] : []
 
+var appSecretDefinitions = [for item in secretEnvVars: {
+  name: item.name
+  value: item.?value ?? 'pending-deploy'
+}]
+
+var secretEnvMappings = [for item in secretEnvVars: {
+  name: item.envName
+  secretRef: item.name
+}]
+
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
   location: location
@@ -70,13 +80,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             passwordSecretRef: 'registry-password'
           }
         ] : []
-        secrets: concat(
-          registrySecrets,
-          [for item in secretEnvVars: {
-            name: item.name
-            value: item.?value ?? 'pending-deploy'
-          }]
-        )
+        secrets: concat(registrySecrets, appSecretDefinitions)
       },
       enableIngress ? {
         ingress: {
@@ -96,13 +100,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: concat(
-            envVars,
-            [for item in secretEnvVars: {
-              name: item.envName
-              secretRef: item.name
-            }]
-          )
+          env: concat(envVars, secretEnvMappings)
           probes: probes
         }
       ]

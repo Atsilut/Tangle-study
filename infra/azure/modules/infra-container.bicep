@@ -37,6 +37,16 @@ var probes = tcpProbePort > 0 ? [
 
 var hasVolume = !empty(environmentStorageName) && !empty(volumeMountPath)
 
+var secretDefinitions = [for item in secretEnvVars: {
+  name: item.name
+  value: item.?value ?? 'pending-deploy'
+}]
+
+var secretEnvMappings = [for item in secretEnvVars: {
+  name: item.envName
+  secretRef: item.name
+}]
+
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
   location: location
@@ -45,10 +55,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: managedEnvironmentId
     configuration: {
       activeRevisionsMode: 'Single'
-      secrets: [for item in secretEnvVars: {
-        name: item.name
-        value: item.?value ?? 'pending-deploy'
-      }]
+      secrets: secretDefinitions
     }
     template: {
       volumes: hasVolume ? [
@@ -66,13 +73,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: concat(
-            envVars,
-            [for item in secretEnvVars: {
-              name: item.envName
-              secretRef: item.name
-            }]
-          )
+          env: concat(envVars, secretEnvMappings)
           volumeMounts: hasVolume ? [
             {
               volumeName: 'data'
