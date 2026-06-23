@@ -69,6 +69,7 @@ jobs:
 
       - name: Build and push images
         env:
+          COMPOSE_ENV_FILE: docker/versions.prod.env
           CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
           IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         run: bash scripts/azure-cd-build-push.sh

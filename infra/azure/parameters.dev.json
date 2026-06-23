@@ -15,10 +15,10 @@
       "value": "latest"
     },
     "postgresImage": {
-      "value": "postgres:18"
+      "value": "postgres:18.4"
     },
     "redisImage": {
-      "value": "redis:8-alpine"
+      "value": "redis:8.8.0-alpine"
     }
   }
 }

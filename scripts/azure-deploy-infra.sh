@@ -13,6 +13,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/lib/versions-prod-env.sh
+source "$ROOT/scripts/lib/versions-prod-env.sh"
+load_versions_prod_env "$ROOT"
 
 TARGET="${1:-}"
 LOCATION="${AZURE_LOCATION:-eastus}"
@@ -33,6 +36,7 @@ Environment variables:
   AZURE_SUBSCRIPTION_ID     Optional subscription override
   AZURE_LOCATION            Azure region (default: eastus)
   POSTGRES_ADMIN_PASSWORD   Required (min 8 chars) — must match GitHub secret POSTGRES_ADMIN_PASSWORD
+  COMPOSE_ENV_FILE          Optional — pinned infra tags (default: docker/versions.prod.env)
   GHCR_REGISTRY_USERNAME    Optional — prefer GitHub secret + CD inject for private GHCR
   GHCR_REGISTRY_PASSWORD    Optional — GitHub PAT with read:packages
 EOF
@@ -49,6 +53,8 @@ deploy_env() {
 
   local extra_params=(
     --parameters "postgresAdminPassword=${POSTGRES_ADMIN_PASSWORD}"
+    --parameters "postgresImage=${POSTGRES_IMAGE}"
+    --parameters "redisImage=${REDIS_IMAGE}"
   )
 
   if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then
