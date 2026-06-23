@@ -26,8 +26,8 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/azure-deploy-infra.sh <dev|prod>
 
-  dev   Deploy dev stack into resource group tangle-dev (local experiments)
-  prod  Deploy production stack into resource group tangle-prod (CD target)
+  dev   Deploy dev stack into resource group tangle-study-dev (local experiments)
+  prod  Deploy production stack into resource group tangle-study-prod (CD target)
 
 Environment variables:
   AZURE_SUBSCRIPTION_ID     Optional subscription override
@@ -68,8 +68,8 @@ deploy_env() {
 }
 
 case "$TARGET" in
-  dev) deploy_env "tangle-dev" "infra/azure/parameters.dev.json" ;;
-  prod) deploy_env "tangle-prod" "infra/azure/parameters.prod.json" ;;
+  dev) deploy_env "tangle-study-dev" "infra/azure/parameters.dev.json" ;;
+  prod) deploy_env "tangle-study-prod" "infra/azure/parameters.prod.json" ;;
   -h|--help|"") usage; exit "${TARGET:+0}" 1 ;;
   *) echo "Unknown target: $TARGET" >&2; usage >&2; exit 1 ;;
 esac

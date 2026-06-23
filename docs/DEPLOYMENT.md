@@ -12,7 +12,7 @@ Local development continues to use Docker Compose — see [README](../README.md)
 |-------------|-------------------|---------|
 | production | `production` | CI success on `main`, or manual `workflow_dispatch` |
 
-`develop` runs CI only — no automatic deploy. Local experiments may use `tangle-dev` via `./scripts/azure-deploy-infra.sh dev`.
+`develop` runs CI only — no automatic deploy. Local experiments may use `tangle-study-dev` via `./scripts/azure-deploy-infra.sh dev`.
 
 Set `ASPNETCORE_ENVIRONMENT=Production` on the API Container App so [`appsettings.Production.json`](../services/Api/appsettings.Production.json) loads.
 
@@ -57,7 +57,7 @@ Bicep sets the Postgres connection string and Redis URL from internal app hostna
 
 ### 1. Azure OIDC federated credential
 
-Create an app registration and federated credential for GitHub Actions ([Microsoft docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)). Use subject `repo:<owner>/<repo>:environment:production`. Grant **Contributor** on resource group `tangle-prod`.
+Create an app registration and federated credential for GitHub Actions ([Microsoft docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)). Use subject `repo:<owner>/<repo>:environment:production`. Grant **Contributor** on resource group `tangle-study-prod`.
 
 ### 2. GitHub Environment `production`
 
@@ -68,7 +68,7 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 | `AZURE_CLIENT_ID` | App registration client ID |
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Subscription GUID |
-| `AZURE_RESOURCE_GROUP` | `tangle-prod` |
+| `AZURE_RESOURCE_GROUP` | `tangle-study-prod` |
 | `CONTAINER_REGISTRY` | `ghcr.io/your-org/tangle-study` (optional; defaults from repo owner) |
 
 **Secrets:**
@@ -241,7 +241,7 @@ After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azur
 Manual run:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-prod ./scripts/azure-cd-smoke.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
 ```
 
 ---
@@ -253,7 +253,7 @@ Complete this checklist **manually in production** after the first successful CD
 **Web URL:** resolve the public FQDN once:
 
 ```bash
-az containerapp show --name tangle-study-web --resource-group tangle-prod \
+az containerapp show --name tangle-study-web --resource-group tangle-study-prod \
   --query properties.configuration.ingress.fqdn -o tsv
 ```
 
@@ -267,7 +267,7 @@ Automated smoke tests ([`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh)) only
 - [ ] `GET https://<fqdn>/health` returns `Healthy`
 - [ ] Blob CORS allows `PUT` from the web origin (required for browser uploads)
 - [ ] `Media__PublicBlobEndpoint` points at the HTTPS blob endpoint clients use for SAS uploads
-- [ ] Application Insights shows incoming requests after browsing the app (Azure portal → `tangle-prod-appi`)
+- [ ] Application Insights shows incoming requests after browsing the app (Azure portal → `tanglestudyprod-appi`)
 
 ### Auth & users
 
@@ -325,7 +325,7 @@ Confirm worker Container Apps (`tangle-study-worker-media`, `tangle-study-worker
 ### Observability
 
 - [ ] API requests visible in Application Insights (Live Metrics or Transactions)
-- [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-study-api -g tangle-prod --tail 50`)
+- [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-study-api -g tangle-study-prod --tail 50`)
 - [ ] No sustained 5xx on `/api/*` during the walkthrough
 
 ### Sign-off

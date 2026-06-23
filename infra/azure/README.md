@@ -24,8 +24,8 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 ```
 infra/azure/
   main.bicep                 # Per-environment stack
-  parameters.dev.json        # Optional local experiments (tangle-dev)
-  parameters.prod.json       # Production (tangle-prod) — CD target
+  parameters.dev.json        # Optional local experiments (tangle-study-dev)
+  parameters.prod.json       # Production (tangle-study-prod) — CD target
   modules/
     infra-container.bicep    # Postgres + Redis (internal, no ingress)
     environment-storage.bicep
@@ -90,8 +90,8 @@ Postgres password is injected by CD from GitHub secret `POSTGRES_ADMIN_PASSWORD`
 
 | Group | Purpose |
 |-------|---------|
-| `tangle-dev` | Optional local / experiment stack |
-| `tangle-prod` | **Production** — GitHub Environment `production`, CD on `main` |
+| `tangle-study-dev` | Optional local / experiment stack |
+| `tangle-study-prod` | **Production** — GitHub Environment `production`, CD on `main` |
 
 ## Trade-offs (study project)
 
