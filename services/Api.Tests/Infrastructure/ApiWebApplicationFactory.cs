@@ -23,6 +23,12 @@ public sealed class ApiWebApplicationFactory(
 {
     public const string TestWorkerCallbackSecret = "test-media-worker-secret";
 
+    /// <summary>
+    /// Satisfies startup validation only. <see cref="FakeMediaStorage"/> replaces
+    /// <see cref="IMediaStorage"/> — no blob endpoint is contacted (unlike harness/prod).
+    /// </summary>
+    private const string StartupOnlyMediaConnectionString = "UseDevelopmentStorage=true";
+
     private readonly string _connectionString = connectionString;
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
@@ -33,6 +39,9 @@ public sealed class ApiWebApplicationFactory(
     {
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
+        builder.UseSetting("Media:Enabled", "true");
+        builder.UseSetting("Media:ConnectionString", StartupOnlyMediaConnectionString);
+        builder.UseSetting("Media:WorkerCallbackSecret", TestWorkerCallbackSecret);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -45,7 +54,7 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Media:Enabled"] = "true",
-                ["Media:ConnectionString"] = "UseDevelopmentStorage=true",
+                ["Media:ConnectionString"] = StartupOnlyMediaConnectionString,
                 ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
                 ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",

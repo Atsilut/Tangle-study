@@ -28,7 +28,7 @@ jobs:
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment: prod
     if: >
       github.event_name == 'workflow_dispatch' ||
@@ -56,6 +56,9 @@ jobs:
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: Media harness E2E (Compose + Azurite)
+        run: bash scripts/run-media-harness.sh
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

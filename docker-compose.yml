@@ -344,6 +344,8 @@ services:
         "services/Api.Tests/Api.Tests.csproj",
         "-c",
         "Release",
+        "--filter",
+        "Category!=Harness",
         "--verbosity",
         "normal",
       ]
