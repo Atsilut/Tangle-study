@@ -1,9 +1,12 @@
+# syntax=docker/dockerfile:1
+
 ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:latest
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:latest
+
 FROM ${DOTNET_ASPNET_IMAGE} AS base
 WORKDIR /app
 EXPOSE 8080
 
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:latest
 FROM ${DOTNET_SDK_IMAGE} AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src

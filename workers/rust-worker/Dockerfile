@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1
 
 ARG RUST_IMAGE=rust:bookworm
+ARG DEBIAN_IMAGE=debian:bookworm-slim
+
 FROM ${RUST_IMAGE} AS builder
 WORKDIR /build
 COPY workers/rust-worker/ .
 RUN cargo build --release
 
-ARG DEBIAN_IMAGE=debian:bookworm-slim
 FROM ${DEBIAN_IMAGE}
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
