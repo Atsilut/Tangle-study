@@ -1,0 +1,47 @@
+import { Link } from 'react-router-dom'
+import { EditedTimestamp } from '@/components/common/EditedTimestamp'
+import { Avatar, Badge, Card } from '@/components/ui'
+import type { Post } from '../api'
+
+export interface PostCardProps {
+  post: Post
+  /** Defaults to `/posts/{id}`. */
+  to?: string
+}
+
+// Compact list item linking to the post detail. Reused by feed and profile.
+export function PostCard({ post, to }: PostCardProps) {
+  const href = to ?? `/posts/${post.id}`
+  return (
+    <Link to={href} className="block">
+      <Card className="px-4 py-3 hover:bg-gray-50">
+        <div className="flex items-center gap-2">
+          <Avatar name={post.authorNickname} size="sm" />
+          <span className="text-sm font-medium text-gray-900">{post.authorNickname}</span>
+          <EditedTimestamp
+            createdAt={post.createdAt}
+            updatedAt={post.updatedAt}
+            variant="date"
+          />
+          {post.media.length > 0 && (
+            <Badge color="blue">
+              {post.media.length} media
+            </Badge>
+          )}
+          {post.location && (
+            <Badge color="green">Location</Badge>
+          )}
+        </div>
+        <h3 className="mt-2 text-base font-semibold text-gray-900">{post.title}</h3>
+        <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.content}</p>
+        {post.location && (
+          <p className="mt-2 text-xs text-blue-700">
+            {post.location.latitude.toFixed(4)}, {post.location.longitude.toFixed(4)}
+            {' · '}
+            <span className="font-medium">View on map</span>
+          </p>
+        )}
+      </Card>
+    </Link>
+  )
+}

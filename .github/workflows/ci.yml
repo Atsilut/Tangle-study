@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_ENV_FILE: docker/versions.prod.env
+
+jobs:
+  build:
+    name: Build (.NET)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: Build solution
+        run: bash scripts/docker-dotnet.sh build Tangle.slnx
+
+  rust:
+    name: Rust worker tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: cargo test
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src/workers/rust-worker \
+            "${{ env.RUST_IMAGE }}" \
+            cargo test
+
+  web:
+    name: Web lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: npm ci, lint, test, build
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src/clients/web \
+            "${{ env.NODE_IMAGE }}" \
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm run build"
+
+  api:
+    name: API integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: dotnet test (Testcontainers)
+        run: bash scripts/docker-test.sh
+
+  harness:
+    name: Media harness E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: run-media-harness.sh
+        run: bash scripts/run-media-harness.sh

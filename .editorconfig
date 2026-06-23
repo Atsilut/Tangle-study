@@ -1,0 +1,23 @@
+root = true
+
+[*.cs]
+# Braces on multi-line single-statement guards hurt readability for simple actions
+dotnet_diagnostic.RCS1001.severity = none
+dotnet_diagnostic.RCS1003.severity = none
+# Prefer object lock fields over System.Threading.Lock for consistency with existing code
+dotnet_diagnostic.RCS1225.severity = none
+# Concrete-type performance suggestions are too noisy for this codebase
+dotnet_diagnostic.CA1859.severity = none
+# EF and domain entities use { get; private set; } instead of { get; } for mapped properties
+dotnet_diagnostic.RCS1170.severity = none
+# Trailing whitespace
+dotnet_diagnostic.RCS1037.severity = none
+# Typed exceptions use status-code constructors only, not the standard Exception trio
+dotnet_diagnostic.RCS1194.severity = none
+
+[services/Api/Domain/**/Domain/*.cs]
+dotnet_diagnostic.CS8618.severity = none
+
+[services/Api/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.category-roslynator.severity = none

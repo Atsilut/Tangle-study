@@ -1,0 +1,36 @@
+using Api.Domain.Groups.Domain;
+using Api.Domain.Groups.Dto;
+using Api.Tests.Infrastructure;
+using Api.Tests.Repositories;
+
+namespace Api.Tests.Services;
+
+public sealed class GroupInvitationServiceUnitTests
+{
+    [Fact]
+    public async Task Invite_CreatesPendingInvitation()
+    {
+        // Arrange
+        var http = new FakeHttpContextAccessor("1");
+        var graph = DomainServiceTestFactory.Create(http);
+        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
+        var stranger = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "stranger");
+        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
+        var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
+        {
+            Name = "G",
+            Description = "d",
+            Visibility = GroupVisibility.Public,
+            JoinPolicy = GroupJoinPolicy.InvitationOnly,
+        });
+
+        // Act
+        var result = await graph.GroupInvitationService.InviteAsync(
+            group.Id,
+            new GroupInvitationCreateRequestDto { InviteeId = stranger.Id });
+
+        // Assert
+        Assert.Equal(GroupInvitationOutcome.GroupInvitationCreated, result.Outcome);
+        Assert.NotNull(await graph.GroupInvitationRepository.GetPendingForUserAsync(group.Id, stranger.Id));
+    }
+}

@@ -1,0 +1,53 @@
+---
+description: HTTP status mapping for Api services (exceptions and tests)
+globs: services/Api/**/*.cs,services/Api.Tests/**/*.cs
+alwaysApply: false
+---
+
+# API exception → HTTP status
+
+Mapped by `GlobalExceptionHandler` in `services/Api/Global/Exceptions/GlobalExceptionHandler.cs`.
+
+| Case | Throw / source | HTTP |
+|------|----------------|------|
+| Not logged in | `[Authorize]` on controller/action | **401** |
+| Logged in but not allowed (ownership, role, privacy) | `UnauthorizedAccessException` | **401** |
+| **2-1** Target entity of this operation missing | `EntityNotFoundException` (default status) | **404** |
+| **2-2** Prerequisite entity missing (cannot reach target) | `EntityNotFoundException(..., StatusCodes.Status400BadRequest)` or `ArgumentException` | **400** |
+| Unique / duplicate | `EntityAlreadyExistsException` | **409** |
+
+Postgres unique constraint on `DbUpdateException` also maps to **409** (safety net).
+
+## Service patterns
+
+```csharp
+// Missing JWT sub
+?? throw new UnauthorizedAccessException("Unauthorized access");
+
+// 2-1 target
+await _repo.GetXByIdAsync(id) ?? throw new EntityNotFoundException("X not found");
+
+// 2-2 prerequisite
+await _userService.EnsureUserExistsAsync(id, "User not found", StatusCodes.Status400BadRequest);
+
+// 1 permission (after load)
+if (entity.OwnerId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+
+// 3 duplicate
+throw new EntityAlreadyExistsException("...");
+
+// 400 invalid input / business rule
+throw new ArgumentException("Cannot block yourself.");
+```
+
+Prefer throwing from services; handler returns `ProblemDetails`. Some GET controllers return `NotFound()` when service returns `null` — still **404**, but bypasses the handler.
+
+## Tests
+
+Assert status + `ProblemDetails.Detail` for 401 permission, 404 target, 400 prerequisite, 409 duplicate. Unauthenticated **401** via `[Authorize]` is optional (one row per controller in `AuthorizedEndpointsIntegrationTests`). Login-only GET `/me` routes need happy-path tests only unless the route takes another user's id.
+
+## Known deviations (do not "fix" without intent)
+
+- `LoginService` returns `null` on failure (intentional; not typed exceptions).
+- Private group `GET /api/groups/{id}`: non-members receive **200** with a limited profile (`IsLimitedProfile`, no description); members receive the full payload. Other private routes (e.g. members) still use **404** for non-members.
+- `ArgumentOutOfRangeException` is not mapped by `GlobalExceptionHandler` (defensive enum paths only).

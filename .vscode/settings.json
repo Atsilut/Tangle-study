@@ -1,0 +1,17 @@
+{
+  "dotnet.defaultSolution": "Tangle.slnx",
+  "csharp-dev-tools.roslyn.compilerDiagnosticsScope": "Solution",
+  "csharp-dev-tools.roslyn.analyzerDiagnosticsScope": "Solution",
+  "csharp-dev-tools.roslyn.restoreProjectsBeforeLoading": true,
+  "csharp-dev-tools.roslyn.compileProjectsAfterLoading": true,
+  "csharp-dev-tools.roslyn.loadMetadataForReferencedProjects": false,
+  "dotnetAcquisitionExtension.sharedExistingDotnetPath": "C:\\Program Files\\dotnet\\dotnet.exe",
+  "terminal.integrated.env.windows": {
+    "DOTNET_ROOT": "C:\\Program Files\\dotnet",
+    "PATH": "C:\\Program Files\\dotnet;${env:PATH}"
+  },
+  "terminal.integrated.env.osx": {
+    "DOTNET_ROOT": "/usr/local/share/dotnet",
+    "PATH": "/usr/local/share/dotnet:${env:PATH}"
+  }
+}

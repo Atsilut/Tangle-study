@@ -1,0 +1,121 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_migrate:
+        description: Skip EF migrate job
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  COMPOSE_ENV_FILE: docker/versions.prod.env
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: prod
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    steps:
+      - name: Resolve deploy SHA
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+          registry="${{ vars.CONTAINER_REGISTRY }}"
+          if [[ -z "$registry" ]]; then
+            owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+            registry="ghcr.io/${owner}/tangle-study"
+          fi
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.meta.outputs.sha }}
+
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+
+      - name: Media harness E2E (Compose + Azurite)
+        run: bash scripts/run-media-harness.sh
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        env:
+          COMPOSE_ENV_FILE: docker/versions.prod.env
+          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+        run: bash scripts/azure-cd-build-push.sh
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Inject Container App secrets
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          BLOB_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          WORKER_CALLBACK_SECRET: ${{ secrets.WORKER_CALLBACK_SECRET }}
+          METRICS_SCRAPE_SECRET: ${{ secrets.METRICS_SCRAPE_SECRET }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          GHCR_REGISTRY_USERNAME: ${{ secrets.GHCR_REGISTRY_USERNAME }}
+          GHCR_REGISTRY_PASSWORD: ${{ secrets.GHCR_REGISTRY_PASSWORD }}
+        run: bash scripts/azure-cd-inject-secrets.sh
+
+      - name: Update Container App images
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+        run: bash scripts/azure-cd-update-images.sh
+
+      - name: Run EF migrate job
+        if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: bash scripts/azure-cd-migrate.sh
+
+      - name: Post-deploy smoke tests
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: bash scripts/azure-cd-smoke.sh
+
+      - name: Deployment summary
+        env:
+          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+        run: |
+          echo "Deployed ${CONTAINER_REGISTRY} @ ${IMAGE_TAG} to ${{ vars.AZURE_RESOURCE_GROUP }} (production)"

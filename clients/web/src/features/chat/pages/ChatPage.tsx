@@ -1,0 +1,158 @@
+import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Badge, Card, CardBody, CardHeader, EmptyState, ErrorState } from '@/components/ui'
+import { QueryBoundary } from '@/components/common/QueryBoundary'
+import { UserRow } from '@/components/common/UserRow'
+import { Button } from '@/components/ui'
+import { formatChatListTimestamp } from '@/lib/format'
+import { getErrorMessage } from '@/lib/apiError'
+import { useAuthStore } from '@/stores/authStore'
+import { useMyFriends } from '@/features/friends/hooks'
+import { CreateChatRoomForm } from '../components/CreateChatRoomForm'
+import {
+  useChatRoomsRealtimeSync,
+  useCreateMultiRoom,
+  useGetOrCreateDirectRoom,
+  useMyRooms,
+} from '../hooks'
+import { chatRoomKindLabels, summaryLabel, summaryLastMessagePreview } from '../labels'
+
+export function ChatPage() {
+  const currentUserId = useAuthStore((s) => s.userId)
+  const rooms = useMyRooms()
+  useChatRoomsRealtimeSync(rooms.data?.map((r) => r.id) ?? [])
+  const friends = useMyFriends()
+  const navigate = useNavigate()
+  const openDirect = useGetOrCreateDirectRoom()
+  const createMulti = useCreateMultiRoom()
+  const [directError, setDirectError] = useState<string | null>(null)
+
+  const startDirect = (otherUserId: number) => {
+    setDirectError(null)
+    openDirect.mutate(otherUserId, {
+      onSuccess: (room) => navigate(`/chat/${room.id}`),
+      onError: (error) => setDirectError(getErrorMessage(error, 'Could not open chat.')),
+    })
+  }
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <h1 className="text-2xl font-bold text-gray-900">Chats</h1>
+        <QueryBoundary
+          isLoading={rooms.isLoading}
+          isError={rooms.isError}
+          error={rooms.error}
+          onRetry={() => rooms.refetch()}
+        >
+          {rooms.data && rooms.data.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {rooms.data.map((room) => {
+                const preview = summaryLastMessagePreview(room, currentUserId)
+                const listTimestamp = formatChatListTimestamp(
+                  room.lastMessage?.sentAt ?? room.updatedAt,
+                )
+                return (
+                  <li key={room.id}>
+                    <Link to={`/chat/${room.id}`} className="block">
+                      <Card className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-sm font-medium text-gray-900">
+                              {summaryLabel(room)}
+                            </span>
+                            <span className="shrink-0 text-xs text-gray-500">{listTimestamp}</span>
+                          </div>
+                          {preview && (
+                            <p className="truncate text-xs text-gray-500">{preview}</p>
+                          )}
+                        </div>
+                        <Badge>{chatRoomKindLabels[room.kind]}</Badge>
+                      </Card>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title="No chats yet"
+              description="Start a direct chat with a friend below."
+            />
+          )}
+        </QueryBoundary>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-gray-900">Start a group chat</h2>
+        <QueryBoundary
+          isLoading={friends.isLoading}
+          isError={friends.isError}
+          error={friends.error}
+          onRetry={() => friends.refetch()}
+        >
+          <Card>
+            <CardHeader>
+              <p className="text-sm text-gray-600">
+                Pick one or more friends. You are added automatically as the room owner.
+              </p>
+            </CardHeader>
+            <CardBody>
+              <CreateChatRoomForm
+                participants={(friends.data ?? []).map((friend) => ({
+                  userId: friend.otherUserId,
+                  nickname: friend.otherUserNickname,
+                }))}
+                isPending={createMulti.isPending}
+                error={createMulti.isError ? createMulti.error : undefined}
+                onSubmit={(userIds, title) =>
+                  createMulti.mutate(
+                    { userIds, title },
+                    { onSuccess: (room) => navigate(`/chat/${room.id}`) },
+                  )
+                }
+              />
+            </CardBody>
+          </Card>
+        </QueryBoundary>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-gray-900">Start a direct chat</h2>
+        {directError && (
+          <ErrorState title="Could not open chat" message={directError} onRetry={() => setDirectError(null)} />
+        )}
+        <QueryBoundary
+          isLoading={friends.isLoading}
+          isError={friends.isError}
+          error={friends.error}
+          onRetry={() => friends.refetch()}
+        >
+          {friends.data && friends.data.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {friends.data.map((friend) => (
+                <li key={friend.id}>
+                  <UserRow
+                    userId={friend.otherUserId}
+                    nickname={friend.otherUserNickname}
+                    actions={
+                      <Button
+                        size="sm"
+                        isLoading={openDirect.isPending}
+                        onClick={() => startDirect(friend.otherUserId)}
+                      >
+                        Message
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState title="No friends yet" description="Add friends to start chatting." />
+          )}
+        </QueryBoundary>
+      </section>
+    </div>
+  )
+}

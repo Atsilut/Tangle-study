@@ -1,28 +1,27 @@
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.SwaggerGen;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text.Json.Nodes;
+using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Api.Global.Config
 {
     public class SwaggerDefaultValueSchemaFilter : ISchemaFilter
     {
-        public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+        public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
         {
-            if (schema.Properties == null) return;
+            if (schema is not OpenApiSchema openApiSchema || openApiSchema.Properties is null) return;
 
-            foreach (var property in schema.Properties)
+            foreach (var property in openApiSchema.Properties)
             {
                 var propInfo = context.Type.GetProperty(property.Key, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-                if (propInfo != null)
-                {
-                    var defaultValue = propInfo.GetCustomAttribute<DefaultValueAttribute>()?.Value;
-                    if (defaultValue != null)
-                    {
-                        property.Value.Example = new OpenApiString(defaultValue.ToString());
-                    }
-                }
+                if (propInfo is null) continue;
+
+                var defaultValue = propInfo.GetCustomAttribute<DefaultValueAttribute>()?.Value;
+                if (defaultValue is null) continue;
+
+                if (property.Value is OpenApiSchema propertySchema)
+                    propertySchema.Example = JsonValue.Create(defaultValue.ToString());
             }
         }
     }

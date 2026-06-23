@@ -1,0 +1,356 @@
+name: tangle-study
+
+# Image tags: defaults are latest (dev). Pin with --env-file docker/versions.prod.env
+# See docker/README.md.
+
+x-dotnet-build-args: &dotnet-build-args
+  DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
+
+x-api-build-args: &api-build-args
+  DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
+  DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+x-web-build-args: &web-build-args
+  NODE_IMAGE: ${NODE_IMAGE:-node:bookworm-slim}
+  NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+
+x-rust-build-args: &rust-build-args
+  RUST_IMAGE: ${RUST_IMAGE:-rust:bookworm}
+  DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
+
+x-dotnet-env: &dotnet-env
+  DOTNET_CLI_HOME: /tmp/dotnet-cli
+  NUGET_PACKAGES: /tmp/nuget-packages
+  DOTNET_NOLOGO: "1"
+  ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=tangledb;Username=tangle;Password=tangletangle123;Pooling=true"
+  Redis__Enabled: "false"
+  Redis__ConnectionString: "redis:6379"
+  Redis__InstanceName: "tangle:"
+  Redis__SignalRChannelPrefix: "tangle:signalr:"
+  Redis__WorkQueueStreamPrefix: "tangle:queue:"
+
+# Integration tests use Testcontainers Postgres; do not inject the compose db connection string.
+x-dotnet-test-env: &dotnet-test-env
+  DOTNET_CLI_HOME: /tmp/dotnet-cli
+  NUGET_PACKAGES: /tmp/nuget-packages
+  DOTNET_NOLOGO: "1"
+  Redis__Enabled: "false"
+  Redis__ConnectionString: "redis:6379"
+  Redis__InstanceName: "tangle:"
+  Redis__SignalRChannelPrefix: "tangle:signalr:"
+  Redis__WorkQueueStreamPrefix: "tangle:queue:"
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-redis:alpine}
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  azurite:
+    image: ${AZURITE_IMAGE:-mcr.microsoft.com/azure-storage/azurite:latest}
+    restart: unless-stopped
+    # Azure.Storage.Blobs 12.29+ sends API version 2026-06-06; Azurite 3.35 supports 2025-11-05.
+    command: azurite --blobHost 0.0.0.0 --location /data --skipApiVersionCheck
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-data:/data
+
+  db:
+    image: ${POSTGRES_IMAGE:-postgres:latest}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tangle
+      POSTGRES_PASSWORD: tangletangle123
+      POSTGRES_DB: tangledb
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tangle -d tangledb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: services/Api/Dockerfile
+      args: *api-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__InstanceName: "tangle:"
+      Redis__SignalRChannelPrefix: "tangle:signalr:"
+      Redis__WorkQueueStreamPrefix: "tangle:queue:"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    ports:
+      - "5000:8080"
+    depends_on:
+      azurite:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  # Nginx edge: reverse-proxies /api and /hubs (SignalR WebSocket) to the api
+  # service, and serves the built React SPA (built in clients/web/Dockerfile).
+  # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
+  nginx:
+    build:
+      context: .
+      dockerfile: clients/web/Dockerfile
+      args: *web-build-args
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_started
+      rust-worker-media:
+        condition: service_started
+        required: false
+    restart: unless-stopped
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:latest}
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
+      - ./infra/prometheus/scrape/workers.yml:/etc/prometheus/scrape-src/workers.yml:ro
+      - ./infra/prometheus/docker-entrypoint.sh:/etc/prometheus/docker-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/etc/prometheus/docker-entrypoint.sh"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    depends_on:
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      rust-worker:
+        condition: service_started
+        required: false
+      rust-worker-media:
+        condition: service_started
+        required: false
+
+  postgres-exporter:
+    profiles: ["monitoring"]
+    image: ${POSTGRES_EXPORTER_IMAGE:-prometheuscommunity/postgres-exporter:latest}
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://tangle:tangletangle123@db:5432/tangledb?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis-exporter:
+    profiles: ["monitoring"]
+    image: ${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:latest}
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  grafana:
+    profiles: ["monitoring"]
+    image: ${GRAFANA_IMAGE:-grafana/grafana:latest}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
+  # Build, EF migrations, and other dotnet CLI work (no local .nuget / .dotnet-tools).
+  sdk:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+      args: *dotnet-build-args
+    image: tangle-study-sdk:local
+    working_dir: /src
+    environment: *dotnet-env
+    volumes:
+      - .:/src
+    depends_on:
+      db:
+        condition: service_healthy
+
+  rust-worker:
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_STREAM_PREFIX: "tangle:queue:"
+      WORKER_STREAM_KEY: chat.message.created
+      WORKER_CONSUMER_GROUP: tangle-study-workers
+      WORKER_METRICS_PORT: "9090"
+      RUST_LOG: info
+    expose:
+      - "9090"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rust-worker-media:
+    profiles: ["workers", "harness"]
+    build:
+      context: .
+      dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_STREAM_PREFIX: "tangle:queue:"
+      WORKER_STREAM_KEY: media.uploaded
+      WORKER_CONSUMER_GROUP: tangle-study-workers
+      API_BASE_URL: http://api:8080
+      WORKER_CALLBACK_SECRET: dev-media-worker-secret
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      MEDIA_CONTAINER_NAME: tangle-media
+      WORKER_METRICS_PORT: "9090"
+      RUST_LOG: info
+    expose:
+      - "9090"
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+      azurite:
+        condition: service_started
+    restart: unless-stopped
+
+  rust-worker-location:
+    profiles: ["workers"]
+    build:
+      context: .
+      dockerfile: workers/rust-worker/Dockerfile
+      args: *rust-build-args
+    environment:
+      REDIS_URL: redis://redis:6379
+      WORKER_STREAM_PREFIX: "tangle:queue:"
+      WORKER_STREAM_KEY: location.cluster
+      WORKER_CONSUMER_GROUP: tangle-study-workers
+      API_BASE_URL: http://api:8080
+      WORKER_CALLBACK_SECRET: dev-media-worker-secret
+      WORKER_METRICS_PORT: "9090"
+      RUST_LOG: info
+    expose:
+      - "9090"
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+  harness:
+    profiles: ["harness"]
+    image: tangle-study-sdk:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+      args: *dotnet-build-args
+    working_dir: /src
+    environment:
+      <<: *dotnet-env
+      TANGLE_HARNESS_API_BASE_URL: http://api:8080
+    volumes:
+      - .:/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+      api:
+        condition: service_healthy
+      rust-worker-media:
+        condition: service_started
+    command:
+      [
+        "test",
+        "services/Api.Tests/Api.Tests.csproj",
+        "-c",
+        "Release",
+        "--filter",
+        "Category=Harness",
+        "--verbosity",
+        "normal",
+      ]
+
+  test:
+    profiles: ["test"]
+    image: tangle-study-sdk:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sdk
+      args: *dotnet-build-args
+    working_dir: /src
+    environment:
+      <<: *dotnet-test-env
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Testcontainers talks to the host Docker engine via the mounted socket.
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/src
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      [
+        "test",
+        "services/Api.Tests/Api.Tests.csproj",
+        "-c",
+        "Release",
+        "--filter",
+        "Category!=Harness",
+        "--verbosity",
+        "normal",
+      ]
+
+volumes:
+  azurite-data:
+  db-data:
+  redis-data:

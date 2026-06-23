@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "prod"
+    },
+    "containerRegistry": {
+      "value": "ghcr.io/atsilut/tangle-study"
+    },
+    "usePlaceholderImages": {
+      "value": true
+    },
+    "imageTag": {
+      "value": "latest"
+    },
+    "postgresImage": {
+      "value": "postgres:18.4"
+    },
+    "redisImage": {
+      "value": "redis:8.8.0-alpine"
+    },
+    "apiMinReplicas": {
+      "value": 1
+    },
+    "webMinReplicas": {
+      "value": 1
+    },
+    "workerMinReplicas": {
+      "value": 0
+    }
+  }
+}

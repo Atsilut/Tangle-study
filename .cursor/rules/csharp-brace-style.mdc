@@ -1,0 +1,69 @@
+---
+description: C# control-flow layout — same-line vs next-line actions, no braces for single statements
+globs: services/Api/**/*.cs,services/Api.Tests/**/*.cs
+alwaysApply: false
+---
+
+# C# control-flow layout (no braces for single statements)
+
+Omit braces when the body is **exactly one statement**. Place that statement on the **same line** or the **next line** using the rules below.
+
+## Line placement
+
+1. **Action is short enough** — put it on the **same line** as the condition:
+
+```csharp
+if (condition) return null;
+else if (other) throw new ArgumentException("...");
+else DoFallback();
+```
+
+2. **Action is too long for one line** — put it on the **next line**, indented (still no braces):
+
+```csharp
+else
+    await _eventPublisher.PublishAsync(
+        RedisEventChannels.UserNicknameChanged,
+        new UserNicknameChangedEvent(user.Id, user.Nickname, IsDeleted: false, DateTimeOffset.UtcNow));
+```
+
+3. **Condition is too long for a same-line action** — put the action on the **next line**, even when the action itself is short:
+
+```csharp
+if (await _userBlockService.IsBlockedByAsync(userId, otherUserId)
+    || await _userBlockService.IsBlockedByAsync(otherUserId, userId))
+    throw new ArgumentException("Cannot chat while a block exists between you and this user.");
+```
+
+## Combined example
+
+```csharp
+if (isReady) return Ok();
+else if (isPending) return Accepted();
+else if (await Service.IsBlockedByAsync(userId, otherUserId)
+    || await Service.IsBlockedByAsync(otherUserId, userId))
+    throw new ArgumentException("Blocked.");
+else
+    return BadRequest("Email and password are required.");
+```
+
+## Use braces only when
+
+- The body has **two or more** statements.
+- Nesting would be ambiguous without braces.
+
+```csharp
+if (condition)
+{
+    await DoWorkAsync();
+    return;
+}
+```
+
+## When editing
+
+- **New code**: follow the three line-placement rules; default to braceless single statements.
+- **Existing code**: match the surrounding method; do not mass-reformat unrelated style.
+- **Do not apply** in `services/Api/Migrations/` (generated EF code).
+
+`RCS1001` is suppressed in `.editorconfig` for this style.
