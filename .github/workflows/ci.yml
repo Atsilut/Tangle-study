@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
