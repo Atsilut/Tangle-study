@@ -30,7 +30,21 @@ ci_nuget_mount() {
 
 ci_npm_mount() {
   ensure_ci_cache_dirs
-  echo "$(ci_cache_root)/npm:/root/.npm"
+  echo "$(ci_cache_root)/npm:/npm-cache"
+}
+
+ci_runner_docker_user_args() {
+  echo "--user $(id -u):$(id -g)"
+}
+
+# Docker runs as root by default; actions/cache tar fails on root-owned files.
+ci_fix_cache_ownership() {
+  if [[ ! -d "$(ci_cache_root)" ]]; then
+    return 0
+  fi
+  if command -v sudo >/dev/null 2>&1; then
+    sudo chown -R "$(id -u):$(id -g)" "$(ci_cache_root)" 2>/dev/null || true
+  fi
 }
 
 build_sdk_image() {

@@ -77,7 +77,6 @@ jobs:
           path: |
             .ci-cache/cargo/registry
             .ci-cache/cargo/git
-            workers/rust-worker/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('workers/rust-worker/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -86,6 +85,7 @@ jobs:
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/rust-worker/target
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
@@ -93,6 +93,7 @@ jobs:
             -w /src/workers/rust-worker \
             "${{ env.RUST_IMAGE }}" \
             cargo test
+          sudo chown -R "$(id -u):$(id -g)" .ci-cache/cargo
 
   web:
     name: Web lint, test, build
@@ -122,11 +123,14 @@ jobs:
         run: |
           mkdir -p .ci-cache/npm
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e npm_config_cache=/npm-cache \
             -v "${{ github.workspace }}:/src" \
-            -v "${{ github.workspace }}/.ci-cache/npm:/root/.npm" \
+            -v "${{ github.workspace }}/.ci-cache/npm:/npm-cache" \
             -w /src/clients/web \
             "${{ env.NODE_IMAGE }}" \
             sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm run build"
+          sudo chown -R "$(id -u):$(id -g)" .ci-cache/npm
 
   api:
     name: API integration tests
@@ -159,6 +163,7 @@ jobs:
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/docker-test.sh
+          sudo chown -R "$(id -u):$(id -g)" .ci-cache/nuget
 
   harness:
     name: Media harness E2E
@@ -191,6 +196,7 @@ jobs:
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/run-media-harness.sh
+          sudo chown -R "$(id -u):$(id -g)" .ci-cache/nuget
 
   ci-gate:
     name: CI
