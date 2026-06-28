@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 # shellcheck source=scripts/lib/compose-env.sh
 source "$ROOT/scripts/lib/compose-env.sh"
+# shellcheck source=scripts/lib/ci-cache.sh
+source "$ROOT/scripts/lib/ci-cache.sh"
 
 # CI/deploy parity: pin infra image tags for compose interpolation (build args).
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"
@@ -21,6 +23,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker compose "${COMPOSE_ARGS[@]}" build api rust-worker-media harness
+docker compose "${COMPOSE_ARGS[@]}" build --parallel api rust-worker-media harness
 docker compose "${COMPOSE_ARGS[@]}" up -d --wait
-docker compose "${COMPOSE_ARGS[@]}" run --rm harness
+
+nuget_mount="$(ci_nuget_mount)"
+docker compose "${COMPOSE_ARGS[@]}" run --rm -v "$nuget_mount" harness

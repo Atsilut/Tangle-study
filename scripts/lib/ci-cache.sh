@@ -1,0 +1,47 @@
+# shellcheck shell=bash
+# Persistent CI caches under .ci-cache/ (gitignored). Source after setting ROOT.
+
+ci_cache_root() {
+  echo "${ROOT}/.ci-cache"
+}
+
+ensure_ci_cache_dirs() {
+  mkdir -p \
+    "$(ci_cache_root)/nuget" \
+    "$(ci_cache_root)/npm" \
+    "$(ci_cache_root)/cargo/registry" \
+    "$(ci_cache_root)/cargo/git" \
+    "$(ci_cache_root)/cargo/target"
+}
+
+ci_nuget_mount() {
+  ensure_ci_cache_dirs
+  echo "$(ci_cache_root)/nuget:/tmp/nuget-packages"
+}
+
+ci_npm_mount() {
+  ensure_ci_cache_dirs
+  echo "$(ci_cache_root)/npm:/root/.npm"
+}
+
+build_sdk_image() {
+  local image_tag="${1:-tangle-study-sdk:local}"
+  local dockerfile="${ROOT}/docker/Dockerfile.sdk"
+
+  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    docker buildx build \
+      --cache-from "type=gha,scope=tangle-sdk" \
+      --cache-to "type=gha,mode=max,scope=tangle-sdk" \
+      -f "$dockerfile" \
+      --build-arg "DOTNET_SDK_IMAGE=${DOTNET_SDK_IMAGE:?DOTNET_SDK_IMAGE is required}" \
+      -t "$image_tag" \
+      --load \
+      "$ROOT"
+  else
+    docker build \
+      -f "$dockerfile" \
+      --build-arg "DOTNET_SDK_IMAGE=${DOTNET_SDK_IMAGE:?DOTNET_SDK_IMAGE is required}" \
+      -t "$image_tag" \
+      "$ROOT"
+  fi
+}

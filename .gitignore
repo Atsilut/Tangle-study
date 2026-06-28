@@ -3,6 +3,7 @@
 
 .env
 docker-compose.override.yml
+.ci-cache/
 
 ### DotnetCore ###
 # .NET Core build folders

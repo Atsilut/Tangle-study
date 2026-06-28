@@ -315,7 +315,7 @@ services:
         "--filter",
         "Category=Harness",
         "--verbosity",
-        "normal",
+        "minimal",
       ]
 
   test:
@@ -347,7 +347,7 @@ services:
         "--filter",
         "Category!=Harness",
         "--verbosity",
-        "normal",
+        "minimal",
       ]
 
 volumes:
