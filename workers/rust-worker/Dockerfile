@@ -5,8 +5,16 @@ ARG DEBIAN_IMAGE=debian:bookworm-slim
 
 FROM ${RUST_IMAGE} AS builder
 WORKDIR /build
-COPY workers/rust-worker/ .
-RUN cargo build --release
+
+# Cache dependency compilation separately from application source.
+COPY workers/rust-worker/Cargo.toml workers/rust-worker/Cargo.lock ./
+RUN mkdir -p src \
+    && printf 'fn main() {}\n' > src/main.rs \
+    && cargo build --release \
+    && rm -rf src
+
+COPY workers/rust-worker/src ./src
+RUN touch src/main.rs && cargo build --release
 
 FROM ${DEBIAN_IMAGE}
 RUN apt-get update \
