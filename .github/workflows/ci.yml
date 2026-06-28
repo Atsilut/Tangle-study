@@ -72,10 +72,11 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
-            .ci-cache/cargo
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
             workers/rust-worker/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('workers/rust-worker/Cargo.lock') }}
           restore-keys: |
@@ -86,7 +87,8 @@ jobs:
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/rust-worker/target
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
-            -v "${{ github.workspace }}/.ci-cache/cargo:/usr/local/cargo" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
             -v "${{ github.workspace }}/workers/rust-worker/target:/src/workers/rust-worker/target" \
             -w /src/workers/rust-worker \
             "${{ env.RUST_IMAGE }}" \
@@ -109,7 +111,7 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Cache npm downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .ci-cache/npm
           key: ${{ runner.os }}-npm-${{ hashFiles('clients/web/package-lock.json') }}
@@ -143,7 +145,7 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .ci-cache/nuget
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
@@ -151,7 +153,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: dotnet test (Testcontainers)
         run: |
@@ -175,7 +177,7 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .ci-cache/nuget
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
@@ -183,7 +185,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: run-media-harness.sh
         run: |

@@ -10,8 +10,17 @@ ensure_ci_cache_dirs() {
     "$(ci_cache_root)/nuget" \
     "$(ci_cache_root)/npm" \
     "$(ci_cache_root)/cargo/registry" \
-    "$(ci_cache_root)/cargo/git" \
-    "$(ci_cache_root)/cargo/target"
+    "$(ci_cache_root)/cargo/git"
+}
+
+ci_cargo_registry_mount() {
+  ensure_ci_cache_dirs
+  echo "$(ci_cache_root)/cargo/registry:/usr/local/cargo/registry"
+}
+
+ci_cargo_git_mount() {
+  ensure_ci_cache_dirs
+  echo "$(ci_cache_root)/cargo/git:/usr/local/cargo/git"
 }
 
 ci_nuget_mount() {
