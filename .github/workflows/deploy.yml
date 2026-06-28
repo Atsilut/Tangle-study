@@ -58,14 +58,14 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and push images
         env:
