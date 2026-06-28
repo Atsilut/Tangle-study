@@ -7,11 +7,12 @@
 #   JWT_SECRET
 #   WORKER_CALLBACK_SECRET
 #   METRICS_SCRAPE_SECRET
-#   POSTGRES_ADMIN_PASSWORD
+#   POSTGRES_CONNECTION_STRING
+#   GRAFANA_ADMIN_PASSWORD
 #
 # Optional env:
 #   PLACES_API_KEY
-#   POSTGRES_ADMIN_LOGIN (default: tangle)
+#   POSTGRES_EXPORTER_DSN (default: derived from POSTGRES_CONNECTION_STRING for Neon)
 #   APPLICATIONINSIGHTS_CONNECTION_STRING (auto-fetched from Azure when unset)
 #   APP_INSIGHTS_NAME (default: tanglestudyprod-appi)
 #   GHCR_REGISTRY_USERNAME / GHCR_REGISTRY_PASSWORD (private GHCR pull)
@@ -23,14 +24,45 @@ set -euo pipefail
 : "${JWT_SECRET:?JWT_SECRET is required}"
 : "${WORKER_CALLBACK_SECRET:?WORKER_CALLBACK_SECRET is required}"
 : "${METRICS_SCRAPE_SECRET:?METRICS_SCRAPE_SECRET is required}"
-: "${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD is required}"
+: "${POSTGRES_CONNECTION_STRING:?POSTGRES_CONNECTION_STRING is required}"
+: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}"
 
 RG="$AZURE_RESOURCE_GROUP"
 PLACES_API_KEY="${PLACES_API_KEY:-}"
-POSTGRES_ADMIN_LOGIN="${POSTGRES_ADMIN_LOGIN:-tangle}"
 APP_INSIGHTS_NAME="${APP_INSIGHTS_NAME:-tanglestudyprod-appi}"
 
-POSTGRES_CONNECTION_STRING="Host=tangle-study-postgres;Port=5432;Database=tangledb;Username=${POSTGRES_ADMIN_LOGIN};Password=${POSTGRES_ADMIN_PASSWORD};Pooling=true"
+build_postgres_exporter_dsn() {
+  python3 - "$1" <<'PY'
+import re
+import sys
+import urllib.parse
+
+conn = sys.argv[1]
+
+def get(key: str) -> str:
+    match = re.search(rf"(?:^|;)\s*{re.escape(key)}\s*=\s*([^;]*)", conn, re.I)
+    return match.group(1).strip() if match else ""
+
+host = get("Host")
+database = get("Database")
+username = get("Username")
+password = get("Password")
+port = get("Port") or "5432"
+sslmode = "require" if re.search(r"SSL\s*Mode\s*=\s*Require", conn, re.I) else "disable"
+
+if not all([host, database, username, password]):
+    raise SystemExit(
+        "POSTGRES_CONNECTION_STRING must include Host, Database, Username, and Password "
+        "(or set POSTGRES_EXPORTER_DSN explicitly)."
+    )
+
+user = urllib.parse.quote(username, safe="")
+pw = urllib.parse.quote(password, safe="")
+print(f"postgresql://{user}:{pw}@{host}:{port}/{database}?sslmode={sslmode}")
+PY
+}
+
+POSTGRES_EXPORTER_DSN="${POSTGRES_EXPORTER_DSN:-$(build_postgres_exporter_dsn "$POSTGRES_CONNECTION_STRING")}"
 
 if [[ -z "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
   echo "==> Resolving Application Insights connection string from Azure (${APP_INSIGHTS_NAME})"
@@ -41,19 +73,6 @@ if [[ -z "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
     --output tsv)"
 fi
 : "${APPLICATIONINSIGHTS_CONNECTION_STRING:?APPLICATIONINSIGHTS_CONNECTION_STRING is required (set secret or ensure App Insights exists)}"
-
-echo "==> Postgres container (tangle-study-postgres)"
-az containerapp secret set \
-  --name tangle-study-postgres \
-  --resource-group "$RG" \
-  --secrets "postgres-password=${POSTGRES_ADMIN_PASSWORD}" \
-  --output none
-
-az containerapp update \
-  --name tangle-study-postgres \
-  --resource-group "$RG" \
-  --set-env-vars "POSTGRES_PASSWORD=secretref:postgres-password" \
-  --output none
 
 echo "==> API secrets (tangle-study-api)"
 SECRET_ARGS=(
@@ -92,6 +111,45 @@ az containerapp update \
   --set-env-vars "${API_ENV[@]}" \
   --output none
 
+echo "==> Postgres exporter secrets (tangle-study-postgres-exporter)"
+az containerapp secret set \
+  --name tangle-study-postgres-exporter \
+  --resource-group "$RG" \
+  --secrets "postgres-dsn=${POSTGRES_EXPORTER_DSN}" \
+  --output none
+
+az containerapp update \
+  --name tangle-study-postgres-exporter \
+  --resource-group "$RG" \
+  --set-env-vars "DATA_SOURCE_NAME=secretref:postgres-dsn" \
+  --output none
+
+echo "==> Prometheus secrets (tangle-study-prometheus)"
+az containerapp secret set \
+  --name tangle-study-prometheus \
+  --resource-group "$RG" \
+  --secrets "metrics-secret=${METRICS_SCRAPE_SECRET}" \
+  --output none
+
+az containerapp update \
+  --name tangle-study-prometheus \
+  --resource-group "$RG" \
+  --set-env-vars "METRICS_SCRAPE_SECRET=secretref:metrics-secret" \
+  --output none
+
+echo "==> Grafana secrets (tangle-study-grafana)"
+az containerapp secret set \
+  --name tangle-study-grafana \
+  --resource-group "$RG" \
+  --secrets "grafana-admin-password=${GRAFANA_ADMIN_PASSWORD}" \
+  --output none
+
+az containerapp update \
+  --name tangle-study-grafana \
+  --resource-group "$RG" \
+  --set-env-vars "GF_SECURITY_ADMIN_PASSWORD=secretref:grafana-admin-password" \
+  --output none
+
 echo "==> Migrate job secrets (tangle-study-migrate)"
 az containerapp job secret set \
   --name tangle-study-migrate \
@@ -105,22 +163,42 @@ az containerapp job update \
   --set-env-vars "ConnectionStrings__DefaultConnection=secretref:postgres-conn" \
   --output none
 
-echo "==> Media worker secrets (tangle-study-worker-media)"
-az containerapp secret set \
-  --name tangle-study-worker-media \
-  --resource-group "$RG" \
-  --secrets \
-    "blob-conn=${BLOB_CONNECTION_STRING}" \
-    "worker-callback=${WORKER_CALLBACK_SECRET}" \
-  --output none
+inject_worker_metrics_secret() {
+  local app="$1"
+  shift
+  local -a extra_secrets=("$@")
+  local -a secrets=("metrics-secret=${METRICS_SCRAPE_SECRET}")
+  if ((${#extra_secrets[@]} > 0)); then
+    secrets+=("${extra_secrets[@]}")
+  fi
 
-az containerapp update \
-  --name tangle-study-worker-media \
-  --resource-group "$RG" \
-  --set-env-vars \
-    "AZURE_STORAGE_CONNECTION_STRING=secretref:blob-conn" \
-    "WORKER_CALLBACK_SECRET=secretref:worker-callback" \
-  --output none
+  echo "==> Worker secrets (${app})"
+  az containerapp secret set \
+    --name "$app" \
+    --resource-group "$RG" \
+    --secrets "${secrets[@]}" \
+    --output none
+
+  local -a env_vars=("METRICS_SCRAPE_SECRET=secretref:metrics-secret")
+  if [[ "$app" == "tangle-study-worker-media" ]]; then
+    env_vars+=(
+      "AZURE_STORAGE_CONNECTION_STRING=secretref:blob-conn"
+      "WORKER_CALLBACK_SECRET=secretref:worker-callback"
+    )
+  fi
+
+  az containerapp update \
+    --name "$app" \
+    --resource-group "$RG" \
+    --set-env-vars "${env_vars[@]}" \
+    --output none
+}
+
+inject_worker_metrics_secret "tangle-study-worker-chat"
+inject_worker_metrics_secret "tangle-study-worker-location"
+inject_worker_metrics_secret "tangle-study-worker-media" \
+  "blob-conn=${BLOB_CONNECTION_STRING}" \
+  "worker-callback=${WORKER_CALLBACK_SECRET}"
 
 if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then
   echo "==> GHCR registry credentials (private packages)"
@@ -130,6 +208,8 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
     tangle-study-worker-chat
     tangle-study-worker-media
     tangle-study-worker-location
+    tangle-study-prometheus
+    tangle-study-grafana
   )
   for app in "${REGISTRY_APPS[@]}"; do
     az containerapp registry set \

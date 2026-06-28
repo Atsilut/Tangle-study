@@ -14,11 +14,23 @@
     "imageTag": {
       "value": "latest"
     },
-    "postgresImage": {
-      "value": "postgres:18.4"
-    },
     "redisImage": {
       "value": "redis:8.8.0-alpine"
+    },
+    "prometheusImage": {
+      "value": "prom/prometheus:v3.12.0"
+    },
+    "grafanaImage": {
+      "value": "grafana/grafana:13.0.2"
+    },
+    "postgresExporterImage": {
+      "value": "prometheuscommunity/postgres-exporter:v0.19.1"
+    },
+    "redisExporterImage": {
+      "value": "oliver006/redis_exporter:v1.86.0"
+    },
+    "monitoringMinReplicas": {
+      "value": 1
     }
   }
 }

@@ -28,6 +28,8 @@ update_app "tangle-study-web" "tangle-study-web"
 update_app "tangle-study-worker-chat" "tangle-study-worker"
 update_app "tangle-study-worker-media" "tangle-study-worker"
 update_app "tangle-study-worker-location" "tangle-study-worker"
+update_app "tangle-study-prometheus" "tangle-study-prometheus"
+update_app "tangle-study-grafana" "tangle-study-grafana"
 
 echo "==> Updating migrate job image"
 az containerapp job update \

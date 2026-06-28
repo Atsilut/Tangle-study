@@ -57,4 +57,10 @@ build_push workers/rust-worker/Dockerfile tangle-study-worker \
   --build-arg "RUST_IMAGE=${RUST_IMAGE}" \
   --build-arg "DEBIAN_IMAGE=${DEBIAN_IMAGE}"
 
+build_push infra/azure/monitoring/prometheus/Dockerfile tangle-study-prometheus \
+  --build-arg "PROMETHEUS_IMAGE=${PROMETHEUS_IMAGE}"
+
+build_push infra/azure/monitoring/grafana/Dockerfile tangle-study-grafana \
+  --build-arg "GRAFANA_IMAGE=${GRAFANA_IMAGE}"
+
 echo "==> Pushed images to ${CONTAINER_REGISTRY} with tag ${IMAGE_TAG}"

@@ -23,14 +23,17 @@ param registryUsername string = ''
 @secure()
 param registryPassword string = ''
 
-@secure()
-param postgresAdminPassword string
-
-param postgresAdminLogin string = 'tangle'
-
-param postgresImage string = 'postgres:18'
-
 param redisImage string = 'redis:8-alpine'
+
+param prometheusImage string = 'prom/prometheus:v3.12.0'
+
+param grafanaImage string = 'grafana/grafana:13.0.2'
+
+param postgresExporterImage string = 'prometheuscommunity/postgres-exporter:v0.19.1'
+
+param redisExporterImage string = 'oliver006/redis_exporter:v1.86.0'
+
+param monitoringMinReplicas int = 1
 
 param apiMinReplicas int = 1
 param webMinReplicas int = 1
@@ -46,9 +49,12 @@ var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
 var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-api:${imageTag}'
 var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-web:${imageTag}'
 var workerImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker:${imageTag}'
+var resolvedPrometheusImage = usePlaceholderImages ? prometheusImage : '${containerRegistry}/tangle-study-prometheus:${imageTag}'
+var resolvedGrafanaImage = usePlaceholderImages ? grafanaImage : '${containerRegistry}/tangle-study-grafana:${imageTag}'
 
-var redisConnectionString = 'tangle-study-redis:6379'
-var redisUrl = 'redis://${redisConnectionString}'
+var workerMetricsSecretEnvVars = [
+  { name: 'metrics-secret', envName: 'METRICS_SCRAPE_SECRET' }
+]
 
 var apiSecretEnvVars = [
   { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection' }
@@ -100,38 +106,12 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-module postgresStorage 'modules/environment-storage.bicep' = {
-  name: 'postgres-env-storage'
-  params: {
-    managedEnvironmentName: containerAppsEnv.outputs.name
-    storageAccountName: storage.outputs.accountName
-    storageAccountKey: storage.outputs.accountKey
-  }
-}
-
-module postgres 'modules/infra-container.bicep' = {
-  name: 'infra-postgres'
-  params: {
-    name: 'tangle-study-postgres'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: postgresImage
-    minReplicas: 1
-    maxReplicas: 1
-    tcpProbePort: 5432
-    environmentStorageName: postgresStorage.outputs.storageBindingName
-    volumeMountPath: '/var/lib/postgresql/data'
-    tags: tags
-    envVars: [
-      { name: 'POSTGRES_USER', value: postgresAdminLogin }
-      { name: 'POSTGRES_DB', value: 'tangledb' }
-      { name: 'PGDATA', value: '/var/lib/postgresql/data/pgdata' }
-    ]
-    secretEnvVars: [
-      { name: 'postgres-password', envName: 'POSTGRES_PASSWORD', value: postgresAdminPassword }
-    ]
-  }
-}
+// Internal FQDN avoids unreliable ACA short-name TCP routing (see azure-container-apps#1315).
+var defaultDomain = containerAppsEnv.outputs.defaultDomain
+var redisInternalHost = 'tangle-study-redis.internal.${defaultDomain}'
+var redisConnectionString = '${redisInternalHost}:6379'
+var redisUrl = 'redis://${redisConnectionString}'
+var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'
 
 module redis 'modules/infra-container.bicep' = {
   name: 'infra-redis'
@@ -213,7 +193,8 @@ module workerChat 'modules/container-app.bicep' = {
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
     targetPort: 9090
-    enableIngress: false
+    enableIngress: true
+    externalIngress: false
     minReplicas: workerMinReplicas
     maxReplicas: 2
     registryLoginServer: 'ghcr.io'
@@ -228,7 +209,7 @@ module workerChat 'modules/container-app.bicep' = {
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]
-    secretEnvVars: []
+    secretEnvVars: workerMetricsSecretEnvVars
   }
 }
 
@@ -240,7 +221,8 @@ module workerMedia 'modules/container-app.bicep' = {
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
     targetPort: 9090
-    enableIngress: false
+    enableIngress: true
+    externalIngress: false
     minReplicas: workerMinReplicas
     maxReplicas: 2
     registryLoginServer: 'ghcr.io'
@@ -257,10 +239,10 @@ module workerMedia 'modules/container-app.bicep' = {
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]
-    secretEnvVars: [
+    secretEnvVars: concat(workerMetricsSecretEnvVars, [
       { name: 'blob-conn', envName: 'AZURE_STORAGE_CONNECTION_STRING' }
       { name: 'worker-callback', envName: 'WORKER_CALLBACK_SECRET' }
-    ]
+    ])
   }
 }
 
@@ -272,7 +254,8 @@ module workerLocation 'modules/container-app.bicep' = {
     managedEnvironmentId: containerAppsEnv.outputs.id
     containerImage: workerImage
     targetPort: 9090
-    enableIngress: false
+    enableIngress: true
+    externalIngress: false
     minReplicas: workerMinReplicas
     maxReplicas: 2
     registryLoginServer: 'ghcr.io'
@@ -288,7 +271,109 @@ module workerLocation 'modules/container-app.bicep' = {
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]
+    secretEnvVars: workerMetricsSecretEnvVars
+  }
+}
+
+module postgresExporter 'modules/container-app.bicep' = {
+  name: 'container-app-postgres-exporter'
+  params: {
+    name: 'tangle-study-postgres-exporter'
+    location: location
+    managedEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: postgresExporterImage
+    targetPort: 9187
+    enableIngress: true
+    externalIngress: false
+    minReplicas: monitoringMinReplicas
+    maxReplicas: 1
+    healthCheckPath: ''
+    registryLoginServer: ''
+    registryUsername: ''
+    registryPassword: ''
+    tags: tags
+    envVars: []
+    secretEnvVars: [
+      { name: 'postgres-dsn', envName: 'DATA_SOURCE_NAME' }
+    ]
+  }
+}
+
+module redisExporter 'modules/container-app.bicep' = {
+  name: 'container-app-redis-exporter'
+  params: {
+    name: 'tangle-study-redis-exporter'
+    location: location
+    managedEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: redisExporterImage
+    targetPort: 9121
+    enableIngress: true
+    externalIngress: false
+    minReplicas: monitoringMinReplicas
+    maxReplicas: 1
+    healthCheckPath: ''
+    registryLoginServer: ''
+    registryUsername: ''
+    registryPassword: ''
+    tags: tags
+    envVars: [
+      { name: 'REDIS_ADDR', value: '${redisInternalHost}:6379' }
+    ]
     secretEnvVars: []
+  }
+}
+
+module prometheus 'modules/container-app.bicep' = {
+  name: 'container-app-prometheus'
+  params: {
+    name: 'tangle-study-prometheus'
+    location: location
+    managedEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: resolvedPrometheusImage
+    targetPort: 9090
+    enableIngress: true
+    externalIngress: false
+    minReplicas: monitoringMinReplicas
+    maxReplicas: 1
+    healthCheckPath: ''
+    registryLoginServer: 'ghcr.io'
+    registryUsername: registryUsername
+    registryPassword: registryPassword
+    tags: tags
+    envVars: [
+      { name: 'ACA_DEFAULT_DOMAIN', value: defaultDomain }
+    ]
+    secretEnvVars: [
+      { name: 'metrics-secret', envName: 'METRICS_SCRAPE_SECRET' }
+    ]
+  }
+}
+
+module grafana 'modules/container-app.bicep' = {
+  name: 'container-app-grafana'
+  params: {
+    name: 'tangle-study-grafana'
+    location: location
+    managedEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: resolvedGrafanaImage
+    targetPort: 3000
+    enableIngress: true
+    externalIngress: true
+    minReplicas: monitoringMinReplicas
+    maxReplicas: 1
+    healthCheckPath: ''
+    registryLoginServer: 'ghcr.io'
+    registryUsername: registryUsername
+    registryPassword: registryPassword
+    tags: tags
+    envVars: [
+      { name: 'GF_SECURITY_ADMIN_USER', value: 'admin' }
+      { name: 'GF_USERS_ALLOW_SIGN_UP', value: 'false' }
+      { name: 'PROMETHEUS_URL', value: prometheusInternalUrl }
+    ]
+    secretEnvVars: [
+      { name: 'grafana-admin-password', envName: 'GF_SECURITY_ADMIN_PASSWORD' }
+    ]
   }
 }
 
@@ -313,7 +398,8 @@ module migrateJob 'modules/migrate-job.bicep' = {
 }
 
 output webUrl string = 'https://${web.outputs.fqdn}'
-output postgresAppName string = postgres.outputs.name
+output grafanaUrl string = 'https://${grafana.outputs.fqdn}'
+output prometheusInternalUrl string = prometheusInternalUrl
 output redisAppName string = redis.outputs.name
 output blobEndpoint string = storage.outputs.blobEndpoint
 output appInsightsConnectionString string = appInsights.outputs.connectionString
@@ -322,9 +408,12 @@ output migrateJobName string = migrateJob.outputs.name
 output containerAppNames object = {
   api: api.outputs.name
   web: web.outputs.name
-  postgres: postgres.outputs.name
   redis: redis.outputs.name
   workerChat: workerChat.outputs.name
   workerMedia: workerMedia.outputs.name
   workerLocation: workerLocation.outputs.name
+  postgresExporter: postgresExporter.outputs.name
+  redisExporter: redisExporter.outputs.name
+  prometheus: prometheus.outputs.name
+  grafana: grafana.outputs.name
 }

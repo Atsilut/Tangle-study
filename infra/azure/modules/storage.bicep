@@ -1,8 +1,7 @@
-@description('Blob storage for media uploads and optional Postgres file share.')
+@description('Blob storage for media uploads.')
 param name string
 param location string
 param containerName string = 'tangle-media'
-param postgresFileShareName string = 'postgres-data'
 @description('Browser origins allowed for blob PUT (SAS uploads). Use ["*"] for dev only.')
 param allowedBlobOrigins array = []
 param tags object = {}
@@ -43,19 +42,6 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
   }
 }
 
-resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = {
-  parent: account
-  name: 'default'
-}
-
-resource postgresFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
-  parent: fileService
-  name: postgresFileShareName
-  properties: {
-    shareQuota: 32
-  }
-}
-
 resource mediaContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: containerName
@@ -67,5 +53,4 @@ resource mediaContainer 'Microsoft.Storage/storageAccounts/blobServices/containe
 output accountName string = account.name
 output blobEndpoint string = account.properties.primaryEndpoints.blob
 output containerName string = containerName
-output fileShareName string = postgresFileShare.name
 output accountKey string = account.listKeys().keys[0].value
