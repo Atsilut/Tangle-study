@@ -46,6 +46,8 @@ Study-friendly stack — **no managed Redis or ACR** on Azure (no useful free ti
 | `azurite` | Storage account (blob) |
 | Built images | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
 
+Postgres is external because self-hosted Postgres on ACA proved unreliable (cross-app TCP, Azure Files boot times, false health). See [Why not Postgres on ACA](../infra/azure/README.md#why-not-postgres-on-aca).
+
 ```bash
 ./scripts/azure-deploy-infra.sh prod
 ```

@@ -6,7 +6,7 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 
 | Service | Alternative |
 |---------|-------------|
-| Azure Database for PostgreSQL | **[Neon](https://neon.tech)** — external Postgres via `POSTGRES_CONNECTION_STRING` GitHub secret |
+| Azure Database for PostgreSQL | **[Neon](https://neon.tech)** — external Postgres via `POSTGRES_CONNECTION_STRING` GitHub secret ([why not Postgres on ACA](#why-not-postgres-on-aca)) |
 | Azure Cache for Redis | **`tangle-study-redis`** Container App (`redis:8-alpine`) |
 | Azure Container Registry (ACR) | **[GitHub Container Registry (GHCR)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)** — free for public packages |
 
@@ -128,3 +128,23 @@ API and workers are **stateless**; Redis holds shared ephemeral state (cache, Si
 | No TLS on internal Redis | OK within CAE; revisit if moving to managed Redis |
 
 Scale-to-zero workers (`workerMinReplicas: 0`) save cost; Redis and monitoring stay at `minReplicas: 1`.
+
+## Why not Postgres on ACA
+
+Azure Container Apps is a good fit for **stateless** app containers. The first production stack mirrored local Compose: a `tangle-study-postgres` Container App with an Azure File `postgres-data` volume. That experiment proved unreliable in production CD, so Postgres moved to **Neon** (external managed database).
+
+| Problem | What happened |
+|---------|----------------|
+| **Stateful DB on a stateless platform** | Postgres required `environment-storage` + Azure File mount (`postgres-data`), uid/gid mount options, and a single replica — opposite of how ACA is meant to be operated. |
+| **Slow / fragile first boot** | `initdb` on Azure Files routinely took **15–30 minutes**; CD had to wait on log line `database system is ready to accept connections`, not just revision state. |
+| **False "healthy" signals** | In-container TCP probes on `:5432` could pass while **other Container Apps** (migrate job, API) still got TCP timeouts to `tangle-study-postgres.internal.<domain>:5432`. |
+| **Unreliable ACA service discovery** | Short hostnames (`tangle-study-postgres`) were unreliable for TCP; internal FQDN was required (same class of issue as Redis — see [azure-container-apps#1315](https://github.com/microsoft/azure-container-apps/issues/1315)). |
+| **Postgres listen binding** | Default `listen_addresses` did not accept cross-app connections; required `listen_addresses=*` and long startup probes, plus CD backfills on live stacks. |
+| **Password vs data directory** | Azure Files retains initialized data; changing `POSTGRES_ADMIN_PASSWORD` in GitHub without resetting the volume caused `password authentication failed`. |
+| **CD complexity spiral** | Mitigations stacked up: `wait-for-postgres` init containers, `ensure-infra` patches, `--db-check` cross-app gate before migrate, and a dedicated connectivity diagnose script — high maintenance for a study project. |
+
+For a learning deployment with no data-migration requirement, **Neon** (free tier, SSL, no ACA networking) replaces self-hosted Postgres. Redis remains on ACA because it holds **ephemeral** state only; Postgres is the **source of truth** and belongs in managed storage.
+
+**Current wiring:** GitHub secret `POSTGRES_CONNECTION_STRING` → CD inject into API and migrate job; `tangle-study-postgres-exporter` scrapes Neon via a derived DSN (see [Monitoring on ACA](#monitoring-on-aca) above).
+
+**Upgrading from an old stack:** delete orphaned `tangle-study-postgres` Container App and `postgres-data` file share after redeploying Bicep (see [After Bicep deploy](#after-bicep-deploy)).
