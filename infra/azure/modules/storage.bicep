@@ -53,4 +53,3 @@ resource mediaContainer 'Microsoft.Storage/storageAccounts/blobServices/containe
 output accountName string = account.name
 output blobEndpoint string = account.properties.primaryEndpoints.blob
 output containerName string = containerName
-output accountKey string = account.listKeys().keys[0].value
