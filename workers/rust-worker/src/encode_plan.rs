@@ -36,10 +36,6 @@ pub fn exceeds_hard_cap(actual: u64, limit: i64) -> bool {
     (actual as f64) > (limit as f64) * MAX_UTILIZATION_RATIO
 }
 
-pub fn in_acceptance_band(actual: u64, limit: i64) -> bool {
-    !is_under_quality_floor(actual, limit) && !exceeds_hard_cap(actual, limit)
-}
-
 pub fn build_video_plan(
     probe: &MediaProbe,
     target_max_bytes: i64,
@@ -316,9 +312,9 @@ mod tests {
         assert!(!is_under_quality_floor(750_000, limit));
         assert!(exceeds_hard_cap(1_000_001, limit));
         assert!(!exceeds_hard_cap(950_000, limit));
-        assert!(in_acceptance_band(800_000, limit));
-        assert!(!in_acceptance_band(600_000, limit));
-        assert!(!in_acceptance_band(1_100_000, limit));
+        assert!(!is_under_quality_floor(800_000, limit) && !exceeds_hard_cap(800_000, limit));
+        assert!(is_under_quality_floor(600_000, limit));
+        assert!(exceeds_hard_cap(1_100_000, limit));
     }
 
     #[test]

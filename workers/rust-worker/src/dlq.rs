@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use redis::aio::ConnectionManager;
 use redis::streams::{StreamId, StreamRangeReply};
-use redis::{AsyncCommands, Value};
+use redis::AsyncCommands;
 use tracing::{info, warn};
 
 use crate::config::Config;
@@ -225,6 +225,7 @@ mod tests {
 
     use super::*;
     use redis::streams::StreamId;
+    use redis::Value;
 
     #[test]
     fn parse_dlq_entry_extracts_type_and_payload() {
