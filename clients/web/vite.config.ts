@@ -11,7 +11,21 @@ export default defineConfig(({ mode }) => {
   const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:8080'
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      // SignalR 10.x places /*#__PURE__*/ on function declarations, which Rolldown
+      // rejects. Harmless at runtime; strip to keep builds quiet until signalr 11.
+      // https://github.com/dotnet/aspnetcore/issues/55286
+      {
+        name: 'strip-signalr-pure-annotations',
+        enforce: 'pre',
+        transform(code, id) {
+          if (!id.includes('node_modules/@microsoft/signalr')) return
+          return code.replace(/\/\*#__PURE__\*\//g, '')
+        },
+      },
+    ],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
