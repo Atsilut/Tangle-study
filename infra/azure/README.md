@@ -31,7 +31,7 @@ infra/azure/
     prometheus/              # Custom GHCR image (ACA scrape config)
     grafana/                 # Custom GHCR image (bundles infra/grafana provisioning)
   modules/
-    infra-container.bicep    # Redis (internal, no ingress)
+    infra-container.bicep    # Redis (internal TCP ingress on :6379)
     storage.bicep            # Blob only
     app-insights.bicep       # Application Insights (linked to Log Analytics)
     container-app.bicep      # API, web, workers, monitoring (GHCR pull)

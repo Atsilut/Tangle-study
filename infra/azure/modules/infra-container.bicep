@@ -1,4 +1,4 @@
-@description('Internal infrastructure container (Postgres, Redis) — no ingress.')
+@description('Internal infrastructure container (Redis) with optional internal TCP ingress when tcpProbePort is set.')
 param name string
 param location string
 param managedEnvironmentId string
@@ -53,10 +53,21 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   tags: tags
   properties: {
     managedEnvironmentId: managedEnvironmentId
-    configuration: {
-      activeRevisionsMode: 'Single'
-      secrets: secretDefinitions
-    }
+    configuration: union(
+      {
+        activeRevisionsMode: 'Single'
+        secrets: secretDefinitions
+      },
+      tcpProbePort > 0 ? {
+        ingress: {
+          external: false
+          targetPort: tcpProbePort
+          exposedPort: tcpProbePort
+          transport: 'tcp'
+          allowInsecure: false
+        }
+      } : {}
+    )
     template: {
       volumes: hasVolume ? [
         {
