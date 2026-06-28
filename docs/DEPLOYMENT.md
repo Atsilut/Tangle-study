@@ -82,16 +82,18 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 | `JWT_SECRET` | Yes | Min 32 chars |
 | `WORKER_CALLBACK_SECRET` | Yes | Shared with media worker |
 | `METRICS_SCRAPE_SECRET` | Yes | Random string; API, Prometheus, and workers |
-| `POSTGRES_CONNECTION_STRING` | Yes | Full Npgsql string from Neon console (`SSL Mode=Require`) |
+| `POSTGRES_CONNECTION_STRING` | Yes | Neon connection string — Npgsql (`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require`) or URI (`postgresql://user:pass@host/db?sslmode=require`) from the Neon console |
 | `GRAFANA_ADMIN_PASSWORD` | Yes | Grafana admin login on external ACA app |
 | `PLACES_API_KEY` | No | Google Places / Geocoding |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-fetched from Azure App Insights when unset |
 | `GHCR_REGISTRY_USERNAME` | No | Only for **private** GHCR packages |
 | `GHCR_REGISTRY_PASSWORD` | No | GitHub PAT with `read:packages` |
 
-Use Neon **direct** (non-pooler) hostname for API and migrate at study scale. Example:
+Use Neon **direct** (non-pooler) hostname for API and migrate at study scale. Either format works (Npgsql accepts both):
 
 `Host=ep-....neon.tech;Database=neondb;Username=...;Password=...;SSL Mode=Require;Pooling=true`
+
+`postgresql://user:password@ep-....neon.tech/neondb?sslmode=require`
 
 ### 3. Provision infra (once)
 

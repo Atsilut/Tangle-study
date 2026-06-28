@@ -37,28 +37,87 @@ import re
 import sys
 import urllib.parse
 
-conn = sys.argv[1]
+conn = sys.argv[1].strip().strip('"').strip("'")
 
-def get(key: str) -> str:
-    match = re.search(rf"(?:^|;)\s*{re.escape(key)}\s*=\s*([^;]*)", conn, re.I)
+
+def get_key_value(key: str, raw: str) -> str:
+    match = re.search(rf"(?:^|;)\s*{re.escape(key)}\s*=\s*([^;]*)", raw, re.I)
     return match.group(1).strip() if match else ""
 
-host = get("Host")
-database = get("Database")
-username = get("Username")
-password = get("Password")
-port = get("Port") or "5432"
-sslmode = "require" if re.search(r"SSL\s*Mode\s*=\s*Require", conn, re.I) else "disable"
 
-if not all([host, database, username, password]):
-    raise SystemExit(
-        "POSTGRES_CONNECTION_STRING must include Host, Database, Username, and Password "
-        "(or set POSTGRES_EXPORTER_DSN explicitly)."
-    )
+def get_first(raw: str, keys: list[str]) -> str:
+    for key in keys:
+        value = get_key_value(key, raw)
+        if value:
+            return value
+    return ""
 
-user = urllib.parse.quote(username, safe="")
-pw = urllib.parse.quote(password, safe="")
-print(f"postgresql://{user}:{pw}@{host}:{port}/{database}?sslmode={sslmode}")
+
+def from_npgsql(raw: str) -> str:
+    host = get_first(raw, ["Host", "Server", "Data Source"])
+    database = get_first(raw, ["Database", "Initial Catalog"])
+    username = get_first(raw, ["Username", "User ID", "User Id", "Uid", "User"])
+    password = get_first(raw, ["Password", "Pwd"])
+    port = get_first(raw, ["Port"]) or "5432"
+    sslmode = "require" if re.search(r"SSL\s*Mode\s*=\s*Require", raw, re.I) else "disable"
+
+    if not all([host, database, username, password]):
+        missing = [
+            name
+            for name, value in [
+                ("Host", host),
+                ("Database", database),
+                ("Username", username),
+                ("Password", password),
+            ]
+            if not value
+        ]
+        raise SystemExit(
+            "POSTGRES_CONNECTION_STRING must include Host, Database, Username, and Password "
+            f"(missing: {', '.join(missing)}), or use a postgresql:// URI, "
+            "or set POSTGRES_EXPORTER_DSN explicitly."
+        )
+
+    user = urllib.parse.quote(username, safe="")
+    pw = urllib.parse.quote(password, safe="")
+    return f"postgresql://{user}:{pw}@{host}:{port}/{database}?sslmode={sslmode}"
+
+
+def from_uri(raw: str) -> str:
+    parsed = urllib.parse.urlparse(raw)
+    if parsed.scheme not in ("postgres", "postgresql"):
+        raise SystemExit(f"Unsupported connection string scheme: {parsed.scheme}")
+
+    if not parsed.hostname:
+        raise SystemExit(
+            "POSTGRES_CONNECTION_STRING URI must include hostname "
+            "(or set POSTGRES_EXPORTER_DSN explicitly)."
+        )
+    if not parsed.username or parsed.password is None:
+        raise SystemExit(
+            "POSTGRES_CONNECTION_STRING URI must include username and password "
+            "(or set POSTGRES_EXPORTER_DSN explicitly)."
+        )
+
+    database = urllib.parse.unquote(parsed.path.lstrip("/"))
+    if not database:
+        raise SystemExit(
+            "POSTGRES_CONNECTION_STRING URI must include database name in the path "
+            "(or set POSTGRES_EXPORTER_DSN explicitly)."
+        )
+
+    query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    sslmode = (query.get("sslmode") or ["require"])[0] or "require"
+    port = parsed.port or 5432
+    user = urllib.parse.quote(urllib.parse.unquote(parsed.username), safe="")
+    pw = urllib.parse.quote(urllib.parse.unquote(parsed.password), safe="")
+    return f"postgresql://{user}:{pw}@{parsed.hostname}:{port}/{database}?sslmode={sslmode}"
+
+
+if re.match(r"^postgres(ql)?://", conn, re.I):
+    print(from_uri(conn))
+else:
+    print(from_npgsql(conn))
 PY
 }
 
