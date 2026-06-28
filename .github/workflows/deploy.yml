@@ -50,7 +50,7 @@ jobs:
           fi
           echo "registry=${registry}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.meta.outputs.sha }}
 
@@ -58,7 +58,7 @@ jobs:
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -72,7 +72,7 @@ jobs:
         run: bash scripts/azure-cd-build-push.sh
 
       - name: Azure login (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
