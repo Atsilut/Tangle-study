@@ -346,8 +346,8 @@ public sealed class MediaServiceUnitTests
         // Act
         await service.DeleteBlobStorageForPostsAsync([1, 2]);
 
-        // Assert
-        Assert.Equal(
+        // Assert — blob deletes run in parallel; order is not guaranteed
+        Assert.Equivalent(
             [
                 "raw/post/one/original.jpg",
                 "raw/post/one/processed.jpg",
