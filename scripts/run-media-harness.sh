@@ -28,3 +28,5 @@ docker compose "${COMPOSE_ARGS[@]}" up -d --wait
 
 nuget_mount="$(ci_nuget_mount)"
 docker compose "${COMPOSE_ARGS[@]}" run --rm -v "$nuget_mount" harness
+
+ci_fix_cache_ownership

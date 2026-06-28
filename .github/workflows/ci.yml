@@ -71,14 +71,16 @@ jobs:
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
-      - name: Cache Cargo dependencies
+      - name: Cache Cargo build artifacts
         uses: actions/cache@v5
         with:
           path: |
             .ci-cache/cargo/registry
             .ci-cache/cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('workers/rust-worker/Cargo.lock') }}
+            workers/rust-worker/target
+          key: ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-${{ hashFiles('workers/rust-worker/Cargo.lock') }}
           restore-keys: |
+            ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-
             ${{ runner.os }}-cargo-
 
       - name: cargo test
@@ -93,7 +95,7 @@ jobs:
             -w /src/workers/rust-worker \
             "${{ env.RUST_IMAGE }}" \
             cargo test
-          sudo chown -R "$(id -u):$(id -g)" .ci-cache/cargo
+          bash scripts/ci-fix-cache-ownership.sh
 
   web:
     name: Web lint, test, build
@@ -111,12 +113,15 @@ jobs:
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
-      - name: Cache npm downloads
+      - name: Cache npm and web test build
         uses: actions/cache@v5
         with:
-          path: .ci-cache/npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('clients/web/package-lock.json') }}
+          path: |
+            .ci-cache/npm
+            clients/web/node_modules
+          key: ${{ runner.os }}-npm-${{ env.NODE_IMAGE }}-${{ hashFiles('clients/web/package-lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-npm-${{ env.NODE_IMAGE }}-
             ${{ runner.os }}-npm-
 
       - name: npm ci, lint, test, build
@@ -130,7 +135,7 @@ jobs:
             -w /src/clients/web \
             "${{ env.NODE_IMAGE }}" \
             sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm run build"
-          sudo chown -R "$(id -u):$(id -g)" .ci-cache/npm
+          bash scripts/ci-fix-cache-ownership.sh
 
   api:
     name: API integration tests
@@ -148,13 +153,19 @@ jobs:
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
-      - name: Cache NuGet packages
+      - name: Cache NuGet and .NET build outputs
         uses: actions/cache@v5
         with:
-          path: .ci-cache/nuget
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          path: |
+            .ci-cache/nuget
+            services/Api/bin
+            services/Api/obj
+            services/Api.Tests/bin
+            services/Api.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
           restore-keys: |
-            ${{ runner.os }}-nuget-
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -163,7 +174,6 @@ jobs:
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/docker-test.sh
-          sudo chown -R "$(id -u):$(id -g)" .ci-cache/nuget
 
   harness:
     name: Media harness E2E
@@ -181,13 +191,19 @@ jobs:
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
-      - name: Cache NuGet packages
+      - name: Cache NuGet and .NET build outputs
         uses: actions/cache@v5
         with:
-          path: .ci-cache/nuget
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          path: |
+            .ci-cache/nuget
+            services/Api/bin
+            services/Api/obj
+            services/Api.Tests/bin
+            services/Api.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
           restore-keys: |
-            ${{ runner.os }}-nuget-
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -196,7 +212,6 @@ jobs:
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/run-media-harness.sh
-          sudo chown -R "$(id -u):$(id -g)" .ci-cache/nuget
 
   ci-gate:
     name: CI

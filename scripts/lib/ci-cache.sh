@@ -39,11 +39,32 @@ ci_runner_docker_user_args() {
 
 # Docker runs as root by default; actions/cache tar fails on root-owned files.
 ci_fix_cache_ownership() {
-  if [[ ! -d "$(ci_cache_root)" ]]; then
+  [[ -n "${ROOT:-}" ]] || return 0
+
+  local -a paths=()
+  local p proj kind
+
+  [[ -d "$(ci_cache_root)" ]] && paths+=("$(ci_cache_root)")
+
+  p="${ROOT}/workers/rust-worker/target"
+  [[ -d "$p" ]] && paths+=("$p")
+
+  for proj in Api Api.Tests; do
+    for kind in bin obj; do
+      p="${ROOT}/services/${proj}/${kind}"
+      [[ -d "$p" ]] && paths+=("$p")
+    done
+  done
+
+  p="${ROOT}/clients/web/node_modules"
+  [[ -d "$p" ]] && paths+=("$p")
+
+  if ((${#paths[@]} == 0)); then
     return 0
   fi
+
   if command -v sudo >/dev/null 2>&1; then
-    sudo chown -R "$(id -u):$(id -g)" "$(ci_cache_root)" 2>/dev/null || true
+    sudo chown -R "$(id -u):$(id -g)" "${paths[@]}" 2>/dev/null || true
   fi
 }
 

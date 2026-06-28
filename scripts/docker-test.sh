@@ -18,3 +18,5 @@ nuget_mount="$(ci_nuget_mount)"
 tangle_compose --profile test run --rm \
   -v "$nuget_mount" \
   test "$@"
+
+ci_fix_cache_ownership
