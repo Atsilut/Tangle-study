@@ -109,8 +109,9 @@ After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
 
 1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker`, `tangle-study-prometheus`, and `tangle-study-grafana` to GHCR
 2. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.)
-3. Updates app images to the commit SHA
-4. Runs `tangle-study-migrate` job
+3. Ensures **Redis internal TCP ingress** and `Redis__ConnectionString` / worker `REDIS_URL` ([`azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh))
+4. Updates app images to the commit SHA
+5. Runs `tangle-study-migrate` job
 
 Manual deploy: **Actions → Deploy → Run workflow** (uses `production` environment).
 
@@ -370,6 +371,39 @@ Validated: <YYYY-MM-DD> @ <git-sha> on https://<fqdn>
 ```
 
 Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
+
+---
+
+## Troubleshooting (Redis on ACA)
+
+**Symptom:** API logs show `StackExchange.Redis.ConnectionMultiplexer.Connect` failure at startup; revision crash-loops.
+
+**Cause:** `tangle-study-redis` was deployed **without internal TCP ingress**. The API uses `Redis__ConnectionString=tangle-study-redis.internal.<cae-domain>:6379` (cross-app TCP via ACA Envoy, not the short app name).
+
+**Fix:** CD runs [`scripts/azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh) before secret injection. Re-run manually:
+
+```bash
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-redis.sh
+```
+
+If routing is still stale after ingress was enabled, recycle once:
+
+```bash
+INFRA_FORCE_TCP_INGRESS_RECYCLE=1 AZURE_RESOURCE_GROUP=tangle-study-prod \
+  ./scripts/azure-cd-ensure-redis.sh
+```
+
+Verify:
+
+```bash
+az containerapp show -n tangle-study-redis -g tangle-study-prod \
+  --query "properties.configuration.ingress.{transport:transport,targetPort:targetPort,fqdn:fqdn}" -o yaml
+
+az containerapp show -n tangle-study-api -g tangle-study-prod \
+  --query "properties.template.containers[0].env[?name=='Redis__ConnectionString']" -o yaml
+```
+
+Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-container.bicep`](../infra/azure/modules/infra-container.bicep) when `tcpProbePort` is set (6379 for Redis).
 
 ---
 
