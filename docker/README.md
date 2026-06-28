@@ -27,4 +27,4 @@ GitHub Actions and `./scripts/run-all-tests.sh` set `COMPOSE_ENV_FILE=docker/ver
 
 When bumping pins, update **only** `versions.prod.env` and verify with `./scripts/run-all-tests.sh`.
 
-Azure Container Apps deploy builds load the same build-args from `versions.prod.env` via [`scripts/azure-cd-build-push.sh`](../scripts/azure-cd-build-push.sh). Infra deploy passes `POSTGRES_IMAGE` / `REDIS_IMAGE` from the same file ([`scripts/azure-deploy-infra.sh`](../scripts/azure-deploy-infra.sh)).
+Azure Container Apps deploy builds load the same build-args from `versions.prod.env` via [`scripts/azure-cd-build-push.sh`](../scripts/azure-cd-build-push.sh). Infra deploy passes Redis and monitoring image tags from the same file ([`scripts/azure-deploy-infra.sh`](../scripts/azure-deploy-infra.sh)). Postgres is external (Neon) — not provisioned in Bicep.

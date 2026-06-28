@@ -28,7 +28,7 @@ Build and deploy use **pinned** base images from [`docker/versions.prod.env`](..
 | `NODE_IMAGE` / `NGINX_IMAGE` | `node:26.3-bookworm-slim`, `nginx:1.31.1-alpine` |
 | `RUST_IMAGE` / `DEBIAN_IMAGE` | `rust:1.96.0-bookworm`, `debian:bookworm-slim` |
 
-On Azure, **Postgres and Redis run as Container Apps** (same pattern as local Compose), not managed Azure Database / Azure Cache. Blob storage uses a standard Storage account. See [`infra/azure/README.md`](../infra/azure/README.md).
+On Azure, **Postgres is [Neon](https://neon.tech)** (external, SSL). **Redis** runs as an internal Container App. **Prometheus + Grafana** run on ACA for metrics (Compose parity). Blob storage uses a standard Storage account. See [`infra/azure/README.md`](../infra/azure/README.md).
 
 See [`docker/README.md`](../docker/README.md).
 
@@ -36,20 +36,21 @@ See [`docker/README.md`](../docker/README.md).
 
 ## Azure infrastructure (Bicep)
 
-Study-friendly stack — **no managed PostgreSQL, Redis, or ACR** (those lack a useful free tier). Templates: [`infra/azure/`](../infra/azure/).
+Study-friendly stack — **no managed Redis or ACR** on Azure (no useful free tier). Postgres uses **Neon** (free tier). Templates: [`infra/azure/`](../infra/azure/).
 
 | Compose (local) | Azure |
 |-----------------|-------|
-| `db` | `tangle-study-postgres` Container App |
+| `db` | **Neon** (external Postgres) |
 | `redis` | `tangle-study-redis` Container App |
+| `prometheus` / `grafana` / exporters | Monitoring Container Apps on ACA |
 | `azurite` | Storage account (blob) |
 | Built images | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
 
 ```bash
-POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
+./scripts/azure-deploy-infra.sh prod
 ```
 
-Bicep sets the Postgres connection string and Redis URL from internal app hostnames. **App secrets** (JWT, blob, etc.) are injected after deploy via GitHub Actions. Details: [`infra/azure/README.md`](../infra/azure/README.md).
+Bicep sets Redis URL and monitoring hostnames from internal ACA FQDNs. **App secrets** (Neon connection string, JWT, blob, Grafana, etc.) are injected after deploy via GitHub Actions. Details: [`infra/azure/README.md`](../infra/azure/README.md).
 
 ---
 
@@ -78,29 +79,32 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 | `BLOB_CONNECTION_STRING` | Yes | From Azure Storage account (created by Bicep) |
 | `JWT_SECRET` | Yes | Min 32 chars |
 | `WORKER_CALLBACK_SECRET` | Yes | Shared with media worker |
-| `METRICS_SCRAPE_SECRET` | Yes | Random string |
-| `POSTGRES_ADMIN_PASSWORD` | Yes | Must match the password used at infra deploy (min 8 chars) |
+| `METRICS_SCRAPE_SECRET` | Yes | Random string; API, Prometheus, and workers |
+| `POSTGRES_CONNECTION_STRING` | Yes | Full Npgsql string from Neon console (`SSL Mode=Require`) |
+| `GRAFANA_ADMIN_PASSWORD` | Yes | Grafana admin login on external ACA app |
 | `PLACES_API_KEY` | No | Google Places / Geocoding |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-fetched from Azure App Insights when unset |
 | `GHCR_REGISTRY_USERNAME` | No | Only for **private** GHCR packages |
 | `GHCR_REGISTRY_PASSWORD` | No | GitHub PAT with `read:packages` |
 
-Use the **same** `POSTGRES_ADMIN_PASSWORD` at infra deploy and in GitHub. Postgres initializes its data directory on first boot — changing the password later requires a manual DB reset or `ALTER USER`.
+Use Neon **direct** (non-pooler) hostname for API and migrate at study scale. Example:
+
+`Host=ep-....neon.tech;Database=neondb;Username=...;Password=...;SSL Mode=Require;Pooling=true`
 
 ### 3. Provision infra (once)
 
 ```bash
-POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
+./scripts/azure-deploy-infra.sh prod
 ```
 
-Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_STRING`. Set `POSTGRES_ADMIN_PASSWORD` in GitHub to the **same** value you pass to infra deploy.
+Create a Neon project + database and set `POSTGRES_CONNECTION_STRING` in GitHub. Copy the storage account connection string into GitHub secret `BLOB_CONNECTION_STRING`.
 
 ### 4. CD pipeline
 
 After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
 
-1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker` to GHCR
-2. Injects secrets into Container Apps
+1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker`, `tangle-study-prometheus`, and `tangle-study-grafana` to GHCR
+2. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.)
 3. Updates app images to the commit SHA
 4. Runs `tangle-study-migrate` job
 
@@ -137,14 +141,15 @@ Store these on GitHub Environment **`production`**. The deploy workflow maps eac
 | `BLOB_CONNECTION_STRING` | `Media__ConnectionString` | Yes | Azure Storage account connection string |
 | `JWT_SECRET` | `Jwt__Secret` | Yes | Min 32 chars; overrides `security.yml` placeholder |
 | `WORKER_CALLBACK_SECRET` | `Media__WorkerCallbackSecret` | Yes | Shared with media worker for internal callbacks |
-| `METRICS_SCRAPE_SECRET` | `Metrics__ScrapeSecret` | Yes | Required when `Metrics:RequireScrapeSecret` is true |
-| `POSTGRES_ADMIN_PASSWORD` | `ConnectionStrings__DefaultConnection` (API + migrate), `POSTGRES_PASSWORD` (postgres app) | Yes | Same value as infra deploy; CD builds the Npgsql connection string |
+| `METRICS_SCRAPE_SECRET` | `Metrics__ScrapeSecret` (API), `METRICS_SCRAPE_SECRET` (Prometheus + workers) | Yes | Required when `Metrics:RequireScrapeSecret` is true |
+| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` (API + migrate) | Yes | Neon Npgsql connection string from console |
+| `GRAFANA_ADMIN_PASSWORD` | `GF_SECURITY_ADMIN_PASSWORD` (Grafana) | Yes | External Grafana Container App admin password |
 | `PLACES_API_KEY` | `Places__ApiKey` | No | Google Places / Geocoding; leave empty to disable search |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-resolved from `tanglestudyprod-appi` when unset |
 | `GHCR_REGISTRY_USERNAME` | (registry pull on all apps + migrate job) | No | Only if GHCR packages are **private** |
 | `GHCR_REGISTRY_PASSWORD` | (registry pull) | No | GitHub PAT with `read:packages` |
 
-**Not GitHub secrets:** Redis host is set by Bicep (`tangle-study-redis:6379`). Blob public endpoint and media container name are non-secret Bicep outputs.
+**Not GitHub secrets:** Redis host is set by Bicep (`tangle-study-redis.internal.<cae-domain>:6379` on API; `redis://…` on workers). Postgres-exporter DSN is derived from `POSTGRES_CONNECTION_STRING` at CD time. Blob public endpoint and media container name are non-secret Bicep outputs.
 
 Non-secret config can be GitHub **variables** or Bicep parameters:
 
@@ -167,8 +172,9 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 |---------------|---------|----------|-------|
 | `BLOB_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | Media worker only | Same storage account as API |
 | `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET` | Media worker only | Must match `Media__WorkerCallbackSecret` |
+| `METRICS_SCRAPE_SECRET` | `METRICS_SCRAPE_SECRET` | Yes | Protects `/metrics`; Prometheus sends `X-Metrics-Secret` |
 
-Redis URL is set by Bicep (`REDIS_URL=redis://tangle-study-redis:6379`).
+Redis URL is set by Bicep (`REDIS_URL=redis://tangle-study-redis.internal.<cae-domain>:6379`).
 
 Per-worker settings (Bicep or GitHub variables):
 
@@ -229,7 +235,29 @@ Development/Docker still auto-migrate on API startup for local convenience.
 
 Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on `tangle-study-api`. The API enables [Azure Monitor OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=aspnetcore) when that variable is present — see [`AzureMonitorTelemetryExtensions.cs`](../services/Api/Global/Telemetry/AzureMonitorTelemetryExtensions.cs).
 
-Container Apps platform logs go to the same Log Analytics workspace. Local Prometheus/Grafana under [`infra/`](../infra/) remains for Docker Compose.
+Container Apps platform logs go to the same Log Analytics workspace.
+
+### Prometheus + Grafana on ACA
+
+Bicep deploys a **monitoring stack** on Container Apps (Compose parity):
+
+| App | Access | Notes |
+|-----|--------|-------|
+| `tangle-study-grafana` | External HTTPS FQDN | `admin` / `GRAFANA_ADMIN_PASSWORD` |
+| `tangle-study-prometheus` | Internal only | Scrapes API, workers, postgres/redis exporters |
+| `tangle-study-postgres-exporter` | Internal | Connects to Neon |
+| `tangle-study-redis-exporter` | Internal | Scrapes internal Redis |
+
+Resolve Grafana URL after infra deploy:
+
+```bash
+az containerapp show --name tangle-study-grafana --resource-group tangle-study-prod \
+  --query properties.configuration.ingress.fqdn -o tsv
+```
+
+Dashboards, recording rules, and alerts match local Compose — see [`infra/README.md`](../infra/README.md). Workers require `X-Metrics-Secret` on `/metrics` when `METRICS_SCRAPE_SECRET` is set (same as API).
+
+Local Prometheus/Grafana under [`infra/`](../infra/) remain for Docker Compose (`--profile monitoring`).
 
 ### Post-deploy smoke tests
 
@@ -325,6 +353,7 @@ Confirm worker Container Apps (`tangle-study-worker-media`, `tangle-study-worker
 ### Observability
 
 - [ ] API requests visible in Application Insights (Live Metrics or Transactions)
+- [ ] Grafana external URL loads; Prometheus targets UP (api, postgres, redis, workers)
 - [ ] Container Apps logs stream without repeated crash loops (`az containerapp logs show -n tangle-study-api -g tangle-study-prod --tail 50`)
 - [ ] No sustained 5xx on `/api/*` during the walkthrough
 
@@ -344,7 +373,7 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
 
 Before first deploy:
 
-1. Set all required GitHub secrets for the target environment.
+1. Set all required GitHub secrets for the target environment (including `POSTGRES_CONNECTION_STRING` and `GRAFANA_ADMIN_PASSWORD`).
 2. Set `Media__PublicBlobEndpoint` to the blob account URL clients use for SAS uploads (HTTPS).
 3. Configure blob CORS on the storage account for the web app origin (`PUT` from browser).
 4. Enable Redis — required for SignalR backplane and work queues when the API scales beyond one replica.

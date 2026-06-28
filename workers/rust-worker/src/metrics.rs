@@ -3,6 +3,8 @@ use anyhow::{Context, Result};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use std::convert::Infallible;
+use std::sync::Arc;
 use tracing::info;
 
 use crate::config::Config;
@@ -27,12 +29,96 @@ impl JobOutcome {
 }
 
 pub fn init(port: u16) -> Result<()> {
-    PrometheusBuilder::new()
-        .with_http_listener(([0, 0, 0, 0], port))
-        .install()
+    let scrape_secret = std::env::var("METRICS_SCRAPE_SECRET")
+        .ok()
+        .filter(|value| !value.is_empty());
+    let handle = PrometheusBuilder::new()
+        .install_recorder()
         .map_err(|err| anyhow::anyhow!("install Prometheus metrics recorder: {err}"))?;
-    info!(port = port, "Prometheus metrics listening");
+
+    let secret = scrape_secret.clone();
+    tokio::spawn(async move {
+        if let Err(err) = serve_metrics(port, secret, handle).await {
+            tracing::error!(error = %err, "metrics server failed");
+        }
+    });
+
+    info!(port = port, auth = scrape_secret.is_some(), "Prometheus metrics listening");
     Ok(())
+}
+
+async fn serve_metrics(
+    port: u16,
+    scrape_secret: Option<String>,
+    handle: metrics_exporter_prometheus::PrometheusHandle,
+) -> Result<()> {
+    use http_body_util::Full;
+    use hyper::body::Bytes;
+    use hyper::server::conn::http1;
+    use hyper::service::service_fn;
+    use hyper::{Request, Response, StatusCode};
+    use hyper_util::rt::TokioIo;
+    use tokio::net::TcpListener;
+
+    let secret = Arc::new(scrape_secret);
+    let listener = TcpListener::bind(("0.0.0.0", port))
+        .await
+        .with_context(|| format!("bind metrics listener on port {port}"))?;
+
+    loop {
+        let (stream, _) = listener.accept().await.context("accept metrics connection")?;
+        let io = TokioIo::new(stream);
+        let handle = handle.clone();
+        let secret = Arc::clone(&secret);
+
+        tokio::spawn(async move {
+            let service = service_fn(move |req: Request<hyper::body::Incoming>| {
+                let handle = handle.clone();
+                let secret = Arc::clone(&secret);
+                async move {
+                    if !authorize_metrics_request(req.headers(), secret.as_deref()) {
+                        return Ok::<_, Infallible>(Response::builder()
+                            .status(StatusCode::UNAUTHORIZED)
+                            .body(Full::new(Bytes::from_static(b"Unauthorized")))
+                            .unwrap());
+                    }
+
+                    if req.uri().path() != "/metrics" {
+                        return Ok(Response::builder()
+                            .status(StatusCode::NOT_FOUND)
+                            .body(Full::new(Bytes::from_static(b"Not Found")))
+                            .unwrap());
+                    }
+
+                    Ok(Response::builder()
+                        .status(StatusCode::OK)
+                        .header("Content-Type", "text/plain; version=0.0.4")
+                        .body(Full::new(Bytes::from(handle.render())))
+                        .unwrap())
+                }
+            });
+
+            if let Err(err) = http1::Builder::new()
+                .serve_connection(io, service)
+                .await
+            {
+                tracing::debug!(error = %err, "metrics connection closed");
+            }
+        });
+    }
+}
+
+fn authorize_metrics_request(
+    headers: &hyper::HeaderMap,
+    expected_secret: Option<&str>,
+) -> bool {
+    match expected_secret {
+        None => true,
+        Some(expected) => headers
+            .get("x-metrics-secret")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value == expected),
+    }
 }
 
 pub fn record_callback_request(code: &str) {
@@ -78,4 +164,28 @@ pub async fn refresh_queue_gauges(conn: &mut ConnectionManager, config: &Config)
     .set(dlq_length as f64);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyper::HeaderMap;
+
+    #[test]
+    fn authorize_metrics_request_allows_when_secret_unset() {
+        let headers = HeaderMap::new();
+        assert!(authorize_metrics_request(&headers, None));
+    }
+
+    #[test]
+    fn authorize_metrics_request_requires_matching_header() {
+        let mut headers = HeaderMap::new();
+        assert!(!authorize_metrics_request(&headers, Some("secret")));
+
+        headers.insert("x-metrics-secret", "wrong".parse().unwrap());
+        assert!(!authorize_metrics_request(&headers, Some("secret")));
+
+        headers.insert("x-metrics-secret", "secret".parse().unwrap());
+        assert!(authorize_metrics_request(&headers, Some("secret")));
+    }
 }

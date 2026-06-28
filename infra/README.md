@@ -177,6 +177,38 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secre
 ./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ```
 
+## Azure Container Apps (production)
+
+The same Prometheus/Grafana provisioning (`infra/grafana/provisioning/`, `infra/prometheus/recording_rules.yml`) is bundled into custom GHCR images for ACA:
+
+```
+infra/azure/monitoring/
+  prometheus/Dockerfile          # ACA scrape config at container start
+  prometheus/prometheus-start.sh # internal FQDN targets + X-Metrics-Secret
+  grafana/Dockerfile             # sed Prometheus datasource to internal URL
+  grafana/grafana-start.sh
+```
+
+| Compose (local) | Azure ACA |
+|-----------------|-----------|
+| `prometheus:9090` (host) | `tangle-study-prometheus` (internal) |
+| `grafana:3000` (host) | `tangle-study-grafana` (external FQDN) |
+| `postgres-exporter` → compose `db` | `tangle-study-postgres-exporter` → **Neon** |
+| `redis-exporter` → compose `redis` | `tangle-study-redis-exporter` → internal Redis |
+| `api:8080/metrics` | `tangle-study-api.internal.<domain>:8080/metrics` |
+| `rust-worker-*:9090/metrics` | `tangle-study-worker-*.internal.<domain>:9090/metrics` |
+
+CD builds and deploys `tangle-study-prometheus` and `tangle-study-grafana` alongside app images. Secrets: `METRICS_SCRAPE_SECRET`, `GRAFANA_ADMIN_PASSWORD`, and Neon `POSTGRES_CONNECTION_STRING` (postgres-exporter DSN derived at inject time).
+
+Grafana login on Azure: `admin` / `GRAFANA_ADMIN_PASSWORD`. Resolve URL:
+
+```bash
+az containerapp show --name tangle-study-grafana --resource-group tangle-study-prod \
+  --query properties.configuration.ingress.fqdn -o tsv
+```
+
+See [infra/azure/README.md](azure/README.md) and [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) for full deploy steps.
+
 ## Related docs
 
 - [README.md](../README.md#development-phases) — phased roadmap

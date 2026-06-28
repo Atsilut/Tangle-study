@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Deploy Tangle Azure infrastructure with Bicep (study / free-tier friendly).
 #
-# No managed PostgreSQL, Redis, or ACR — Postgres and Redis run as Container Apps;
-# app images are pulled from GHCR (public packages need no registry password).
+# Postgres: Neon (external) — connection string injected by CD, not Bicep.
+# Redis + monitoring exporters run as Container Apps; app images from GHCR.
 #
 # Prerequisites: Azure CLI (`az`), logged in (`az login`).
 #
-# Production (matches GitHub Environment `production` / CD on main):
-#   POSTGRES_ADMIN_PASSWORD='...' ./scripts/azure-deploy-infra.sh prod
+# Production (matches GitHub Environment `prod` / CD on main):
+#   ./scripts/azure-deploy-infra.sh prod
 #
 set -euo pipefail
 
@@ -35,7 +35,6 @@ Usage: ./scripts/azure-deploy-infra.sh <dev|prod>
 Environment variables:
   AZURE_SUBSCRIPTION_ID     Optional subscription override
   AZURE_LOCATION            Azure region (default: eastus)
-  POSTGRES_ADMIN_PASSWORD   Required (min 8 chars) — must match GitHub secret POSTGRES_ADMIN_PASSWORD
   COMPOSE_ENV_FILE          Optional — pinned infra tags (default: docker/versions.prod.env)
   GHCR_REGISTRY_USERNAME    Optional — prefer GitHub secret + CD inject for private GHCR
   GHCR_REGISTRY_PASSWORD    Optional — GitHub PAT with read:packages
@@ -46,15 +45,12 @@ deploy_env() {
   local rg="$1"
   local parameters_file="$2"
 
-  if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
-    echo "POSTGRES_ADMIN_PASSWORD is required." >&2
-    exit 1
-  fi
-
   local extra_params=(
-    --parameters "postgresAdminPassword=${POSTGRES_ADMIN_PASSWORD}"
-    --parameters "postgresImage=${POSTGRES_IMAGE}"
     --parameters "redisImage=${REDIS_IMAGE}"
+    --parameters "prometheusImage=${PROMETHEUS_IMAGE}"
+    --parameters "grafanaImage=${GRAFANA_IMAGE}"
+    --parameters "postgresExporterImage=${POSTGRES_EXPORTER_IMAGE}"
+    --parameters "redisExporterImage=${REDIS_EXPORTER_IMAGE}"
   )
 
   if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then
