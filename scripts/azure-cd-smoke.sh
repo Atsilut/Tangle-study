@@ -77,8 +77,9 @@ dump_smoke_failure_context() {
       echo "Hint: HTTP ${LAST_HTTP_CODE} = web reached ${API_APP} but /health failed or timed out." >&2
       echo "      Check ${API_APP} logs; Postgres or Redis dependency checks may be Unhealthy." >&2
       echo "      HTTP 504 often means nginx cannot reach the API upstream in time." >&2
-      echo "      Verify TANGLE_API_UPSTREAM uses tangle-study-api.internal.<cae-domain>:8080" >&2
-      echo "      (short name tangle-study-api:8080 can hang from web on ACA)." >&2
+      echo "      Verify TANGLE_API_UPSTREAM via CD probe (short name tangle-study-api:8080 vs internal FQDN)." >&2
+      echo "      Runtime nginx must set proxy_set_header Host to match that upstream hostname." >&2
+      echo "      Exec into ${WEB_APP}: grep -E 'server |proxy_set_header Host' /etc/nginx/conf.d/default.conf" >&2
       ;;
     *)
       echo "Hint: /health is proxied to ${API_APP}. Check both app revision status above." >&2
@@ -144,6 +145,13 @@ done
 echo "==> Verifying ${API_APP} /health inside the API pod"
 if ! probe_api_health_via_exec "$API_APP" "$RG" 8080; then
   echo "API /health failed inside ${API_APP}; skipping public /health probe" >&2
+  dump_smoke_failure_context
+  exit 1
+fi
+
+echo "==> Verifying ${WEB_APP} can reach ${API_APP} /health (cross-app)"
+if ! probe_web_api_health_via_exec "$WEB_APP" "$RG" "$API_APP"; then
+  echo "Web→API /health failed inside ${WEB_APP}; skipping public /health probe" >&2
   dump_smoke_failure_context
   exit 1
 fi

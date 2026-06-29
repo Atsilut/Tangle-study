@@ -24,7 +24,7 @@ def redact(text: str) -> str:
     )
     sub(
         r"[a-z0-9-]+\.internal\.[a-z0-9.-]+\.azurecontainerapps\.io(?::\d+)?",
-        "[redis-internal-host]",
+        "[aca-internal-host]",
         re.I,
     )
     sub(
