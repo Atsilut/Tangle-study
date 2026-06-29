@@ -106,9 +106,9 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Internal FQDN avoids unreliable ACA short-name TCP routing (see azure-container-apps#1315).
+// Redis TCP ingress is reachable by Container App name within the CAE (see ACA ingress TCP docs).
 var defaultDomain = containerAppsEnv.outputs.defaultDomain
-var redisInternalHost = 'tangle-study-redis.internal.${defaultDomain}'
+var redisInternalHost = 'tangle-study-redis'
 var redisConnectionString = '${redisInternalHost}:6379'
 var redisUrl = 'redis://${redisConnectionString}'
 var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'

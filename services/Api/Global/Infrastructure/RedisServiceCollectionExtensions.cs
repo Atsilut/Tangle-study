@@ -23,25 +23,36 @@ public static class RedisServiceCollectionExtensions
             return services;
         }
 
+        var redisConfiguration = ParseRedisConfiguration(options.ConnectionString);
+
         services.AddStackExchangeRedisCache(cache =>
         {
-            cache.Configuration = options.ConnectionString;
+            cache.ConfigurationOptions = redisConfiguration;
             cache.InstanceName = options.InstanceName;
         });
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(options.ConnectionString));
+            ConnectionMultiplexer.Connect(redisConfiguration));
         services.AddSingleton<IEventPublisher, RedisEventPublisher>();
         services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
         services.AddHostedService<RedisEventSubscriberHostedService>();
 
         services.AddSignalR()
-            .AddStackExchangeRedis(redisOptions =>
+            .AddStackExchangeRedis(signalRRedisOptions =>
             {
-                redisOptions.Configuration = ConfigurationOptions.Parse(options.ConnectionString);
-                if (!string.IsNullOrWhiteSpace(options.SignalRChannelPrefix)) redisOptions.Configuration.ChannelPrefix = RedisChannel.Literal(options.SignalRChannelPrefix);
+                signalRRedisOptions.Configuration = redisConfiguration;
+                if (!string.IsNullOrWhiteSpace(options.SignalRChannelPrefix))
+                    signalRRedisOptions.Configuration.ChannelPrefix =
+                        RedisChannel.Literal(options.SignalRChannelPrefix);
             });
 
         return services;
+    }
+
+    internal static ConfigurationOptions ParseRedisConfiguration(string connectionString)
+    {
+        var config = ConfigurationOptions.Parse(connectionString);
+        config.AbortOnConnectFail = false;
+        return config;
     }
 }

@@ -64,7 +64,6 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           targetPort: tcpProbePort
           exposedPort: tcpProbePort
           transport: 'tcp'
-          allowInsecure: false
         }
       } : {}
     )
