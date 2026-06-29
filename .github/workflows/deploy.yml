@@ -81,9 +81,10 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Ensure Redis TCP ingress
+      - name: Ensure Redis TCP ingress (early)
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          REDIS_ENSURE_PHASE: early
         run: bash scripts/azure-cd-ensure-redis.sh
 
       - name: Inject Container App secrets
@@ -107,6 +108,17 @@ jobs:
           CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
           IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         run: bash scripts/azure-cd-update-images.sh
+
+      - name: Ensure API/web runtime (port + nginx upstream)
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: bash scripts/azure-cd-ensure-api-web-runtime.sh
+
+      - name: Ensure Redis cross-app TCP (late)
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          REDIS_ENSURE_PHASE: late
+        run: bash scripts/azure-cd-ensure-redis.sh
 
       - name: Run EF migrate job
         if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
