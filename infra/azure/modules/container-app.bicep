@@ -64,7 +64,7 @@ var secretEnvMappings = [for item in secretEnvVars: {
   secretRef: item.name
 }]
 
-resource app 'Microsoft.App/containerApps@2024-03-01' = {
+resource app 'Microsoft.App/containerApps@2026-01-01' = {
   name: name
   location: location
   tags: tags
