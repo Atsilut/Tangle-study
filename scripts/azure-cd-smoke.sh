@@ -76,8 +76,9 @@ dump_smoke_failure_context() {
     502|503|504)
       echo "Hint: HTTP ${LAST_HTTP_CODE} = web reached ${API_APP} but /health failed or timed out." >&2
       echo "      Check ${API_APP} logs; Postgres or Redis dependency checks may be Unhealthy." >&2
-      echo "      HTTP 504 often means nginx proxy_read_timeout (15s) expired while API /health" >&2
-      echo "      waits on Redis — verify Redis__ConnectionString uses tangle-study-redis:6379." >&2
+      echo "      HTTP 504 often means nginx cannot reach the API upstream in time." >&2
+      echo "      Verify TANGLE_API_UPSTREAM uses tangle-study-api.internal.<cae-domain>:8080" >&2
+      echo "      (short name tangle-study-api:8080 can hang from web on ACA)." >&2
       ;;
     *)
       echo "Hint: /health is proxied to ${API_APP}. Check both app revision status above." >&2
@@ -140,7 +141,14 @@ for attempt in 1 2 3 4 5 6; do
   sleep 15
 done
 
-# /health is proxied to the internal API.
+echo "==> Verifying ${API_APP} /health inside the API pod"
+if ! probe_api_health_via_exec "$API_APP" "$RG" 8080; then
+  echo "API /health failed inside ${API_APP}; skipping public /health probe" >&2
+  dump_smoke_failure_context
+  exit 1
+fi
+
+# /health is proxied to the internal API through web nginx.
 for attempt in 1 2 3 4 5 6; do
   if curl_check "/health" "Healthy"; then
     break

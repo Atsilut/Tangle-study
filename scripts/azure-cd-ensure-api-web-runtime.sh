@@ -2,8 +2,11 @@
 # Reconcile API ingress port and web nginx upstream after real images replace placeholders.
 #
 # Infra deployed with usePlaceholderImages=true sets API targetPort=80 and
-# TANGLE_API_UPSTREAM=tangle-study-api:80. Real API images listen on 8080;
+# TANGLE_API_UPSTREAM to the API internal FQDN on port 80. Real API images listen on 8080;
 # web nginx then proxies /health to the wrong port and smoke gets HTTP 404.
+#
+# Cross-app HTTP on ACA uses internal FQDN (tangle-study-api.internal.<domain>:8080);
+# the short app name can hang from the web app (same class of issue as Redis TCP).
 #
 # Required env:
 #   AZURE_RESOURCE_GROUP
@@ -21,7 +24,13 @@ RG="$AZURE_RESOURCE_GROUP"
 API_APP="${API_APP_NAME:-tangle-study-api}"
 WEB_APP="${WEB_APP_NAME:-tangle-study-web}"
 API_TARGET_PORT="${API_TARGET_PORT:-8080}"
-EXPECTED_UPSTREAM="${API_APP}:${API_TARGET_PORT}"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/azure-container-apps-readiness.sh
+source "$ROOT/scripts/lib/azure-container-apps-readiness.sh"
+
+# HTTP cross-app calls use internal FQDN (short app name can hang on ACA); see prometheus scrape targets.
+EXPECTED_UPSTREAM="$(aca_internal_app_upstream "$API_APP" "$RG" "$API_TARGET_PORT")"
 
 container_app_image() {
   local app_name="$1"

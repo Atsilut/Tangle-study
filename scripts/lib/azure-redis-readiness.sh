@@ -164,45 +164,6 @@ container_app_managed_environment_id() {
     --output tsv
 }
 
-run_container_app_exec() {
-  local probe_app="$1"
-  local container_name="$2"
-  local command="$3"
-  local exec_script rc
-
-  exec_script="$(mktemp)"
-  cat >"$exec_script" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-az containerapp exec \\
-  --name $(printf '%q' "$probe_app") \\
-  --resource-group $(printf '%q' "$RG") \\
-  --container $(printf '%q' "$container_name") \\
-  --command $(printf '%q' "$command") \\
-  --output none
-EOF
-  chmod +x "$exec_script"
-
-  if [ -t 0 ] && [ -t 1 ]; then
-    "$exec_script"
-    rc=$?
-    rm -f "$exec_script"
-    return "$rc"
-  fi
-
-  if command -v script >/dev/null 2>&1; then
-    script -q -c "$exec_script" /dev/null
-    rc=$?
-    rm -f "$exec_script"
-    return "$rc"
-  fi
-
-  "$exec_script"
-  rc=$?
-  rm -f "$exec_script"
-  return "$rc"
-}
-
 exec_probe_failed_with_ioctl() {
   local err_file="$1"
   grep -qiE 'inappropriate ioctl for device|not a tty' "$err_file"
@@ -210,8 +171,7 @@ exec_probe_failed_with_ioctl() {
 
 # az containerapp exec often exits 0 even when the remote command fails (see "exit code N, code: 0").
 exec_probe_reported_failure() {
-  local err_file="$1"
-  grep -qiE 'ClusterExecFailure|non-zero exit code|command terminated with' "$err_file"
+  container_app_exec_reported_failure "$1"
 }
 
 restart_container_app_active_revision() {
@@ -257,7 +217,7 @@ probe_redis_tcp_via_exec() {
   output_file="$(mktemp)"
   # Do not trust az exit code alone — exec returns 0 when the remote command times out or fails.
   # az writes INFO/ERROR to stdout; stderr alone misses ClusterExecFailure.
-  run_container_app_exec "$probe_app" "$probe_app" "$command" >"$output_file" 2>&1 || true
+  run_container_app_exec "$probe_app" "$probe_app" "$command" "$RG" >"$output_file" 2>&1 || true
 
   if exec_probe_failed_with_ioctl "$output_file"; then
     echo "==> exec probe unavailable in non-interactive shell; will try job probe" >&2

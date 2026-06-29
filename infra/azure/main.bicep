@@ -111,6 +111,8 @@ var defaultDomain = containerAppsEnv.outputs.defaultDomain
 var redisInternalHost = 'tangle-study-redis'
 var redisConnectionString = '${redisInternalHost}:6379'
 var redisUrl = 'redis://${redisConnectionString}'
+var apiInternalHost = 'tangle-study-api.internal.${defaultDomain}'
+var apiInternalBaseUrl = 'http://${apiInternalHost}:8080'
 var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'
 
 module redis 'modules/infra-container.bicep' = {
@@ -179,7 +181,7 @@ module web 'modules/container-app.bicep' = {
     registryPassword: registryPassword
     tags: tags
     envVars: [
-      { name: 'TANGLE_API_UPSTREAM', value: 'tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'TANGLE_API_UPSTREAM', value: '${apiInternalHost}:${usePlaceholderImages ? 80 : 8080}' }
     ]
     secretEnvVars: []
   }
@@ -234,7 +236,7 @@ module workerMedia 'modules/container-app.bicep' = {
       { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
       { name: 'WORKER_STREAM_KEY', value: 'media.uploaded' }
       { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
-      { name: 'API_BASE_URL', value: 'http://tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'API_BASE_URL', value: 'http://${apiInternalHost}:${usePlaceholderImages ? 80 : 8080}' }
       { name: 'MEDIA_CONTAINER_NAME', value: storage.outputs.containerName }
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
@@ -267,7 +269,7 @@ module workerLocation 'modules/container-app.bicep' = {
       { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
       { name: 'WORKER_STREAM_KEY', value: 'location.cluster' }
       { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
-      { name: 'API_BASE_URL', value: 'http://tangle-study-api:${usePlaceholderImages ? 80 : 8080}' }
+      { name: 'API_BASE_URL', value: 'http://${apiInternalHost}:${usePlaceholderImages ? 80 : 8080}' }
       { name: 'WORKER_METRICS_PORT', value: '9090' }
       { name: 'RUST_LOG', value: 'info' }
     ]

@@ -1,6 +1,36 @@
 #!/usr/bin/env bash
 # Shared Container Apps revision readiness helpers for CD smoke and post-deploy waits.
 
+container_app_env_default_domain() {
+  local app_name="$1"
+  local rg="$2"
+  local env_id env_name
+  env_id="$(az containerapp show \
+    --name "$app_name" \
+    --resource-group "$rg" \
+    --query properties.managedEnvironmentId \
+    --output tsv)"
+  env_name="${env_id##*/}"
+  az containerapp env show \
+    --name "$env_name" \
+    --resource-group "$rg" \
+    --query properties.defaultDomain \
+    --output tsv
+}
+
+aca_internal_app_host() {
+  local app_name="$1"
+  local rg="$2"
+  echo "${app_name}.internal.$(container_app_env_default_domain "$app_name" "$rg")"
+}
+
+aca_internal_app_upstream() {
+  local app_name="$1"
+  local rg="$2"
+  local port="${3:-8080}"
+  echo "$(aca_internal_app_host "$app_name" "$rg"):${port}"
+}
+
 revision_is_running() {
   case "${1:-}" in
     Running|RunningAtMaxScale) return 0 ;;
@@ -158,5 +188,86 @@ wait_for_container_app_revision_healthy() {
     return 0
   fi
 
+  return 1
+}
+
+container_app_exec_reported_failure() {
+  local output_file="$1"
+  grep -qiE 'ClusterExecFailure|non-zero exit code|command terminated with' "$output_file"
+}
+
+run_container_app_exec() {
+  local app_name="$1"
+  local container_name="$2"
+  local command="$3"
+  local rg="$4"
+  local exec_script rc
+
+  exec_script="$(mktemp)"
+  cat >"$exec_script" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+az containerapp exec \\
+  --name $(printf '%q' "$app_name") \\
+  --resource-group $(printf '%q' "$rg") \\
+  --container $(printf '%q' "$container_name") \\
+  --command $(printf '%q' "$command") \\
+  --output none
+EOF
+  chmod +x "$exec_script"
+
+  if [ -t 0 ] && [ -t 1 ]; then
+    "$exec_script"
+    rc=$?
+    rm -f "$exec_script"
+    return "$rc"
+  fi
+
+  if command -v script >/dev/null 2>&1; then
+    script -q -c "$exec_script" /dev/null
+    rc=$?
+    rm -f "$exec_script"
+    return "$rc"
+  fi
+
+  "$exec_script"
+  rc=$?
+  rm -f "$exec_script"
+  return "$rc"
+}
+
+probe_api_health_via_exec() {
+  local app_name="$1"
+  local rg="$2"
+  local port="${3:-8080}"
+  local output_file command
+
+  if ! az containerapp show --name "$app_name" --resource-group "$rg" &>/dev/null; then
+    echo "==> ${app_name}: not found; skip exec health probe" >&2
+    return 1
+  fi
+
+  command="wget -qO- --timeout=15 http://127.0.0.1:${port}/health"
+  echo "==> Probing ${app_name} /health via container exec (127.0.0.1:${port})"
+  output_file="$(mktemp)"
+  run_container_app_exec "$app_name" "$app_name" "$command" "$rg" >"$output_file" 2>&1 || true
+
+  if container_app_exec_reported_failure "$output_file"; then
+    if declare -f redact_log_stream >/dev/null 2>&1; then
+      redact_log_stream <"$output_file" >&2
+    else
+      cat "$output_file" >&2
+    fi
+    rm -f "$output_file"
+    return 1
+  fi
+  if grep -q Healthy "$output_file"; then
+    rm -f "$output_file"
+    echo "==> ${app_name} /health returned Healthy via exec"
+    return 0
+  fi
+
+  echo "==> ${app_name} /health did not return Healthy via exec" >&2
+  rm -f "$output_file"
   return 1
 }

@@ -30,10 +30,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 DEBIAN_IMAGE="${DEBIAN_IMAGE:-debian:bookworm-slim}"
-# shellcheck source=scripts/lib/azure-redis-readiness.sh
-source "$ROOT/scripts/lib/azure-redis-readiness.sh"
 # shellcheck source=scripts/lib/azure-container-apps-readiness.sh
 source "$ROOT/scripts/lib/azure-container-apps-readiness.sh"
+# shellcheck source=scripts/lib/azure-redis-readiness.sh
+source "$ROOT/scripts/lib/azure-redis-readiness.sh"
 
 if ! az containerapp show --name "$REDIS_APP" --resource-group "$RG" &>/dev/null; then
   echo "==> ${REDIS_APP} not found in ${RG}; skipping Redis ensure"
