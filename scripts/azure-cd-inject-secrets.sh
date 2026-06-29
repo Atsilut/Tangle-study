@@ -34,6 +34,8 @@ APP_INSIGHTS_NAME="${APP_INSIGHTS_NAME:-tanglestudyprod-appi}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/lib/postgres-connection-string.sh
 source "$ROOT/scripts/lib/postgres-connection-string.sh"
+# shellcheck source=scripts/lib/az-retry.sh
+source "$ROOT/scripts/lib/az-retry.sh"
 
 build_postgres_exporter_dsn() {
   python3 - "$1" <<'PY'
@@ -143,7 +145,7 @@ POSTGRES_EXPORTER_DSN="${POSTGRES_EXPORTER_DSN:-$(build_postgres_exporter_dsn "$
 
 if [[ -z "${APPLICATIONINSIGHTS_CONNECTION_STRING:-}" ]]; then
   echo "==> Resolving Application Insights connection string from Azure (${APP_INSIGHTS_NAME})"
-  APPLICATIONINSIGHTS_CONNECTION_STRING="$(az monitor app-insights component show \
+  APPLICATIONINSIGHTS_CONNECTION_STRING="$(az_retry az monitor app-insights component show \
     --app "$APP_INSIGHTS_NAME" \
     --resource-group "$RG" \
     --query connectionString \
@@ -164,7 +166,7 @@ if [[ -n "$PLACES_API_KEY" ]]; then
   SECRET_ARGS+=("places-api-key=${PLACES_API_KEY}")
 fi
 
-az containerapp secret set \
+az_retry az containerapp secret set \
   --name tangle-study-api \
   --resource-group "$RG" \
   --secrets "${SECRET_ARGS[@]}" \
@@ -182,59 +184,59 @@ if [[ -n "$PLACES_API_KEY" ]]; then
   API_ENV+=("Places__ApiKey=secretref:places-api-key")
 fi
 
-az containerapp update \
+az_retry az containerapp update \
   --name tangle-study-api \
   --resource-group "$RG" \
   --set-env-vars "${API_ENV[@]}" \
   --output none
 
 echo "==> Postgres exporter secrets (tangle-study-postgres-exporter)"
-az containerapp secret set \
+az_retry az containerapp secret set \
   --name tangle-study-postgres-exporter \
   --resource-group "$RG" \
   --secrets "postgres-dsn=${POSTGRES_EXPORTER_DSN}" \
   --output none
 
-az containerapp update \
+az_retry az containerapp update \
   --name tangle-study-postgres-exporter \
   --resource-group "$RG" \
   --set-env-vars "DATA_SOURCE_NAME=secretref:postgres-dsn" \
   --output none
 
 echo "==> Prometheus secrets (tangle-study-prometheus)"
-az containerapp secret set \
+az_retry az containerapp secret set \
   --name tangle-study-prometheus \
   --resource-group "$RG" \
   --secrets "metrics-secret=${METRICS_SCRAPE_SECRET}" \
   --output none
 
-az containerapp update \
+az_retry az containerapp update \
   --name tangle-study-prometheus \
   --resource-group "$RG" \
   --set-env-vars "METRICS_SCRAPE_SECRET=secretref:metrics-secret" \
   --output none
 
 echo "==> Grafana secrets (tangle-study-grafana)"
-az containerapp secret set \
+az_retry az containerapp secret set \
   --name tangle-study-grafana \
   --resource-group "$RG" \
   --secrets "grafana-admin-password=${GRAFANA_ADMIN_PASSWORD}" \
   --output none
 
-az containerapp update \
+az_retry az containerapp update \
   --name tangle-study-grafana \
   --resource-group "$RG" \
   --set-env-vars "GF_SECURITY_ADMIN_PASSWORD=secretref:grafana-admin-password" \
   --output none
 
 echo "==> Migrate job secrets (tangle-study-migrate)"
-az containerapp job secret set \
+az_retry az containerapp job secret set \
   --name tangle-study-migrate \
   --resource-group "$RG" \
   --secrets "postgres-conn=${POSTGRES_CONNECTION_STRING}" \
   --output none
 
-az containerapp job update \
+az_retry az containerapp job update \
   --name tangle-study-migrate \
   --resource-group "$RG" \
   --set-env-vars "ConnectionStrings__DefaultConnection=secretref:postgres-conn" \
@@ -250,7 +252,7 @@ inject_worker_metrics_secret() {
   fi
 
   echo "==> Worker secrets (${app})"
-  az containerapp secret set \
+  az_retry az containerapp secret set \
     --name "$app" \
     --resource-group "$RG" \
     --secrets "${secrets[@]}" \
@@ -264,7 +266,7 @@ inject_worker_metrics_secret() {
     )
   fi
 
-  az containerapp update \
+  az_retry az containerapp update \
     --name "$app" \
     --resource-group "$RG" \
     --set-env-vars "${env_vars[@]}" \
@@ -289,7 +291,7 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
     tangle-study-grafana
   )
   for app in "${REGISTRY_APPS[@]}"; do
-    az containerapp registry set \
+    az_retry az containerapp registry set \
       --name "$app" \
       --resource-group "$RG" \
       --server ghcr.io \
@@ -297,7 +299,7 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
       --password "$GHCR_REGISTRY_PASSWORD" \
       --output none
   done
-  az containerapp job registry set \
+  az_retry az containerapp job registry set \
     --name tangle-study-migrate \
     --resource-group "$RG" \
     --server ghcr.io \
