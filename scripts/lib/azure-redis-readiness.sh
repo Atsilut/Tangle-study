@@ -8,6 +8,10 @@ REDIS_STACKEXCHANGE_EXTRAS="${REDIS_STACKEXCHANGE_EXTRAS:-,abortConnect=false,co
 # Set by ensure_redis_cross_app_tcp when a probe target is verified (internal FQDN or short app name).
 REDIS_TCP_HOST="${REDIS_TCP_HOST:-}"
 
+_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/log-redact.sh
+source "$_lib_dir/log-redact.sh"
+
 container_app_env_default_domain() {
   local app_name="$1"
   local env_id env_name
@@ -251,7 +255,7 @@ probe_redis_tcp_via_exec() {
 
   # Double-quoted bash -c survives az containerapp exec; single quotes break inside the remote shell.
   command="timeout 5 bash -c \"echo >/dev/tcp/${host}/${port}\""
-  echo "==> Probing Redis TCP via exec from ${probe_app} to ${host}:${port}"
+  echo "==> Probing Redis TCP via exec from ${probe_app} to $(redis_endpoint_log_label "$host" "$port")"
   err_file="$(mktemp)"
   # Do not trust az exit code alone — exec returns 0 when the remote command times out or fails.
   run_container_app_exec "$probe_app" "$probe_app" "$command" 2>"$err_file" || true
@@ -262,7 +266,7 @@ probe_redis_tcp_via_exec() {
     return 2
   fi
   if exec_probe_reported_failure "$err_file"; then
-    cat "$err_file" >&2
+    redact_log_stream <"$err_file" >&2
     rm -f "$err_file"
     return 1
   fi
@@ -321,7 +325,7 @@ probe_redis_tcp_via_job() {
 
   ensure_redis_probe_job "$host" "$port"
 
-  echo "==> Probing Redis TCP via job ${job_name} to ${host}:${port}"
+  echo "==> Probing Redis TCP via job ${job_name} to $(redis_endpoint_log_label "$host" "$port")"
   execution_name="$(az containerapp job start \
     --name "$job_name" \
     --resource-group "$RG" \
@@ -385,7 +389,7 @@ wait_for_redis_tcp() {
 
   for (( attempt=1; attempt<=max_attempts; attempt++ )); do
     if probe_redis_tcp "$host" "$REDIS_PORT"; then
-      echo "==> Redis TCP probe succeeded (${host}:${REDIS_PORT})"
+      echo "==> Redis TCP probe succeeded ($(redis_endpoint_log_label "$host" "$REDIS_PORT"))"
       return 0
     fi
     if (( attempt < max_attempts )); then
@@ -394,7 +398,7 @@ wait_for_redis_tcp() {
     fi
   done
 
-  echo "==> Redis TCP probe failed after ${max_attempts} attempts (${host}:${REDIS_PORT})" >&2
+  echo "==> Redis TCP probe failed after ${max_attempts} attempts ($(redis_endpoint_log_label "$host" "$REDIS_PORT"))" >&2
   return 1
 }
 
@@ -469,7 +473,7 @@ ensure_api_redis_env() {
     return 0
   fi
 
-  echo "==> ${API_APP}: setting Redis__ConnectionString (was ${current:-unset})"
+  echo "==> ${API_APP}: updating Redis__ConnectionString"
   az containerapp update \
     --name "$API_APP" \
     --resource-group "$RG" \
@@ -493,7 +497,7 @@ ensure_worker_redis_url() {
       echo "==> ${worker}: REDIS_URL already set"
       continue
     fi
-    echo "==> ${worker}: setting REDIS_URL=${url}"
+    echo "==> ${worker}: updating REDIS_URL"
     az containerapp update \
       --name "$worker" \
       --resource-group "$RG" \
@@ -517,7 +521,7 @@ ensure_redis_exporter_addr() {
     return 0
   fi
 
-  echo "==> tangle-study-redis-exporter: setting REDIS_ADDR=${addr}"
+  echo "==> tangle-study-redis-exporter: updating REDIS_ADDR"
   az containerapp update \
     --name tangle-study-redis-exporter \
     --resource-group "$RG" \

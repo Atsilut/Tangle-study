@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Log Analytics + Container Apps Job log helpers for CD scripts.
 
+_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/log-redact.sh
+source "$_lib_dir/log-redact.sh"
+
 resolve_log_analytics_workspace_id() {
   local rg="$1"
   local app_name="${2:-tangle-study-api}"
@@ -35,7 +39,7 @@ dump_container_app_job_logs() {
     --container "$container_name" \
     --format text \
     --tail "$tail" \
-    --only-show-errors 2>/dev/null; then
+    --only-show-errors 2>/dev/null | redact_log_stream; then
     return 0
   fi
 
@@ -50,5 +54,5 @@ dump_container_app_job_logs() {
     --workspace "$workspace_id" \
     --only-show-errors \
     --analytics-query "ContainerAppConsoleLogs_CL | where ContainerGroupName_s startswith '${execution_name}' | project TimeGenerated, Log_s | order by TimeGenerated asc | take ${tail}" \
-    --output table >&2 || true
+    --output table 2>/dev/null | redact_log_stream >&2 || true
 }

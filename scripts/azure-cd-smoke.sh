@@ -22,6 +22,8 @@ RG="$AZURE_RESOURCE_GROUP"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/lib/azure-container-apps-readiness.sh
 source "$ROOT/scripts/lib/azure-container-apps-readiness.sh"
+# shellcheck source=scripts/lib/log-redact.sh
+source "$ROOT/scripts/lib/log-redact.sh"
 
 LAST_HTTP_CODE=""
 
@@ -100,12 +102,12 @@ curl_check() {
   fi
 
   if [[ "$code" != "200" ]]; then
-    echo "    response body (first 400 chars): ${body:0:400}" >&2
+    echo "    response body (first 400 chars): $(redact_log_text "${body:0:400}")" >&2
     return 1
   fi
 
   if [[ -n "$expected" && "$body" != *"$expected"* ]]; then
-    echo "    expected body to contain '${expected}', got: ${body:0:400}" >&2
+    echo "    expected body to contain '${expected}', got: $(redact_log_text "${body:0:400}")" >&2
     return 1
   fi
 

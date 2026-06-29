@@ -44,14 +44,19 @@ public static class DatabaseMigrationRunner
         }
         catch (ArgumentException ex) when (IsConnectionStringParseFailure(ex))
         {
-            Console.Error.WriteLine(BuildMalformedConnectionMessage(connectionString));
-            logger.LogError(ex, "Database migration failed due to a malformed connection string.");
+            Console.Error.WriteLine(BuildMalformedConnectionMessage());
+            logger.LogError("Database migration failed due to a malformed connection string.");
             return 1;
         }
         catch (Exception ex) when (ex.InnerException is ArgumentException inner && IsConnectionStringParseFailure(inner))
         {
-            Console.Error.WriteLine(BuildMalformedConnectionMessage(connectionString));
-            logger.LogError(ex, "Database migration failed due to a malformed connection string.");
+            Console.Error.WriteLine(BuildMalformedConnectionMessage());
+            logger.LogError("Database migration failed due to a malformed connection string.");
+            return 1;
+        }
+        catch (Exception)
+        {
+            logger.LogError("Database migration failed.");
             return 1;
         }
 
@@ -63,13 +68,13 @@ public static class DatabaseMigrationRunner
     {
         if (Regex.IsMatch(connectionString, @"\?sslmode(?:$|[&#])", RegexOptions.IgnoreCase))
         {
-            message = BuildMalformedConnectionMessage(connectionString);
+            message = BuildTruncatedSslModeMessage();
             return false;
         }
 
         if (Regex.IsMatch(connectionString, @"(?:^|[?&])sslmode=(?:$|[&#])", RegexOptions.IgnoreCase))
         {
-            message = BuildMalformedConnectionMessage(connectionString);
+            message = BuildTruncatedSslModeMessage();
             return false;
         }
 
@@ -81,7 +86,7 @@ public static class DatabaseMigrationRunner
         }
         catch (ArgumentException)
         {
-            message = BuildMalformedConnectionMessage(connectionString);
+            message = BuildMalformedConnectionMessage();
             return false;
         }
     }
@@ -90,36 +95,15 @@ public static class DatabaseMigrationRunner
         ex.Message.Contains("Couldn't set", StringComparison.OrdinalIgnoreCase)
         || ex.Message.Contains("ConnectionString", StringComparison.OrdinalIgnoreCase);
 
-    private static string BuildMalformedConnectionMessage(string connectionString)
-    {
-        var host = TryGetHost(connectionString);
-        var hostSuffix = string.IsNullOrWhiteSpace(host) ? string.Empty : $" Host: {host}.";
+    private static string BuildTruncatedSslModeMessage() =>
+        "Connection string appears truncated at '?sslmode'. "
+        + "Use ?sslmode=require|verify-ca|verify-full or Npgsql format with "
+        + "SSL Mode=Require|VerifyCA|VerifyFull.";
 
-        if (Regex.IsMatch(connectionString, @"\?sslmode(?:$|[&#])", RegexOptions.IgnoreCase)
-            || Regex.IsMatch(connectionString, @"(?:^|[?&])sslmode=(?:$|[&#])", RegexOptions.IgnoreCase))
-        {
-            return "Connection string appears truncated at '?sslmode'. "
-                + "Use ?sslmode=require|verify-ca|verify-full or Npgsql format with "
-                + "SSL Mode=Require|VerifyCA|VerifyFull."
-                + hostSuffix;
-        }
-
-        return "Connection string appears malformed."
+    private static string BuildMalformedConnectionMessage() =>
+        "Connection string appears malformed."
             + " Use Npgsql format (Host=...;Database=...;Username=...;Password=...;"
             + " SSL Mode=Require|VerifyCA|VerifyFull)"
             + " or postgresql://user:pass@host/db?sslmode=require|verify-ca|verify-full."
-            + hostSuffix;
-    }
-
-    private static string? TryGetHost(string connectionString)
-    {
-        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
-            return uri.Host;
-
-        var match = Regex.Match(
-            connectionString,
-            @"(?:^|;)\s*(?:Host|Server|Data Source)\s*=\s*([^;]+)",
-            RegexOptions.IgnoreCase);
-        return match.Success ? match.Groups[1].Value.Trim() : null;
-    }
+            + " For Neon, include a full sslmode value (require, verify-ca, or verify-full).";
 }

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Retry az CLI invocations on transient Azure/network failures (GHA runners, ARM blips).
 
+_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/log-redact.sh
+source "$_lib_dir/log-redact.sh"
+
 az_is_transient_failure() {
   local err_file="$1"
   grep -qiE \
@@ -24,11 +28,11 @@ az_retry() {
     rc=$?
     if (( attempt < max_attempts )) && az_is_transient_failure "$output_file"; then
       echo "==> az CLI transient failure (attempt ${attempt}/${max_attempts}); retry in ${interval}s..." >&2
-      tail -8 "$output_file" >&2 || true
+      tail -8 "$output_file" | redact_log_stream >&2 || true
       sleep "$interval"
       continue
     fi
-    cat "$output_file" >&2
+    redact_log_stream <"$output_file" >&2
     rm -f "$output_file"
     return "$rc"
   done

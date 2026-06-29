@@ -55,7 +55,8 @@ while (( SECONDS < deadline )); do
         --name "$JOB_NAME" \
         --resource-group "$RG" \
         --job-execution-name "$EXECUTION_NAME" \
-        --output yaml >&2 || true
+        --query "{name:name,status:properties.status,startTime:properties.startTime,endTime:properties.endTime}" \
+        --output json 2>/dev/null | redact_log_stream >&2 || true
       dump_migrate_failure_logs "$EXECUTION_NAME"
       exit 1
       ;;
