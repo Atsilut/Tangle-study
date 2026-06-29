@@ -73,9 +73,11 @@ dump_smoke_failure_context() {
       echo "Hint: HTTP 404 on /health often means API targetPort/upstream mismatch" >&2
       echo "      (placeholder 80 vs real API 8080). Run scripts/azure-cd-ensure-api-web-runtime.sh" >&2
       ;;
-    502|503)
-      echo "Hint: HTTP ${LAST_HTTP_CODE} = web reached ${API_APP} but /health failed." >&2
+    502|503|504)
+      echo "Hint: HTTP ${LAST_HTTP_CODE} = web reached ${API_APP} but /health failed or timed out." >&2
       echo "      Check ${API_APP} logs; Postgres or Redis dependency checks may be Unhealthy." >&2
+      echo "      HTTP 504 often means nginx proxy_read_timeout (15s) expired while API /health" >&2
+      echo "      waits on Redis — verify Redis__ConnectionString uses tangle-study-redis:6379." >&2
       ;;
     *)
       echo "Hint: /health is proxied to ${API_APP}. Check both app revision status above." >&2

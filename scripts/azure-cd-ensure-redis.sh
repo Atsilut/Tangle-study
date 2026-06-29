@@ -47,8 +47,7 @@ ensure_redis_tcp_ingress
 if [[ "$PHASE" == "early" ]]; then
   echo "==> Waiting 15s for Redis TCP ingress routing to stabilize..."
   sleep 15
-  reconcile_redis_connection_env
-  echo "==> Redis ingress and connection env reconciled (early; TCP probe deferred)."
+  echo "==> Redis ingress reconciled (early; connection env deferred to late phase)."
   exit 0
 fi
 

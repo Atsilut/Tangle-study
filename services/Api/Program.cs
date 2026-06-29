@@ -148,7 +148,12 @@ var healthChecksBuilder = builder.Services.AddHealthChecks()
 
 var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
 if (redisConfig?.Enabled is true && !string.IsNullOrWhiteSpace(redisConfig.ConnectionString))
-    healthChecksBuilder.AddRedis(redisConfig.ConnectionString, name: "redis");
+{
+    healthChecksBuilder.AddRedis(
+        redisConfig.ConnectionString,
+        name: "redis",
+        timeout: TimeSpan.FromSeconds(5));
+}
 
 healthChecksBuilder.ForwardToPrometheus();
 

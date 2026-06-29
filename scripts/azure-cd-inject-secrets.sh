@@ -308,12 +308,4 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
     --output none
 fi
 
-echo "==> Reconciling Redis connection env"
-REDIS_APP="${REDIS_APP_NAME:-tangle-study-redis}"
-API_APP="${API_APP_NAME:-tangle-study-api}"
-REDIS_PORT=6379
-# shellcheck source=scripts/lib/azure-redis-readiness.sh
-source "$ROOT/scripts/lib/azure-redis-readiness.sh"
-reconcile_redis_connection_env
-
 echo "==> Secrets injected."

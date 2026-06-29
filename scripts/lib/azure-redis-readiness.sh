@@ -34,17 +34,16 @@ redis_internal_host() {
 }
 
 redis_effective_host() {
-  local domain="$1"
   if [[ -n "${REDIS_TCP_HOST:-}" ]]; then
     echo "$REDIS_TCP_HOST"
     return 0
   fi
-  redis_internal_host "$domain"
+  # ACA TCP ingress: reachable by Container App name within the environment.
+  echo "$REDIS_APP"
 }
 
 redis_host_port() {
-  local domain="$1"
-  echo "$(redis_effective_host "$domain"):${REDIS_PORT}"
+  echo "$(redis_effective_host):${REDIS_PORT}"
 }
 
 normalize_redis_api_connection_string() {
@@ -57,12 +56,11 @@ normalize_redis_api_connection_string() {
 }
 
 redis_api_connection_string() {
-  normalize_redis_api_connection_string "$(redis_host_port "$1")"
+  normalize_redis_api_connection_string "$(redis_host_port)"
 }
 
 redis_url() {
-  local domain="$1"
-  echo "redis://$(redis_host_port "$domain")"
+  echo "redis://$(redis_host_port)"
 }
 
 redis_ingress_ok() {
@@ -246,7 +244,7 @@ probe_redis_tcp_via_exec() {
   local host="$1"
   local port="$2"
   local probe_app="${REDIS_TCP_PROBE_APP:-$API_APP}"
-  local command err_file rc
+  local command output_file
 
   if ! az containerapp show --name "$probe_app" --resource-group "$RG" &>/dev/null; then
     echo "==> ${probe_app}: not found; skipping exec-based Redis TCP probe" >&2
@@ -256,21 +254,22 @@ probe_redis_tcp_via_exec() {
   # Double-quoted bash -c survives az containerapp exec; single quotes break inside the remote shell.
   command="timeout 5 bash -c \"echo >/dev/tcp/${host}/${port}\""
   echo "==> Probing Redis TCP via exec from ${probe_app} to $(redis_endpoint_log_label "$host" "$port")"
-  err_file="$(mktemp)"
+  output_file="$(mktemp)"
   # Do not trust az exit code alone — exec returns 0 when the remote command times out or fails.
-  run_container_app_exec "$probe_app" "$probe_app" "$command" 2>"$err_file" || true
+  # az writes INFO/ERROR to stdout; stderr alone misses ClusterExecFailure.
+  run_container_app_exec "$probe_app" "$probe_app" "$command" >"$output_file" 2>&1 || true
 
-  if exec_probe_failed_with_ioctl "$err_file"; then
+  if exec_probe_failed_with_ioctl "$output_file"; then
     echo "==> exec probe unavailable in non-interactive shell; will try job probe" >&2
-    rm -f "$err_file"
+    rm -f "$output_file"
     return 2
   fi
-  if exec_probe_reported_failure "$err_file"; then
-    redact_log_stream <"$err_file" >&2
-    rm -f "$err_file"
+  if exec_probe_reported_failure "$output_file"; then
+    redact_log_stream <"$output_file" >&2
+    rm -f "$output_file"
     return 1
   fi
-  rm -f "$err_file"
+  rm -f "$output_file"
   return 0
 }
 
@@ -407,20 +406,21 @@ try_redis_tcp_hosts() {
   local fqdn_host short_host
 
   fqdn_host="$(redis_internal_host "$domain")"
-  if wait_for_redis_tcp "$fqdn_host"; then
-    REDIS_TCP_HOST="$fqdn_host"
+  short_host="$REDIS_APP"
+
+  echo "==> Probing ACA short app name $(redis_endpoint_log_label "$short_host" "$REDIS_PORT")"
+  if wait_for_redis_tcp "$short_host" 3 10; then
+    REDIS_TCP_HOST="$short_host"
     return 0
   fi
 
-  short_host="$REDIS_APP"
   if [[ "$short_host" == "$fqdn_host" ]]; then
     return 1
   fi
 
-  echo "==> Internal FQDN probe failed; trying ACA short app name ${short_host}:${REDIS_PORT}" >&2
-  if wait_for_redis_tcp "$short_host"; then
-    echo "==> Short app name ${short_host} reachable; using it for Redis connection env" >&2
-    REDIS_TCP_HOST="$short_host"
+  echo "==> Short app name probe failed; trying internal FQDN $(redis_endpoint_log_label "$fqdn_host" "$REDIS_PORT")" >&2
+  if wait_for_redis_tcp "$fqdn_host"; then
+    REDIS_TCP_HOST="$fqdn_host"
     return 0
   fi
 
@@ -459,13 +459,13 @@ ensure_redis_cross_app_tcp() {
 }
 
 ensure_api_redis_env() {
-  local domain conn current
+  local conn current
+
   if ! az containerapp show --name "$API_APP" --resource-group "$RG" &>/dev/null; then
     return 0
   fi
 
-  domain="$(container_app_env_default_domain "$API_APP")"
-  conn="$(redis_api_connection_string "$domain")"
+  conn="$(redis_api_connection_string)"
   current="$(container_app_env_value "$API_APP" "Redis__ConnectionString")"
 
   if [[ "$current" == "$conn" ]]; then
@@ -484,9 +484,8 @@ ensure_api_redis_env() {
 }
 
 ensure_worker_redis_url() {
-  local worker domain url current
-  domain="$(container_app_env_default_domain "$REDIS_APP")"
-  url="$(redis_url "$domain")"
+  local worker url current
+  url="$(redis_url)"
 
   for worker in tangle-study-worker-chat tangle-study-worker-media tangle-study-worker-location; do
     if ! az containerapp show --name "$worker" --resource-group "$RG" &>/dev/null; then
@@ -507,13 +506,13 @@ ensure_worker_redis_url() {
 }
 
 ensure_redis_exporter_addr() {
-  local domain addr current
+  local addr current
+
   if ! az containerapp show --name tangle-study-redis-exporter --resource-group "$RG" &>/dev/null; then
     return 0
   fi
 
-  domain="$(container_app_env_default_domain "$REDIS_APP")"
-  addr="$(redis_host_port "$domain")"
+  addr="$(redis_host_port)"
   current="$(container_app_env_value tangle-study-redis-exporter REDIS_ADDR)"
 
   if [[ "$current" == "$addr" ]]; then
