@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+using System.Text.RegularExpressions;
 
 namespace Api.Global.Db;
 
@@ -21,6 +23,12 @@ public static class DatabaseMigrationRunner
             return 1;
         }
 
+        if (!TryValidateConnectionString(connectionString, out var validationMessage))
+        {
+            Console.Error.WriteLine(validationMessage);
+            return 1;
+        }
+
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
@@ -30,8 +38,88 @@ public static class DatabaseMigrationRunner
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
 
         logger.LogInformation("Applying EF Core migrations...");
-        await db.Database.MigrateAsync(cancellationToken);
+        try
+        {
+            await db.Database.MigrateAsync(cancellationToken);
+        }
+        catch (ArgumentException ex) when (IsConnectionStringParseFailure(ex))
+        {
+            Console.Error.WriteLine(BuildMalformedConnectionMessage(connectionString));
+            logger.LogError(ex, "Database migration failed due to a malformed connection string.");
+            return 1;
+        }
+        catch (Exception ex) when (ex.InnerException is ArgumentException inner && IsConnectionStringParseFailure(inner))
+        {
+            Console.Error.WriteLine(BuildMalformedConnectionMessage(connectionString));
+            logger.LogError(ex, "Database migration failed due to a malformed connection string.");
+            return 1;
+        }
+
         logger.LogInformation("EF Core migrations applied successfully.");
         return 0;
+    }
+
+    private static bool TryValidateConnectionString(string connectionString, out string message)
+    {
+        if (Regex.IsMatch(connectionString, @"\?sslmode(?:$|[&#])", RegexOptions.IgnoreCase))
+        {
+            message = BuildMalformedConnectionMessage(connectionString);
+            return false;
+        }
+
+        if (Regex.IsMatch(connectionString, @"(?:^|[?&])sslmode=(?:$|[&#])", RegexOptions.IgnoreCase))
+        {
+            message = BuildMalformedConnectionMessage(connectionString);
+            return false;
+        }
+
+        try
+        {
+            _ = new NpgsqlConnectionStringBuilder(connectionString);
+            message = string.Empty;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            message = BuildMalformedConnectionMessage(connectionString);
+            return false;
+        }
+    }
+
+    private static bool IsConnectionStringParseFailure(ArgumentException ex) =>
+        ex.Message.Contains("Couldn't set", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("ConnectionString", StringComparison.OrdinalIgnoreCase);
+
+    private static string BuildMalformedConnectionMessage(string connectionString)
+    {
+        var host = TryGetHost(connectionString);
+        var hostSuffix = string.IsNullOrWhiteSpace(host) ? string.Empty : $" Host: {host}.";
+
+        if (Regex.IsMatch(connectionString, @"\?sslmode(?:$|[&#])", RegexOptions.IgnoreCase)
+            || Regex.IsMatch(connectionString, @"(?:^|[?&])sslmode=(?:$|[&#])", RegexOptions.IgnoreCase))
+        {
+            return "Connection string appears truncated at '?sslmode'. "
+                + "Use ?sslmode=require|verify-ca|verify-full or Npgsql format with "
+                + "SSL Mode=Require|VerifyCA|VerifyFull."
+                + hostSuffix;
+        }
+
+        return "Connection string appears malformed."
+            + " Use Npgsql format (Host=...;Database=...;Username=...;Password=...;"
+            + " SSL Mode=Require|VerifyCA|VerifyFull)"
+            + " or postgresql://user:pass@host/db?sslmode=require|verify-ca|verify-full."
+            + hostSuffix;
+    }
+
+    private static string? TryGetHost(string connectionString)
+    {
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+            return uri.Host;
+
+        var match = Regex.Match(
+            connectionString,
+            @"(?:^|;)\s*(?:Host|Server|Data Source)\s*=\s*([^;]+)",
+            RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value.Trim() : null;
     }
 }

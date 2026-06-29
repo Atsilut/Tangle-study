@@ -31,6 +31,10 @@ RG="$AZURE_RESOURCE_GROUP"
 PLACES_API_KEY="${PLACES_API_KEY:-}"
 APP_INSIGHTS_NAME="${APP_INSIGHTS_NAME:-tanglestudyprod-appi}"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/postgres-connection-string.sh
+source "$ROOT/scripts/lib/postgres-connection-string.sh"
+
 build_postgres_exporter_dsn() {
   python3 - "$1" <<'PY'
 import re
@@ -59,7 +63,16 @@ def from_npgsql(raw: str) -> str:
     username = get_first(raw, ["Username", "User ID", "User Id", "Uid", "User"])
     password = get_first(raw, ["Password", "Pwd"])
     port = get_first(raw, ["Port"]) or "5432"
-    sslmode = "require" if re.search(r"SSL\s*Mode\s*=\s*Require", raw, re.I) else "disable"
+    ssl_match = re.search(r"SSL\s*Mode\s*=\s*(Require|VerifyCA|VerifyFull)\b", raw, re.I)
+    sslmode = (
+        {
+            "require": "require",
+            "verifyca": "verify-ca",
+            "verifyfull": "verify-full",
+        }.get(ssl_match.group(1).replace(" ", "").lower(), "disable")
+        if ssl_match
+        else "disable"
+    )
 
     if not all([host, database, username, password]):
         missing = [
@@ -107,7 +120,9 @@ def from_uri(raw: str) -> str:
         )
 
     query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-    sslmode = (query.get("sslmode") or ["require"])[0] or "require"
+    sslmode = ((query.get("sslmode") or ["require"])[0] or "require").lower()
+    if sslmode not in {"require", "verify-ca", "verify-full"}:
+        sslmode = "require"
     port = parsed.port or 5432
     user = urllib.parse.quote(urllib.parse.unquote(parsed.username), safe="")
     pw = urllib.parse.quote(urllib.parse.unquote(parsed.password), safe="")
@@ -120,6 +135,9 @@ else:
     print(from_npgsql(conn))
 PY
 }
+
+echo "==> Validating POSTGRES_CONNECTION_STRING"
+validate_postgres_connection_string "$POSTGRES_CONNECTION_STRING"
 
 POSTGRES_EXPORTER_DSN="${POSTGRES_EXPORTER_DSN:-$(build_postgres_exporter_dsn "$POSTGRES_CONNECTION_STRING")}"
 
@@ -287,5 +305,13 @@ if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; t
     --password "$GHCR_REGISTRY_PASSWORD" \
     --output none
 fi
+
+echo "==> Reconciling Redis connection env"
+REDIS_APP="${REDIS_APP_NAME:-tangle-study-redis}"
+API_APP="${API_APP_NAME:-tangle-study-api}"
+REDIS_PORT=6379
+# shellcheck source=scripts/lib/azure-redis-readiness.sh
+source "$ROOT/scripts/lib/azure-redis-readiness.sh"
+reconcile_redis_connection_env
 
 echo "==> Secrets injected."

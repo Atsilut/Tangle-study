@@ -10,11 +10,20 @@
 #
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/container-app-job-logs.sh
+source "$ROOT/scripts/lib/container-app-job-logs.sh"
+
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 
 JOB_NAME="${MIGRATE_JOB_NAME:-tangle-study-migrate}"
 TIMEOUT="${MIGRATE_TIMEOUT_SEC:-600}"
 RG="$AZURE_RESOURCE_GROUP"
+
+dump_migrate_failure_logs() {
+  local execution_name="$1"
+  dump_container_app_job_logs "$JOB_NAME" "$RG" "$execution_name" "$JOB_NAME" 80 || true
+}
 
 echo "==> Starting migrate job: $JOB_NAME"
 EXECUTION_NAME="$(az containerapp job start \
@@ -47,6 +56,7 @@ while (( SECONDS < deadline )); do
         --resource-group "$RG" \
         --job-execution-name "$EXECUTION_NAME" \
         --output yaml >&2 || true
+      dump_migrate_failure_logs "$EXECUTION_NAME"
       exit 1
       ;;
   esac
@@ -54,4 +64,5 @@ while (( SECONDS < deadline )); do
 done
 
 echo "==> Migrate job timed out (last status: $status)" >&2
+dump_migrate_failure_logs "$EXECUTION_NAME"
 exit 1

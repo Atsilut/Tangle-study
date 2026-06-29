@@ -82,7 +82,7 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 | `JWT_SECRET` | Yes | Min 32 chars |
 | `WORKER_CALLBACK_SECRET` | Yes | Shared with media worker |
 | `METRICS_SCRAPE_SECRET` | Yes | Random string; API, Prometheus, and workers |
-| `POSTGRES_CONNECTION_STRING` | Yes | Neon connection string — Npgsql (`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require`) or URI (`postgresql://user:pass@host/db?sslmode=require`) from the Neon console |
+| `POSTGRES_CONNECTION_STRING` | Yes | Neon connection string — Npgsql (`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require\|VerifyCA\|VerifyFull`) or URI (`postgresql://user:pass@host/db?sslmode=require\|verify-ca\|verify-full`) from the Neon console. Validate with [`scripts/validate-postgres-connection-string.sh`](../scripts/validate-postgres-connection-string.sh) before deploy. |
 | `GRAFANA_ADMIN_PASSWORD` | Yes | Grafana admin login on external ACA app |
 | `PLACES_API_KEY` | No | Google Places / Geocoding |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-fetched from Azure App Insights when unset |
@@ -91,9 +91,9 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 
 Use Neon **direct** (non-pooler) hostname for API and migrate at study scale. Either format works (Npgsql accepts both):
 
-`Host=ep-....neon.tech;Database=neondb;Username=...;Password=...;SSL Mode=Require;Pooling=true`
+`Host=ep-....neon.tech;Database=neondb;Username=...;Password=...;SSL Mode=Require;Pooling=true` (or `VerifyCA` / `VerifyFull`)
 
-`postgresql://user:password@ep-....neon.tech/neondb?sslmode=require`
+`postgresql://user:password@ep-....neon.tech/neondb?sslmode=require` (or `verify-ca` / `verify-full`)
 
 ### 3. Provision infra (once)
 
@@ -108,10 +108,13 @@ Create a Neon project + database and set `POSTGRES_CONNECTION_STRING` in GitHub.
 After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
 
 1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker`, `tangle-study-prometheus`, and `tangle-study-grafana` to GHCR
-2. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.)
-3. Ensures **Redis internal TCP ingress** and `Redis__ConnectionString` / worker `REDIS_URL` ([`azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh))
+2. Ensures **Redis internal TCP ingress** (early — before secrets) ([`azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh) with `REDIS_ENSURE_PHASE=early`)
+3. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.); re-applies Redis env
 4. Updates app images to the commit SHA
-5. Runs `tangle-study-migrate` job
+5. Reconciles **API ingress targetPort (8080)** and web **`TANGLE_API_UPSTREAM`** ([`azure-cd-ensure-api-web-runtime.sh`](../scripts/azure-cd-ensure-api-web-runtime.sh))
+6. Probes **Redis cross-app TCP** from the API pod; auto-recycles stale ingress if needed (late ensure-redis)
+7. Runs `tangle-study-migrate` job
+8. Smoke tests (`/health` proxied to API + SPA shell)
 
 Manual deploy: **Actions → Deploy → Run workflow** (uses `production` environment).
 
@@ -268,8 +271,9 @@ Local Prometheus/Grafana under [`infra/`](../infra/) remain for Docker Compose (
 
 After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh):
 
-- `GET https://<tangle-study-web-fqdn>/health` — expects `Healthy` (proxied to API)
-- `GET https://<tangle-study-web-fqdn>/` — SPA shell loads
+1. Waits for **API and web** Container App revisions to reach `healthState=Healthy`
+2. `GET https://<tangle-study-web-fqdn>/` — SPA shell loads
+3. `GET https://<tangle-study-web-fqdn>/health` — expects `Healthy` (proxied to API)
 
 Manual run:
 
@@ -374,22 +378,116 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
 
 ---
 
+## Troubleshooting (migrate job / Neon connection string)
+
+**Symptom:** `tangle-study-migrate` fails with `Couldn't set postgresql://...?sslmode` or `ArgumentException` from `NpgsqlConnectionStringBuilder`.
+
+**Cause:** `POSTGRES_CONNECTION_STRING` is truncated — commonly ending at `?sslmode` without `=require`. Npgsql cannot parse the URI.
+
+**Fix:**
+
+1. In **GitHub → Environments → prod → Secrets**, set a complete string (copy from Neon console; do not truncate):
+
+   ```text
+   Host=ep-....neon.tech;Database=neondb;Username=...;Password=...;SSL Mode=Require;Pooling=true
+   ```
+
+   (`SSL Mode=VerifyCA` or `VerifyFull` also accepted; `Require` is simplest for ACA containers.)
+
+   or
+
+   ```text
+   postgresql://user:pass@ep-....neon.tech/neondb?sslmode=require
+   ```
+
+   (`sslmode=verify-ca` or `verify-full` also accepted.)
+
+2. Validate locally before deploy:
+
+   ```bash
+   POSTGRES_CONNECTION_STRING='...' ./scripts/validate-postgres-connection-string.sh
+   ```
+
+3. Re-inject and re-run migrate:
+
+   ```bash
+   AZURE_RESOURCE_GROUP=tangle-study-prod \
+   POSTGRES_CONNECTION_STRING='...' \
+   BLOB_CONNECTION_STRING='...' \
+   JWT_SECRET='...' \
+   WORKER_CALLBACK_SECRET='...' \
+   METRICS_SCRAPE_SECRET='...' \
+   GRAFANA_ADMIN_PASSWORD='...' \
+     bash scripts/azure-cd-inject-secrets.sh
+
+   AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/azure-cd-migrate.sh
+   ```
+
+   Or trigger **Actions → Deploy → Run workflow**.
+
+CD now rejects malformed strings in [`scripts/azure-cd-inject-secrets.sh`](../scripts/azure-cd-inject-secrets.sh) before injecting secrets. Migrate job logs are dumped automatically on failure in [`scripts/azure-cd-migrate.sh`](../scripts/azure-cd-migrate.sh).
+
+If the password appeared in Log Analytics, rotate it in the Neon console.
+
+---
+
 ## Troubleshooting (Redis on ACA)
 
-**Symptom:** API logs show `StackExchange.Redis.ConnectionMultiplexer.Connect` failure at startup; revision crash-loops.
+**Symptom:** API logs show `StackExchange.Redis.ConnectionMultiplexer.Connect` failure at startup; revision crash-loops (older builds) or `/health` reports Redis **Unhealthy**.
 
-**Cause:** `tangle-study-redis` was deployed **without internal TCP ingress**. The API uses `Redis__ConnectionString=tangle-study-redis.internal.<cae-domain>:6379` (cross-app TCP via ACA Envoy, not the short app name).
+**Cause:** The Redis **container can be healthy** while **cross-app TCP** from `tangle-study-api` to `tangle-study-redis.internal.<cae-domain>:6379` fails. Common reasons:
 
-**Fix:** CD runs [`scripts/azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh) before secret injection. Re-run manually:
+- `tangle-study-redis` deployed **without internal TCP ingress**
+- Ingress metadata looks correct but ACA Envoy routing is **stale** (same class as historical Postgres TCP issues)
+
+The API connection string uses the **internal FQDN** (not the short app name). CD runs ensure-redis **twice**: early (enable ingress + env) and **late** (cross-app TCP probe + auto-recycle) after image/runtime reconcile.
+
+**Fix:** Re-run late ensure manually:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-redis.sh
+REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
+  ./scripts/azure-cd-ensure-redis.sh
 ```
 
-If routing is still stale after ingress was enabled, recycle once:
+Force ingress recycle if probe still fails:
 
 ```bash
-INFRA_FORCE_TCP_INGRESS_RECYCLE=1 AZURE_RESOURCE_GROUP=tangle-study-prod \
+INFRA_FORCE_TCP_INGRESS_RECYCLE=1 REDIS_ENSURE_PHASE=late \
+  AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-redis.sh
+```
+
+**CD probe behavior:** Late ensure-redis verifies cross-app TCP from inside the Container Apps environment:
+
+1. **`az containerapp exec`** on `tangle-study-api` (wrapped with `script -q -c '...' /dev/null` in CI — bare exec fails with `Inappropriate ioctl for device` without a TTY)
+2. **`tangle-study-redis-probe` job** (Debian one-shot) when exec is unavailable
+
+Emergency skip (not recommended):
+
+```bash
+REDIS_SKIP_TCP_PROBE=1 REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
+  ./scripts/azure-cd-ensure-redis.sh
+```
+
+Manual cross-app probe from your laptop (replace `HOST` with Redis internal FQDN from verify below):
+
+```bash
+az containerapp exec -n tangle-study-api -g tangle-study-prod \
+  --container tangle-study-api \
+  --command "timeout 5 bash -c 'echo > /dev/tcp/HOST/6379' && echo OK || echo FAIL"
+```
+
+From CI or a non-interactive shell, wrap exec:
+
+```bash
+script -q -c "az containerapp exec -n tangle-study-api -g tangle-study-prod \
+  --container tangle-study-api \
+  --command \"timeout 5 bash -c 'echo > /dev/tcp/HOST/6379' && echo OK || echo FAIL\"" /dev/null
+```
+
+Or run the probe job only:
+
+```bash
+REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
   ./scripts/azure-cd-ensure-redis.sh
 ```
 
@@ -403,7 +501,72 @@ az containerapp show -n tangle-study-api -g tangle-study-prod \
   --query "properties.template.containers[0].env[?name=='Redis__ConnectionString']" -o yaml
 ```
 
+`Redis__ConnectionString` includes StackExchange.Redis options (`abortConnect=false`, connect timeouts). The API sets `AbortOnConnectFail=false` so a transient Redis blip does not crash-loop; `/health` shows **Unhealthy** until Redis is reachable.
+
 Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-container.bicep`](../infra/azure/modules/infra-container.bicep) when `tcpProbePort` is set (6379 for Redis).
+
+---
+
+## Troubleshooting (smoke `/health` failures)
+
+[`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh) hits the public **web** URL. `/health` is proxied to the internal API (`TANGLE_API_UPSTREAM`). CD waits for API/web revisions to be `Healthy` before curling.
+
+| HTTP code | Meaning | What to check |
+|-----------|---------|----------------|
+| **000** | curl timed out (no bytes) | API revision still activating, readiness failing, or nginx waiting on unreachable API upstream |
+| **404** | web/nginx responded; wrong upstream | API `targetPort` / `TANGLE_API_UPSTREAM` mismatch (placeholder 80 vs API 8080) |
+| **502 / 503** | web reached API; `/health` failed | API logs; Postgres or Redis dependency checks Unhealthy |
+
+### HTTP 000 (timeout)
+
+**Symptom:** Smoke logs `HTTP 000` and `curl: (28) Operation timed out ... 0 bytes received`.
+
+**Cause:** CD curled before the API revision was ready to serve traffic, or nginx hung on `tangle-study-api:8080` (no ready replicas). Late Redis env reconcile triggers another API revision right before migrate/smoke.
+
+**Fix:** Re-run smoke after revisions settle:
+
+```bash
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+```
+
+Check revision status:
+
+```bash
+az containerapp revision list -n tangle-study-api -g tangle-study-prod \
+  --query "[?properties.active==\`true\`].{revision:name,health:properties.healthState,running:properties.runningState}" -o yaml
+```
+
+Emergency bypass (not recommended):
+
+```bash
+SMOKE_SKIP_API_WAIT=1 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+```
+
+### HTTP 404
+
+**Symptom:** [`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh) fails; web nginx logs show `GET /health HTTP/1.1" 404`.
+
+**Cause:** Web nginx proxies `/health` to the internal API (`TANGLE_API_UPSTREAM`, default `tangle-study-api:8080`). Infra deployed with **placeholder images** sets API **targetPort=80** and web **`TANGLE_API_UPSTREAM=tangle-study-api:80`**. After CD pushes real API images (Kestrel on **8080**), the proxy hits the wrong port and ACA often returns **404**.
+
+**Fix:** CD runs [`scripts/azure-cd-ensure-api-web-runtime.sh`](../scripts/azure-cd-ensure-api-web-runtime.sh) after image update. Re-run manually:
+
+```bash
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-api-web-runtime.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+```
+
+Verify:
+
+```bash
+az containerapp show -n tangle-study-api -g tangle-study-prod \
+  --query "properties.configuration.ingress.targetPort" -o tsv   # expect 8080
+
+az containerapp show -n tangle-study-web -g tangle-study-prod \
+  --query "properties.template.containers[0].env[?name=='TANGLE_API_UPSTREAM']" -o yaml
+# expect value: tangle-study-api:8080
+```
+
+If `/health` still fails with **503** or `Unhealthy`, the API is up but a dependency check failed (Postgres, Redis) — check `tangle-study-api` logs.
 
 ---
 
