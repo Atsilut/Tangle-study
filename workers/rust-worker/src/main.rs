@@ -56,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
             metrics_port = config.metrics_port,
             "starting tangle worker"
         );
+
         consumer::run(config, connection).await
     }
 }

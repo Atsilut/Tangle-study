@@ -15,13 +15,6 @@ IMAGES=(
   tangle-study-worker-chat
   tangle-study-worker-location
   tangle-study-worker-media
-
-  tangle-study-redis
-  tangle-study-redis-exporter
-
-  tangle-study-prometheus
-  tangle-study-grafana
-  tangle-study-postgres-exporter
 )
 
 wait_image() {

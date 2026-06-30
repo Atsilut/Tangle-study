@@ -218,6 +218,7 @@ services:
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
+      WORKER_TYPE: chat
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: chat.message.created
       WORKER_CONSUMER_GROUP: tangle-study-workers
@@ -238,6 +239,7 @@ services:
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
+      WORKER_TYPE: media
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: media.uploaded
       WORKER_CONSUMER_GROUP: tangle-study-workers
@@ -266,6 +268,7 @@ services:
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
+      WORKER_TYPE: location
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: location.cluster
       WORKER_CONSUMER_GROUP: tangle-study-workers

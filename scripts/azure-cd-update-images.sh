@@ -23,22 +23,27 @@ update() {
     --output none
 }
 
+update_worker() {
+  local app="$1"
+  local role="$2"
+
+  echo "==> updating $app with role=$role -> ${ref}"
+
+  az containerapp update \
+    --name "$app" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --image "${CONTAINER_REGISTRY}/tangle-study-worker:${IMAGE_TAG}" \
+    --set-env-vars WORKER_TYPE="$role"
+}
+
 # CORE
 update tangle-study-api tangle-study-api
 update tangle-study-web tangle-study-web
 
 # WORKERS
-update tangle-study-worker-chat tangle-study-worker-chat
-update tangle-study-worker-location tangle-study-worker-location
-update tangle-study-worker-media tangle-study-worker-media
-
-# INFRA
-update tangle-study-redis tangle-study-redis
-
-# OBSERVABILITY
-update tangle-study-prometheus tangle-study-prometheus
-update tangle-study-grafana tangle-study-grafana
-update tangle-study-postgres-exporter tangle-study-postgres-exporter
+update_worker tangle-study-worker-chat chat
+update_worker tangle-study-worker-location location
+update_worker tangle-study-worker-media media
 
 echo "========================================"
 echo "[DEPLOY][ACA] DONE"

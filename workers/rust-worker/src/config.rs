@@ -3,6 +3,26 @@ use std::env;
 use anyhow::{bail, Context, Result};
 
 /// Worker configuration loaded from environment variables.
+
+#[derive(Debug, Clone)]
+pub enum WorkerType {
+    Chat,
+    Location,
+    Media,
+}
+
+impl WorkerType {
+    pub fn from_env(v: &str) -> Self {
+        match v {
+            "chat" => WorkerType::Chat,
+            "location" => WorkerType::Location,
+            "media" => WorkerType::Media,
+            _ => panic!("invalid WORKER_TYPE"),
+        }
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub redis_url: String,
@@ -30,6 +50,7 @@ pub struct Config {
     pub azure_storage_connection_string: String,
     pub media_container_name: String,
     pub metrics_port: u16,
+    pub worker_type: WorkerType,
 }
 
 impl Config {
@@ -67,6 +88,7 @@ impl Config {
             azure_storage_connection_string: env_var("AZURE_STORAGE_CONNECTION_STRING", "")?,
             media_container_name: env_var("MEDIA_CONTAINER_NAME", "tangle-media")?,
             metrics_port: env_var_parse("WORKER_METRICS_PORT", 9090_u16)?,
+            worker_type: WorkerType::from_env(&env_var("WORKER_TYPE", "chat")?),
         })
     }
 
@@ -176,6 +198,7 @@ mod tests {
             azure_storage_connection_string: "UseDevelopmentStorage=true".to_owned(),
             media_container_name: "tangle-media".to_owned(),
             metrics_port: 9090,
+            worker_type: WorkerType::Chat,
         }
     }
 
