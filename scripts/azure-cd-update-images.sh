@@ -1,41 +1,45 @@
 #!/usr/bin/env bash
-# Update Container App / Job images in Azure after GHCR push.
-#
-# Required env:
-#   AZURE_RESOURCE_GROUP
-#   CONTAINER_REGISTRY   e.g. ghcr.io/my-org/tangle-study
-#   IMAGE_TAG            e.g. git SHA
-#
 set -euo pipefail
 
-: "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
-: "${CONTAINER_REGISTRY:?CONTAINER_REGISTRY is required}"
-: "${IMAGE_TAG:?IMAGE_TAG is required}"
+: "${AZURE_RESOURCE_GROUP:?required}"
+: "${CONTAINER_REGISTRY:?required}"
+: "${IMAGE_TAG:?required}"
 
-update_app() {
-  local name="$1"
-  local image_name="$2"
-  echo "==> Updating $name -> ${CONTAINER_REGISTRY}/${image_name}:${IMAGE_TAG}"
+echo "========================================"
+echo "[DEPLOY][ACA] PHASE 3 - UPDATE CONTAINER APPS"
+echo "========================================"
+
+update() {
+  local app="$1"
+  local image="$2"
+  local ref="${CONTAINER_REGISTRY}/${image}:${IMAGE_TAG}"
+
+  echo "==> UPDATE ${app} -> ${ref}"
+
   az containerapp update \
-    --name "$name" \
+    --name "$app" \
     --resource-group "$AZURE_RESOURCE_GROUP" \
-    --image "${CONTAINER_REGISTRY}/${image_name}:${IMAGE_TAG}" \
+    --image "$ref" \
     --output none
 }
 
-update_app "tangle-study-api" "tangle-study-api"
-update_app "tangle-study-web" "tangle-study-web"
-update_app "tangle-study-worker-chat" "tangle-study-worker"
-update_app "tangle-study-worker-media" "tangle-study-worker"
-update_app "tangle-study-worker-location" "tangle-study-worker"
-update_app "tangle-study-prometheus" "tangle-study-prometheus"
-update_app "tangle-study-grafana" "tangle-study-grafana"
+# CORE
+update tangle-study-api tangle-study-api
+update tangle-study-web tangle-study-web
 
-echo "==> Updating migrate job image"
-az containerapp job update \
-  --name "tangle-study-migrate" \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --image "${CONTAINER_REGISTRY}/tangle-study-api:${IMAGE_TAG}" \
-  --output none
+# WORKERS
+update tangle-study-worker-chat tangle-study-worker-chat
+update tangle-study-worker-location tangle-study-worker-location
+update tangle-study-worker-media tangle-study-worker-media
 
-echo "==> Container app images updated."
+# INFRA
+update tangle-study-redis tangle-study-redis
+
+# OBSERVABILITY
+update tangle-study-prometheus tangle-study-prometheus
+update tangle-study-grafana tangle-study-grafana
+update tangle-study-postgres-exporter tangle-study-postgres-exporter
+
+echo "========================================"
+echo "[DEPLOY][ACA] DONE"
+echo "========================================"
