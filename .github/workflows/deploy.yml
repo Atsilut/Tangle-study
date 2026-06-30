@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 env:
-  COMPOSE_ENV_FILE: docker/versions.prod.env
+  PARAM_FILE: infra/azure/parameters.prod.json
 
 jobs:
   deploy:
@@ -37,9 +37,9 @@ jobs:
 
     steps:
 
-    # ==================================================
-    # 0. RESOLVE DEPLOY TARGET
-    # ==================================================
+    ############################################
+    # 0. RESOLVE TARGET
+    ############################################
     - name: Resolve deploy meta
       id: meta
       run: |
@@ -58,16 +58,16 @@ jobs:
 
         echo "registry=${registry}" >> "$GITHUB_OUTPUT"
 
+    ############################################
+    # 1. CHECKOUT
+    ############################################
     - uses: actions/checkout@v7
       with:
         ref: ${{ steps.meta.outputs.sha }}
 
-    - name: Load runtime versions
-      run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
-
-    # ==================================================
-    # 1. GHCR LOGIN
-    # ==================================================
+    ############################################
+    # 2. GHCR LOGIN
+    ############################################
     - name: Login to GHCR
       uses: docker/login-action@v4
       with:
@@ -75,27 +75,27 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # ==================================================
-    # 2. BUILD & PUSH
-    # ==================================================
+    ############################################
+    # 3. BUILD & PUSH IMAGES
+    ############################################
     - name: Build & push images
       env:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
       run: bash scripts/azure-cd-build-push.sh
 
-    # ==================================================
-    # 3. GHCR CONSISTENCY GATE (CRITICAL FIX)
-    # ==================================================
+    ############################################
+    # 4. IMAGE PROPAGATION WAIT
+    ############################################
     - name: Wait for GHCR image propagation
       env:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
       run: bash scripts/azure-cd-wait-image.sh
 
-    # ==================================================
-    # 4. AZURE LOGIN
-    # ==================================================
+    ############################################
+    # 5. AZURE LOGIN
+    ############################################
     - name: Azure login (OIDC)
       uses: azure/login@v3
       with:
@@ -103,18 +103,9 @@ jobs:
         tenant-id: ${{ vars.AZURE_TENANT_ID }}
         subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-    # ==================================================
-    # 5. INFRA (REDIS FIRST)
-    # ==================================================
-    - name: Ensure Redis (early)
-      env:
-        AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-        REDIS_ENSURE_PHASE: early
-      run: bash scripts/azure-cd-ensure-redis.sh
-
-    # ==================================================
+    ############################################
     # 6. SECRETS
-    # ==================================================
+    ############################################
     - name: Inject secrets
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
@@ -124,50 +115,40 @@ jobs:
         METRICS_SCRAPE_SECRET: ${{ secrets.METRICS_SCRAPE_SECRET }}
         POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
         GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-        PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
         APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
-        GHCR_REGISTRY_USERNAME: ${{ secrets.GHCR_REGISTRY_USERNAME }}
-        GHCR_REGISTRY_PASSWORD: ${{ secrets.GHCR_REGISTRY_PASSWORD }}
       run: bash scripts/azure-cd-inject-secrets.sh
 
-    # ==================================================
-    # 7. DEPLOY IMAGES (ACA UPDATE)
-    # ==================================================
-    - name: Update Container Apps images
+    ############################################
+    # 7. DEPLOY IMAGE
+    ############################################
+    - name: Deploy images on container apps
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
-      run: bash scripts/azure-cd-update-images.sh
+        PARAM_FILE: infra/azure/parameters.prod.json
+      run: bash scripts/azure-cd-deploy-image.sh
 
-    # ==================================================
-    # 8. RUNTIME RECONCILIATION
-    # ==================================================
-    - name: Ensure API/Web runtime
-      env:
-        AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      run: bash scripts/azure-cd-ensure-api-web-runtime.sh
-
-    # ==================================================
-    # 9. MIGRATION
-    # ==================================================
+    ############################################
+    # 8. MIGRATION
+    ############################################
     - name: Run EF migrate
       if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       run: bash scripts/azure-cd-migrate.sh
 
-    # ==================================================
-    # 10. SMOKE TEST
-    # ==================================================
+    ############################################
+    # 9. SMOKE TEST
+    ############################################
     - name: Smoke tests
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       run: bash scripts/azure-cd-smoke.sh
 
-    # ==================================================
-    # 11. SUMMARY
-    # ==================================================
+    ############################################
+    # 10. SUMMARY
+    ############################################
     - name: Deploy summary
       run: |
         echo "========================================"
@@ -175,4 +156,3 @@ jobs:
         echo "========================================"
         echo "registry=${{ steps.meta.outputs.registry }}"
         echo "tag=${{ steps.meta.outputs.sha }}"
-        echo "rg=${{ vars.AZURE_RESOURCE_GROUP }}"

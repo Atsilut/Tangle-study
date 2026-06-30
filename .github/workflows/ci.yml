@@ -68,6 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Render pinned container versions from parameters.prod.json
+        run: bash scripts/render-versions-env.sh docker/versions.prod.env
+
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
@@ -110,6 +113,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Render pinned container versions from parameters.prod.json
+        run: bash scripts/render-versions-env.sh docker/versions.prod.env
+
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
@@ -150,6 +156,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Render pinned container versions from parameters.prod.json
+        run: bash scripts/render-versions-env.sh docker/versions.prod.env
+
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
 
@@ -187,6 +196,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+
+      - name: Render pinned container versions from parameters.prod.json
+        run: bash scripts/render-versions-env.sh docker/versions.prod.env
 
       - name: Load pinned container versions
         run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"

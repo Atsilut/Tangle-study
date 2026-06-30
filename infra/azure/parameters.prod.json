@@ -1,45 +1,155 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
+  "contentVersion": "1.2.0.0",
+
   "parameters": {
-    "environment": {
-      "value": "prod"
-    },
+    "environment": { "value": "prod" },
+
     "containerRegistry": {
       "value": "ghcr.io/atsilut/tangle-study"
     },
-    "usePlaceholderImages": {
-      "value": true
-    },
+
     "imageTag": {
       "value": "latest"
     },
-    "redisImage": {
-      "value": "redis:8.8.0-alpine"
+
+    "usePlaceholderImages": {
+      "value": true
     },
-    "prometheusImage": {
-      "value": "prom/prometheus:v3.12.0"
+
+    "apiMinReplicas": { "value": 1 },
+    "webMinReplicas": { "value": 1 },
+    "workerMinReplicas": { "value": 0 },
+
+    "infra": {
+      "value": {
+        "postgres": {
+          "image": "postgres:18.4"
+        },
+        "redis": {
+          "image": "redis:8.8.0-alpine"
+        },
+        "azurite": {
+          "image": "mcr.microsoft.com/azure-storage/azurite:3.35.0"
+        },
+        "prometheus": {
+          "image": "prom/prometheus:v3.12.0"
+        },
+        "grafana": {
+          "image": "grafana/grafana:13.0.2"
+        },
+        "postgresExporter": {
+          "image": "prometheuscommunity/postgres-exporter:v0.19.1"
+        },
+        "redisExporter": {
+          "image": "oliver006/redis_exporter:v1.86.0"
+        }
+      }
     },
-    "grafanaImage": {
-      "value": "grafana/grafana:13.0.2"
+
+    "buildImages": {
+      "value": {
+        "dotnetSdk": "mcr.microsoft.com/dotnet/sdk:10.0",
+        "dotnetAspnet": "mcr.microsoft.com/dotnet/aspnet:10.0",
+        "node": "node:26.3.1-bookworm-slim",
+        "nginx": "nginx:1.31.1-alpine",
+        "rust": "rust:1.96.0-bookworm",
+        "debian": "debian:bookworm-slim"
+      }
     },
-    "postgresExporterImage": {
-      "value": "prometheuscommunity/postgres-exporter:v0.19.1"
-    },
-    "redisExporterImage": {
-      "value": "oliver006/redis_exporter:v1.86.0"
-    },
-    "monitoringMinReplicas": {
-      "value": 1
-    },
-    "apiMinReplicas": {
-      "value": 1
-    },
-    "webMinReplicas": {
-      "value": 1
-    },
-    "workerMinReplicas": {
-      "value": 0
+
+    "containerApps": {
+        "tangle-study-api": {
+          "type": "api",
+          "image": "tangle-study-api",
+          "env": {
+            "ConnectionStrings__DefaultConnection": "secretref:postgres-conn",
+            "Media__ConnectionString": "secretref:blob-conn",
+            "Jwt__Secret": "secretref:jwt-secret",
+            "Media__WorkerCallbackSecret": "secretref:worker-callback",
+            "Metrics__ScrapeSecret": "secretref:metrics-secret",
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080"
+          }
+        },
+
+        "tangle-study-web": {
+          "type": "web",
+          "image": "tangle-study-web",
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production"
+          }
+        },
+
+        "tangle-study-worker-chat": {
+          "type": "worker",
+          "worker": "chat",
+          "image": "tangle-study-worker",
+          "env": {
+            "WORKER_TYPE": "chat",
+            "WORKER_STREAM_KEY": "chat.message.created",
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+          }
+        },
+
+        "tangle-study-worker-location": {
+          "type": "worker",
+          "worker": "location",
+          "image": "tangle-study-worker",
+          "env": {
+            "WORKER_TYPE": "location",
+            "WORKER_STREAM_KEY": "location.cluster",
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+          }
+        },
+
+        "tangle-study-worker-media": {
+          "type": "worker",
+          "worker": "media",
+          "image": "tangle-study-worker",
+          "env": {
+            "WORKER_TYPE": "media",
+            "WORKER_STREAM_KEY": "media.uploaded",
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+          }
+        },
+
+        "tangle-study-redis": {
+          "type": "redis",
+          "infraImage": "redis",
+          "env": {}
+        },
+
+        "tangle-study-redis-exporter": {
+          "type": "redis-exporter",
+          "infraImage": "redisExporter",
+          "env": {}
+        },
+
+        "tangle-study-postgres-exporter": {
+          "type": "postgres-exporter",
+          "infraImage": "postgresExporter",
+          "env": {
+            "DATA_SOURCE_NAME": "secretref:postgres-dsn"
+          }
+        },
+
+        "tangle-study-prometheus": {
+          "type": "prometheus",
+          "infraImage": "prometheus",
+          "env": {
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+          }
+        },
+
+        "tangle-study-grafana": {
+          "type": "grafana",
+          "infraImage": "grafana",
+          "env": {
+            "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
+          }
+        }
     }
   }
 }

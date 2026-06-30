@@ -4,47 +4,59 @@ set -euo pipefail
 : "${CONTAINER_REGISTRY:?}"
 : "${IMAGE_TAG:?}"
 
+PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
+
+if [[ ! -f "$PARAM_FILE" ]]; then
+  echo "[FATAL] missing parameter file: $PARAM_FILE" >&2
+  exit 1
+fi
+
 echo "========================================"
 echo "[DEPLOY] BUILD & PUSH"
 echo "========================================"
 
 # ----------------------------
-# 1. ORDERED LIST
+# 1. PARSE CONFIG
+# ----------------------------
+echo "[INFO] Reading build image tags from $PARAM_FILE..."
+DOTNET_SDK=$(jq -r '.parameters.buildImages.value.dotnetSdk' "$PARAM_FILE")
+DOTNET_ASPNET=$(jq -r '.parameters.buildImages.value.dotnetAspnet' "$PARAM_FILE")
+NODE_IMG=$(jq -r '.parameters.buildImages.value.node' "$PARAM_FILE")
+NGINX_IMG=$(jq -r '.parameters.buildImages.value.nginx' "$PARAM_FILE")
+RUST_IMG=$(jq -r '.parameters.buildImages.value.rust' "$PARAM_FILE")
+DEBIAN_IMG=$(jq -r '.parameters.buildImages.value.debian' "$PARAM_FILE")
+
+# ----------------------------
+# 2. OPTIMIZED IMAGE LIST
 # ----------------------------
 IMAGES=(
   tangle-study-api
   tangle-study-web
-
-  tangle-study-worker-chat
-  tangle-study-worker-location
-  tangle-study-worker-media
+  tangle-study-worker
 )
 
-# ----------------------------
-# 2. DOCKERFILE MAP
-# ----------------------------
 declare -A DOCKERFILE_MAP=(
   [tangle-study-api]="services/Api/Dockerfile"
   [tangle-study-web]="clients/web/Dockerfile"
-
-  [tangle-study-worker-chat]="workers/rust-worker/Dockerfile"
-  [tangle-study-worker-location]="workers/rust-worker/Dockerfile"
-  [tangle-study-worker-media]="workers/rust-worker/Dockerfile"
+  [tangle-study-worker]="workers/rust-worker/Dockerfile"
 )
 
-build_args() {
-  case "$1" in
+# ----------------------------
+# 3. BUILD FUNCTIONS
+# ----------------------------
+set_build_args() {
+  local image="$1"
+  BUILD_ARGS=()
+
+  case "$image" in
     tangle-study-api)
-      echo "--build-arg DOTNET_SDK_IMAGE=$DOTNET_SDK_IMAGE --build-arg DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET_IMAGE"
+      BUILD_ARGS+=("--build-arg" "DOTNET_SDK_IMAGE=$DOTNET_SDK" "--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
       ;;
     tangle-study-web)
-      echo "--build-arg NODE_IMAGE=$NODE_IMAGE --build-arg NGINX_IMAGE=$NGINX_IMAGE"
+      BUILD_ARGS+=("--build-arg" "NODE_IMAGE=$NODE_IMG" "--build-arg" "NGINX_IMAGE=$NGINX_IMG")
       ;;
-    tangle-study-worker-*)
-      echo "--build-arg RUST_IMAGE=$RUST_IMAGE --build-arg DEBIAN_IMAGE=$DEBIAN_IMAGE"
-      ;;
-    *)
-      echo ""
+    tangle-study-worker)
+      BUILD_ARGS+=("--build-arg" "RUST_IMAGE=$RUST_IMG" "--build-arg" "DEBIAN_IMAGE=$DEBIAN_IMG")
       ;;
   esac
 }
@@ -56,59 +68,35 @@ build_push() {
 
   echo ""
   echo "========================================"
-  echo "[BUILD START]"
-  echo "image      = $image"
-  echo "dockerfile = $dockerfile"
-  echo "tag        = $tag"
-  echo "pwd        = $(pwd)"
+  echo "[BUILD START] $image"
   echo "========================================"
 
-  if [[ -z "$dockerfile" ]]; then
-    echo "[FATAL] Dockerfile mapping not found for image: $image" >&2
+  if [[ -z "$dockerfile" || ! -f "$dockerfile" ]]; then
+    echo "[FATAL] Dockerfile missing or not mapped for: $image" >&2
+    ls -al "$(dirname "${dockerfile:-.}")" || true >&2
     exit 1
   fi
 
-  if [[ ! -f "$dockerfile" ]]; then
-    echo "[FATAL] Dockerfile does NOT exist!" >&2
-    echo "        image      : $image" >&2
-    echo "        expected   : $dockerfile" >&2
-    echo "        working dir: $(pwd)" >&2
-    echo "" >&2
+  set_build_args "$image"
 
-    echo "[DEBUG] directory listing around expected path:" >&2
-    ls -al "$(dirname "$dockerfile")" || true >&2
-
-    exit 1
-  fi
-
-  local args
-  args="$(build_args "$image")"
-
-  echo "[INFO] build args: $args"
-
-  echo "[INFO] running docker build..."
-
+  echo "[INFO] Running docker build for $image..."
   if ! docker build \
       -f "$dockerfile" \
-      $args \
+      "${BUILD_ARGS[@]}" \
       -t "$tag" \
       .; then
-
-    echo ""
-    echo "[FATAL] docker build failed"
-    echo "        image      : $image"
-    echo "        dockerfile : $dockerfile"
-    echo "        tag        : $tag"
-    echo "        context    : $(pwd)"
+    echo "[FATAL] docker build failed for $image" >&2
     exit 1
   fi
 
-  echo "[INFO] pushing image..."
+  echo "[INFO] Pushing image to registry..."
   docker push "$tag"
-
   echo "[SUCCESS] $image"
 }
 
+# ----------------------------
+# 4. EXECUTION LOOP
+# ----------------------------
 for img in "${IMAGES[@]}"; do
   build_push "$img"
 done

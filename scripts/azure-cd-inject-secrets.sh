@@ -1,31 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log_info()  { echo "[DEPLOY][INFO] $*"; }
-log_step()  { echo ""; echo "========================================"; echo "[DEPLOY][STEP] $*"; echo "========================================"; }
-log_warn()  { echo "[DEPLOY][WARN] $*"; }
-log_error() { echo "[DEPLOY][ERROR] $*" >&2; }
-
-fail() {
-  log_error "$1"
-  exit 1
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
 
 ############################################
-log_step "SECRET & CONFIG DEPLOYMENT START"
+log_step "SECRET INJECTION START"
 
 log_info "resource-group=$AZURE_RESOURCE_GROUP"
 log_info "target=azure-container-apps"
-log_info "mode=rolling-revision-update"
 
 ############################################
 log_step "VALIDATING REQUIRED ENVIRONMENT VARIABLES"
 
-[[ -n "${POSTGRES_CONNECTION_STRING:-}" ]] || fail "missing POSTGRES_CONNECTION_STRING"
-[[ -n "${BLOB_CONNECTION_STRING:-}" ]] || fail "missing BLOB_CONNECTION_STRING"
-[[ -n "${JWT_SECRET:-}" ]] || fail "missing JWT_SECRET"
-[[ -n "${WORKER_CALLBACK_SECRET:-}" ]] || fail "missing WORKER_CALLBACK_SECRET"
-[[ -n "${METRICS_SCRAPE_SECRET:-}" ]] || fail "missing METRICS_SCRAPE_SECRET"
+require_env AZURE_RESOURCE_GROUP
+require_env POSTGRES_CONNECTION_STRING
+require_env BLOB_CONNECTION_STRING
+require_env JWT_SECRET
+require_env WORKER_CALLBACK_SECRET
+require_env METRICS_SCRAPE_SECRET
+require_env GRAFANA_ADMIN_PASSWORD
 
 log_info "environment validation: OK"
 
@@ -46,10 +41,9 @@ log_info "application insights: RESOLVED"
 ############################################
 log_step "BUILDING SECRET PAYLOAD"
 
-POSTGRES_EXPORTER_DSN="$(python3 scripts/lib/build_postgres_dsn.py <<< "$POSTGRES_CONNECTION_STRING")"
+POSTGRES_EXPORTER_DSN="$(python3 "$SCRIPT_DIR/lib/parse_postgres_conn.py" <<< "$POSTGRES_CONNECTION_STRING")"
 
 log_info "postgres-dsn: GENERATED"
-log_info "secret-count: api=$(echo 6), exporter=$(echo 1)"
 
 ############################################
 log_step "APPLYING SECRETS (tangle-study-api)"
@@ -69,26 +63,7 @@ az containerapp secret set \
 log_info "secrets applied: tangle-study-api"
 
 ############################################
-log_step "DEPLOYING APPLICATION REVISION (tangle-study-api)"
-
-az containerapp update \
-  --name tangle-study-api \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --set-env-vars \
-    "ConnectionStrings__DefaultConnection=secretref:postgres-conn" \
-    "Media__ConnectionString=secretref:blob-conn" \
-    "Jwt__Secret=secretref:jwt-secret" \
-    "Media__WorkerCallbackSecret=secretref:worker-callback" \
-    "Metrics__ScrapeSecret=secretref:metrics-secret" \
-    "APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:appinsights-conn" \
-    "ASPNETCORE_ENVIRONMENT=Production" \
-    "ASPNETCORE_URLS=http://+:8080" \
-  --output none
-
-log_info "revision created: tangle-study-api (pending health validation)"
-
-############################################
-log_step "DEPLOYING POSTGRES EXPORTER"
+log_step "APPLYING SECRETS (postgres-exporter)"
 
 az containerapp secret set \
   --name tangle-study-postgres-exporter \
@@ -96,16 +71,10 @@ az containerapp secret set \
   --secrets "postgres-dsn=$POSTGRES_EXPORTER_DSN" \
   --output none
 
-az containerapp update \
-  --name tangle-study-postgres-exporter \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --set-env-vars "DATA_SOURCE_NAME=secretref:postgres-dsn" \
-  --output none
-
-log_info "revision created: postgres-exporter"
+log_info "secrets applied: tangle-study-postgres-exporter"
 
 ############################################
-log_step "DEPLOYING PROMETHEUS"
+log_step "APPLYING SECRETS (prometheus)"
 
 az containerapp secret set \
   --name tangle-study-prometheus \
@@ -113,16 +82,10 @@ az containerapp secret set \
   --secrets "metrics-secret=$METRICS_SCRAPE_SECRET" \
   --output none
 
-az containerapp update \
-  --name tangle-study-prometheus \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --set-env-vars "METRICS_SCRAPE_SECRET=secretref:metrics-secret" \
-  --output none
-
-log_info "revision created: prometheus"
+log_info "secrets applied: tangle-study-prometheus"
 
 ############################################
-log_step "DEPLOYING GRAFANA"
+log_step "APPLYING SECRETS (grafana)"
 
 az containerapp secret set \
   --name tangle-study-grafana \
@@ -130,45 +93,49 @@ az containerapp secret set \
   --secrets "grafana-admin-password=$GRAFANA_ADMIN_PASSWORD" \
   --output none
 
-az containerapp update \
-  --name tangle-study-grafana \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --set-env-vars "GF_SECURITY_ADMIN_PASSWORD=secretref:grafana-admin-password" \
-  --output none
-
-log_info "revision created: grafana"
+log_info "secrets applied: tangle-study-grafana"
 
 ############################################
-log_step "DEPLOYING WORKERS"
+log_step "APPLYING SECRETS (workers)"
 
-deploy_worker () {
+apply_worker_secret () {
   local app="$1"
-
-  log_info "worker-start: $app"
-
   az containerapp secret set \
     --name "$app" \
     --resource-group "$AZURE_RESOURCE_GROUP" \
     --secrets "metrics-secret=$METRICS_SCRAPE_SECRET" \
     --output none
-
-  az containerapp update \
-    --name "$app" \
-    --resource-group "$AZURE_RESOURCE_GROUP" \
-    --set-env-vars "METRICS_SCRAPE_SECRET=secretref:metrics-secret" \
-    --output none
-
-  log_info "worker-revision-created: $app"
+  log_info "secrets applied: $app"
 }
 
-deploy_worker "tangle-study-worker-chat"
-deploy_worker "tangle-study-worker-location"
-deploy_worker "tangle-study-worker-media"
+apply_worker_secret "tangle-study-worker-chat"
+apply_worker_secret "tangle-study-worker-location"
+
+az containerapp secret set \
+  --name tangle-study-worker-media \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --secrets \
+    "metrics-secret=$METRICS_SCRAPE_SECRET" \
+    "blob-conn=$BLOB_CONNECTION_STRING" \
+    "worker-callback=$WORKER_CALLBACK_SECRET" \
+  --output none
+log_info "secrets applied: tangle-study-worker-media (with blob & callback)"
 
 ############################################
-log_step "DEPLOYMENT SUMMARY"
+log_step "APPLYING SECRETS (tangle-study-migrate JOB)"
 
-log_info "all-revisions-created=true"
-log_info "traffic-status=unchanged (old revisions active)"
-log_info "next-step=recommend health gate validation"
-log_info "deployment-status=COMPLETED (pending verification)"
+# 일반 앱이 아니라 'job' 이므로 az containerapp job 명령어를 사용해야 합니다.
+az containerapp job secret set \
+  --name tangle-study-migrate \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --secrets "postgres-conn=$POSTGRES_CONNECTION_STRING" \
+  --output none
+
+log_info "secrets applied: tangle-study-migrate (job)"
+
+############################################
+log_step "SECRET INJECTION SUMMARY"
+
+log_info "all-secrets-applied=true"
+log_info "next-step=run update-image.sh / deploy.sh to roll out a new revision referencing these secrets"
+log_info "injection-status=COMPLETED"

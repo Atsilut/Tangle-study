@@ -3,6 +3,10 @@
 
 .env
 docker-compose.override.yml
+
+### CI ###
+
+docker/versions.prod.env
 .ci-cache/
 
 ### DotnetCore ###

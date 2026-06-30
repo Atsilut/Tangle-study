@@ -5,16 +5,13 @@ set -euo pipefail
 : "${IMAGE_TAG:?required}"
 
 echo "========================================"
-echo "[DEPLOY][IMAGE] PHASE 2 - GHCR CONSISTENCY GATE"
+echo "[DEPLOY][IMAGE] PHASE 2 - GHCR CONSISTENCY GATE (OPTIMIZED)"
 echo "========================================"
 
 IMAGES=(
   tangle-study-api
   tangle-study-web
-
-  tangle-study-worker-chat
-  tangle-study-worker-location
-  tangle-study-worker-media
+  tangle-study-worker
 )
 
 wait_image() {
