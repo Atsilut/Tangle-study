@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Ensure Redis internal TCP ingress and cross-app connection env on ACA.
+# =========================================================
+# [DEPLOY][REDIS] ACA Redis TCP Ingress & API Dependency Gate
+# =========================================================
 #
-# Existing stacks deployed before infra-container.bicep gained TCP ingress often
-# have no ingress on tangle-study-redis; API then fails StackExchange.Redis.Connect
-# to the internal FQDN.
+# PURPOSE:
+#   Redis is a HARD dependency for API startup.
+#   This script guarantees Redis readiness BEFORE API deploy.
 #
-# Required env:
-#   AZURE_RESOURCE_GROUP
+# FLOW:
+#   1. Ensure Redis ingress (control plane)
+#   2. Validate Redis TCP connectivity (blocking gate)
+#   3. Deploy API (only after Redis is healthy)
+#   4. Wait API revision READY
 #
-# Optional env:
-#   REDIS_APP_NAME (default: tangle-study-redis)
-#   API_APP_NAME (default: tangle-study-api)
-#   REDIS_ENSURE_PHASE (early|late, default: late)
-#   REDIS_SKIP_TCP_PROBE (set to 1 to skip cross-app TCP probe in late phase)
-#   INFRA_FORCE_TCP_INGRESS_RECYCLE (set to 1 to disable/enable ingress)
-#
+# =========================================================
+
 set -euo pipefail
 
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
@@ -22,55 +22,91 @@ set -euo pipefail
 RG="$AZURE_RESOURCE_GROUP"
 REDIS_APP="${REDIS_APP_NAME:-tangle-study-redis}"
 API_APP="${API_APP_NAME:-tangle-study-api}"
-REDIS_PORT=6379
-PHASE="${REDIS_ENSURE_PHASE:-late}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=scripts/lib/versions-prod-env.sh
-source "$ROOT/scripts/lib/versions-prod-env.sh"
-load_versions_prod_env "$ROOT"
-DEBIAN_IMAGE="${DEBIAN_IMAGE:-debian:bookworm-slim}"
-# shellcheck source=scripts/lib/azure-container-apps-readiness.sh
 source "$ROOT/scripts/lib/azure-container-apps-readiness.sh"
-# shellcheck source=scripts/lib/azure-redis-readiness.sh
 source "$ROOT/scripts/lib/azure-redis-readiness.sh"
 
+
+# ---------------------------------------------------------
+# LOGGING
+# ---------------------------------------------------------
+log_step()  { echo ""; echo "========================================"; echo "[DEPLOY][REDIS][STEP] $*"; echo "========================================"; }
+log_info()  { echo "[DEPLOY][REDIS][INFO] $*"; }
+log_warn()  { echo "[DEPLOY][REDIS][WARN] $*"; }
+log_error() { echo "[DEPLOY][REDIS][ERROR] $*" >&2; }
+
+
+# ---------------------------------------------------------
+# PRECHECK
+# ---------------------------------------------------------
+log_step "PRECHECK - REDIS EXISTENCE"
+
 if ! az containerapp show --name "$REDIS_APP" --resource-group "$RG" &>/dev/null; then
-  echo "==> ${REDIS_APP} not found in ${RG}; skipping Redis ensure"
-  exit 0
-fi
-
-echo "==> Redis ensure phase: ${PHASE}"
-
-ensure_redis_tcp_ingress
-
-if [[ "$PHASE" == "early" ]]; then
-  echo "==> Waiting 15s for Redis TCP ingress routing to stabilize..."
-  sleep 15
-  echo "==> Redis ingress reconciled (early; connection env deferred to late phase)."
-  exit 0
-fi
-
-echo "==> Waiting 15s for Redis TCP ingress routing to stabilize..."
-sleep 15
-
-if [[ "${REDIS_SKIP_TCP_PROBE:-}" == "1" ]]; then
-  echo "==> WARNING: REDIS_SKIP_TCP_PROBE=1; skipping cross-app TCP probe" >&2
-  reconcile_redis_connection_env
-  echo "==> Waiting for ${API_APP} revision after Redis env reconcile..."
-  wait_for_container_app_revision_healthy "$API_APP" "$RG" "${API_READY_TIMEOUT_SEC:-300}"
-  echo "==> Redis ingress and connection env reconciled (probe skipped)."
-  exit 0
-fi
-
-if ! ensure_redis_cross_app_tcp; then
-  echo "==> Redis cross-app TCP probe failed; CD cannot continue safely." >&2
+  log_error "Redis app not found: $REDIS_APP"
   exit 1
 fi
 
-reconcile_redis_connection_env
+log_info "Redis app found: $REDIS_APP"
 
-echo "==> Waiting for ${API_APP} revision after Redis env reconcile..."
-wait_for_container_app_revision_healthy "$API_APP" "$RG" "${API_READY_TIMEOUT_SEC:-300}"
 
-echo "==> Redis ingress, cross-app TCP, and connection env reconciled."
+# ---------------------------------------------------------
+# STEP 1 - ENSURE INGRESs
+# ---------------------------------------------------------
+log_step "STEP 1 - ENSURE REDIS TCP INGRESS"
+
+ensure_redis_tcp_ingress
+
+log_info "Redis ingress configured"
+
+
+# ---------------------------------------------------------
+# STEP 2 - STRICT DEPENDENCY GATE
+# ---------------------------------------------------------
+log_step "STEP 2 - REDIS TCP READINESS GATE (BLOCKING)"
+
+log_info "validating Redis TCP connectivity from API network..."
+
+if ensure_redis_cross_app_tcp; then
+  log_info "Redis TCP connectivity: OK"
+else
+  log_error "Redis TCP connectivity: FAILED"
+  log_error "BLOCKING API deployment (dependency not satisfied)"
+  exit 1
+fi
+
+
+# ---------------------------------------------------------
+# STEP 3 - API DEPLOY
+# ---------------------------------------------------------
+log_step "STEP 3 - API DEPLOYMENT"
+
+log_info "starting API update: $API_APP"
+
+az containerapp update \
+  --name "$API_APP" \
+  --resource-group "$RG" \
+  --output none
+
+log_info "API deployment triggered"
+
+
+# ---------------------------------------------------------
+# STEP 4 - WAIT API READY
+# ---------------------------------------------------------
+log_step "STEP 4 - WAIT API REVISION READY"
+
+wait_for_container_app_revision_healthy \
+  "$API_APP" \
+  "$RG" \
+  "${API_READY_TIMEOUT_SEC:-300}"
+
+log_info "API revision is READY"
+
+
+# ---------------------------------------------------------
+# FINAL
+# ---------------------------------------------------------
+log_step "DEPLOY COMPLETE"
+
+log_info "status=SUCCESS api=$API_APP redis=$REDIS_APP"

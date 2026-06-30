@@ -1,40 +1,75 @@
 #!/usr/bin/env bash
-# Start the EF migrate Container Apps Job and wait for success.
+# =========================================================
+# [DEPLOY][MIGRATE] EF Core Container Apps Job Runner
+# =========================================================
 #
-# Required env:
-#   AZURE_RESOURCE_GROUP
+# PURPOSE:
+#   Run DB migration job and enforce deterministic success/failure.
 #
-# Optional env:
-#   MIGRATE_JOB_NAME (default: tangle-study-migrate)
-#   MIGRATE_TIMEOUT_SEC (default: 600)
+# FLOW:
+#   1. Start job execution
+#   2. Poll execution status
+#   3. On failure → dump logs
+#   4. On timeout → dump logs
 #
+# =========================================================
+
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=scripts/lib/container-app-job-logs.sh
-source "$ROOT/scripts/lib/container-app-job-logs.sh"
-
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/lib/container-app-job-logs.sh"
 
 JOB_NAME="${MIGRATE_JOB_NAME:-tangle-study-migrate}"
 TIMEOUT="${MIGRATE_TIMEOUT_SEC:-600}"
 RG="$AZURE_RESOURCE_GROUP"
 
-dump_migrate_failure_logs() {
+
+########################################
+# LOGGING
+########################################
+log_step()  { echo ""; echo "========================================"; echo "[DEPLOY][MIGRATE][STEP] $*"; echo "========================================"; }
+log_info()  { echo "[DEPLOY][MIGRATE][INFO] $*"; }
+log_error() { echo "[DEPLOY][MIGRATE][ERROR] $*" >&2; }
+
+
+########################################
+# FAILURE DIAGNOSTICS
+########################################
+dump_failure() {
   local execution_name="$1"
-  dump_container_app_job_logs "$JOB_NAME" "$RG" "$execution_name" "$JOB_NAME" 80 || true
+
+  log_error "dumping-job-logs execution=$execution_name"
+
+  dump_container_app_job_logs \
+    "$JOB_NAME" \
+    "$RG" \
+    "$execution_name" \
+    "$JOB_NAME" \
+    80 || true
 }
 
-echo "==> Starting migrate job: $JOB_NAME"
+
+########################################
+log_step "START MIGRATION JOB"
+
+log_info "job=$JOB_NAME rg=$RG timeout=${TIMEOUT}s"
+
 EXECUTION_NAME="$(az containerapp job start \
   --name "$JOB_NAME" \
   --resource-group "$RG" \
   --query name \
   --output tsv)"
 
-echo "==> Execution: $EXECUTION_NAME (timeout ${TIMEOUT}s)"
+log_info "execution_started name=$EXECUTION_NAME"
+
+
+########################################
+log_step "POLL JOB STATUS"
+
 deadline=$((SECONDS + TIMEOUT))
-status="Unknown"
+status="Running"
 
 while (( SECONDS < deadline )); do
   status="$(az containerapp job execution show \
@@ -44,26 +79,40 @@ while (( SECONDS < deadline )); do
     --query properties.status \
     --output tsv 2>/dev/null || echo "Running")"
 
+  log_info "execution_status=$status"
+
   case "$status" in
     Succeeded)
-      echo "==> Migrate job succeeded."
+      log_step "MIGRATION SUCCESS"
+      log_info "execution=$EXECUTION_NAME status=Succeeded"
       exit 0
       ;;
+
     Failed|Stopped)
-      echo "==> Migrate job failed with status: $status" >&2
+      log_step "MIGRATION FAILED"
+      log_error "execution=$EXECUTION_NAME status=$status"
+
       az containerapp job execution show \
         --name "$JOB_NAME" \
         --resource-group "$RG" \
         --job-execution-name "$EXECUTION_NAME" \
         --query "{name:name,status:properties.status,startTime:properties.startTime,endTime:properties.endTime}" \
         --output json 2>/dev/null | redact_log_stream >&2 || true
-      dump_migrate_failure_logs "$EXECUTION_NAME"
+
+      dump_failure "$EXECUTION_NAME"
       exit 1
       ;;
   esac
+
   sleep 10
 done
 
-echo "==> Migrate job timed out (last status: $status)" >&2
-dump_migrate_failure_logs "$EXECUTION_NAME"
+
+########################################
+log_step "MIGRATION TIMEOUT"
+
+log_error "execution=$EXECUTION_NAME status=TIMEOUT timeout=${TIMEOUT}s"
+
+dump_failure "$EXECUTION_NAME"
+
 exit 1
