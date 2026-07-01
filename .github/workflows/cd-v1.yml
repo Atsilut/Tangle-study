@@ -26,6 +26,7 @@ env:
 
 jobs:
   deploy:
+    name: Deploy to production
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: prod
@@ -127,6 +128,7 @@ jobs:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         PARAM_FILE: infra/azure/parameters.prod.json
+        JWT_EXPIRY_MINUTES: ${{ vars.JWT_EXPIRY_MINUTES }}
       run: bash scripts/cd/azure-cd-deploy-image.sh
 
     ############################################

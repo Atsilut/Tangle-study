@@ -18,38 +18,62 @@ IMAGE_TAG="${IMAGE_TAG:-$(jq -r '.parameters.imageTag.value // empty' "$PARAM_FI
 log_step "INTEGRATED APPLICATION DEPLOYMENT START"
 log_info "resource-group=$AZURE_RESOURCE_GROUP param-file=$PARAM_FILE"
 
-############################################
-# Resolve ACA environment domain (for Prometheus scrape config at runtime).
-ACA_DEFAULT_DOMAIN=""
-PROMETHEUS_URL="http://tangle-study-prometheus"
-PROBE_APP="${ACA_PROBE_APP:-tangle-study-api}"
-
-if az containerapp show --name "$PROBE_APP" --resource-group "$AZURE_RESOURCE_GROUP" &>/dev/null; then
-  env_id="$(az containerapp show \
-    --name "$PROBE_APP" \
-    --resource-group "$AZURE_RESOURCE_GROUP" \
-    --query properties.managedEnvironmentId \
-    --output tsv)"
-  env_name="${env_id##*/}"
-  ACA_DEFAULT_DOMAIN="$(az containerapp env show \
-    --name "$env_name" \
-    --resource-group "$AZURE_RESOURCE_GROUP" \
-    --query properties.defaultDomain \
-    --output tsv)"
-  log_info "aca-default-domain=$ACA_DEFAULT_DOMAIN"
-else
-  log_warn "probe app $PROBE_APP not found; monitoring env vars will be skipped"
-fi
+# shellcheck source=scripts/cd/libs/azure-aca-urls.sh
+source "$ROOT/scripts/cd/libs/azure-aca-urls.sh"
+log_info "aca-api-url=${ACA_API_HTTP_URL} aca-prometheus-url=${ACA_PROMETHEUS_HTTP_URL} aca-redis=${ACA_REDIS_HOST}"
 
 append_monitoring_env() {
   local app_name="$1"
   case "$app_name" in
-    tangle-study-prometheus)
-      [[ -n "$ACA_DEFAULT_DOMAIN" ]] || return 0
-      env_args+=("ACA_DEFAULT_DOMAIN=${ACA_DEFAULT_DOMAIN}")
-      ;;
     tangle-study-grafana)
-      env_args+=("PROMETHEUS_URL=${PROMETHEUS_URL}")
+      env_args+=("PROMETHEUS_URL=${ACA_PROMETHEUS_HTTP_URL}")
+      ;;
+  esac
+}
+
+append_api_env() {
+  local app_name="$1"
+  local arg filtered=()
+
+  [[ "$app_name" == "tangle-study-api" ]] || return 0
+
+  env_args+=("Redis__ConnectionString=${ACA_REDIS_ADDR}")
+
+  [[ -n "${JWT_EXPIRY_MINUTES:-}" ]] || return 0
+
+  for arg in "${env_args[@]}"; do
+    [[ "$arg" == Jwt__ExpiryMinutes=* ]] && continue
+    filtered+=("$arg")
+  done
+  env_args=("${filtered[@]}")
+  env_args+=("Jwt__ExpiryMinutes=${JWT_EXPIRY_MINUTES}")
+}
+
+append_worker_env() {
+  local app_name="$1"
+
+  case "$app_name" in
+    tangle-study-worker-*)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  env_args+=("REDIS_URL=${ACA_REDIS_URL}")
+
+  case "$app_name" in
+    tangle-study-worker-media|tangle-study-worker-location)
+      env_args+=("API_BASE_URL=${ACA_API_HTTP_URL}")
+      ;;
+  esac
+}
+
+append_infra_env() {
+  local app_name="$1"
+  case "$app_name" in
+    tangle-study-redis-exporter)
+      env_args+=("REDIS_ADDR=${ACA_REDIS_ADDR}")
       ;;
   esac
 }
@@ -91,6 +115,9 @@ jq -c '.parameters.containerApps | to_entries[]' "$PARAM_FILE" \
       done < <(echo "$env_json" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
 
       append_monitoring_env "$name"
+      append_api_env "$name"
+      append_worker_env "$name"
+      append_infra_env "$name"
 
       # 3. Build and execute a single atomic CLI command to prevent duplicate revisions
       cmd=("az" "containerapp" "update" "--name" "$name" "--resource-group" "$AZURE_RESOURCE_GROUP" "--output" "none")

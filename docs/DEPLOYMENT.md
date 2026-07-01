@@ -146,6 +146,7 @@ Store these on GitHub Environment **`production`**. The deploy workflow maps eac
 |---------------|----------------------|----------|-------|
 | `BLOB_CONNECTION_STRING` | `Media__ConnectionString` | Yes | Azure Storage account connection string |
 | `JWT_SECRET` | `Jwt__Secret` | Yes | Min 32 chars; overrides `security.yml` placeholder |
+| `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes` | No | Token lifetime in minutes; default `15` from [`parameters.prod.json`](../infra/azure/parameters.prod.json) when unset |
 | `WORKER_CALLBACK_SECRET` | `Media__WorkerCallbackSecret` | Yes | Shared with media worker for internal callbacks |
 | `METRICS_SCRAPE_SECRET` | `Metrics__ScrapeSecret` (API), `METRICS_SCRAPE_SECRET` (Prometheus + workers) | Yes | Required when `Metrics:RequireScrapeSecret` is true |
 | `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` (API + migrate) | Yes | Neon Npgsql connection string from console |
@@ -155,12 +156,13 @@ Store these on GitHub Environment **`production`**. The deploy workflow maps eac
 | `GHCR_REGISTRY_USERNAME` | (registry pull on all apps + migrate job) | No | Only if GHCR packages are **private** |
 | `GHCR_REGISTRY_PASSWORD` | (registry pull) | No | GitHub PAT with `read:packages` |
 
-**Not GitHub secrets:** Redis host is set by Bicep (`tangle-study-redis.internal.<cae-domain>:6379` on API; `redis://…` on workers). Postgres-exporter DSN is derived from `POSTGRES_CONNECTION_STRING` at CD time. Blob public endpoint and media container name are non-secret Bicep outputs.
+**Not GitHub secrets:** Redis host is set at CD deploy (`tangle-study-redis` on API; `redis://tangle-study-redis` on workers — ACA short names, no port). Postgres-exporter DSN is derived from `POSTGRES_CONNECTION_STRING` at CD time. Blob public endpoint and media container name are non-secret Bicep outputs.
 
 Non-secret config can be GitHub **variables** or Bicep parameters:
 
 | Variable | Container App env var | Example |
 |----------|----------------------|---------|
+| `JWT_EXPIRY_MINUTES` | `Jwt__ExpiryMinutes` (API) | `15` |
 | `MEDIA_PUBLIC_BLOB_ENDPOINT` | `Media__PublicBlobEndpoint` | `https://tanglestaging.blob.core.windows.net` |
 | `REDIS_INSTANCE_NAME` | `Redis__InstanceName` | `tangle:` (default) |
 
@@ -177,16 +179,16 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 | GitHub secret | Env var | Required | Notes |
 |---------------|---------|----------|-------|
 | `BLOB_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | Media worker only | Same storage account as API |
-| `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET` | Media worker only | Must match `Media__WorkerCallbackSecret` |
+| `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET` | Media + location workers | Must match `Media__WorkerCallbackSecret` |
 | `METRICS_SCRAPE_SECRET` | `METRICS_SCRAPE_SECRET` | Yes | Protects `/metrics`; Prometheus sends `X-Metrics-Secret` |
 
-Redis URL is set by Bicep (`REDIS_URL=redis://tangle-study-redis.internal.<cae-domain>:6379`).
+Redis URL and API base URL are set at CD deploy time (`REDIS_URL`, `API_BASE_URL=http://tangle-study-api` — ACA short name, no `:8080`).
 
-Per-worker settings (Bicep or GitHub variables):
+Per-worker settings in [`parameters.prod.json`](../infra/azure/parameters.prod.json):
 
 | Variable | Env var | Example |
 |----------|---------|---------|
-| `API_BASE_URL` | `API_BASE_URL` | `http://api:8080` (internal) |
+| `API_BASE_URL` | `API_BASE_URL` | `http://tangle-study-api` (injected; media + location only) |
 | `WORKER_STREAM_KEY` | `WORKER_STREAM_KEY` | `media.uploaded`, `chat.message.created`, `location.cluster` |
 | `MEDIA_CONTAINER_NAME` | `MEDIA_CONTAINER_NAME` | `tangle-media` |
 
@@ -248,14 +250,15 @@ Container Apps platform logs go to the same Log Analytics workspace.
 Bicep deploys a **monitoring stack** on Container Apps (Compose parity). **CD** builds custom
 GHCR images (`tangle-study-prometheus`, `tangle-study-grafana`) that bundle provisioning from
 [`infra/grafana/provisioning/`](../infra/grafana/provisioning/) and ACA scrape entrypoints from
-[`infra/azure/monitoring/`](../infra/azure/monitoring/). Deploy injects `ACA_DEFAULT_DOMAIN` and
-`PROMETHEUS_URL` at runtime — see [`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh).
-HTTP short app names must omit `targetPort` ([ACA short names](../infra/azure/README.md#aca-http-short-names-do-not-append-targetport)).
+[`infra/azure/monitoring/`](../infra/azure/monitoring/). Deploy injects cross-app URLs from
+[`azure-aca-urls.sh`](../scripts/cd/libs/azure-aca-urls.sh) via [`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)
+(e.g. `PROMETHEUS_URL=http://tangle-study-prometheus`, `REDIS_URL=redis://tangle-study-redis`).
+HTTP short app names must omit `targetPort` ([ACA short names](../infra/azure/README.md#aca-short-names-do-not-append-targetport)).
 
 | App | Access | Notes |
 |-----|--------|-------|
 | `tangle-study-grafana` | External HTTPS FQDN | Custom image; `admin` / `GRAFANA_ADMIN_PASSWORD`; datasource → `http://tangle-study-prometheus` |
-| `tangle-study-prometheus` | Internal only | Custom image; scrapes API (`tangle-study-api`), workers/exporters (internal FQDN) |
+| `tangle-study-prometheus` | Internal only | Custom image; scrapes API, workers, exporters (short names) |
 | `tangle-study-postgres-exporter` | Internal | Connects to Neon |
 | `tangle-study-redis-exporter` | Internal | Scrapes internal Redis |
 
@@ -434,12 +437,12 @@ If the password appeared in Log Analytics, rotate it in the Neon console.
 
 **Symptom:** API logs show `StackExchange.Redis.ConnectionMultiplexer.Connect` failure at startup; revision crash-loops (older builds) or `/health` reports Redis **Unhealthy**.
 
-**Cause:** The Redis **container can be healthy** while **cross-app TCP** from `tangle-study-api` to `tangle-study-redis.internal.<cae-domain>:6379` fails. Common reasons:
+**Cause:** The Redis **container can be healthy** while **cross-app TCP** from `tangle-study-api` to `tangle-study-redis` fails. Common reasons:
 
 - `tangle-study-redis` deployed **without internal TCP ingress**
 - Ingress metadata looks correct but ACA Envoy routing is **stale** (same class as historical Postgres TCP issues)
 
-The API connection string uses the **internal FQDN** (not the short app name).
+The API connection string uses the **short app name** `tangle-study-redis` (port 6379 implicit; set by CD).
 
 **Fix:** Verify Redis ingress and API env, then re-deploy and re-run smoke:
 
@@ -454,12 +457,12 @@ AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-deploy-image.sh
 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
-Manual cross-app probe from your laptop (replace `HOST` with Redis internal FQDN):
+Manual cross-app probe from your laptop (use short name `tangle-study-redis`):
 
 ```bash
 az containerapp exec -n tangle-study-api -g tangle-study-prod \
   --container tangle-study-api \
-  --command "timeout 5 bash -c 'echo > /dev/tcp/HOST/6379' && echo OK || echo FAIL"
+  --command "timeout 5 bash -c 'echo > /dev/tcp/tangle-study-redis/6379' && echo OK || echo FAIL"
 ```
 
 From CI or a non-interactive shell, wrap exec:
@@ -467,7 +470,7 @@ From CI or a non-interactive shell, wrap exec:
 ```bash
 script -q -c "az containerapp exec -n tangle-study-api -g tangle-study-prod \
   --container tangle-study-api \
-  --command \"timeout 5 bash -c 'echo > /dev/tcp/HOST/6379' && echo OK || echo FAIL\"" /dev/null
+  --command \"timeout 5 bash -c 'echo > /dev/tcp/tangle-study-redis/6379' && echo OK || echo FAIL\"" /dev/null
 ```
 
 `Redis__ConnectionString` includes StackExchange.Redis options (`abortConnect=false`, connect timeouts). The API sets `AbortOnConnectFail=false` so a transient Redis blip does not crash-loop; `/health` shows **Unhealthy** until Redis is reachable.
@@ -493,7 +496,7 @@ listen port. `:8080` bypasses ingress and hits an unreachable pod address — ng
 **504** even though a direct curl to `http://tangle-study-api/health` succeeds.
 
 **Web nginx:** [`TANGLE_API_UPSTREAM`](../infra/azure/parameters.prod.json) must be
-`tangle-study-api` (no port). See [`infra/azure/README.md`](../infra/azure/README.md#aca-http-short-names-do-not-append-targetport).
+`tangle-study-api` (no port). See [`infra/azure/README.md`](../infra/azure/README.md#aca-short-names-do-not-append-targetport).
 
 **Diagnose from the web container:**
 

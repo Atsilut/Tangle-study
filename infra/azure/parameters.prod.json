@@ -66,6 +66,7 @@
             "ConnectionStrings__DefaultConnection": "secretref:postgres-conn",
             "Media__ConnectionString": "secretref:blob-conn",
             "Jwt__Secret": "secretref:jwt-secret",
+            "Jwt__ExpiryMinutes": "15",
             "Media__WorkerCallbackSecret": "secretref:worker-callback",
             "Metrics__ScrapeSecret": "secretref:metrics-secret",
             "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
@@ -91,6 +92,10 @@
           "env": {
             "WORKER_TYPE": "chat",
             "WORKER_STREAM_KEY": "chat.message.created",
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
             "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
           }
         },
@@ -102,7 +107,12 @@
           "env": {
             "WORKER_TYPE": "location",
             "WORKER_STREAM_KEY": "location.cluster",
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
+            "WORKER_CALLBACK_SECRET": "secretref:worker-callback"
           }
         },
 
@@ -113,7 +123,14 @@
           "env": {
             "WORKER_TYPE": "media",
             "WORKER_STREAM_KEY": "media.uploaded",
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
+            "WORKER_CALLBACK_SECRET": "secretref:worker-callback",
+            "AZURE_STORAGE_CONNECTION_STRING": "secretref:blob-conn",
+            "MEDIA_CONTAINER_NAME": "tangle-media"
           }
         },
 

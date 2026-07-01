@@ -84,9 +84,9 @@ there. Routine CD deploys never read this flag at all.
 
 ## Internal networking
 
-Use **internal FQDNs** (`tangle-study-<app>.internal.<cae-default-domain>`) for Redis and scrape targets — short names are unreliable for ACA TCP routing.
+Cross-app URLs in CD use **ACA short Container App names** (no `targetPort`, no internal FQDN). Centralized in [`scripts/cd/libs/azure-aca-urls.sh`](../../scripts/cd/libs/azure-aca-urls.sh) and injected by [`azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh).
 
-### ACA HTTP short names: do not append `targetPort`
+### ACA short names: do not append `targetPort`
 
 Within a Container Apps Environment, HTTP ingress apps can be reached by **short app name**
 (e.g. `tangle-study-api`). This behaves differently from Docker Compose, where `api:8080`
@@ -144,21 +144,20 @@ az containerapp update -n tangle-study-web -g tangle-study-prod \
 Or re-run CD [`scripts/cd/azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh), which reads
 [`parameters.prod.json`](parameters.prod.json).
 
-For **HTTP ingress** apps (API, web→API), use the short Container App name
-**without a port** (e.g. `tangle-study-api`). The FQDN requirement below applies specifically
-to **TCP ingress** (Redis, Postgres-era scrape targets), where short-name DNS resolution has
-been unreliable in practice.
+For **HTTP ingress** apps (API, Prometheus, workers, exporters, web→API), use the short Container App name
+**without a port** (e.g. `tangle-study-api`, `http://tangle-study-prometheus`). Internal FQDNs on :443 also work but CD does not use them.
 
 | App | Hostname (within environment) |
 |-----|------------------------------|
 | Postgres | **Neon** (external; not in ACA) |
-| Redis | `tangle-study-redis.internal.<domain>:6379` |
+| Redis | `tangle-study-redis` (TCP; port 6379 implicit) |
 | API | `tangle-study-api` (HTTP ingress short name; port 80 implicit) |
-| Prometheus | `tangle-study-prometheus` (HTTP ingress short name; Grafana datasource) |
+| Prometheus | `tangle-study-prometheus` (HTTP ingress short name) |
+| Workers / exporters | `tangle-study-worker-*`, `tangle-study-postgres-exporter`, `tangle-study-redis-exporter` |
 | Web | public FQDN → proxies to API |
 | Grafana | public FQDN (external ingress) |
 
-Postgres connection string is injected by CD from GitHub secret `POSTGRES_CONNECTION_STRING` (API + migrate job). Postgres-exporter gets a derived `postgresql://` DSN for Neon. Redis URL is Bicep-managed (`redis://tangle-study-redis.internal.<domain>:6379`).
+Postgres connection string is injected by CD from GitHub secret `POSTGRES_CONNECTION_STRING` (API + migrate job). Postgres-exporter gets a derived `postgresql://` DSN for Neon. Redis host/URL is set at CD deploy (`Redis__ConnectionString=tangle-study-redis`, `REDIS_URL=redis://tangle-study-redis`, `REDIS_ADDR=tangle-study-redis`).
 
 ## CD vs manual deploy
 
@@ -200,18 +199,17 @@ The flag only matters if you're re-running the manual bootstrap script.
 |---------------|---------|-------|
 | `tangle-study-postgres-exporter` | internal :9187 | Scrapes Neon (`DATA_SOURCE_NAME` from CD) |
 | `tangle-study-redis-exporter` | internal :9121 | Scrapes internal Redis |
-| `tangle-study-prometheus` | internal | Custom GHCR image; scrapes API (short name), workers/exporters (internal FQDN) |
+| `tangle-study-prometheus` | internal | Custom GHCR image; scrapes API, workers, exporters (short names) |
 | `tangle-study-grafana` | **external** :3000 | Custom GHCR image; login `admin` / `GRAFANA_ADMIN_PASSWORD` |
 
 **CD path:** [`scripts/cd/azure-cd-build-push.sh`](../../scripts/cd/azure-cd-build-push.sh) builds
 `tangle-study-prometheus` and `tangle-study-grafana` from [`monitoring/`](monitoring/) (bundles
 [`infra/grafana/provisioning/`](../grafana/provisioning/) and recording rules). Deploy sets image +
 env from [`parameters.prod.json`](parameters.prod.json); [`azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh)
-also injects `ACA_DEFAULT_DOMAIN` (Prometheus) and `PROMETHEUS_URL=http://tangle-study-prometheus`
-(Grafana). Do **not** deploy vanilla `prom/prometheus` or `grafana/grafana` — they skip the ACA
-entrypoints and provisioning.
+injects cross-app URLs from [`azure-aca-urls.sh`](../../scripts/cd/libs/azure-aca-urls.sh) (e.g.
+`PROMETHEUS_URL=http://tangle-study-prometheus`, `REDIS_URL=redis://tangle-study-redis`). Do **not** deploy vanilla `prom/prometheus` or `grafana/grafana` — they skip the ACA entrypoints and provisioning.
 
-Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details. HTTP short names must omit `targetPort` — see [ACA HTTP short names](#aca-http-short-names-do-not-append-targetport).
+Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details. Short names must omit `targetPort` — see [ACA short names](#aca-short-names-do-not-append-targetport).
 
 ## After Bicep deploy
 

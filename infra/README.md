@@ -92,7 +92,7 @@ Precomputed in [prometheus/recording_rules.yml](prometheus/recording_rules.yml) 
 
 ## Dashboard
 
-**Tangle Overview** (`uid: tangle-overview`) is auto-provisioned under the **Tangle** folder in Grafana:
+**Tangle Study Overview** (`uid: tangle-overview`) is auto-provisioned under the **Tangle Study** folder in Grafana:
 
 - API request rate and latency (p50 / p95 with 2s threshold line)
 - API 4xx error rate by status code
@@ -108,7 +108,7 @@ Panels use metrics from `prometheus-net` (API) and custom `tangle_*` counters/ga
 
 ## Alerting
 
-Provisioned under `grafana/provisioning/alerting/`. All rules use `for: 5m` before firing. View in Grafana → **Alerting** → **Alert rules** (folder: **Tangle**).
+Provisioned under `grafana/provisioning/alerting/`. All rules use `for: 5m` before firing. View in Grafana → **Alerting** → **Alert rules** (folder: **Tangle Study**).
 
 No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 
@@ -196,12 +196,13 @@ infra/azure/monitoring/
 | `postgres-exporter` → compose `db` | `tangle-study-postgres-exporter` → **Neon** |
 | `redis-exporter` → compose `redis` | `tangle-study-redis-exporter` → internal Redis |
 | `api:8080/metrics` | `tangle-study-api/metrics` (short name; ACA ingress port 80) |
-| `rust-worker-*:9090/metrics` | `tangle-study-worker-*.internal.<domain>:9090/metrics` |
+| `rust-worker-*:9090/metrics` | `tangle-study-worker-*` (short name; ACA ingress port 80) |
 
 CD ([`scripts/cd/azure-cd-build-push.sh`](../scripts/cd/azure-cd-build-push.sh)) builds and pushes
 `tangle-study-prometheus` and `tangle-study-grafana` alongside api/web/worker. Deploy
 ([`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)) sets GHCR images plus runtime
-env: Prometheus `ACA_DEFAULT_DOMAIN`, Grafana `PROMETHEUS_URL=http://tangle-study-prometheus`.
+env from [`azure-aca-urls.sh`](../scripts/cd/libs/azure-aca-urls.sh) (e.g. `PROMETHEUS_URL=http://tangle-study-prometheus`,
+`REDIS_URL=redis://tangle-study-redis`).
 Secrets: `METRICS_SCRAPE_SECRET`, `GRAFANA_ADMIN_PASSWORD`, and Neon `POSTGRES_CONNECTION_STRING`
 (postgres-exporter DSN derived at inject time). See [infra/azure/README.md](azure/README.md#monitoring-on-aca).
 

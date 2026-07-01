@@ -106,11 +106,10 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Redis TCP ingress is reachable by Container App name within the CAE (see ACA ingress TCP docs).
-var defaultDomain = containerAppsEnv.outputs.defaultDomain
+// Redis TCP ingress: short app name within the CAE (port 6379 implicit).
 var redisInternalHost = 'tangle-study-redis'
-var redisConnectionString = '${redisInternalHost}:6379'
-var redisUrl = 'redis://${redisConnectionString}'
+var redisConnectionString = redisInternalHost
+var redisUrl = 'redis://${redisInternalHost}'
 var apiAppHost = 'tangle-study-api'
 
 // ACA HTTP ingress: short app names route on port 80 (ingress front door), not
@@ -325,7 +324,7 @@ module redisExporter 'modules/container-app.bicep' = {
     registryPassword: ''
     tags: tags
     envVars: [
-      { name: 'REDIS_ADDR', value: '${redisInternalHost}:6379' }
+      { name: 'REDIS_ADDR', value: redisInternalHost }
     ]
     secretEnvVars: []
   }
@@ -348,9 +347,7 @@ module prometheus 'modules/container-app.bicep' = {
     registryUsername: registryUsername
     registryPassword: registryPassword
     tags: tags
-    envVars: [
-      { name: 'ACA_DEFAULT_DOMAIN', value: defaultDomain }
-    ]
+    envVars: []
     secretEnvVars: [
       { name: 'metrics-secret', envName: 'METRICS_SCRAPE_SECRET' }
     ]
