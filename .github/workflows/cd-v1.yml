@@ -117,6 +117,7 @@ jobs:
         POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
         GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+        PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
       run: bash scripts/cd/azure-cd-inject-secrets.sh
 
     ############################################

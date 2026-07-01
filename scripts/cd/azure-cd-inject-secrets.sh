@@ -48,16 +48,20 @@ log_info "postgres-dsn: GENERATED"
 ############################################
 log_step "APPLYING SECRETS (tangle-study-api)"
 
+api_secrets=(
+  "postgres-conn=$POSTGRES_CONNECTION_STRING"
+  "blob-conn=$BLOB_CONNECTION_STRING"
+  "jwt-secret=$JWT_SECRET"
+  "worker-callback=$WORKER_CALLBACK_SECRET"
+  "metrics-secret=$METRICS_SCRAPE_SECRET"
+  "appinsights-conn=$APPLICATIONINSIGHTS_CONNECTION_STRING"
+  "places-api-key=${PLACES_API_KEY:-}"
+)
+
 az containerapp secret set \
   --name tangle-study-api \
   --resource-group "$AZURE_RESOURCE_GROUP" \
-  --secrets \
-    "postgres-conn=$POSTGRES_CONNECTION_STRING" \
-    "blob-conn=$BLOB_CONNECTION_STRING" \
-    "jwt-secret=$JWT_SECRET" \
-    "worker-callback=$WORKER_CALLBACK_SECRET" \
-    "metrics-secret=$METRICS_SCRAPE_SECRET" \
-    "appinsights-conn=$APPLICATIONINSIGHTS_CONNECTION_STRING" \
+  --secrets "${api_secrets[@]}" \
   --output none
 
 log_info "secrets applied: tangle-study-api"

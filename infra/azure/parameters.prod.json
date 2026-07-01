@@ -69,6 +69,7 @@
             "Jwt__ExpiryMinutes": "15",
             "Media__WorkerCallbackSecret": "secretref:worker-callback",
             "Metrics__ScrapeSecret": "secretref:metrics-secret",
+            "Places__ApiKey": "secretref:places-api-key",
             "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
             "ASPNETCORE_ENVIRONMENT": "Production",
             "ASPNETCORE_URLS": "http://+:8080"
