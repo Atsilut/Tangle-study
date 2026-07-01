@@ -168,7 +168,7 @@ Non-secret config can be GitHub **variables** or Bicep parameters:
 
 | Variable | Env var | Default | Notes |
 |----------|---------|---------|-------|
-| — | `TANGLE_API_UPSTREAM` | `api:8080` | Internal API host:port within the Container Apps environment |
+| — | `TANGLE_API_UPSTREAM` | `tangle-study-api` | Internal API short name (ACA HTTP ingress port 80; no `:8080`) |
 
 Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azure (no Azurite proxy). See [`infra/nginx/nginx.production.conf`](../infra/nginx/nginx.production.conf).
 
@@ -471,21 +471,57 @@ Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-contain
 
 ---
 
+## ACA HTTP short names vs `targetPort` (504 / timeout)
+
+Within a Container Apps Environment, callers reach HTTP ingress apps by **short app name**
+(`tangle-study-api`). Unlike Docker Compose (`api:8080`), you must **not** append the
+container `targetPort` to the short name on ACA.
+
+| URL from another Container App | What happens |
+|--------------------------------|--------------|
+| `http://tangle-study-api/health` | Ingress port 80 → forwards to container :8080 → **200** |
+| `http://tangle-study-api:8080/health` | Connects to pod IP :8080 directly → **timeout** |
+| `https://tangle-study-api.internal.<domain>/health` | Internal FQDN on :443 → **200** |
+
+The short name DNS record points at the **ingress front door** (port 80), not the container
+listen port. `:8080` bypasses ingress and hits an unreachable pod address — nginx then returns
+**504** even though a direct curl to `http://tangle-study-api/health` succeeds.
+
+**Web nginx:** [`TANGLE_API_UPSTREAM`](../infra/azure/parameters.prod.json) must be
+`tangle-study-api` (no port). See [`infra/azure/README.md`](../infra/azure/README.md#aca-http-short-names-do-not-append-targetport).
+
+**Diagnose from the web container:**
+
+```bash
+grep -A1 'upstream tangle_api' /etc/nginx/conf.d/default.conf   # must NOT show :8080
+curl -sf http://tangle-study-api/health                          # direct — should work
+curl -sv http://127.0.0.1/health                                # via nginx — 504 if upstream wrong
+```
+
+**Fix:** redeploy web so nginx re-renders config at startup:
+
+```bash
+az containerapp update -n tangle-study-web -g tangle-study-prod \
+  --set-env-vars TANGLE_API_UPSTREAM=tangle-study-api TANGLE_API_HOST=tangle-study-api
+```
+
+---
+
 ## Troubleshooting (smoke `/health` failures)
 
 [`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh) hits the public **web** URL. `/health` is proxied to the internal API (`TANGLE_API_UPSTREAM`). CD waits for API/web revisions to be `Healthy` before curling.
 
 | HTTP code | Meaning | What to check |
 |-----------|---------|----------------|
-| **000** | curl timed out (no bytes) | API revision still activating, readiness failing, or nginx waiting on unreachable API upstream |
-| **404** | web/nginx responded; wrong upstream | API `targetPort` / `TANGLE_API_UPSTREAM` mismatch (placeholder 80 vs API 8080) |
-| **502 / 503** | web reached API; `/health` failed | API logs; Postgres or Redis dependency checks Unhealthy |
+| **000** | curl timed out (no bytes) | API revision still activating, readiness failing, or nginx upstream unreachable (see [ACA short names vs targetPort](#aca-http-short-names-vs-targetport-504--timeout)) |
+| **404** | web/nginx responded; API returned not found | Wrong path (use `/health`, not `/api/health`) or stale routing |
+| **502 / 503 / 504** | web/nginx reached or waited on API | **504** often means `TANGLE_API_UPSTREAM` includes `:8080`; **503** means API dependency unhealthy |
 
 ### HTTP 000 (timeout)
 
 **Symptom:** Smoke logs `HTTP 000` and `curl: (28) Operation timed out ... 0 bytes received`.
 
-**Cause:** CD curled before the API revision was ready to serve traffic, or nginx hung on `tangle-study-api:8080` (no ready replicas).
+**Cause:** CD curled before the API revision was ready to serve traffic, or nginx hung on an unreachable upstream (e.g. `tangle-study-api:8080` — ACA short names must omit the port; use `tangle-study-api` only).
 
 **Fix:** Re-run smoke after revisions settle:
 
@@ -510,7 +546,7 @@ SMOKE_SKIP_API_WAIT=1 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-
 
 **Symptom:** [`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh) fails; web nginx logs show `GET /health HTTP/1.1" 404`.
 
-**Cause:** Web nginx proxies `/health` to the internal API (`TANGLE_API_UPSTREAM`, default `tangle-study-api:8080`). Infra deployed with **placeholder images** sets API **targetPort=80** and web **`TANGLE_API_UPSTREAM=tangle-study-api:80`**. After CD pushes real API images (Kestrel on **8080**), the proxy hits the wrong port and ACA often returns **404**.
+**Cause:** Web nginx proxies `/health` to the internal API (`TANGLE_API_UPSTREAM`, default `tangle-study-api`). ACA HTTP ingress listens on port 80 for short app names — do **not** append `:8080` (connects to pod IP and times out). Infra deployed with **placeholder images** may also drift `targetPort` until CD reconciles env from [`parameters.prod.json`](../infra/azure/parameters.prod.json).
 
 **Fix:** Re-run deploy-image to reconcile `TANGLE_API_UPSTREAM` from [`parameters.prod.json`](../infra/azure/parameters.prod.json), then smoke:
 
@@ -527,7 +563,7 @@ az containerapp show -n tangle-study-api -g tangle-study-prod \
 
 az containerapp show -n tangle-study-web -g tangle-study-prod \
   --query "properties.template.containers[0].env[?name=='TANGLE_API_UPSTREAM']" -o yaml
-# expect value: tangle-study-api:8080
+# expect value: tangle-study-api
 ```
 
 If `/health` still fails with **503** or `Unhealthy`, the API is up but a dependency check failed (Postgres, Redis) — check `tangle-study-api` logs.

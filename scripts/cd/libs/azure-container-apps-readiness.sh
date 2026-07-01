@@ -295,10 +295,14 @@ probe_http_health_via_exec() {
   local probe_app="$1"
   local rg="$2"
   local host="$3"
-  local port="${4:-8080}"
-  local upstream="${host}:${port}"
-  local command output_file
+  local port="${4:-}"
+  local upstream command output_file
 
+  if [[ -n "$port" ]]; then
+    upstream="${host}:${port}"
+  else
+    upstream="$host"
+  fi
   command="wget -qO- --timeout=15 http://${upstream}/health"
   output_file="$(mktemp)"
   run_container_app_exec "$probe_app" "$probe_app" "$command" "$rg" >"$output_file" 2>&1 || true
@@ -320,12 +324,12 @@ wait_for_api_http_from_web() {
   local rg="$2"
   local host="$3"
   local api_app="$4"
-  local port="${5:-8080}"
+  local port="${5:-}"
   local max_attempts="${6:-6}"
   local interval="${7:-15}"
   local attempt label
 
-  label="$(api_http_upstream_log_label "$host" "$port" "$api_app")"
+  label="$(api_http_upstream_log_label "$host" "${port:-80}" "$api_app")"
 
   for (( attempt=1; attempt<=max_attempts; attempt++ )); do
     if probe_http_health_via_exec "$web_app" "$rg" "$host" "$port"; then
@@ -346,22 +350,26 @@ try_api_http_hosts_from_web() {
   local web_app="$1"
   local api_app="$2"
   local rg="$3"
-  local port="${4:-8080}"
-  local fqdn_host short_host
+  local port="${4:-}"
+  local fqdn_host short_host discovered_upstream
 
   API_HTTP_UPSTREAM=""
   fqdn_host="$(aca_internal_app_host "$api_app" "$rg")"
   short_host="$api_app"
 
-  echo "==> Probing ACA short app name $(api_http_upstream_log_label "$short_host" "$port" "$api_app") from ${web_app}"
+  echo "==> Probing ACA short app name $(api_http_upstream_log_label "$short_host" "${port:-80}" "$api_app") from ${web_app}"
   if wait_for_api_http_from_web "$web_app" "$rg" "$short_host" "$api_app" "$port" 3 10; then
-    API_HTTP_UPSTREAM="${short_host}:${port}"
+    discovered_upstream="$short_host"
+    [[ -n "$port" ]] && discovered_upstream="${short_host}:${port}"
+    API_HTTP_UPSTREAM="$discovered_upstream"
     return 0
   fi
 
-  echo "==> Short app name probe failed; trying $(api_http_upstream_log_label "$fqdn_host" "$port" "$api_app") from ${web_app}" >&2
+  echo "==> Short app name probe failed; trying $(api_http_upstream_log_label "$fqdn_host" "${port:-80}" "$api_app") from ${web_app}" >&2
   if wait_for_api_http_from_web "$web_app" "$rg" "$fqdn_host" "$api_app" "$port"; then
-    API_HTTP_UPSTREAM="${fqdn_host}:${port}"
+    discovered_upstream="$fqdn_host"
+    [[ -n "$port" ]] && discovered_upstream="${fqdn_host}:${port}"
+    API_HTTP_UPSTREAM="$discovered_upstream"
     return 0
   fi
 
@@ -391,10 +399,10 @@ probe_web_api_health_via_exec() {
     return 1
   fi
 
-  port=8080
+  port=""
   host="${api_app}"
-  short_label="$(api_http_upstream_log_label "$host" "$port" "$api_app")"
-  fqdn_label="$(api_http_upstream_log_label "$(aca_internal_app_host "$api_app" "$rg")" "$port" "$api_app")"
+  short_label="$(api_http_upstream_log_label "$host" "80" "$api_app")"
+  fqdn_label="$(api_http_upstream_log_label "$(aca_internal_app_host "$api_app" "$rg")" "80" "$api_app")"
 
   upstream="$(container_app_env_var "$web_app" "$rg" "TANGLE_API_UPSTREAM")"
   if [[ -z "$upstream" ]]; then

@@ -112,14 +112,13 @@ var redisInternalHost = 'tangle-study-redis'
 var redisConnectionString = '${redisInternalHost}:6379'
 var redisUrl = 'redis://${redisConnectionString}'
 var apiAppHost = 'tangle-study-api'
-var apiAppPort = usePlaceholderImages ? 80 : 8080
 
-// NOTE: This is only applied on initial bootstrap (azure-deploy-infra.sh).
-// Routine CD deploys (azure-cd-deploy-image.sh) read TANGLE_API_UPSTREAM
-// directly from parameters.prod.json's containerApps.tangle-study-web.env
-// and will override this value. Keep both in sync manually.
-var apiAppUpstream = '${apiAppHost}:${apiAppPort}'
-var apiAppBaseUrl = 'http://${apiAppUpstream}'
+// ACA HTTP ingress: short app names route on port 80 (ingress front door), not
+// the container targetPort. Do not append :8080 — callers time out on pod IP.
+// NOTE: Bootstrap-only (azure-deploy-infra.sh). CD reads TANGLE_API_UPSTREAM
+// from parameters.prod.json; keep both in sync.
+var apiAppUpstream = apiAppHost
+var apiAppBaseUrl = 'http://${apiAppHost}'
 var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'
 
 module redis 'modules/infra-container.bicep' = {

@@ -86,18 +86,74 @@ there. Routine CD deploys never read this flag at all.
 
 Use **internal FQDNs** (`tangle-study-<app>.internal.<cae-default-domain>`) for Redis and scrape targets — short names are unreliable for ACA TCP routing.
 
-For **HTTP ingress** apps (API, web-to-API), the short Container App name
-(e.g. `tangle-study-api:8080`) resolves fine within the same Container Apps
-Environment and is what `TANGLE_API_UPSTREAM` uses — no FQDN needed. The FQDN
-requirement below applies specifically to **TCP ingress** (Redis, Postgres-era
-scrape targets), where short-name DNS resolution has been unreliable in
-practice.
+### ACA HTTP short names: do not append `targetPort`
+
+Within a Container Apps Environment, HTTP ingress apps can be reached by **short app name**
+(e.g. `tangle-study-api`). This behaves differently from Docker Compose, where `api:8080`
+works because the service listens on that port directly.
+
+On ACA, the short name resolves to the **ingress front door** (port **80**), which forwards
+to the container's `targetPort` (8080 for our API). If you append `:8080` to the short name,
+the client connects to the **pod IP on port 8080** instead of the ingress — and that port is
+not exposed on the pod network, so the connection **times out**.
+
+| Caller URL | Result |
+|------------|--------|
+| `http://tangle-study-api/health` | Works — ingress :80 → container :8080 |
+| `http://tangle-study-api:8080/health` | **Timeout** — hits pod IP :8080 directly |
+| `https://tangle-study-api.internal.<domain>/health` | Works — internal FQDN on :443 |
+
+**Symptoms when misconfigured** (`TANGLE_API_UPSTREAM=tangle-study-api:8080`):
+
+- Direct curl from web container to `http://tangle-study-api/health` → **200 Healthy**
+- Curl through nginx (`http://127.0.0.1/health`) → **504 Gateway Timeout**
+- Public smoke test (`https://<web-fqdn>/health`) → **504**
+- Nginx error log: `upstream timed out ... while connecting to upstream` to `100.100.x.x:8080`
+
+**Correct config:** set `TANGLE_API_UPSTREAM` to the short name **only** (no port):
+
+```json
+"TANGLE_API_UPSTREAM": "tangle-study-api",
+"TANGLE_API_HOST": "tangle-study-api"
+```
+
+Nginx renders this at container start ([`infra/nginx/docker-entrypoint.sh`](../nginx/docker-entrypoint.sh)).
+Changing the env var requires a **new web revision** — a running container keeps the old
+upstream until redeployed.
+
+**Verify from the web container** (after exec):
+
+```bash
+# Wrong upstream still baked in?
+grep -A1 'upstream tangle_api' /etc/nginx/conf.d/default.conf
+
+# Direct to API (bypasses nginx) — should work either way
+curl -sf http://tangle-study-api/health
+
+# Through nginx — fails until upstream omits :8080
+curl -sv http://127.0.0.1/health
+```
+
+**Fix in prod:**
+
+```bash
+az containerapp update -n tangle-study-web -g tangle-study-prod \
+  --set-env-vars TANGLE_API_UPSTREAM=tangle-study-api TANGLE_API_HOST=tangle-study-api
+```
+
+Or re-run CD [`scripts/cd/azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh), which reads
+[`parameters.prod.json`](parameters.prod.json).
+
+For **HTTP ingress** apps (API, web→API), use the short Container App name
+**without a port** (e.g. `tangle-study-api`). The FQDN requirement below applies specifically
+to **TCP ingress** (Redis, Postgres-era scrape targets), where short-name DNS resolution has
+been unreliable in practice.
 
 | App | Hostname (within environment) |
 |-----|------------------------------|
 | Postgres | **Neon** (external; not in ACA) |
 | Redis | `tangle-study-redis.internal.<domain>:6379` |
-| API | `tangle-study-api:8080` (HTTP ingress, short name; see note above) |
+| API | `tangle-study-api` (HTTP ingress short name; port 80 implicit) |
 | Prometheus | `tangle-study-prometheus.internal.<domain>:9090` |
 | Web | public FQDN → proxies to API |
 | Grafana | public FQDN (external ingress) |

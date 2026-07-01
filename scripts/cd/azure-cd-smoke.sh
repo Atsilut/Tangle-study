@@ -36,7 +36,7 @@ log_info "web root: $HTTP_CODE ✓"
 
 # 4. Check API /health
 log_info "Checking API /health (via web ingress)..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/api/health")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/health")
 if [[ "$HTTP_CODE" != "200" ]]; then
   log_error "api /health returned $HTTP_CODE"
   exit 1
