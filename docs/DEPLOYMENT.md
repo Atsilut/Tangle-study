@@ -196,7 +196,7 @@ Per-worker settings in [`parameters.prod.json`](../infra/azure/parameters.prod.j
 
 ## Database migrations
 
-Production and staging **do not** apply migrations on API startup. Migrations run as a separate step before rolling out a new API revision.
+Production and staging **do not** apply migrations on API startup. Migrations run as a separate Container Apps Job (`tangle-study-migrate`) that executes `dotnet Api.dll --migrate` from the API image.
 
 ### Command
 
@@ -214,9 +214,9 @@ Implemented in [`DatabaseMigrationRunner.cs`](../services/Api/Global/Db/Database
 
 Uses the `api` image against the compose `db` service (`ASPNETCORE_ENVIRONMENT=Docker`).
 
-### Staging / production
+### Staging / production (manual)
 
-Run before deploying a new API revision:
+Run the migrate job against Neon before relying on a new API build:
 
 ```bash
 ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
@@ -225,11 +225,12 @@ ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
 
 ### CD step (Container Apps Job)
 
-The deploy workflow runs migrations automatically before the new API revision serves traffic:
+The deploy workflow runs migrations automatically **after** images are deployed (the job needs the new API image on GHCR and the migrate job updated first):
 
-1. Build and push API image to GHCR (same tag as app deploy).
-2. Update migrate job image, then `az containerapp job start` on `tangle-study-migrate`.
-3. Proceed only if the job execution status is `Succeeded`.
+1. Build and push images to GHCR (API image tag matches app deploy).
+2. Inject secrets and deploy all Container App images from [`parameters.prod.json`](../infra/azure/parameters.prod.json) — including the API revision and the migrate job image ([`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)).
+3. Start `tangle-study-migrate` ([`azure-cd-migrate.sh`](../scripts/cd/azure-cd-migrate.sh)); proceed only if execution status is `Succeeded`.
+4. Smoke test via web ingress ([`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh)).
 
 Skip on manual runs: **Deploy → Run workflow → Skip EF migrate job**.
 
@@ -586,7 +587,7 @@ Before first deploy:
 2. Set `Media__PublicBlobEndpoint` to the blob account URL clients use for SAS uploads (HTTPS).
 3. Configure blob CORS on the storage account for the web app origin (`PUT` from browser).
 4. Enable Redis — required for SignalR backplane and work queues when the API scales beyond one replica.
-5. Run `./scripts/migrate.sh --production` (or the Container Apps migrate job) before each API deploy — startup does not migrate in Production.
+5. Run `./scripts/migrate.sh --production` (or the Container Apps migrate job) as part of each CD deploy — startup does not migrate in Production.
 
 JWT placeholder in [`security.yml`](../services/Api/security.yml) causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
 
