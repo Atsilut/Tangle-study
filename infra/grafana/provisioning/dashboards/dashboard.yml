@@ -1,11 +1,13 @@
 apiVersion: 1
 
 providers:
-  - name: Tangle
+  - name: Tangle Study
     orgId: 1
-    folder: Tangle
+    folder: Tangle Study
     type: file
     disableDeletion: true
     editable: true
     options:
+      # Compose mount: /etc/grafana/provisioning/dashboards. ACA: rewritten at
+      # container start by grafana-start.sh to ${PROV_ROOT}/dashboards.
       path: /etc/grafana/provisioning/dashboards

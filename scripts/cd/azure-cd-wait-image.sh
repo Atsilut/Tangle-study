@@ -12,6 +12,8 @@ IMAGES=(
   tangle-study-api
   tangle-study-web
   tangle-study-worker
+  tangle-study-prometheus
+  tangle-study-grafana
 )
 
 wait_image() {

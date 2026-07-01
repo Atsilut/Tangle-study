@@ -1,5 +1,7 @@
 apiVersion: 1
 
+# Compose: http://prometheus:9090 (Docker service). ACA: grafana-start.sh rewrites to
+# PROMETHEUS_URL (http://tangle-study-prometheus — short name, ingress port 80, no :9090).
 datasources:
   - name: Prometheus
     type: prometheus

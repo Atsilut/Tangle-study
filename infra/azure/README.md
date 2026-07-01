@@ -154,7 +154,7 @@ been unreliable in practice.
 | Postgres | **Neon** (external; not in ACA) |
 | Redis | `tangle-study-redis.internal.<domain>:6379` |
 | API | `tangle-study-api` (HTTP ingress short name; port 80 implicit) |
-| Prometheus | `tangle-study-prometheus.internal.<domain>:9090` |
+| Prometheus | `tangle-study-prometheus` (HTTP ingress short name; Grafana datasource) |
 | Web | public FQDN → proxies to API |
 | Grafana | public FQDN (external ingress) |
 
@@ -200,10 +200,18 @@ The flag only matters if you're re-running the manual bootstrap script.
 |---------------|---------|-------|
 | `tangle-study-postgres-exporter` | internal :9187 | Scrapes Neon (`DATA_SOURCE_NAME` from CD) |
 | `tangle-study-redis-exporter` | internal :9121 | Scrapes internal Redis |
-| `tangle-study-prometheus` | internal :9090 | Scrapes API, workers, exporters |
-| `tangle-study-grafana` | **external** :3000 | Login `admin` / `GRAFANA_ADMIN_PASSWORD` |
+| `tangle-study-prometheus` | internal | Custom GHCR image; scrapes API (short name), workers/exporters (internal FQDN) |
+| `tangle-study-grafana` | **external** :3000 | Custom GHCR image; login `admin` / `GRAFANA_ADMIN_PASSWORD` |
 
-Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details.
+**CD path:** [`scripts/cd/azure-cd-build-push.sh`](../../scripts/cd/azure-cd-build-push.sh) builds
+`tangle-study-prometheus` and `tangle-study-grafana` from [`monitoring/`](monitoring/) (bundles
+[`infra/grafana/provisioning/`](../grafana/provisioning/) and recording rules). Deploy sets image +
+env from [`parameters.prod.json`](parameters.prod.json); [`azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh)
+also injects `ACA_DEFAULT_DOMAIN` (Prometheus) and `PROMETHEUS_URL=http://tangle-study-prometheus`
+(Grafana). Do **not** deploy vanilla `prom/prometheus` or `grafana/grafana` — they skip the ACA
+entrypoints and provisioning.
+
+Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details. HTTP short names must omit `targetPort` — see [ACA HTTP short names](#aca-http-short-names-do-not-append-targetport).
 
 ## After Bicep deploy
 

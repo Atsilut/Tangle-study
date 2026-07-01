@@ -119,7 +119,7 @@ var apiAppHost = 'tangle-study-api'
 // from parameters.prod.json; keep both in sync.
 var apiAppUpstream = apiAppHost
 var apiAppBaseUrl = 'http://${apiAppHost}'
-var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'
+var prometheusInternalUrl = 'http://tangle-study-prometheus'
 
 module redis 'modules/infra-container.bicep' = {
   name: 'infra-redis'

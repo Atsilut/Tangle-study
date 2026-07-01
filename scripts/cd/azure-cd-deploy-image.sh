@@ -19,6 +19,42 @@ log_step "INTEGRATED APPLICATION DEPLOYMENT START"
 log_info "resource-group=$AZURE_RESOURCE_GROUP param-file=$PARAM_FILE"
 
 ############################################
+# Resolve ACA environment domain (for Prometheus scrape config at runtime).
+ACA_DEFAULT_DOMAIN=""
+PROMETHEUS_URL="http://tangle-study-prometheus"
+PROBE_APP="${ACA_PROBE_APP:-tangle-study-api}"
+
+if az containerapp show --name "$PROBE_APP" --resource-group "$AZURE_RESOURCE_GROUP" &>/dev/null; then
+  env_id="$(az containerapp show \
+    --name "$PROBE_APP" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --query properties.managedEnvironmentId \
+    --output tsv)"
+  env_name="${env_id##*/}"
+  ACA_DEFAULT_DOMAIN="$(az containerapp env show \
+    --name "$env_name" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --query properties.defaultDomain \
+    --output tsv)"
+  log_info "aca-default-domain=$ACA_DEFAULT_DOMAIN"
+else
+  log_warn "probe app $PROBE_APP not found; monitoring env vars will be skipped"
+fi
+
+append_monitoring_env() {
+  local app_name="$1"
+  case "$app_name" in
+    tangle-study-prometheus)
+      [[ -n "$ACA_DEFAULT_DOMAIN" ]] || return 0
+      env_args+=("ACA_DEFAULT_DOMAIN=${ACA_DEFAULT_DOMAIN}")
+      ;;
+    tangle-study-grafana)
+      env_args+=("PROMETHEUS_URL=${PROMETHEUS_URL}")
+      ;;
+  esac
+}
+
+############################################
 log_step "PROCESSING CONTAINER APPS"
 
 # Iterate through all configured container apps exactly once
@@ -53,6 +89,8 @@ jq -c '.parameters.containerApps | to_entries[]' "$PARAM_FILE" \
           env_args+=("${k}=${v}")
         fi
       done < <(echo "$env_json" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
+
+      append_monitoring_env "$name"
 
       # 3. Build and execute a single atomic CLI command to prevent duplicate revisions
       cmd=("az" "containerapp" "update" "--name" "$name" "--resource-group" "$AZURE_RESOURCE_GROUP" "--output" "none")

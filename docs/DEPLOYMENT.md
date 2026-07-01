@@ -245,12 +245,17 @@ Container Apps platform logs go to the same Log Analytics workspace.
 
 ### Prometheus + Grafana on ACA
 
-Bicep deploys a **monitoring stack** on Container Apps (Compose parity):
+Bicep deploys a **monitoring stack** on Container Apps (Compose parity). **CD** builds custom
+GHCR images (`tangle-study-prometheus`, `tangle-study-grafana`) that bundle provisioning from
+[`infra/grafana/provisioning/`](../infra/grafana/provisioning/) and ACA scrape entrypoints from
+[`infra/azure/monitoring/`](../infra/azure/monitoring/). Deploy injects `ACA_DEFAULT_DOMAIN` and
+`PROMETHEUS_URL` at runtime — see [`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh).
+HTTP short app names must omit `targetPort` ([ACA short names](../infra/azure/README.md#aca-http-short-names-do-not-append-targetport)).
 
 | App | Access | Notes |
 |-----|--------|-------|
-| `tangle-study-grafana` | External HTTPS FQDN | `admin` / `GRAFANA_ADMIN_PASSWORD` |
-| `tangle-study-prometheus` | Internal only | Scrapes API, workers, postgres/redis exporters |
+| `tangle-study-grafana` | External HTTPS FQDN | Custom image; `admin` / `GRAFANA_ADMIN_PASSWORD`; datasource → `http://tangle-study-prometheus` |
+| `tangle-study-prometheus` | Internal only | Custom image; scrapes API (`tangle-study-api`), workers/exporters (internal FQDN) |
 | `tangle-study-postgres-exporter` | Internal | Connects to Neon |
 | `tangle-study-redis-exporter` | Internal | Scrapes internal Redis |
 

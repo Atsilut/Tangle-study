@@ -184,7 +184,7 @@ The same Prometheus/Grafana provisioning (`infra/grafana/provisioning/`, `infra/
 ```
 infra/azure/monitoring/
   prometheus/Dockerfile          # ACA scrape config at container start
-  prometheus/prometheus-start.sh # internal FQDN targets + X-Metrics-Secret
+  prometheus/prometheus-start.sh # ACA scrape targets at container start (API short name)
   grafana/Dockerfile             # sed Prometheus datasource to internal URL
   grafana/grafana-start.sh
 ```
@@ -195,10 +195,15 @@ infra/azure/monitoring/
 | `grafana:3000` (host) | `tangle-study-grafana` (external FQDN) |
 | `postgres-exporter` → compose `db` | `tangle-study-postgres-exporter` → **Neon** |
 | `redis-exporter` → compose `redis` | `tangle-study-redis-exporter` → internal Redis |
-| `api:8080/metrics` | `tangle-study-api.internal.<domain>:8080/metrics` |
+| `api:8080/metrics` | `tangle-study-api/metrics` (short name; ACA ingress port 80) |
 | `rust-worker-*:9090/metrics` | `tangle-study-worker-*.internal.<domain>:9090/metrics` |
 
-CD builds and deploys `tangle-study-prometheus` and `tangle-study-grafana` alongside app images. Secrets: `METRICS_SCRAPE_SECRET`, `GRAFANA_ADMIN_PASSWORD`, and Neon `POSTGRES_CONNECTION_STRING` (postgres-exporter DSN derived at inject time).
+CD ([`scripts/cd/azure-cd-build-push.sh`](../scripts/cd/azure-cd-build-push.sh)) builds and pushes
+`tangle-study-prometheus` and `tangle-study-grafana` alongside api/web/worker. Deploy
+([`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)) sets GHCR images plus runtime
+env: Prometheus `ACA_DEFAULT_DOMAIN`, Grafana `PROMETHEUS_URL=http://tangle-study-prometheus`.
+Secrets: `METRICS_SCRAPE_SECRET`, `GRAFANA_ADMIN_PASSWORD`, and Neon `POSTGRES_CONNECTION_STRING`
+(postgres-exporter DSN derived at inject time). See [infra/azure/README.md](azure/README.md#monitoring-on-aca).
 
 Grafana login on Azure: `admin` / `GRAFANA_ADMIN_PASSWORD`. Resolve URL:
 

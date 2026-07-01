@@ -3,7 +3,7 @@ apiVersion: 1
 groups:
   - orgId: 1
     name: tangle-study-api-http
-    folder: Tangle
+    folder: Tangle Study
     interval: 1m
     rules:
       - uid: tang_api_scrape_down

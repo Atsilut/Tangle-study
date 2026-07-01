@@ -117,6 +117,24 @@
           }
         },
 
+        "tangle-study-prometheus": {
+          "type": "prometheus",
+          "image": "tangle-study-prometheus",
+          "env": {
+            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+          }
+        },
+
+        "tangle-study-grafana": {
+          "type": "grafana",
+          "image": "tangle-study-grafana",
+          "env": {
+            "GF_SECURITY_ADMIN_USER": "admin",
+            "GF_USERS_ALLOW_SIGN_UP": "false",
+            "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
+          }
+        },
+
         "tangle-study-redis": {
           "type": "redis",
           "infraImage": "redis",
@@ -134,22 +152,6 @@
           "infraImage": "postgresExporter",
           "env": {
             "DATA_SOURCE_NAME": "secretref:postgres-dsn"
-          }
-        },
-
-        "tangle-study-prometheus": {
-          "type": "prometheus",
-          "infraImage": "prometheus",
-          "env": {
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
-          }
-        },
-
-        "tangle-study-grafana": {
-          "type": "grafana",
-          "infraImage": "grafana",
-          "env": {
-            "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
           }
         }
     }

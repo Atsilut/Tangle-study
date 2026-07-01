@@ -31,6 +31,8 @@ NODE_IMG="$(param_build_image node)"
 NGINX_IMG="$(param_build_image nginx)"
 RUST_IMG="$(param_build_image rust)"
 DEBIAN_IMG="$(param_build_image debian)"
+PROMETHEUS_IMG="$(param_infra_image prometheus)"
+GRAFANA_IMG="$(param_infra_image grafana)"
 
 # ----------------------------
 # 2. OPTIMIZED IMAGE LIST
@@ -39,12 +41,16 @@ IMAGES=(
   tangle-study-api
   tangle-study-web
   tangle-study-worker
+  tangle-study-prometheus
+  tangle-study-grafana
 )
 
 declare -A DOCKERFILE_MAP=(
   [tangle-study-api]="services/Api/Dockerfile"
   [tangle-study-web]="clients/web/Dockerfile"
   [tangle-study-worker]="workers/rust-worker/Dockerfile"
+  [tangle-study-prometheus]="infra/azure/monitoring/prometheus/Dockerfile"
+  [tangle-study-grafana]="infra/azure/monitoring/grafana/Dockerfile"
 )
 
 # ----------------------------
@@ -67,6 +73,12 @@ set_build_args() {
       ;;
     tangle-study-worker)
       BUILD_ARGS+=("--build-arg" "RUST_IMAGE=$RUST_IMG" "--build-arg" "DEBIAN_IMAGE=$DEBIAN_IMG")
+      ;;
+    tangle-study-prometheus)
+      BUILD_ARGS+=("--build-arg" "PROMETHEUS_IMAGE=$PROMETHEUS_IMG")
+      ;;
+    tangle-study-grafana)
+      BUILD_ARGS+=("--build-arg" "GRAFANA_IMAGE=$GRAFANA_IMG")
       ;;
   esac
 }
