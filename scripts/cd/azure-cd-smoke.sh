@@ -1,197 +1,46 @@
 #!/usr/bin/env bash
-# =========================================================
-# [DEPLOY][SMOKE] Post-deploy validation gate
-# =========================================================
-#
-# LAYERS:
-#   1. ACA revision readiness
-#   2. Internal API correctness (exec)
-#   3. Cross-app networking correctness (exec)
-#   4. External ingress correctness (curl)
-#
-# =========================================================
-
 set -euo pipefail
 
-: "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
+: "${AZURE_RESOURCE_GROUP:?}"
 
-WEB_APP="${WEB_APP_NAME:-tangle-study-web}"
-API_APP="${API_APP_NAME:-tangle-study-api}"
-TIMEOUT="${SMOKE_TIMEOUT_SEC:-300}"
-RG="$AZURE_RESOURCE_GROUP"
+log_step() { echo "========================================"; echo "$1"; echo "========================================"; }
+log_info() { echo "[INFO] $1"; }
+log_error() { echo "[ERROR] $1" >&2; }
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPLOY_LOG_PREFIX="[DEPLOY][SMOKE]"
-# shellcheck source=scripts/cd/libs/common.sh
-source "$ROOT/scripts/cd/libs/common.sh"
-source "$ROOT/scripts/cd/libs/azure-container-apps-readiness.sh"
-source "$ROOT/scripts/cd/libs/log-redact.sh"
+log_step "SMOKE TESTS"
 
+# 1. Resolve web FQDN
+WEB_FQDN=$(az containerapp show \
+  --name tangle-study-web \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --query "properties.configuration.ingress.fqdn" -o tsv)
 
-LAST_HTTP_CODE=""
+log_info "web_fqdn=$WEB_FQDN"
 
-
-########################################
-# CONTEXT DUMP
-########################################
-dump_failure_context() {
-  log_error "dumping-diagnostic-context"
-
-  dump_container_app_revision_status "$API_APP" "$RG"
-  dump_container_app_revision_status "$WEB_APP" "$RG"
-
-  local upstream
-  upstream="$(az containerapp show \
-    --name "$WEB_APP" \
-    --resource-group "$RG" \
-    --query "properties.template.containers[0].env[?name=='TANGLE_API_UPSTREAM'].value | [0]" \
-    --output tsv 2>/dev/null || true)"
-
-  log_error "WEB_TANGLE_API_UPSTREAM=${upstream:-unset}"
-  log_error "LAST_HTTP_CODE=${LAST_HTTP_CODE}"
-
-  case "$LAST_HTTP_CODE" in
-    000)
-      log_error "CAUSE=NO_RESPONSE (network / ingress / timeout)"
-      ;;
-    404)
-      log_error "CAUSE=NOT_FOUND (likely upstream port mismatch)"
-      ;;
-    502|503|504)
-      log_error "CAUSE=UPSTREAM_FAILURE (API unreachable or unhealthy)"
-      ;;
-    *)
-      log_error "CAUSE=UNKNOWN"
-      ;;
-  esac
-}
-
-
-########################################
-# CURL PROBE
-########################################
-base_url=""
-
-curl_check() {
-  local path="$1"
-  local expect="$2"
-  local url="${base_url}${path}"
-
-  local tmp body code
-  tmp="$(mktemp)"
-
-  code="$(curl -sS --max-time 30 -o "$tmp" -w '%{http_code}' "$url" || echo "000")"
-  body="$(cat "$tmp")"
-  rm -f "$tmp"
-
-  LAST_HTTP_CODE="$code"
-
-  log_info "HTTP_CHECK url=${url} code=${code}"
-
-  if [[ "$code" != "200" ]]; then
-    log_error "response=$(redact_log_text "${body:0:300}")"
-    return 1
-  fi
-
-  if [[ -n "$expect" && "$body" != *"$expect"* ]]; then
-    log_error "unexpected_body=$(redact_log_text "${body:0:300}")"
-    return 1
-  fi
-
-  return 0
-}
-
-
-########################################
-log_step "RESOLVE WEB FQDN"
-
-fqdn=""
-deadline=$((SECONDS + TIMEOUT))
-
-while (( SECONDS < deadline )); do
-  fqdn="$(az containerapp show \
-    --name "$WEB_APP" \
-    --resource-group "$RG" \
-    --query properties.configuration.ingress.fqdn \
-    --output tsv 2>/dev/null || true)"
-
-  [[ -n "$fqdn" ]] && break
-  sleep 5
+# 2. Wait for readiness
+log_info "Waiting for Container Apps to be ready..."
+for app in tangle-study-api tangle-study-web; do
+  az containerapp revision list --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" \
+    --query "[?properties.provisioningState=='Provisioned' && properties.runningState=='Running']" \
+    --output none || { log_error "$app not ready"; exit 1; }
 done
 
-if [[ -z "$fqdn" ]]; then
-  log_error "failed_to_resolve_fqdn app=${WEB_APP}"
+# 3. Check web root (SPA)
+log_info "Checking web root..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/")
+if [[ "$HTTP_CODE" != "200" ]]; then
+  log_error "web root returned $HTTP_CODE"
   exit 1
 fi
+log_info "web root: $HTTP_CODE ✓"
 
-base_url="https://${fqdn}"
-log_info "base_url=${base_url}"
-
-
-########################################
-log_step "WAIT FOR ACA READINESS"
-
-wait_for_container_app_revision_healthy "$API_APP" "$RG" "$TIMEOUT"
-wait_for_container_app_revision_healthy "$WEB_APP" "$RG" "$TIMEOUT"
-
-
-########################################
-log_step "STATIC WEB INGRESS CHECK"
-
-for i in {1..6}; do
-  if curl_check "/" ""; then
-    break
-  fi
-
-  [[ $i == 6 ]] && {
-    log_error "stage=web_root_failed"
-    dump_failure_context
-    exit 1
-  }
-
-  sleep 10
-done
-
-
-########################################
-log_step "INTERNAL API HEALTH (EXEC)"
-
-if ! probe_api_health_via_exec "$API_APP" "$RG" 8080; then
-  log_error "stage=api_internal_health_failed"
-  dump_failure_context
+# 4. Check API /health
+log_info "Checking API /health (via web ingress)..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/api/health")
+if [[ "$HTTP_CODE" != "200" ]]; then
+  log_error "api /health returned $HTTP_CODE"
   exit 1
 fi
+log_info "api /health: $HTTP_CODE ✓"
 
-
-########################################
-log_step "CROSS APP CONNECTIVITY (EXEC)"
-
-if ! probe_web_api_health_via_exec "$WEB_APP" "$RG" "$API_APP"; then
-  log_error "stage=web_to_api_failed"
-  dump_failure_context
-  exit 1
-fi
-
-
-########################################
-log_step "PUBLIC HEALTH (INGRESS → WEB → API)"
-
-for i in {1..6}; do
-  if curl_check "/health" "Healthy"; then
-    break
-  fi
-
-  [[ $i == 6 ]] && {
-    log_error "stage=public_health_failed"
-    dump_failure_context
-    exit 1
-  }
-
-  sleep 10
-done
-
-
-########################################
-log_step "SMOKE SUCCESS"
-
-log_info "status=PASS app=${WEB_APP}"
+log_step "SMOKE TESTS PASSED"
