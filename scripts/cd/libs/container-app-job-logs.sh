@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Log Analytics + Container Apps Job log helpers for CD scripts.
 
-_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=scripts/lib/log-redact.sh
-source "$_lib_dir/log-redact.sh"
+_libs_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/cd/libs/log-redact.sh
+source "$_libs_dir/log-redact.sh"
 
 resolve_log_analytics_workspace_id() {
   local rg="$1"

@@ -157,7 +157,7 @@ docker run --rm -v "$(pwd):/src" -w /src/workers/rust-worker rust:bookworm cargo
 Full end-to-end path through Redis, Azurite, ffmpeg, and the API callback — not covered by `cargo test` alone:
 
 ```bash
-./scripts/run-media-harness.sh
+./scripts/ci/run-media-harness.sh
 ```
 
 From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.

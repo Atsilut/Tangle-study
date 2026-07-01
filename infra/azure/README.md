@@ -116,7 +116,7 @@ is invisible to the other.
   `TANGLE_API_UPSTREAM` for web, based on `usePlaceholderImages`). This is
   meant for first-time setup or infra-only changes (module edits), and is
   not re-run automatically by CD.
-- **CD (`main` branch / Deploy workflow → `azure-cd-deploy-image.sh`)**:
+- **CD (`main` branch / Deploy workflow → `scripts/cd/azure-cd-deploy-image.sh`)**:
   the routine deploy path. Builds and pushes GHCR images, waits for
   propagation, then calls `az containerapp update --set-env-vars` per app
   using **`parameters.prod.json` → `containerApps.<name>.env` as the single
@@ -166,8 +166,8 @@ Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../gr
 2. Copy storage account connection string → GitHub secret `BLOB_CONNECTION_STRING`.
 3. Set GitHub Environment **`prod`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_CONNECTION_STRING` and `GRAFANA_ADMIN_PASSWORD`.
 4. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and updates Container Apps.
-5. Migrate runs automatically via `scripts/azure-cd-migrate.sh` in the deploy workflow.
-6. Smoke tests run via `scripts/azure-cd-smoke.sh` (`/health` + SPA shell).
+5. Migrate runs automatically via `scripts/cd/azure-cd-migrate.sh` in the deploy workflow.
+6. Smoke tests run via `scripts/cd/azure-cd-smoke.sh` (`/health` + SPA shell).
 
 If upgrading from an older stack with `tangle-study-postgres`, delete the orphaned Container App and `postgres-data` file share after redeploying Bicep.
 

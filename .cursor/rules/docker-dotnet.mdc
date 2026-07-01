@@ -28,14 +28,14 @@ Build the SDK image first if needed: `docker compose --profile tools build sdk`.
 
 ## Tests
 
-Run tests via `scripts/docker-test.sh` (wraps `docker compose --profile test`). The `test` service mounts the host Docker socket — required for Testcontainers. Do **not** use `docker-dotnet.sh` / `sdk` for integration tests; that container has no Docker access.
+Run tests via `scripts/ci/docker-test.sh` (wraps `docker compose --profile test`). The `test` service mounts the host Docker socket — required for Testcontainers. Do **not** use `docker-dotnet.sh` / `sdk` for integration tests; that container has no Docker access.
 
 ```bash
 # Full suite
-./scripts/docker-test.sh
+./scripts/ci/docker-test.sh
 
 # Filtered run
-./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
 ```
 
 Equivalent without the script:

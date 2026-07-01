@@ -17,8 +17,8 @@ export MSYS_NO_PATHCONV=1
 
 # CI parity: pinned images from docker/versions.prod.env (override with COMPOSE_ENV_FILE).
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"
-# shellcheck source=scripts/lib/compose-env.sh
-source "$ROOT/scripts/lib/compose-env.sh"
+# shellcheck source=scripts/shared/compose-env.sh
+source "$ROOT/scripts/shared/compose-env.sh"
 
 env_file_path="$COMPOSE_ENV_FILE"
 [[ "$env_file_path" != /* ]] && env_file_path="$ROOT/$env_file_path"
@@ -41,12 +41,12 @@ run_rust() {
 
 run_api() {
   echo "==> API integration tests (Testcontainers)"
-  "$ROOT/scripts/docker-test.sh" "$@"
+  "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
 run_harness() {
   echo "==> Media harness (E2E: API + rust-worker-media)"
-  "$ROOT/scripts/run-media-harness.sh"
+  "$ROOT/scripts/ci/run-media-harness.sh"
 }
 
 run_web() {
@@ -64,8 +64,8 @@ Usage: ./scripts/run-all-tests.sh [options] [-- api-test-args...]
 
 Runs, in order:
   1. Rust worker unit tests (cargo test in Docker)
-  2. API integration tests (docker-test.sh / Testcontainers)
-  3. Media harness E2E (run-media-harness.sh)
+  2. API integration tests (scripts/ci/docker-test.sh / Testcontainers)
+  3. Media harness E2E (scripts/ci/run-media-harness.sh)
   4. Web client tests (Vitest in Docker)
 
 Options:
@@ -76,7 +76,7 @@ Options:
   --skip-web            Skip web (Vitest) tests
   -h, --help            Show this help
 
-Arguments after "--" are forwarded to docker-test.sh (e.g. test filters).
+Arguments after "--" are forwarded to scripts/ci/docker-test.sh (e.g. test filters).
 
 Examples:
   ./scripts/run-all-tests.sh

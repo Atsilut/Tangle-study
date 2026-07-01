@@ -6,28 +6,31 @@ export DOCKER_BUILDKIT=1
 : "${CONTAINER_REGISTRY:?}"
 : "${IMAGE_TAG:?}"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DEPLOY_LOG_PREFIX="[DEPLOY][BUILD]"
+# shellcheck source=scripts/cd/libs/common.sh
+source "$ROOT/scripts/cd/libs/common.sh"
+
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 NGINX_PROD_CONF="infra/nginx/nginx.production.conf"
 
-if [[ ! -f "$PARAM_FILE" ]]; then
-  echo "[FATAL] missing parameter file: $PARAM_FILE" >&2
-  exit 1
-fi
+[[ -f "$PARAM_FILE" ]] || fail "missing parameter file: $PARAM_FILE"
 
-echo "========================================"
-echo "[DEPLOY] BUILD & PUSH"
-echo "========================================"
+log_step "BUILD & PUSH"
+
+# shellcheck source=scripts/ci/libs/read-parameters.sh
+source "$ROOT/scripts/ci/libs/read-parameters.sh"
 
 # ----------------------------
 # 1. PARSE CONFIG
 # ----------------------------
-echo "[INFO] Reading build image tags from $PARAM_FILE..."
-DOTNET_SDK=$(jq -r '.parameters.buildImages.value.dotnetSdk' "$PARAM_FILE")
-DOTNET_ASPNET=$(jq -r '.parameters.buildImages.value.dotnetAspnet' "$PARAM_FILE")
-NODE_IMG=$(jq -r '.parameters.buildImages.value.node' "$PARAM_FILE")
-NGINX_IMG=$(jq -r '.parameters.buildImages.value.nginx' "$PARAM_FILE")
-RUST_IMG=$(jq -r '.parameters.buildImages.value.rust' "$PARAM_FILE")
-DEBIAN_IMG=$(jq -r '.parameters.buildImages.value.debian' "$PARAM_FILE")
+log_info "Reading build image tags from $PARAM_FILE..."
+DOTNET_SDK="$(param_build_image dotnetSdk)"
+DOTNET_ASPNET="$(param_build_image dotnetAspnet)"
+NODE_IMG="$(param_build_image node)"
+NGINX_IMG="$(param_build_image nginx)"
+RUST_IMG="$(param_build_image rust)"
+DEBIAN_IMG="$(param_build_image debian)"
 
 # ----------------------------
 # 2. OPTIMIZED IMAGE LIST
@@ -73,32 +76,28 @@ build_push() {
   local dockerfile="${DOCKERFILE_MAP[$image]}"
   local tag="${CONTAINER_REGISTRY}/${image}:${IMAGE_TAG}"
 
-  echo ""
-  echo "========================================"
-  echo "[BUILD START] $image"
-  echo "========================================"
+  log_step "START $image"
 
   if [[ -z "$dockerfile" || ! -f "$dockerfile" ]]; then
-    echo "[FATAL] Dockerfile missing or not mapped for: $image" >&2
+    log_error "Dockerfile missing or not mapped for: $image"
     ls -al "$(dirname "${dockerfile:-.}")" || true >&2
     exit 1
   fi
 
   set_build_args "$image"
 
-  echo "[INFO] Running docker build for $image..."
+  log_info "Running docker build for $image..."
   if ! docker build \
       -f "$dockerfile" \
       "${BUILD_ARGS[@]}" \
       -t "$tag" \
       .; then
-    echo "[FATAL] docker build failed for $image" >&2
-    exit 1
+    fail "docker build failed for $image"
   fi
 
-  echo "[INFO] Pushing image to registry..."
+  log_info "Pushing image to registry..."
   docker push "$tag"
-  echo "[SUCCESS] $image"
+  log_info "SUCCESS $image"
 }
 
 # ----------------------------
@@ -108,6 +107,4 @@ for img in "${IMAGES[@]}"; do
   build_push "$img"
 done
 
-echo "========================================"
-echo "[DEPLOY] DONE"
-echo "========================================"
+log_step "DONE"

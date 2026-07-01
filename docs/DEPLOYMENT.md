@@ -1,6 +1,6 @@
 # Deployment
 
-Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
+Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via [`.github/workflows/cd-v1.yml`](../.github/workflows/cd-v1.yml).
 
 Local development continues to use Docker Compose — see [README](../README.md).
 
@@ -10,7 +10,7 @@ Local development continues to use Docker Compose — see [README](../README.md)
 
 | Environment | GitHub Environment | Trigger |
 |-------------|-------------------|---------|
-| production | `production` | CI success on `main`, or manual `workflow_dispatch` |
+| production | `prod` | CI success on `main`, or manual `workflow_dispatch` |
 
 `develop` runs CI only — no automatic deploy. Local experiments may use `tangle-study-dev` via `./scripts/azure-deploy-infra.sh dev`.
 
@@ -60,9 +60,9 @@ Bicep sets Redis URL and monitoring hostnames from internal ACA FQDNs. **App sec
 
 ### 1. Azure OIDC federated credential
 
-Create an app registration and federated credential for GitHub Actions ([Microsoft docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)). Use subject `repo:<owner>/<repo>:environment:production`. Grant **Contributor** on resource group `tangle-study-prod`.
+Create an app registration and federated credential for GitHub Actions ([Microsoft docs](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)). Use subject `repo:<owner>/<repo>:environment:prod`. Grant **Contributor** on resource group `tangle-study-prod`.
 
-### 2. GitHub Environment `production`
+### 2. GitHub Environment `prod`
 
 **Variables:**
 
@@ -82,7 +82,7 @@ Create an app registration and federated credential for GitHub Actions ([Microso
 | `JWT_SECRET` | Yes | Min 32 chars |
 | `WORKER_CALLBACK_SECRET` | Yes | Shared with media worker |
 | `METRICS_SCRAPE_SECRET` | Yes | Random string; API, Prometheus, and workers |
-| `POSTGRES_CONNECTION_STRING` | Yes | Neon connection string — Npgsql (`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require\|VerifyCA\|VerifyFull`) or URI (`postgresql://user:pass@host/db?sslmode=require\|verify-ca\|verify-full`) from the Neon console. Validate with [`scripts/validate-postgres-connection-string.sh`](../scripts/validate-postgres-connection-string.sh) before deploy. |
+| `POSTGRES_CONNECTION_STRING` | Yes | Neon connection string — Npgsql (`Host=...;Database=...;Username=...;Password=...;SSL Mode=Require\|VerifyCA\|VerifyFull`) or URI (`postgresql://user:pass@host/db?sslmode=require\|verify-ca\|verify-full`) from the Neon console. |
 | `GRAFANA_ADMIN_PASSWORD` | Yes | Grafana admin login on external ACA app |
 | `PLACES_API_KEY` | No | Google Places / Geocoding |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Auto-fetched from Azure App Insights when unset |
@@ -105,20 +105,18 @@ Create a Neon project + database and set `POSTGRES_CONNECTION_STRING` in GitHub.
 
 ### 4. CD pipeline
 
-After CI passes on **`main`**, [deploy.yml](../.github/workflows/deploy.yml):
+After CI passes on **`main`**, [cd-v1.yml](../.github/workflows/cd-v1.yml):
 
-1. Builds and pushes `tangle-study-api`, `tangle-study-web`, `tangle-study-worker`, `tangle-study-prometheus`, and `tangle-study-grafana` to GHCR
-2. Ensures **Redis internal TCP ingress** (early — before secrets) ([`azure-cd-ensure-redis.sh`](../scripts/azure-cd-ensure-redis.sh) with `REDIS_ENSURE_PHASE=early`)
-3. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.); re-applies Redis env
-4. Updates app images to the commit SHA
-5. Reconciles **API ingress targetPort (8080)** and web **`TANGLE_API_UPSTREAM`** ([`azure-cd-ensure-api-web-runtime.sh`](../scripts/azure-cd-ensure-api-web-runtime.sh))
-6. Probes **Redis cross-app TCP** from the API pod; auto-recycles stale ingress if needed (late ensure-redis)
-7. Runs `tangle-study-migrate` job
-8. Smoke tests (`/health` proxied to API + SPA shell)
+1. Builds and pushes `tangle-study-api`, `tangle-study-web`, and `tangle-study-worker` to GHCR ([`azure-cd-build-push.sh`](../scripts/cd/azure-cd-build-push.sh))
+2. Waits for GHCR image propagation ([`azure-cd-wait-image.sh`](../scripts/cd/azure-cd-wait-image.sh))
+3. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.) ([`azure-cd-inject-secrets.sh`](../scripts/cd/azure-cd-inject-secrets.sh))
+4. Updates app images and env from [`parameters.prod.json`](../infra/azure/parameters.prod.json) ([`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)) — includes `TANGLE_API_UPSTREAM` for web
+5. Runs `tangle-study-migrate` job ([`azure-cd-migrate.sh`](../scripts/cd/azure-cd-migrate.sh))
+6. Smoke tests (`/health` proxied to API + SPA shell) ([`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh))
 
-Manual deploy: **Actions → Deploy → Run workflow** (uses `production` environment).
+Manual deploy: **Actions → CD-v1 → Run workflow** (uses `prod` environment).
 
-Optional: add **required reviewers** on the `production` environment in GitHub for approval gates.
+Optional: add **required reviewers** on the `prod` environment in GitHub for approval gates.
 
 ---
 
@@ -269,7 +267,7 @@ Local Prometheus/Grafana under [`infra/`](../infra/) remain for Docker Compose (
 
 ### Post-deploy smoke tests
 
-After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh):
+After migrate, [cd-v1.yml](../.github/workflows/cd-v1.yml) runs [`scripts/cd/azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh):
 
 1. Waits for **API and web** Container App revisions to reach `healthState=Healthy`
 2. `GET https://<tangle-study-web-fqdn>/` — SPA shell loads
@@ -278,7 +276,7 @@ After migrate, [deploy.yml](../.github/workflows/deploy.yml) runs [`scripts/azur
 Manual run:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 ---
@@ -296,7 +294,7 @@ az containerapp show --name tangle-study-web --resource-group tangle-study-prod 
 
 Open `https://<fqdn>/` in a browser. Use two test accounts (User A and User B) for social features.
 
-Automated smoke tests ([`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh)) only cover `/health` and the SPA shell — they do not replace this checklist.
+Automated smoke tests ([`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh)) only cover `/health` and the SPA shell — they do not replace this checklist.
 
 ### Pre-flight
 
@@ -402,11 +400,7 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
 
    (`sslmode=verify-ca` or `verify-full` also accepted.)
 
-2. Validate locally before deploy:
-
-   ```bash
-   POSTGRES_CONNECTION_STRING='...' ./scripts/validate-postgres-connection-string.sh
-   ```
+2. Confirm the connection string format (Npgsql or URI) matches Neon console output before setting the GitHub secret.
 
 3. Re-inject and re-run migrate:
 
@@ -418,14 +412,14 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
    WORKER_CALLBACK_SECRET='...' \
    METRICS_SCRAPE_SECRET='...' \
    GRAFANA_ADMIN_PASSWORD='...' \
-     bash scripts/azure-cd-inject-secrets.sh
+     bash scripts/cd/azure-cd-inject-secrets.sh
 
-   AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/azure-cd-migrate.sh
+   AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-migrate.sh
    ```
 
-   Or trigger **Actions → Deploy → Run workflow**.
+   Or trigger **Actions → CD-v1 → Run workflow**.
 
-CD now rejects malformed strings in [`scripts/azure-cd-inject-secrets.sh`](../scripts/azure-cd-inject-secrets.sh) before injecting secrets. Migrate job logs are dumped automatically on failure in [`scripts/azure-cd-migrate.sh`](../scripts/azure-cd-migrate.sh).
+CD now rejects malformed strings in [`scripts/cd/azure-cd-inject-secrets.sh`](../scripts/cd/azure-cd-inject-secrets.sh) before injecting secrets. Migrate job logs are dumped automatically on failure in [`scripts/cd/azure-cd-migrate.sh`](../scripts/cd/azure-cd-migrate.sh).
 
 If the password appeared in Log Analytics, rotate it in the Neon console.
 
@@ -440,35 +434,22 @@ If the password appeared in Log Analytics, rotate it in the Neon console.
 - `tangle-study-redis` deployed **without internal TCP ingress**
 - Ingress metadata looks correct but ACA Envoy routing is **stale** (same class as historical Postgres TCP issues)
 
-The API connection string uses the **internal FQDN** (not the short app name). CD runs ensure-redis **twice**: early (enable ingress + env) and **late** (cross-app TCP probe + auto-recycle) after image/runtime reconcile.
+The API connection string uses the **internal FQDN** (not the short app name).
 
-**Fix:** Re-run late ensure manually:
-
-```bash
-REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
-  ./scripts/azure-cd-ensure-redis.sh
-```
-
-Force ingress recycle if probe still fails:
+**Fix:** Verify Redis ingress and API env, then re-deploy and re-run smoke:
 
 ```bash
-INFRA_FORCE_TCP_INGRESS_RECYCLE=1 REDIS_ENSURE_PHASE=late \
-  AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-redis.sh
+az containerapp show -n tangle-study-redis -g tangle-study-prod \
+  --query "properties.configuration.ingress.{transport:transport,targetPort:targetPort,fqdn:fqdn}" -o yaml
+
+az containerapp show -n tangle-study-api -g tangle-study-prod \
+  --query "properties.template.containers[0].env[?name=='Redis__ConnectionString']" -o yaml
+
+AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-deploy-image.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
-**CD probe behavior:** Late ensure-redis verifies cross-app TCP from inside the Container Apps environment:
-
-1. **`az containerapp exec`** on `tangle-study-api` (wrapped with `script -q -c '...' /dev/null` in CI — bare exec fails with `Inappropriate ioctl for device` without a TTY)
-2. **`tangle-study-redis-probe` job** (Debian one-shot) when exec is unavailable
-
-Emergency skip (not recommended):
-
-```bash
-REDIS_SKIP_TCP_PROBE=1 REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
-  ./scripts/azure-cd-ensure-redis.sh
-```
-
-Manual cross-app probe from your laptop (replace `HOST` with Redis internal FQDN from verify below):
+Manual cross-app probe from your laptop (replace `HOST` with Redis internal FQDN):
 
 ```bash
 az containerapp exec -n tangle-study-api -g tangle-study-prod \
@@ -484,23 +465,6 @@ script -q -c "az containerapp exec -n tangle-study-api -g tangle-study-prod \
   --command \"timeout 5 bash -c 'echo > /dev/tcp/HOST/6379' && echo OK || echo FAIL\"" /dev/null
 ```
 
-Or run the probe job only:
-
-```bash
-REDIS_ENSURE_PHASE=late AZURE_RESOURCE_GROUP=tangle-study-prod \
-  ./scripts/azure-cd-ensure-redis.sh
-```
-
-Verify:
-
-```bash
-az containerapp show -n tangle-study-redis -g tangle-study-prod \
-  --query "properties.configuration.ingress.{transport:transport,targetPort:targetPort,fqdn:fqdn}" -o yaml
-
-az containerapp show -n tangle-study-api -g tangle-study-prod \
-  --query "properties.template.containers[0].env[?name=='Redis__ConnectionString']" -o yaml
-```
-
 `Redis__ConnectionString` includes StackExchange.Redis options (`abortConnect=false`, connect timeouts). The API sets `AbortOnConnectFail=false` so a transient Redis blip does not crash-loop; `/health` shows **Unhealthy** until Redis is reachable.
 
 Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-container.bicep`](../infra/azure/modules/infra-container.bicep) when `tcpProbePort` is set (6379 for Redis).
@@ -509,7 +473,7 @@ Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-contain
 
 ## Troubleshooting (smoke `/health` failures)
 
-[`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh) hits the public **web** URL. `/health` is proxied to the internal API (`TANGLE_API_UPSTREAM`). CD waits for API/web revisions to be `Healthy` before curling.
+[`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh) hits the public **web** URL. `/health` is proxied to the internal API (`TANGLE_API_UPSTREAM`). CD waits for API/web revisions to be `Healthy` before curling.
 
 | HTTP code | Meaning | What to check |
 |-----------|---------|----------------|
@@ -521,12 +485,12 @@ Fresh infra deploys pick up TCP ingress from [`infra/azure/modules/infra-contain
 
 **Symptom:** Smoke logs `HTTP 000` and `curl: (28) Operation timed out ... 0 bytes received`.
 
-**Cause:** CD curled before the API revision was ready to serve traffic, or nginx hung on `tangle-study-api:8080` (no ready replicas). Late Redis env reconcile triggers another API revision right before migrate/smoke.
+**Cause:** CD curled before the API revision was ready to serve traffic, or nginx hung on `tangle-study-api:8080` (no ready replicas).
 
 **Fix:** Re-run smoke after revisions settle:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 Check revision status:
@@ -539,20 +503,20 @@ az containerapp revision list -n tangle-study-api -g tangle-study-prod \
 Emergency bypass (not recommended):
 
 ```bash
-SMOKE_SKIP_API_WAIT=1 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+SMOKE_SKIP_API_WAIT=1 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 ### HTTP 404
 
-**Symptom:** [`azure-cd-smoke.sh`](../scripts/azure-cd-smoke.sh) fails; web nginx logs show `GET /health HTTP/1.1" 404`.
+**Symptom:** [`azure-cd-smoke.sh`](../scripts/cd/azure-cd-smoke.sh) fails; web nginx logs show `GET /health HTTP/1.1" 404`.
 
 **Cause:** Web nginx proxies `/health` to the internal API (`TANGLE_API_UPSTREAM`, default `tangle-study-api:8080`). Infra deployed with **placeholder images** sets API **targetPort=80** and web **`TANGLE_API_UPSTREAM=tangle-study-api:80`**. After CD pushes real API images (Kestrel on **8080**), the proxy hits the wrong port and ACA often returns **404**.
 
-**Fix:** CD runs [`scripts/azure-cd-ensure-api-web-runtime.sh`](../scripts/azure-cd-ensure-api-web-runtime.sh) after image update. Re-run manually:
+**Fix:** Re-run deploy-image to reconcile `TANGLE_API_UPSTREAM` from [`parameters.prod.json`](../infra/azure/parameters.prod.json), then smoke:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-ensure-api-web-runtime.sh
-AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/azure-cd-smoke.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-deploy-image.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 Verify:

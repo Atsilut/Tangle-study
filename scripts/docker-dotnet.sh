@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/lib/compose-env.sh
-source "$ROOT/scripts/lib/compose-env.sh"
+# shellcheck source=scripts/shared/compose-env.sh
+source "$ROOT/scripts/shared/compose-env.sh"
 
 if [[ $# -eq 0 ]]; then
   echo "Usage: $0 <dotnet-args...>" >&2

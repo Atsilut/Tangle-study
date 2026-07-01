@@ -2,14 +2,14 @@
 # Integration tests (Testcontainers). Mounts host Docker socket — not for build/EF (see docker-dotnet.sh).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/lib/compose-env.sh
-source "$ROOT/scripts/lib/compose-env.sh"
-# shellcheck source=scripts/lib/ci-cache.sh
-source "$ROOT/scripts/lib/ci-cache.sh"
-# shellcheck source=scripts/lib/versions-prod-env.sh
-source "$ROOT/scripts/lib/versions-prod-env.sh"
+# shellcheck source=scripts/shared/compose-env.sh
+source "$ROOT/scripts/shared/compose-env.sh"
+# shellcheck source=scripts/ci/libs/ci-cache.sh
+source "$ROOT/scripts/ci/libs/ci-cache.sh"
+# shellcheck source=scripts/ci/libs/versions-prod-env.sh
+source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
 build_sdk_image tangle-study-sdk:local

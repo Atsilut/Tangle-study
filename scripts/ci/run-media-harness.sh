@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/lib/compose-env.sh
-source "$ROOT/scripts/lib/compose-env.sh"
-# shellcheck source=scripts/lib/ci-cache.sh
-source "$ROOT/scripts/lib/ci-cache.sh"
+# shellcheck source=scripts/shared/compose-env.sh
+source "$ROOT/scripts/shared/compose-env.sh"
+# shellcheck source=scripts/ci/libs/ci-cache.sh
+source "$ROOT/scripts/ci/libs/ci-cache.sh"
 
 # CI/deploy parity: pin infra image tags for compose interpolation (build args).
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"

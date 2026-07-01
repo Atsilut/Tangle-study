@@ -152,7 +152,7 @@ workers/
   rust-worker/      ← Redis Streams consumer
 infra/              ← Nginx edge, Prometheus, Grafana
 docs/               ← architecture and migration hub
-scripts/            ← docker-dotnet.sh, docker-test.sh, run-all-tests.sh
+scripts/            ← docker-dotnet.sh, ci/docker-test.sh, run-all-tests.sh
 ```
 
 ---
@@ -315,7 +315,7 @@ With the default stack running (`docker compose up --build`), verify:
 3. **Pins** — signed-in user double-clicks the map to drop a pin; pin appears after refresh/pan.
 4. **Workers** (optional clustering at zoom 2–4): `docker compose --profile workers up -d rust-worker-location`.
 5. **Live sharing** — two users in the same group: one starts sharing; the other sees a green marker and sharing status in the member list.
-6. **Tests** — `./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~Location"`.
+6. **Tests** — `./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~Location"`.
 
 Full UI dev uses Vite at http://localhost:5173 with the same API via Nginx proxy (see [clients/web/README.md](clients/web/README.md)).
 
@@ -399,12 +399,12 @@ chmod +x scripts/run-all-tests.sh
 **API only** (Testcontainers):
 
 ```bash
-chmod +x scripts/docker-test.sh
+chmod +x scripts/ci/docker-test.sh
 
-./scripts/docker-test.sh
+./scripts/ci/docker-test.sh
 
 # Filtered run
-./scripts/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
 ```
 
 Equivalent without the script:
@@ -413,7 +413,7 @@ Equivalent without the script:
 docker compose --profile test run --rm test
 ```
 
-Use `docker-test.sh` (or `--profile test`), not `docker-dotnet.sh` / `sdk` — integration tests need the host Docker socket mounted by the `test` service.
+Use `scripts/ci/docker-test.sh` (or `--profile test`), not `docker-dotnet.sh` / `sdk` — integration tests need the host Docker socket mounted by the `test` service.
 
 Integration tests start their own Postgres containers via Testcontainers (using the host Docker engine through the mounted socket). The compose `db` service is not required for tests. Docker Desktop must be running.
 

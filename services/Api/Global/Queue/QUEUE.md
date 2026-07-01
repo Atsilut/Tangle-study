@@ -72,7 +72,7 @@ Prometheus scrape config: [`infra/prometheus/prometheus.yml`](../../../../infra/
 Automated cross-language smoke (API + Azurite + `rust-worker-media`, no fakes):
 
 ```bash
-./scripts/run-media-harness.sh
+./scripts/ci/run-media-harness.sh
 ```
 
 Runs opt-in xUnit tests (`Category=Harness`) against a live Compose stack. Validates upload-init → blob PUT → complete → worker ffmpeg → `PATCH /internal/media/{id}/processed` → asset `Ready`. Fast integration tests in `Api.Tests` still use `FakeMediaStorage` and a simulated callback.

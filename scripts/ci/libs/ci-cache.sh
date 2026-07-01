@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 # Persistent CI caches under .ci-cache/ (gitignored). Source after setting ROOT.
+#
+# CLI: bash scripts/ci/libs/ci-cache.sh  — fix cache ownership after Docker writes.
 
 ci_cache_root() {
   echo "${ROOT}/.ci-cache"
@@ -13,28 +15,9 @@ ensure_ci_cache_dirs() {
     "$(ci_cache_root)/cargo/git"
 }
 
-ci_cargo_registry_mount() {
-  ensure_ci_cache_dirs
-  echo "$(ci_cache_root)/cargo/registry:/usr/local/cargo/registry"
-}
-
-ci_cargo_git_mount() {
-  ensure_ci_cache_dirs
-  echo "$(ci_cache_root)/cargo/git:/usr/local/cargo/git"
-}
-
 ci_nuget_mount() {
   ensure_ci_cache_dirs
   echo "$(ci_cache_root)/nuget:/tmp/nuget-packages"
-}
-
-ci_npm_mount() {
-  ensure_ci_cache_dirs
-  echo "$(ci_cache_root)/npm:/npm-cache"
-}
-
-ci_runner_docker_user_args() {
-  echo "--user $(id -u):$(id -g)"
 }
 
 # Docker runs as root by default; actions/cache tar fails on root-owned files.
@@ -89,3 +72,9 @@ build_sdk_image() {
       "$ROOT"
   fi
 }
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  set -euo pipefail
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  ci_fix_cache_ownership
+fi

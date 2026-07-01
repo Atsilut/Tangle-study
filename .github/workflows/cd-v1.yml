@@ -82,7 +82,7 @@ jobs:
       env:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
-      run: bash scripts/azure-cd-build-push.sh
+      run: bash scripts/cd/azure-cd-build-push.sh
 
     ############################################
     # 4. IMAGE PROPAGATION WAIT
@@ -91,7 +91,7 @@ jobs:
       env:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
-      run: bash scripts/azure-cd-wait-image.sh
+      run: bash scripts/cd/azure-cd-wait-image.sh
 
     ############################################
     # 5. AZURE LOGIN
@@ -116,7 +116,7 @@ jobs:
         POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
         GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
-      run: bash scripts/azure-cd-inject-secrets.sh
+      run: bash scripts/cd/azure-cd-inject-secrets.sh
 
     ############################################
     # 7. DEPLOY IMAGE
@@ -127,7 +127,7 @@ jobs:
         CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         PARAM_FILE: infra/azure/parameters.prod.json
-      run: bash scripts/azure-cd-deploy-image.sh
+      run: bash scripts/cd/azure-cd-deploy-image.sh
 
     ############################################
     # 8. MIGRATION
@@ -136,7 +136,7 @@ jobs:
       if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      run: bash scripts/azure-cd-migrate.sh
+      run: bash scripts/cd/azure-cd-migrate.sh
 
     ############################################
     # 9. SMOKE TEST
@@ -144,7 +144,7 @@ jobs:
     - name: Smoke tests
       env:
         AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      run: bash scripts/azure-cd-smoke.sh
+      run: bash scripts/cd/azure-cd-smoke.sh
 
     ############################################
     # 10. SUMMARY

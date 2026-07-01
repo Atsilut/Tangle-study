@@ -16,8 +16,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/lib/compose-env.sh
-source "$ROOT/scripts/lib/compose-env.sh"
+# shellcheck source=scripts/shared/compose-env.sh
+source "$ROOT/scripts/shared/compose-env.sh"
 
 MODE="${1:-local}"
 

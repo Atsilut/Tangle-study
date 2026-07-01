@@ -13,8 +13,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/lib/versions-prod-env.sh
-source "$ROOT/scripts/lib/versions-prod-env.sh"
+# shellcheck source=scripts/ci/libs/versions-prod-env.sh
+source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
 TARGET="${1:-}"

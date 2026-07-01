@@ -45,7 +45,7 @@ CompleteUpload → XADD media.uploaded → rust-worker-media
 
 Worker config: `WORKER_STREAM_KEY=media.uploaded`, `API_BASE_URL`, `WORKER_CALLBACK_SECRET` (must match API `Media:WorkerCallbackSecret`).
 
-Harness smoke: `./scripts/run-media-harness.sh` — see [QUEUE.md](../../Global/Queue/QUEUE.md).
+Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../../Global/Queue/QUEUE.md).
 
 ---
 

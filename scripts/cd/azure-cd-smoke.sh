@@ -20,17 +20,12 @@ API_APP="${API_APP_NAME:-tangle-study-api}"
 TIMEOUT="${SMOKE_TIMEOUT_SEC:-300}"
 RG="$AZURE_RESOURCE_GROUP"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT/scripts/lib/azure-container-apps-readiness.sh"
-source "$ROOT/scripts/lib/log-redact.sh"
-
-
-########################################
-# LOGGING
-########################################
-log_step()  { echo ""; echo "========================================"; echo "[DEPLOY][SMOKE][STEP] $*"; echo "========================================"; }
-log_info()  { echo "[DEPLOY][SMOKE][INFO] $*"; }
-log_error() { echo "[DEPLOY][SMOKE][ERROR] $*" >&2; }
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DEPLOY_LOG_PREFIX="[DEPLOY][SMOKE]"
+# shellcheck source=scripts/cd/libs/common.sh
+source "$ROOT/scripts/cd/libs/common.sh"
+source "$ROOT/scripts/cd/libs/azure-container-apps-readiness.sh"
+source "$ROOT/scripts/cd/libs/log-redact.sh"
 
 
 LAST_HTTP_CODE=""

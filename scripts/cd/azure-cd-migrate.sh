@@ -18,20 +18,15 @@ set -euo pipefail
 
 : "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT/scripts/lib/container-app-job-logs.sh"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DEPLOY_LOG_PREFIX="[DEPLOY][MIGRATE]"
+# shellcheck source=scripts/cd/libs/common.sh
+source "$ROOT/scripts/cd/libs/common.sh"
+source "$ROOT/scripts/cd/libs/container-app-job-logs.sh"
 
 JOB_NAME="${MIGRATE_JOB_NAME:-tangle-study-migrate}"
 TIMEOUT="${MIGRATE_TIMEOUT_SEC:-600}"
 RG="$AZURE_RESOURCE_GROUP"
-
-
-########################################
-# LOGGING
-########################################
-log_step()  { echo ""; echo "========================================"; echo "[DEPLOY][MIGRATE][STEP] $*"; echo "========================================"; }
-log_info()  { echo "[DEPLOY][MIGRATE][INFO] $*"; }
-log_error() { echo "[DEPLOY][MIGRATE][ERROR] $*" >&2; }
 
 
 ########################################
