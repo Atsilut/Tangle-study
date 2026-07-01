@@ -70,22 +70,73 @@ Exporter images (`postgres-exporter`, `redis-exporter`) use public Docker Hub ta
 
 Set `containerRegistry` in `parameters.prod.json` to match your org.
 
-`usePlaceholderImages: true` allows infra deploy before custom images exist (Prometheus/Grafana use upstream images until CD pushes custom builds).
+`usePlaceholderImages: true` allows infra deploy before custom images exist —
+it swaps `api`/`web`/`worker` images for a public placeholder and sets
+`targetPort: 80` (matching the placeholder's exposed port) instead of the
+real app port (`8080`). Prometheus/Grafana always use their upstream images
+regardless of this flag.
+
+**This is a one-time bootstrap switch, not a steady-state setting.** It only
+matters for the manual `azure-deploy-infra.sh` path (see
+[CD vs manual deploy](#cd-vs-manual-deploy) below) — once the stack has been
+bootstrapped and real images exist in GHCR, set it to `false` and leave it
+there. Routine CD deploys never read this flag at all.
 
 ## Internal networking
 
 Use **internal FQDNs** (`tangle-study-<app>.internal.<cae-default-domain>`) for Redis and scrape targets — short names are unreliable for ACA TCP routing.
 
+For **HTTP ingress** apps (API, web-to-API), the short Container App name
+(e.g. `tangle-study-api:8080`) resolves fine within the same Container Apps
+Environment and is what `TANGLE_API_UPSTREAM` uses — no FQDN needed. The FQDN
+requirement below applies specifically to **TCP ingress** (Redis, Postgres-era
+scrape targets), where short-name DNS resolution has been unreliable in
+practice.
+
 | App | Hostname (within environment) |
 |-----|------------------------------|
 | Postgres | **Neon** (external; not in ACA) |
 | Redis | `tangle-study-redis.internal.<domain>:6379` |
-| API | `tangle-study-api.internal.<domain>:8080` |
+| API | `tangle-study-api:8080` (HTTP ingress, short name; see note above) |
 | Prometheus | `tangle-study-prometheus.internal.<domain>:9090` |
 | Web | public FQDN → proxies to API |
 | Grafana | public FQDN (external ingress) |
 
 Postgres connection string is injected by CD from GitHub secret `POSTGRES_CONNECTION_STRING` (API + migrate job). Postgres-exporter gets a derived `postgresql://` DSN for Neon. Redis URL is Bicep-managed (`redis://tangle-study-redis.internal.<domain>:6379`).
+
+## CD vs manual deploy
+
+Two independent deploy paths exist, and they do **not** share state at
+runtime — keeping this straight matters, because an env var set by one path
+is invisible to the other.
+
+- **Manual (`azure-deploy-infra.sh` → `main.bicep`)**: one-time bootstrap.
+  Provisions the Container Apps Environment, Redis, storage, monitoring,
+  and seeds the *initial* container env vars/secrets (including a computed
+  `TANGLE_API_UPSTREAM` for web, based on `usePlaceholderImages`). This is
+  meant for first-time setup or infra-only changes (module edits), and is
+  not re-run automatically by CD.
+- **CD (`main` branch / Deploy workflow → `azure-cd-deploy-image.sh`)**:
+  the routine deploy path. Builds and pushes GHCR images, waits for
+  propagation, then calls `az containerapp update --set-env-vars` per app
+  using **`parameters.prod.json` → `containerApps.<name>.env` as the single
+  source of truth**. It does **not** re-run Bicep, so any env var that only
+  exists in `main.bicep` — and isn't also listed in
+  `parameters.prod.json` — will never be updated by CD and can silently
+  drift from what Bicep would compute (this bit us once with
+  `TANGLE_API_UPSTREAM` pointing at the wrong port after switching
+  `usePlaceholderImages`).
+
+**Practical rule:** if a container app's env var can change (ports,
+hostnames, feature flags), define it explicitly in `parameters.prod.json`'s
+`containerApps` block, not just in `main.bicep`. Treat `main.bicep`'s
+computed env values (like `apiAppUpstream`) as bootstrap defaults only —
+`parameters.prod.json` overrides them on every subsequent CD run.
+
+Because CD never re-runs Bicep, a full clean deploy through CD alone is
+always safe with `usePlaceholderImages: false` — CD builds and pushes real
+images before touching any Container App, regardless of what that flag says.
+The flag only matters if you're re-running the manual bootstrap script.
 
 ## Monitoring on ACA
 
@@ -99,6 +150,17 @@ Postgres connection string is injected by CD from GitHub secret `POSTGRES_CONNEC
 Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details.
 
 ## After Bicep deploy
+
+> **Clean deploy order matters.** For a brand-new stack, run the manual
+> `azure-deploy-infra.sh` bootstrap once (with `usePlaceholderImages: true`
+> only if GHCR images don't exist yet) to create the Container Apps
+> Environment, Redis, storage, and monitoring shells. After that, all
+> routine deploys — including future clean redeploys of app containers —
+> go through the **Deploy** GitHub Actions workflow, which builds and
+> pushes GHCR images first and then updates each Container App directly
+> from `parameters.prod.json` (see [CD vs manual deploy](#cd-vs-manual-deploy)).
+> The manual script is not part of this routine loop and should not need
+> to be re-run unless infra itself (Bicep modules) changes.
 
 1. Create a Neon project and database; copy the Npgsql connection string.
 2. Copy storage account connection string → GitHub secret `BLOB_CONNECTION_STRING`.

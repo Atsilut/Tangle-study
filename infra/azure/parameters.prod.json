@@ -78,7 +78,9 @@
           "type": "web",
           "image": "tangle-study-web",
           "env": {
-            "ASPNETCORE_ENVIRONMENT": "Production"
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "TANGLE_API_UPSTREAM": "tangle-study-api:8080",
+            "TANGLE_API_HOST": "tangle-study-api"
           }
         },
 

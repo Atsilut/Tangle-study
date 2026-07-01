@@ -14,7 +14,10 @@ RUN npm run build
 
 FROM ${NGINX_IMAGE} AS final
 RUN apk add --no-cache gettext
-COPY infra/nginx/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+ARG NGINX_CONF=infra/nginx/nginx.conf
+COPY ${NGINX_CONF} /etc/nginx/templates/default.conf.template
+
 COPY infra/nginx/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 

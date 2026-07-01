@@ -98,28 +98,27 @@ log_info "secrets applied: tangle-study-grafana"
 ############################################
 log_step "APPLYING SECRETS (workers)"
 
-apply_worker_secret () {
-  local app="$1"
+apply_worker_secrets() {
+  local app="$1"; shift
   az containerapp secret set \
     --name "$app" \
     --resource-group "$AZURE_RESOURCE_GROUP" \
-    --secrets "metrics-secret=$METRICS_SCRAPE_SECRET" \
+    --secrets "$@" \
     --output none
   log_info "secrets applied: $app"
 }
 
-apply_worker_secret "tangle-study-worker-chat"
-apply_worker_secret "tangle-study-worker-location"
+apply_worker_secrets tangle-study-worker-chat \
+  "metrics-secret=$METRICS_SCRAPE_SECRET"
 
-az containerapp secret set \
-  --name tangle-study-worker-media \
-  --resource-group "$AZURE_RESOURCE_GROUP" \
-  --secrets \
-    "metrics-secret=$METRICS_SCRAPE_SECRET" \
-    "blob-conn=$BLOB_CONNECTION_STRING" \
-    "worker-callback=$WORKER_CALLBACK_SECRET" \
-  --output none
-log_info "secrets applied: tangle-study-worker-media (with blob & callback)"
+apply_worker_secrets tangle-study-worker-location \
+  "metrics-secret=$METRICS_SCRAPE_SECRET" \
+  "worker-callback=$WORKER_CALLBACK_SECRET"
+
+apply_worker_secrets tangle-study-worker-media \
+  "metrics-secret=$METRICS_SCRAPE_SECRET" \
+  "blob-conn=$BLOB_CONNECTION_STRING" \
+  "worker-callback=$WORKER_CALLBACK_SECRET"
 
 ############################################
 log_step "APPLYING SECRETS (tangle-study-migrate JOB)"

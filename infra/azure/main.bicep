@@ -113,6 +113,11 @@ var redisConnectionString = '${redisInternalHost}:6379'
 var redisUrl = 'redis://${redisConnectionString}'
 var apiAppHost = 'tangle-study-api'
 var apiAppPort = usePlaceholderImages ? 80 : 8080
+
+// NOTE: This is only applied on initial bootstrap (azure-deploy-infra.sh).
+// Routine CD deploys (azure-cd-deploy-image.sh) read TANGLE_API_UPSTREAM
+// directly from parameters.prod.json's containerApps.tangle-study-web.env
+// and will override this value. Keep both in sync manually.
 var apiAppUpstream = '${apiAppHost}:${apiAppPort}'
 var apiAppBaseUrl = 'http://${apiAppUpstream}'
 var prometheusInternalUrl = 'http://tangle-study-prometheus.internal.${defaultDomain}:9090'

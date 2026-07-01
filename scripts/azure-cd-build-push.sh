@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export DOCKER_BUILDKIT=1
+
 : "${CONTAINER_REGISTRY:?}"
 : "${IMAGE_TAG:?}"
 
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
+NGINX_PROD_CONF="infra/nginx/nginx.production.conf"
 
 if [[ ! -f "$PARAM_FILE" ]]; then
   echo "[FATAL] missing parameter file: $PARAM_FILE" >&2
@@ -53,7 +56,11 @@ set_build_args() {
       BUILD_ARGS+=("--build-arg" "DOTNET_SDK_IMAGE=$DOTNET_SDK" "--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
       ;;
     tangle-study-web)
-      BUILD_ARGS+=("--build-arg" "NODE_IMAGE=$NODE_IMG" "--build-arg" "NGINX_IMAGE=$NGINX_IMG")
+      BUILD_ARGS+=(
+        "--build-arg" "NODE_IMAGE=$NODE_IMG"
+        "--build-arg" "NGINX_IMAGE=$NGINX_IMG"
+        "--build-arg" "NGINX_CONF=$NGINX_PROD_CONF"
+      )
       ;;
     tangle-study-worker)
       BUILD_ARGS+=("--build-arg" "RUST_IMAGE=$RUST_IMG" "--build-arg" "DEBIAN_IMAGE=$DEBIAN_IMG")
