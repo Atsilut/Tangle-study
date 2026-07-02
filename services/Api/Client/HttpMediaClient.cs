@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Api.Client;
 
-public sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOptions<MediaClientOptions> options)
+internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOptions<MediaClientOptions> options)
     : IMediaClient
 {
     public const string InternalSecretHeaderName = "X-Internal-Secret";

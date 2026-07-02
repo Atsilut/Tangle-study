@@ -321,7 +321,7 @@ public sealed class MediaService(
         return MapToDto(asset);
     }
 
-    public async Task ReportProcessedAsync(long id, MediaProcessedRequestDto request)
+    internal async Task ReportProcessedAsync(long id, MediaProcessedRequestDto request)
     {
         var asset = await GetMediaAssetOrThrowAsync(id);
         if (asset.ProcessingStatus == MediaProcessingStatus.Ready)

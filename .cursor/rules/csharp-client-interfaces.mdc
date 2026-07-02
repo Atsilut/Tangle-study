@@ -1,0 +1,66 @@
+---
+description: C# client ports and interfaces — explicit public members, internal HTTP adapters
+globs: services/**/Client/**/*.cs,services/**/Repository/I*.cs
+alwaysApply: false
+---
+
+# C# interface and client consistency
+
+## Explicit `public` on interface members
+
+Interface members are **implicitly** public in C#, but this repo uses **explicit** `public` so ports read the same as their implementing classes.
+
+```csharp
+// ❌ BAD — implicit public on interface only
+public interface IMediaClient
+{
+    Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds);
+}
+
+// ✅ GOOD — explicit public (matches HttpMediaClient)
+public interface IMediaClient
+{
+    public Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds);
+}
+```
+
+## Why implementation methods must be `public`
+
+This is a **C# language rule**, not optional style.
+
+1. **Interface contract is public** — every interface member is public (explicit or implicit).
+2. **Implementations must satisfy that contract** — a class member that implements an interface member must be **at least as accessible** as the interface member. For our `public` ports, that means **`public` methods** on the implementing class.
+3. **Class members default to `private`** — unlike interfaces, class methods are `private` unless marked. Omitting `public` on `HttpMediaClient.LinkToPostAsync` does not compile (or would not implement the interface).
+
+```csharp
+internal sealed class HttpMediaClient : IMediaClient
+{
+    // ✅ Required — public instance method implements public interface member
+    public Task LinkToPostAsync(...) => PostNoContentAsync(...);
+
+    // ❌ Does not implement IMediaClient — private / internal is not visible via the interface
+    // Task LinkToPostAsync(...) => ...;
+}
+```
+
+**Do not use explicit interface implementation** (`Task IMediaClient.LinkToPostAsync(...)`) for these HTTP clients — it hides members from the class surface and complicates DI/testing without benefit here.
+
+So: **explicit `public` on the interface** is for readability and consistency; **`public` on the implementation** is required so the type actually implements the port.
+
+## Cross-service client layout (`Client/`)
+
+| Piece | Visibility | Example |
+|-------|------------|---------|
+| Port (injected by domain services) | `public interface` | `IMediaClient`, `IMonolithAccessClient` |
+| HTTP adapter | `internal sealed class` | `HttpMediaClient`, `HttpMonolithAccessClient` |
+| Test fakes | `public` in `*.Tests` (friend assembly) | `FakeMediaClient`, `AllowAllMonolithAccessClient` |
+
+Ports stay `public` because public domain services (`PostService`, `MediaService`, …) take them in public constructors (C# CS0051).
+
+The real module boundary is **HTTP** (`/internal/media/*`, `/internal/access/*`), not the C# port type.
+
+## When editing
+
+- **New client interface**: every member gets explicit `public`.
+- **New HTTP client**: `internal sealed class` implementing the public port.
+- **Existing files**: match surrounding `Client/` folder style; do not reformat unrelated interfaces in the same change.

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Media.Client;
 
-public sealed class HttpMonolithAccessClient(
+internal sealed class HttpMonolithAccessClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
     IOptions<MonolithOptions> options) : IMonolithAccessClient
