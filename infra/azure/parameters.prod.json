@@ -1,26 +1,28 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.2.0.0",
-
   "parameters": {
-    "environment": { "value": "prod" },
-
+    "environment": {
+      "value": "prod"
+    },
     "containerRegistry": {
       "value": "ghcr.io/atsilut/tangle-study"
     },
-
     "imageTag": {
       "value": "latest"
     },
-
     "usePlaceholderImages": {
       "value": true
     },
-
-    "apiMinReplicas": { "value": 1 },
-    "webMinReplicas": { "value": 1 },
-    "workerMinReplicas": { "value": 0 },
-
+    "apiMinReplicas": {
+      "value": 1
+    },
+    "webMinReplicas": {
+      "value": 1
+    },
+    "workerMinReplicas": {
+      "value": 0
+    },
     "infra": {
       "value": {
         "postgres": {
@@ -46,7 +48,6 @@
         }
       }
     },
-
     "buildImages": {
       "value": {
         "dotnetSdk": "mcr.microsoft.com/dotnet/sdk:10.0",
@@ -57,121 +58,111 @@
         "debian": "debian:bookworm-slim"
       }
     },
-
     "containerApps": {
-        "tangle-study-api": {
-          "type": "api",
-          "image": "tangle-study-api",
-          "env": {
-            "ConnectionStrings__DefaultConnection": "secretref:postgres-conn",
-            "Media__ConnectionString": "secretref:blob-conn",
-            "Jwt__Secret": "secretref:jwt-secret",
-            "Jwt__ExpiryMinutes": "15",
-            "Media__WorkerCallbackSecret": "secretref:worker-callback",
-            "Metrics__ScrapeSecret": "secretref:metrics-secret",
-            "Places__ApiKey": "secretref:places-api-key",
-            "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
-            "ASPNETCORE_ENVIRONMENT": "Production",
-            "ASPNETCORE_URLS": "http://+:8080"
-          }
-        },
-
-        "tangle-study-web": {
-          "type": "web",
-          "image": "tangle-study-web",
-          "env": {
-            "ASPNETCORE_ENVIRONMENT": "Production",
-            "TANGLE_API_UPSTREAM": "tangle-study-api",
-            "TANGLE_API_HOST": "tangle-study-api"
-          }
-        },
-
-        "tangle-study-worker-chat": {
-          "type": "worker",
-          "worker": "chat",
-          "image": "tangle-study-worker",
-          "env": {
-            "WORKER_TYPE": "chat",
-            "WORKER_STREAM_KEY": "chat.message.created",
-            "WORKER_STREAM_PREFIX": "tangle:queue:",
-            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-            "WORKER_METRICS_PORT": "9090",
-            "RUST_LOG": "info",
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
-          }
-        },
-
-        "tangle-study-worker-location": {
-          "type": "worker",
-          "worker": "location",
-          "image": "tangle-study-worker",
-          "env": {
-            "WORKER_TYPE": "location",
-            "WORKER_STREAM_KEY": "location.cluster",
-            "WORKER_STREAM_PREFIX": "tangle:queue:",
-            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-            "WORKER_METRICS_PORT": "9090",
-            "RUST_LOG": "info",
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
-            "WORKER_CALLBACK_SECRET": "secretref:worker-callback"
-          }
-        },
-
-        "tangle-study-worker-media": {
-          "type": "worker",
-          "worker": "media",
-          "image": "tangle-study-worker",
-          "env": {
-            "WORKER_TYPE": "media",
-            "WORKER_STREAM_KEY": "media.uploaded",
-            "WORKER_STREAM_PREFIX": "tangle:queue:",
-            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-            "WORKER_METRICS_PORT": "9090",
-            "RUST_LOG": "info",
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
-            "WORKER_CALLBACK_SECRET": "secretref:worker-callback",
-            "AZURE_STORAGE_CONNECTION_STRING": "secretref:blob-conn",
-            "MEDIA_CONTAINER_NAME": "tangle-media"
-          }
-        },
-
-        "tangle-study-prometheus": {
-          "type": "prometheus",
-          "image": "tangle-study-prometheus",
-          "env": {
-            "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
-          }
-        },
-
-        "tangle-study-grafana": {
-          "type": "grafana",
-          "image": "tangle-study-grafana",
-          "env": {
-            "GF_SECURITY_ADMIN_USER": "admin",
-            "GF_USERS_ALLOW_SIGN_UP": "false",
-            "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
-          }
-        },
-
-        "tangle-study-redis": {
-          "type": "redis",
-          "infraImage": "redis",
-          "env": {}
-        },
-
-        "tangle-study-redis-exporter": {
-          "type": "redis-exporter",
-          "infraImage": "redisExporter",
-          "env": {}
-        },
-
-        "tangle-study-postgres-exporter": {
-          "type": "postgres-exporter",
-          "infraImage": "postgresExporter",
-          "env": {
-            "DATA_SOURCE_NAME": "secretref:postgres-dsn"
-          }
+      "tangle-study-api": {
+        "type": "api",
+        "image": "tangle-study-api",
+        "env": {
+          "ConnectionStrings__DefaultConnection": "secretref:postgres-conn",
+          "Media__ConnectionString": "secretref:blob-conn",
+          "Jwt__Secret": "secretref:jwt-secret",
+          "Jwt__ExpiryMinutes": "15",
+          "Media__WorkerCallbackSecret": "secretref:worker-callback",
+          "Metrics__ScrapeSecret": "secretref:metrics-secret",
+          "Places__ApiKey": "secretref:places-api-key",
+          "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
+          "ASPNETCORE_ENVIRONMENT": "Production",
+          "ASPNETCORE_URLS": "http://+:8080"
         }
+      },
+      "tangle-study-web": {
+        "type": "web",
+        "image": "tangle-study-web",
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Production",
+          "TANGLE_API_UPSTREAM": "tangle-study-api",
+          "TANGLE_API_HOST": "tangle-study-api"
+        }
+      },
+      "tangle-study-worker-chat": {
+        "type": "worker",
+        "worker": "chat",
+        "image": "tangle-study-worker",
+        "env": {
+          "WORKER_TYPE": "chat",
+          "WORKER_STREAM_KEY": "chat.message.created",
+          "WORKER_STREAM_PREFIX": "tangle:queue:",
+          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+          "WORKER_METRICS_PORT": "9090",
+          "RUST_LOG": "info",
+          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+        }
+      },
+      "tangle-study-worker-location": {
+        "type": "worker",
+        "worker": "location",
+        "image": "tangle-study-worker",
+        "env": {
+          "WORKER_TYPE": "location",
+          "WORKER_STREAM_KEY": "location.cluster",
+          "WORKER_STREAM_PREFIX": "tangle:queue:",
+          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+          "WORKER_METRICS_PORT": "9090",
+          "RUST_LOG": "info",
+          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
+          "WORKER_CALLBACK_SECRET": "secretref:worker-callback"
+        }
+      },
+      "tangle-study-worker-media": {
+        "type": "worker",
+        "worker": "media",
+        "image": "tangle-study-worker",
+        "env": {
+          "WORKER_TYPE": "media",
+          "WORKER_STREAM_KEY": "media.uploaded",
+          "WORKER_STREAM_PREFIX": "tangle:queue:",
+          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+          "WORKER_METRICS_PORT": "9090",
+          "RUST_LOG": "info",
+          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
+          "WORKER_CALLBACK_SECRET": "secretref:worker-callback",
+          "AZURE_STORAGE_CONNECTION_STRING": "secretref:blob-conn",
+          "MEDIA_CONTAINER_NAME": "tangle-media"
+        }
+      },
+      "tangle-study-prometheus": {
+        "type": "prometheus",
+        "image": "tangle-study-prometheus",
+        "env": {
+          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
+        }
+      },
+      "tangle-study-grafana": {
+        "type": "grafana",
+        "image": "tangle-study-grafana",
+        "env": {
+          "GF_SECURITY_ADMIN_USER": "admin",
+          "GF_USERS_ALLOW_SIGN_UP": "false",
+          "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
+        }
+      },
+      "tangle-study-redis": {
+        "type": "redis",
+        "infraImage": "redis",
+        "env": {}
+      },
+      "tangle-study-redis-exporter": {
+        "type": "redis-exporter",
+        "infraImage": "redisExporter",
+        "env": {}
+      },
+      "tangle-study-postgres-exporter": {
+        "type": "postgres-exporter",
+        "infraImage": "postgresExporter",
+        "env": {
+          "DATA_SOURCE_NAME": "secretref:postgres-dsn"
+        }
+      }
     }
   }
 }

@@ -1,0 +1,89 @@
+---
+description: Bash script, CD workflow, and deploy JSON formatting conventions
+globs: scripts/**/*.sh,.github/workflows/ci-v1.yml,.github/workflows/cd-v1.yml,infra/azure/parameters*.json
+alwaysApply: false
+---
+
+# Script, CI/CD workflow, and deploy JSON style
+
+Reference entrypoint: [`scripts/cd/azure-cd-inject-secrets.sh`](scripts/cd/azure-cd-inject-secrets.sh).
+
+## Bash entrypoints (`scripts/**/*.sh`)
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # adjust ../ depth
+LOG_PREFIX="[DEPLOY]"   # see prefix table below
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
+
+require_env REQUIRED_VAR
+
+############################################
+log_step "SECTION NAME IN ALL CAPS"
+```
+
+| Rule | Convention |
+|------|------------|
+| Strict mode | `set -euo pipefail` on line 2, or after a short (≤10 line) English header |
+| Logging | Source [`scripts/shared/common.sh`](scripts/shared/common.sh); never redefine `log_*` / `fail`; never use `echo "==>"` |
+| Sections | 44× `#` divider + `log_step "…"`; no numbered `# 1.` comments; no extra `echo "===="` frames |
+| Env vars | `require_env VAR`; use `fail "message"` instead of ad-hoc `exit 1` |
+| Language | English only for comments and log text |
+| Output | ASCII status (`OK`), not Unicode symbols |
+
+### `LOG_PREFIX` examples
+
+| Scripts | Prefix |
+|---------|--------|
+| CD build / wait / migrate / smoke | `[DEPLOY][BUILD]`, `[DEPLOY][IMAGE]`, `[DEPLOY][MIGRATE]`, `[DEPLOY][SMOKE]` |
+| CD deploy / secrets | `[DEPLOY]` |
+| Infra Bicep deploy | `[DEPLOY][INFRA]` |
+| CI tests / harness / versions | `[CI][TEST]`, `[CI][HARNESS]`, `[CI][VERSIONS]`, `[CI][CACHE]` |
+| Dev / local tooling | `[DEV]`, `[DOTNET]`, `[MIGRATE]`, `[TEST]` |
+
+Set `LOG_PREFIX` **before** sourcing `common.sh`.
+
+## Bash libraries (sourced)
+
+- `# shellcheck shell=bash` + 1–2 line English purpose comment
+- No `set -euo pipefail` (inherit from caller)
+- Use `log_info` / `log_warn` / `log_error` when emitting messages; caller must source `common.sh` first
+- `# shellcheck source=…` on every `source` in entrypoints
+
+## Container entrypoints (`infra/**` — exception)
+
+Keep `#!/bin/sh`, POSIX-only, no bash `common.sh`. English comments, `set -e`, minimal headers.
+
+## CI and CD workflows ([`ci-v1.yml`](.github/workflows/ci-v1.yml), [`cd-v1.yml`](.github/workflows/cd-v1.yml))
+
+Shared conventions:
+
+- Numbered section banners `# 0.` … `# N.` with 44× `#` dividers (workflow owns numbering; scripts do not)
+- Blank line after `steps:`
+- 6-space indent under `steps:`
+- Every step has a `name:` (including checkout)
+- Step `name:` aligns with banner titles (Title Case, descriptive)
+- Reuse workflow `env:` variables (e.g. `${{ env.COMPOSE_ENV_FILE }}`) instead of duplicating paths
+- English-only comments and step names
+- Gate/summary steps use bracketed tags (`[CI][FAILURE]`, `[DEPLOY][SUCCESS]`)
+
+CI job section pattern (rust, web, api, harness):
+
+| # | Banner |
+|---|--------|
+| 0 | CHECKOUT |
+| 1 | RENDER VERSIONS |
+| 2 | LOAD VERSIONS |
+| 3 | CACHE … |
+| 4+ | Job-specific (tests, Buildx, harness) |
+
+## Parameter JSON (`infra/azure/parameters*.json`)
+
+JSON has no inline comments; document intent in [`infra/azure/README.md`](infra/azure/README.md).
+
+- 2-space indent throughout
+- `$schema` first; multiline `{ "value": … }` blocks
+- English strings only
