@@ -8,7 +8,7 @@ Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../servi
 
 ## Current state (as-built)
 
-The monolith (`services/Api`) still owns most domains and the `public` schema. **Media is the first extracted deployable:** `services/Media` runs as a separate Compose service; Nginx routes `/api/media/*` and `/internal/media/*` to it. The monolith calls media over HTTP (`IMediaClient`) for link/batch/delete operations. Api still contains legacy `Domain/Media/` code and `public."MediaAssets"` until that cleanup lands — new uploads in Compose go to the `media` schema.
+The monolith (`services/Api`) still owns most domains and the `public` schema. **Media is the first extracted deployable:** `services/Media` runs as a separate Compose service; Nginx routes `/api/media/*` and `/internal/media/*` to it. The monolith calls media over HTTP (`IMediaClient`) for link/batch/delete operations. Monolith media ownership (`Domain/Media/`, `public."MediaAssets"`) has been removed — uploads and asset rows live in the `media` schema only.
 
 PostgreSQL remains one instance (schema-per-service for media). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
 
@@ -207,7 +207,7 @@ Solution file (`Tangle.slnx`) includes `Api`, `Api.Tests`, and `Media`. Workers 
 
 - README diagram label "Gateway" is **aspirational** — Nginx is the Compose edge; there is no dedicated gateway service yet.
 - **Azure production** still serves all `/api/*` from the monolith (`nginx.production.conf` has no media upstream yet).
-- Api retains duplicate `Domain/Media/` and `public."MediaAssets"` while Compose cutover is proven.
+- Monolith media code and `public."MediaAssets"` have been removed; media data lives in the `media` schema.
 - No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.
 

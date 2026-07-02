@@ -2,7 +2,7 @@
 
 Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via `[.github/workflows/cd-v1.yml](../.github/workflows/cd-v1.yml)`.
 
-Local development uses Docker Compose with **media-service extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#extraction-progress). **Azure production** still deploys only the monolith for `/api/*` until media ACA + `nginx.production.conf` cutover lands.
+Local development uses Docker Compose with **media-service extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-1--media-service-develop-done). **Azure production** still deploys only the monolith for `/api/*` until media ACA + `nginx.production.conf` cutover lands.
 
 ---
 

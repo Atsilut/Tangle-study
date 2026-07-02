@@ -210,7 +210,7 @@ Central index: [docs/README.md](docs/README.md)
 | [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
 | [clients/web/README.md](clients/web/README.md) | React web client |
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
-| [services/Api/Domain/Media/MEDIA.md](services/Api/Domain/Media/MEDIA.md) | Media upload and processing |
+| [services/Media/MEDIA.md](services/Media/MEDIA.md) | Media upload and processing |
 | [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 | [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |

@@ -16,7 +16,7 @@ Central index for architecture and migration docs. Deep-dive guides for specific
 |-----|---------|--------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Current modular monolith vs target MSA | Implemented (describes as-built + target) |
 | [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md) | `Domain/` folder → future microservice mapping | Implemented |
-| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Prerequisites, extraction order, checklist | In progress (media done in Compose) |
+| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Branch workflow, extraction order, media step 1 status | In progress (media done on `develop`) |
 
 ## Development phases
 
@@ -25,7 +25,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Phase | Focus | Doc pointers |
 |-------|-------|--------------|
 | 1–3 | Core API, chat, Redis | [AGENTS.md](../services/Api/AGENTS.md), [CHAT.md](../services/Api/Domain/Chat/CHAT.md), [REDIS.md](../services/Api/Global/REDIS.md) |
-| 4 | Rust worker + media | [MEDIA.md](../services/Api/Domain/Media/MEDIA.md), [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [rust-worker README](../workers/rust-worker/README.md) — **Done** |
+| 4 | Rust worker + media | [MEDIA.md](../services/Media/MEDIA.md), [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [rust-worker README](../workers/rust-worker/README.md) — **Done** |
 | 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
 | 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
 | 7 | Location / Memory Map (monolith) | [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) — **Done** |
@@ -42,7 +42,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Domain events | [services/Api/Global/Events/EVENTS.md](../services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 | Groups | [services/Api/Domain/Groups/GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) | Cross-service contracts (board posts, platform chat) |
 | Chat | [services/Api/Domain/Chat/CHAT.md](../services/Api/Domain/Chat/CHAT.md) | REST routes, SignalR hub contract |
-| Media | [services/Media/MEDIA.md](../services/Media/MEDIA.md) (extracted); [services/Api/Domain/Media/MEDIA.md](../services/Api/Domain/Media/MEDIA.md) (legacy monolith copy) | Upload flow, limits, worker callback |
+| Media | [services/Media/MEDIA.md](../services/Media/MEDIA.md) | Upload flow, limits, worker callback |
 | Location | [services/Api/Domain/Location/LOCATION.md](../services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |
 | Rust worker | [workers/rust-worker/README.md](../workers/rust-worker/README.md) | Consumer, retry, DLQ, replay |
 | Web client | [clients/web/README.md](../clients/web/README.md) | React SPA, Nginx proxy, feature slices |

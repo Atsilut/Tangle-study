@@ -17,7 +17,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
-| **media** | `Domain/Media/` → [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); monolith cleanup + Azure pending |
+| **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
 | **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
 ---
@@ -97,7 +97,7 @@ Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
 ### media-service
 
-**Extracted in local Compose (MSA step 1).** API reference: [MEDIA.md](../services/Media/MEDIA.md). Legacy monolith copy remains under `Domain/Media/` until removed.
+**Extracted in local Compose (MSA step 1).** API reference: [MEDIA.md](../services/Media/MEDIA.md).
 
 **Owns:** `MediaAsset` in Postgres `media` schema (storage key, mime, dimensions, processing status).
 
@@ -120,7 +120,7 @@ Client → nginx → media-service (presigned URL) → object storage
 
 **Worker:** `worker-media` binary; `API_BASE_URL=http://media:8080` in Compose.
 
-**Remaining:** remove Api `Domain/Media/` + `public."MediaAssets"`; Azure Container App + `nginx.production.conf` strangler; optional data backfill from `public` → `media` schema for existing dev DBs.
+**Remaining:** Azure Container App + `nginx.production.conf` strangler; optional data backfill from legacy `public` → `media` schema for existing dev DBs.
 
 ### location-service
 
@@ -204,9 +204,9 @@ When code moves from `services/Api/Domain/{Name}/` into `services/{Service}/`, *
 
 ```text
 services/Api/
-  Domain/Media/Api/
-  Domain/Media/Service/
-  Domain/Posts/...
+  Domain/Posts/Api/
+  Domain/Posts/Service/
+  Client/                 → IMediaClient (calls media-service)
   Global/...
 ```
 
