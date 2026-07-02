@@ -8,11 +8,13 @@ FROM ${RUST_IMAGE} AS builder
 WORKDIR /build
 
 COPY workers/Cargo.toml workers/rust-toolchain.toml ./
-COPY workers/crates/worker-core/Cargo.toml workers/crates/worker-core/
-COPY workers/rust-worker/Cargo.toml workers/rust-worker/
+COPY workers/crates/worker-core/Cargo.toml crates/worker-core/
+COPY workers/crates/worker-media/Cargo.toml crates/worker-media/
+COPY workers/rust-worker/Cargo.toml rust-worker/
 
-RUN mkdir -p crates/worker-core/src rust-worker/src \
+RUN mkdir -p crates/worker-core/src crates/worker-media/src rust-worker/src \
     && printf 'pub fn dummy() {}\n' > crates/worker-core/src/lib.rs \
+    && printf 'fn main() {}\n' > crates/worker-media/src/main.rs \
     && printf 'fn main() {}\n' > rust-worker/src/main.rs
 
 RUN cargo generate-lockfile \
@@ -20,7 +22,7 @@ RUN cargo generate-lockfile \
 
 COPY workers/crates/worker-core/src ./crates/worker-core/src
 COPY workers/rust-worker/src ./rust-worker/src
-RUN touch rust-worker/src/main.rs \
+RUN touch crates/worker-core/src/lib.rs rust-worker/src/main.rs \
     && cargo build --release -p tangle-worker
 
 FROM ${DEBIAN_IMAGE}
