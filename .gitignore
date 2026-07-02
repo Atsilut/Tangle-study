@@ -8,6 +8,7 @@ docker-compose.override.yml
 
 docker/versions.prod.env
 .ci-cache/
+harness-stack.tar
 
 ### DotnetCore ###
 # .NET Core build folders

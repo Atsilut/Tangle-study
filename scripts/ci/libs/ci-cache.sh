@@ -29,10 +29,13 @@ ci_fix_cache_ownership() {
 
   [[ -d "$(ci_cache_root)" ]] && paths+=("$(ci_cache_root)")
 
+  p="${ROOT}/.ci-cache/publish"
+  [[ -d "$p" ]] && paths+=("$p")
+
   p="${ROOT}/workers/target"
   [[ -d "$p" ]] && paths+=("$p")
 
-  for proj in Api Api.Tests; do
+  for proj in Api Api.Tests Media Media.Tests; do
     for kind in bin obj; do
       p="${ROOT}/services/${proj}/${kind}"
       [[ -d "$p" ]] && paths+=("$p")
