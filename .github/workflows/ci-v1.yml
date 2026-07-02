@@ -29,9 +29,18 @@ jobs:
       rust: ${{ steps.filter.outputs.rust }}
       harness: ${{ steps.filter.outputs.harness }}
     steps:
-      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@v3
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. PATH FILTER
+      ############################################
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
@@ -67,14 +76,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
 
-      - name: Render pinned container versions from parameters.prod.json
-        run: bash scripts/ci/render-versions-env.sh docker/versions.prod.env
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
 
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
       - name: Load pinned container versions
-        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
 
+      ############################################
+      # 3. CACHE CARGO
+      ############################################
       - name: Cache Cargo build artifacts
         uses: actions/cache@v5
         with:
@@ -87,7 +110,10 @@ jobs:
             ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-
             ${{ runner.os }}-cargo-
 
-      - name: cargo test
+      ############################################
+      # 4. RUST TESTS
+      ############################################
+      - name: Run Rust worker tests
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/rust-worker/target
           docker run --rm \
@@ -112,14 +138,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
 
-      - name: Render pinned container versions from parameters.prod.json
-        run: bash scripts/ci/render-versions-env.sh docker/versions.prod.env
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
 
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
       - name: Load pinned container versions
-        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
 
+      ############################################
+      # 3. CACHE NPM
+      ############################################
       - name: Cache npm and web test build
         uses: actions/cache@v5
         with:
@@ -131,7 +171,10 @@ jobs:
             ${{ runner.os }}-npm-${{ env.NODE_IMAGE }}-
             ${{ runner.os }}-npm-
 
-      - name: npm ci, lint, test, build
+      ############################################
+      # 4. WEB LINT, TEST, BUILD
+      ############################################
+      - name: Run web lint, test, and build
         run: |
           mkdir -p .ci-cache/npm
           docker run --rm \
@@ -155,14 +198,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
 
-      - name: Render pinned container versions from parameters.prod.json
-        run: bash scripts/ci/render-versions-env.sh docker/versions.prod.env
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
 
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
       - name: Load pinned container versions
-        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
 
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
       - name: Cache NuGet and .NET build outputs
         uses: actions/cache@v5
         with:
@@ -177,10 +234,16 @@ jobs:
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
 
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: dotnet test (Testcontainers)
+      ############################################
+      # 5. API INTEGRATION TESTS
+      ############################################
+      - name: Run API integration tests
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/ci/docker-test.sh
@@ -196,14 +259,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
 
-      - name: Render pinned container versions from parameters.prod.json
-        run: bash scripts/ci/render-versions-env.sh docker/versions.prod.env
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
 
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
       - name: Load pinned container versions
-        run: grep -E '^[A-Z_]+=' docker/versions.prod.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
 
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
       - name: Cache NuGet and .NET build outputs
         uses: actions/cache@v5
         with:
@@ -218,10 +295,16 @@ jobs:
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
 
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: run-media-harness.sh
+      ############################################
+      # 5. MEDIA HARNESS E2E
+      ############################################
+      - name: Run media harness E2E
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/ci/run-media-harness.sh
@@ -232,6 +315,14 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+
+      ############################################
+      # 0. CI GATE
+      ############################################
       - name: Fail if any job failed or was cancelled
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
-        run: exit 1
+        run: |
+          echo "========================================"
+          echo "[CI][FAILURE] One or more jobs failed or were cancelled"
+          echo "========================================"
+          exit 1
