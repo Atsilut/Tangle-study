@@ -2,16 +2,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=scripts/cd/libs/common.sh
-source "$ROOT/scripts/cd/libs/common.sh"
+LOG_PREFIX="[DEPLOY]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 
-# Validate required environment variables
-: "${AZURE_RESOURCE_GROUP:?required}"
+require_env AZURE_RESOURCE_GROUP
+
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 
-[[ -f "$PARAM_FILE" ]] || fail "Parameter file not found: $PARAM_FILE"
+[[ -f "$PARAM_FILE" ]] || fail "parameter file not found: $PARAM_FILE"
 
-# Extract registry and tag defaults for own-built images
 CONTAINER_REGISTRY="${CONTAINER_REGISTRY:-$(jq -r '.parameters.containerRegistry.value // empty' "$PARAM_FILE")}"
 IMAGE_TAG="${IMAGE_TAG:-$(jq -r '.parameters.imageTag.value // empty' "$PARAM_FILE")}"
 
@@ -81,16 +81,11 @@ append_infra_env() {
 ############################################
 log_step "PROCESSING CONTAINER APPS"
 
-# Iterate through all configured container apps exactly once
 jq -c '.parameters.containerApps | to_entries[]' "$PARAM_FILE" \
   | while read -r app; do
       name=$(echo "$app" | jq -r '.key')
-      echo ""
-      echo "=================================================="
       log_step "DEPLOYING: $name"
-      echo "=================================================="
 
-      # 1. Resolve image reference (Own-built vs Infra/External image)
       image=$(echo "$app" | jq -r '.value.image // empty')
       infra_key=$(echo "$app" | jq -r '.value.infraImage // empty')
       ref=""
@@ -101,13 +96,12 @@ jq -c '.parameters.containerApps | to_entries[]' "$PARAM_FILE" \
         ref="${CONTAINER_REGISTRY}/${image}:${IMAGE_TAG}"
       elif [[ -n "$infra_key" ]]; then
         ref=$(jq -r --arg k "$infra_key" '.parameters.infra.value[$k].image // empty' "$PARAM_FILE")
-        [[ -n "$ref" && "$ref" != "null" ]] || fail "[$name] Infra image not found for key: $infra_key"
+        [[ -n "$ref" && "$ref" != "null" ]] || fail "[$name] infra image not found for key: $infra_key"
       fi
 
-      # 2. Parse all environment variables into a bash array
       env_json=$(echo "$app" | jq -c '.value.env // {}')
       env_args=()
-      
+
       while IFS="=" read -r k v; do
         if [[ -n "$k" ]]; then
           env_args+=("${k}=${v}")
@@ -119,41 +113,33 @@ jq -c '.parameters.containerApps | to_entries[]' "$PARAM_FILE" \
       append_worker_env "$name"
       append_infra_env "$name"
 
-      # 3. Build and execute a single atomic CLI command to prevent duplicate revisions
       cmd=("az" "containerapp" "update" "--name" "$name" "--resource-group" "$AZURE_RESOURCE_GROUP" "--output" "none")
 
       if [[ -n "$ref" ]]; then
-        log_info "  -> Target image: $ref"
+        log_info "target image: $ref"
         cmd+=("--image" "$ref")
       fi
 
       if [[ ${#env_args[@]} -gt 0 ]]; then
-        log_info "  -> Target envs: ${#env_args[@]} variables detected"
+        log_info "target envs: ${#env_args[@]} variables detected"
         cmd+=("--set-env-vars" "${env_args[@]}")
       fi
 
-      # Trigger deployment only if there are structural changes
       if [[ -n "$ref" || ${#env_args[@]} -gt 0 ]]; then
-        log_info "  -> Deploying single-shot revision..."
+        log_info "deploying single-shot revision"
         "${cmd[@]}"
-        log_info "  -> Successfully deployed: $name"
+        log_info "successfully deployed: $name"
       else
-        log_warn "  -> No image or env configuration found. Skipping: $name"
+        log_warn "no image or env configuration found; skipping: $name"
       fi
-      echo ""
-      echo "=================================================="
     done
 
 ############################################
-echo ""
-echo "=================================================="
 log_step "DEPLOYING: tangle-study-migrate"
-echo "=================================================="
 
 MIGRATE_IMAGE="${CONTAINER_REGISTRY}/tangle-study-api:${IMAGE_TAG}"
 
-log_info "Processing updates for job: tangle-study-migrate"
-log_info "  -> Target image: $MIGRATE_IMAGE"
+log_info "target image: $MIGRATE_IMAGE"
 
 az containerapp job update \
   --name tangle-study-migrate \
@@ -161,7 +147,7 @@ az containerapp job update \
   --image "$MIGRATE_IMAGE" \
   --output none
 
-log_info "  -> Successfully deployed job: tangle-study-migrate"
+log_info "successfully deployed job: tangle-study-migrate"
 
 ############################################
 log_step "DEPLOYMENT SUMMARY"

@@ -30,7 +30,7 @@ dump_container_app_job_logs() {
   local container_name="${4:-$job_name}"
   local tail="${5:-40}"
 
-  echo "==> Recent job logs ($job_name / $execution_name):" >&2
+  log_info "recent job logs ($job_name / $execution_name)"
 
   if az containerapp job logs show \
     --name "$job_name" \
@@ -46,7 +46,7 @@ dump_container_app_job_logs() {
   local workspace_id
   workspace_id="$(resolve_log_analytics_workspace_id "$rg" 2>/dev/null || true)"
   if [[ -z "$workspace_id" ]]; then
-    echo "==> Job logs unavailable (containerapp logs and Log Analytics lookup failed)." >&2
+    log_error "job logs unavailable (containerapp logs and Log Analytics lookup failed)"
     return 1
   fi
 

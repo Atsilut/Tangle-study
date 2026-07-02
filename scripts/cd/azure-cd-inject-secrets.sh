@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=scripts/cd/libs/common.sh
-source "$ROOT/scripts/cd/libs/common.sh"
+LOG_PREFIX="[DEPLOY]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 
 ############################################
 log_step "SECRET INJECTION START"
@@ -127,7 +128,6 @@ apply_worker_secrets tangle-study-worker-media \
 ############################################
 log_step "APPLYING SECRETS (tangle-study-migrate JOB)"
 
-# 일반 앱이 아니라 'job' 이므로 az containerapp job 명령어를 사용해야 합니다.
 az containerapp job secret set \
   --name tangle-study-migrate \
   --resource-group "$AZURE_RESOURCE_GROUP" \

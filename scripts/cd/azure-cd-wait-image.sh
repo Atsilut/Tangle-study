@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${CONTAINER_REGISTRY:?required}"
-: "${IMAGE_TAG:?required}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+LOG_PREFIX="[DEPLOY][IMAGE]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 
-echo "========================================"
-echo "[DEPLOY][IMAGE] PHASE 2 - GHCR CONSISTENCY GATE (OPTIMIZED)"
-echo "========================================"
+require_env CONTAINER_REGISTRY
+require_env IMAGE_TAG
+
+log_step "GHCR CONSISTENCY GATE"
 
 IMAGES=(
   tangle-study-api
@@ -20,32 +23,30 @@ wait_image() {
   local image="$1"
   local ref="${CONTAINER_REGISTRY}/${image}:${IMAGE_TAG}"
 
-  echo "==> CHECK ${ref}"
+  log_info "check ${ref}"
 
   for i in {1..40}; do
     if docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
-      echo "==> READY ${image}"
+      log_info "ready ${image}"
       return 0
     fi
 
-    echo "    not ready (${i}/40)"
+    log_info "not ready (${i}/40)"
     sleep 5
   done
 
-  echo "[FATAL] GHCR manifest not available: ${ref}" >&2
+  log_error "GHCR manifest not available: ${ref}"
   return 1
 }
 
-fail=0
+gate_failed=0
 
 for img in "${IMAGES[@]}"; do
   if ! wait_image "$img"; then
-    fail=1
+    gate_failed=1
   fi
 done
 
-[[ $fail -eq 0 ]] || exit 1
+[[ $gate_failed -eq 0 ]] || fail "one or more GHCR manifests not available"
 
-echo "========================================"
-echo "[DEPLOY][IMAGE] ALL READY"
-echo "========================================"
+log_step "ALL IMAGES READY"

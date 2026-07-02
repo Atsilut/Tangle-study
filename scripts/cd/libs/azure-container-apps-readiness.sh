@@ -138,11 +138,11 @@ dump_container_app_revision_status() {
   local image target_port fields
 
   if ! az containerapp show --name "$app_name" --resource-group "$rg" &>/dev/null; then
-    echo "==> ${app_name}: not found" >&2
+    log_error "${app_name}: not found"
     return 0
   fi
 
-  echo "==> ${app_name} revision status:" >&2
+  log_error "${app_name} revision status:"
   fields="$(container_app_active_revision_fields "$app_name" "$rg")"
   if [[ "$fields" == "{}" ]]; then
     echo "    (no active revision)" >&2
@@ -167,7 +167,7 @@ for key in ("revision", "healthState", "runningState", "provisioningState", "rep
     --resource-group "$rg" \
     --query "properties.configuration.ingress.targetPort" \
     --output tsv 2>/dev/null || true)"
-  echo "==> ${app_name} image=${image:-unknown} ingress.targetPort=${target_port:-n/a}" >&2
+  log_error "${app_name} image=${image:-unknown} ingress.targetPort=${target_port:-n/a}"
 }
 
 wait_for_container_app_revision_healthy() {
@@ -177,7 +177,7 @@ wait_for_container_app_revision_healthy() {
   local deadline revision health running provisioning replicas status_line
 
   if ! az containerapp show --name "$app_name" --resource-group "$rg" &>/dev/null; then
-    echo "==> ${app_name}: not found; skip revision wait" >&2
+    log_error "${app_name}: not found; skip revision wait"
     return 0
   fi
 
@@ -191,19 +191,19 @@ wait_for_container_app_revision_healthy() {
     IFS=$'\t' read -r revision health running provisioning replicas <<<"$status_line"
 
     if revision_is_operational "$health" "$running"; then
-      echo "==> ${app_name}: revision ${revision} is Healthy (${running}, replicas=${replicas:-?})"
+      log_info "${app_name}: revision ${revision} is Healthy (${running}, replicas=${replicas:-?})"
       return 0
     fi
 
-    echo "==> ${app_name}: waiting for Healthy revision (current: ${revision:-none} health=${health:-?} running=${running:-?} provisioning=${provisioning:-?})..."
+    log_info "${app_name}: waiting for Healthy revision (current: ${revision:-none} health=${health:-?} running=${running:-?} provisioning=${provisioning:-?})..."
     sleep 15
   done
 
-  echo "==> ${app_name}: timed out after ${timeout_sec}s waiting for Healthy revision (last: health=${health:-?} running=${running:-?})" >&2
+  log_error "${app_name}: timed out after ${timeout_sec}s waiting for Healthy revision (last: health=${health:-?} running=${running:-?})"
   dump_container_app_revision_status "$app_name" "$rg"
 
   if revision_is_operational "$health" "$running"; then
-    echo "==> ${app_name}: revision ${revision} is Healthy after final check; continuing." >&2
+    log_error "${app_name}: revision ${revision} is Healthy after final check; continuing."
     return 0
   fi
 
@@ -262,12 +262,12 @@ probe_api_health_via_exec() {
   local output_file command
 
   if ! az containerapp show --name "$app_name" --resource-group "$rg" &>/dev/null; then
-    echo "==> ${app_name}: not found; skip exec health probe" >&2
+    log_error "${app_name}: not found; skip exec health probe"
     return 1
   fi
 
   command="wget -qO- --timeout=15 http://127.0.0.1:${port}/health"
-  echo "==> Probing ${app_name} /health via container exec (127.0.0.1:${port})"
+  log_info "Probing ${app_name} /health via container exec (127.0.0.1:${port})"
   output_file="$(mktemp)"
   run_container_app_exec "$app_name" "$app_name" "$command" "$rg" >"$output_file" 2>&1 || true
 
@@ -282,11 +282,11 @@ probe_api_health_via_exec() {
   fi
   if grep -q Healthy "$output_file"; then
     rm -f "$output_file"
-    echo "==> ${app_name} /health returned Healthy via exec"
+    log_info "${app_name} /health returned Healthy via exec"
     return 0
   fi
 
-  echo "==> ${app_name} /health did not return Healthy via exec" >&2
+  log_error "${app_name} /health did not return Healthy via exec"
   rm -f "$output_file"
   return 1
 }
@@ -333,16 +333,16 @@ wait_for_api_http_from_web() {
 
   for (( attempt=1; attempt<=max_attempts; attempt++ )); do
     if probe_http_health_via_exec "$web_app" "$rg" "$host" "$port"; then
-      echo "==> API HTTP probe succeeded from ${web_app} to ${label}"
+      log_info "API HTTP probe succeeded from ${web_app} to ${label}"
       return 0
     fi
     if (( attempt < max_attempts )); then
-      echo "==> API HTTP probe failed from ${web_app} to ${label} (attempt ${attempt}/${max_attempts}); retry in ${interval}s..."
+      log_info "API HTTP probe failed from ${web_app} to ${label} (attempt ${attempt}/${max_attempts}); retry in ${interval}s..."
       sleep "$interval"
     fi
   done
 
-  echo "==> API HTTP probe failed from ${web_app} to ${label} after ${max_attempts} attempts" >&2
+  log_error "API HTTP probe failed from ${web_app} to ${label} after ${max_attempts} attempts"
   return 1
 }
 
@@ -357,7 +357,7 @@ try_api_http_hosts_from_web() {
   fqdn_host="$(aca_internal_app_host "$api_app" "$rg")"
   short_host="$api_app"
 
-  echo "==> Probing ACA short app name $(api_http_upstream_log_label "$short_host" "${port:-80}" "$api_app") from ${web_app}"
+  log_info "Probing ACA short app name $(api_http_upstream_log_label "$short_host" "${port:-80}" "$api_app") from ${web_app}"
   if wait_for_api_http_from_web "$web_app" "$rg" "$short_host" "$api_app" "$port" 3 10; then
     discovered_upstream="$short_host"
     [[ -n "$port" ]] && discovered_upstream="${short_host}:${port}"
@@ -365,7 +365,7 @@ try_api_http_hosts_from_web() {
     return 0
   fi
 
-  echo "==> Short app name probe failed; trying $(api_http_upstream_log_label "$fqdn_host" "${port:-80}" "$api_app") from ${web_app}" >&2
+  log_info "Short app name probe failed; trying $(api_http_upstream_log_label "$fqdn_host" "${port:-80}" "$api_app") from ${web_app}" >&2
   if wait_for_api_http_from_web "$web_app" "$rg" "$fqdn_host" "$api_app" "$port"; then
     discovered_upstream="$fqdn_host"
     [[ -n "$port" ]] && discovered_upstream="${fqdn_host}:${port}"
@@ -395,7 +395,7 @@ probe_web_api_health_via_exec() {
   local short_label fqdn_label
 
   if ! az containerapp show --name "$web_app" --resource-group "$rg" &>/dev/null; then
-    echo "==> ${web_app}: not found; skip web→API exec health probe" >&2
+    log_error "${web_app}: not found; skip web→API exec health probe"
     return 1
   fi
 
@@ -407,37 +407,37 @@ probe_web_api_health_via_exec() {
   upstream="$(container_app_env_var "$web_app" "$rg" "TANGLE_API_UPSTREAM")"
   if [[ -z "$upstream" ]]; then
     if ! try_api_http_hosts_from_web "$web_app" "$api_app" "$rg" "$port"; then
-      echo "==> ${web_app} cannot reach ${api_app} /health via short name (${short_label}) or internal FQDN (${fqdn_label})" >&2
+      log_error "${web_app} cannot reach ${api_app} /health via short name (${short_label}) or internal FQDN (${fqdn_label})"
       return 1
     fi
     upstream="$API_HTTP_UPSTREAM"
   fi
 
   command="wget -qO- --timeout=15 http://${upstream}/health"
-  echo "==> Probing ${web_app} → ${upstream}/health via container exec"
+  log_info "Probing ${web_app} → ${upstream}/health via container exec"
   output_file="$(mktemp)"
   run_container_app_exec "$web_app" "$web_app" "$command" "$rg" >"$output_file" 2>&1 || true
 
   if container_app_exec_reported_failure "$output_file"; then
-    echo "==> Failed host: ${upstream} (also try ${short_label} vs ${fqdn_label})" >&2
+    log_error "Failed host: ${upstream} (also try ${short_label} vs ${fqdn_label})"
     if declare -f redact_log_stream >/dev/null 2>&1; then
       redact_log_stream <"$output_file" >&2
     else
       cat "$output_file" >&2
     fi
-    echo "==> Hint: ACA cross-app HTTP routing is per caller — re-run scripts/cd/azure-cd-deploy-image.sh or scripts/cd/azure-cd-smoke.sh to verify TANGLE_API_UPSTREAM." >&2
-    echo "==> Hint: nginx proxy_set_header Host must match the upstream hostname (see infra/nginx/docker-entrypoint.sh)." >&2
+    log_warn "ACA cross-app HTTP routing is per caller — re-run scripts/cd/azure-cd-deploy-image.sh or scripts/cd/azure-cd-smoke.sh to verify TANGLE_API_UPSTREAM." >&2
+    log_warn "nginx proxy_set_header Host must match the upstream hostname (see infra/nginx/docker-entrypoint.sh)." >&2
     rm -f "$output_file"
     return 1
   fi
   if grep -q Healthy "$output_file"; then
     rm -f "$output_file"
-    echo "==> ${web_app} reached ${upstream}/health (Healthy) via exec"
+    log_info "${web_app} reached ${upstream}/health (Healthy) via exec"
     return 0
   fi
 
-  echo "==> ${web_app} did not get Healthy from ${upstream}/health via exec" >&2
-  echo "==> Hint: verify runtime nginx upstream and Host header (grep server / proxy_set_header Host in default.conf)." >&2
+  log_error "${web_app} did not get Healthy from ${upstream}/health via exec"
+  log_warn "verify runtime nginx upstream and Host header (grep server / proxy_set_header Host in default.conf)." >&2
   rm -f "$output_file"
   return 1
 }

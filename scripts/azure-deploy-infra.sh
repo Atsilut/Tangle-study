@@ -13,6 +13,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+LOG_PREFIX="[DEPLOY][INFRA]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 # shellcheck source=scripts/ci/libs/versions-prod-env.sh
 source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
@@ -60,6 +63,8 @@ deploy_env() {
     )
   fi
 
+  log_step "DEPLOY $rg"
+
   az group create --name "$rg" --location "$LOCATION" --output none
   az deployment group create \
     --resource-group "$rg" \
@@ -67,11 +72,13 @@ deploy_env() {
     --parameters "@${parameters_file}" \
     "${extra_params[@]}" \
     --output table
+
+  log_info "deployment completed rg=$rg"
 }
 
 case "$TARGET" in
   dev) deploy_env "tangle-study-dev" "infra/azure/parameters.dev.json" ;;
   prod) deploy_env "tangle-study-prod" "infra/azure/parameters.prod.json" ;;
   -h|--help|"") usage; exit "${TARGET:+0}" 1 ;;
-  *) echo "Unknown target: $TARGET" >&2; usage >&2; exit 1 ;;
+  *) usage >&2; fail "unknown target: $TARGET" ;;
 esac

@@ -3,13 +3,13 @@ set -euo pipefail
 
 export DOCKER_BUILDKIT=1
 
-: "${CONTAINER_REGISTRY:?}"
-: "${IMAGE_TAG:?}"
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPLOY_LOG_PREFIX="[DEPLOY][BUILD]"
-# shellcheck source=scripts/cd/libs/common.sh
-source "$ROOT/scripts/cd/libs/common.sh"
+LOG_PREFIX="[DEPLOY][BUILD]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
+
+require_env CONTAINER_REGISTRY
+require_env IMAGE_TAG
 
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 NGINX_PROD_CONF="infra/nginx/nginx.production.conf"
@@ -21,10 +21,10 @@ log_step "BUILD & PUSH"
 # shellcheck source=scripts/ci/libs/read-parameters.sh
 source "$ROOT/scripts/ci/libs/read-parameters.sh"
 
-# ----------------------------
-# 1. PARSE CONFIG
-# ----------------------------
-log_info "Reading build image tags from $PARAM_FILE..."
+############################################
+log_step "PARSE CONFIG"
+
+log_info "reading build image tags from $PARAM_FILE"
 DOTNET_SDK="$(param_build_image dotnetSdk)"
 DOTNET_ASPNET="$(param_build_image dotnetAspnet)"
 NODE_IMG="$(param_build_image node)"
@@ -34,9 +34,9 @@ DEBIAN_IMG="$(param_build_image debian)"
 PROMETHEUS_IMG="$(param_infra_image prometheus)"
 GRAFANA_IMG="$(param_infra_image grafana)"
 
-# ----------------------------
-# 2. OPTIMIZED IMAGE LIST
-# ----------------------------
+############################################
+log_step "BUILD IMAGES"
+
 IMAGES=(
   tangle-study-api
   tangle-study-web
@@ -53,9 +53,6 @@ declare -A DOCKERFILE_MAP=(
   [tangle-study-grafana]="infra/azure/monitoring/grafana/Dockerfile"
 )
 
-# ----------------------------
-# 3. BUILD FUNCTIONS
-# ----------------------------
 set_build_args() {
   local image="$1"
   BUILD_ARGS=()
@@ -91,14 +88,14 @@ build_push() {
   log_step "START $image"
 
   if [[ -z "$dockerfile" || ! -f "$dockerfile" ]]; then
-    log_error "Dockerfile missing or not mapped for: $image"
+    log_error "dockerfile missing or not mapped for: $image"
     ls -al "$(dirname "${dockerfile:-.}")" || true >&2
-    exit 1
+    fail "dockerfile missing or not mapped for: $image"
   fi
 
   set_build_args "$image"
 
-  log_info "Running docker build for $image..."
+  log_info "running docker build for $image"
   if ! docker build \
       -f "$dockerfile" \
       "${BUILD_ARGS[@]}" \
@@ -107,14 +104,11 @@ build_push() {
     fail "docker build failed for $image"
   fi
 
-  log_info "Pushing image to registry..."
+  log_info "pushing image to registry"
   docker push "$tag"
-  log_info "SUCCESS $image"
+  log_info "success $image"
 }
 
-# ----------------------------
-# 4. EXECUTION LOOP
-# ----------------------------
 for img in "${IMAGES[@]}"; do
   build_push "$img"
 done

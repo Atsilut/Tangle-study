@@ -1,37 +1,23 @@
 #!/usr/bin/env bash
-# =========================================================
-# [DEPLOY][MIGRATE] EF Core Container Apps Job Runner
-# =========================================================
+# EF Core Container Apps Job runner: start migration job, poll status, dump logs on failure.
 #
-# PURPOSE:
-#   Run DB migration job and enforce deterministic success/failure.
+# Usage: AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-migrate.sh
 #
-# FLOW:
-#   1. Start job execution
-#   2. Poll execution status
-#   3. On failure → dump logs
-#   4. On timeout → dump logs
-#
-# =========================================================
-
 set -euo pipefail
 
-: "${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPLOY_LOG_PREFIX="[DEPLOY][MIGRATE]"
-# shellcheck source=scripts/cd/libs/common.sh
-source "$ROOT/scripts/cd/libs/common.sh"
+LOG_PREFIX="[DEPLOY][MIGRATE]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
+# shellcheck source=scripts/cd/libs/container-app-job-logs.sh
 source "$ROOT/scripts/cd/libs/container-app-job-logs.sh"
+
+require_env AZURE_RESOURCE_GROUP
 
 JOB_NAME="${MIGRATE_JOB_NAME:-tangle-study-migrate}"
 TIMEOUT="${MIGRATE_TIMEOUT_SEC:-600}"
 RG="$AZURE_RESOURCE_GROUP"
 
-
-########################################
-# FAILURE DIAGNOSTICS
-########################################
 dump_failure() {
   local execution_name="$1"
 
@@ -45,8 +31,7 @@ dump_failure() {
     80 || true
 }
 
-
-########################################
+############################################
 log_step "START MIGRATION JOB"
 
 log_info "job=$JOB_NAME rg=$RG timeout=${TIMEOUT}s"
@@ -59,8 +44,7 @@ EXECUTION_NAME="$(az containerapp job start \
 
 log_info "execution_started name=$EXECUTION_NAME"
 
-
-########################################
+############################################
 log_step "POLL JOB STATUS"
 
 deadline=$((SECONDS + TIMEOUT))
@@ -102,8 +86,7 @@ while (( SECONDS < deadline )); do
   sleep 10
 done
 
-
-########################################
+############################################
 log_step "MIGRATION TIMEOUT"
 
 log_error "execution=$EXECUTION_NAME status=TIMEOUT timeout=${TIMEOUT}s"
