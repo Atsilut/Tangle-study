@@ -113,8 +113,38 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # Nginx edge: reverse-proxies /api and /hubs (SignalR WebSocket) to the api
-  # service, and serves the built React SPA (built in clients/web/Dockerfile).
+  media:
+    build:
+      context: .
+      dockerfile: services/Media/Dockerfile
+      args: *api-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__Enabled: "true"
+      Redis__ConnectionString: "redis:6379"
+      Redis__WorkQueueStreamPrefix: "tangle:queue:"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      azurite:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  # Nginx edge: reverse-proxies /api/media to media-service and other /api routes
+  # to the monolith; serves the built React SPA (built in clients/web/Dockerfile).
   # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
   nginx:
     build:
@@ -126,6 +156,8 @@ services:
     depends_on:
       api:
         condition: service_started
+      media:
+        condition: service_healthy
       rust-worker-media:
         condition: service_started
         required: false
@@ -242,7 +274,7 @@ services:
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: media.uploaded
       WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://api:8080
+      API_BASE_URL: http://media:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
       MEDIA_CONTAINER_NAME: tangle-media
@@ -253,8 +285,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      api:
-        condition: service_started
+      media:
+        condition: service_healthy
       azurite:
         condition: service_started
     restart: unless-stopped
@@ -294,7 +326,7 @@ services:
     working_dir: /src
     environment:
       <<: *dotnet-env
-      TANGLE_HARNESS_API_BASE_URL: http://api:8080
+      TANGLE_HARNESS_API_BASE_URL: http://nginx
     volumes:
       - .:/src
     depends_on:
@@ -306,6 +338,10 @@ services:
         condition: service_started
       api:
         condition: service_healthy
+      media:
+        condition: service_healthy
+      nginx:
+        condition: service_started
       rust-worker-media:
         condition: service_started
     command:

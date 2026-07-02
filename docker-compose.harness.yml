@@ -1,7 +1,11 @@
-# Harness runs tests inside Compose; API is reached at http://api:8080 (no host port required).
+# Harness runs tests inside Compose; API is reached at http://nginx (strangler edge).
 services:
   api:
     ports: !reset []
     environment:
       # SAS URLs must target azurite:10000 in-network; rewriting the host breaks the signature.
+      Media__PublicBlobEndpoint: ""
+
+  media:
+    environment:
       Media__PublicBlobEndpoint: ""

@@ -18,6 +18,15 @@ scrape_configs:
         values:
           - dev-metrics-secret
 
+  - job_name: media
+    static_configs:
+      - targets: ["media:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter:9187"]
