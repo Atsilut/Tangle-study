@@ -275,36 +275,13 @@ namespace Api.Global.Db
                 .HasForeignKey(e => e.ChatMessageId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Uploader)
-                .WithMany()
-                .HasForeignKey(m => m.UploaderId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Post)
-                .WithMany()
-                .HasForeignKey(m => m.PostId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Comment)
-                .WithMany()
-                .HasForeignKey(m => m.CommentId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.ChatMessage)
-                .WithMany()
-                .HasForeignKey(m => m.ChatMessageId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasIndex(m => m.UploaderId);
+            modelBuilder.Entity<MediaAsset>(entity =>
+            {
+                entity.HasIndex(m => m.UploaderId);
+                entity.HasIndex(m => m.PostId);
+                entity.HasIndex(m => m.CommentId);
+                entity.HasIndex(m => m.ChatMessageId);
+            });
 
             modelBuilder.Entity<MapPin>()
                 .HasOne(p => p.User)

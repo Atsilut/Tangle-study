@@ -1,7 +1,3 @@
-using Api.Domain.Chat.Domain;
-using Api.Domain.Comments.Domain;
-using Api.Domain.Posts.Domain;
-using Api.Domain.Users.Domain;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -16,12 +12,9 @@ public class MediaAsset
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
-    [ForeignKey(nameof(Uploader))]
     public long? UploaderId { get; private set; }
 
     public long? DeletedUploaderId { get; private set; }
-
-    public User? Uploader { get; private set; }
 
     public long LogicalUploaderId => UploaderId ?? DeletedUploaderId!.Value;
 
@@ -34,7 +27,7 @@ public class MediaAsset
 
     [MaxLength(512)]
     public string OriginalFileName { get; private set; } = string.Empty;
-    
+
     [MaxLength(1024)]
     public string OriginalObjectKey { get; private set; } = string.Empty;
 
@@ -47,17 +40,11 @@ public class MediaAsset
     [MaxLength(2000)]
     public string? FailureReason { get; private set; }
 
-    [ForeignKey(nameof(Post))]
     public long? PostId { get; private set; }
-    public Post? Post { get; private set; }
 
-    [ForeignKey(nameof(Comment))]
     public long? CommentId { get; private set; }
-    public Comment? Comment { get; private set; }
 
-    [ForeignKey(nameof(ChatMessage))]
     public long? ChatMessageId { get; private set; }
-    public ChatMessage? ChatMessage { get; private set; }
 
     public bool IsLinked => PostId is not null || CommentId is not null || ChatMessageId is not null;
 
