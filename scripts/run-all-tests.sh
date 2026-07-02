@@ -5,9 +5,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+LOG_PREFIX="[TEST]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 
-# Git Bash on Windows: use a Windows host path for bind mounts and stop MSYS from
-# rewriting -w /src/... into C:/Program Files/Git/src/...
 if command -v pwd.exe >/dev/null 2>&1; then
   DOCKER_ROOT="$(pwd -W)"
 else
@@ -15,7 +16,6 @@ else
 fi
 export MSYS_NO_PATHCONV=1
 
-# CI parity: pinned images from docker/versions.prod.env (override with COMPOSE_ENV_FILE).
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"
 # shellcheck source=scripts/shared/compose-env.sh
 source "$ROOT/scripts/shared/compose-env.sh"
@@ -31,7 +31,7 @@ RUST_IMAGE="${RUST_IMAGE:-rust:bookworm}"
 NODE_IMAGE="${NODE_IMAGE:-node:bookworm-slim}"
 
 run_rust() {
-  echo "==> Rust worker unit tests"
+  log_step "RUST WORKER UNIT TESTS"
   docker run --rm \
     -v "${DOCKER_ROOT}:/src" \
     -w /src/workers/rust-worker \
@@ -40,17 +40,17 @@ run_rust() {
 }
 
 run_api() {
-  echo "==> API integration tests (Testcontainers)"
+  log_step "API INTEGRATION TESTS"
   "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
 run_harness() {
-  echo "==> Media harness (E2E: API + rust-worker-media)"
+  log_step "MEDIA HARNESS E2E"
   "$ROOT/scripts/ci/run-media-harness.sh"
 }
 
 run_web() {
-  echo "==> Web client tests (Vitest)"
+  log_step "WEB CLIENT TESTS"
   docker run --rm \
     -v "${DOCKER_ROOT}:/src" \
     -w /src/clients/web \
@@ -101,9 +101,11 @@ while [[ $# -gt 0 ]]; do
     --skip-web) SKIP_WEB=true; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; API_ARGS=("$@"); break ;;
-    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *) usage >&2; fail "unknown option: $1" ;;
   esac
 done
+
+log_step "RUN ALL TESTS"
 
 if $PARALLEL_FRONTEND && { ! $SKIP_RUST || ! $SKIP_WEB; }; then
   pids=()
@@ -128,4 +130,4 @@ if ! $SKIP_HARNESS; then run_harness; fi
 
 if ! $PARALLEL_FRONTEND && ! $SKIP_WEB; then run_web; fi
 
-echo "==> All requested test suites passed."
+log_step "ALL REQUESTED TEST SUITES PASSED"

@@ -9,33 +9,33 @@
 #   ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
 #   ./scripts/migrate.sh --production
 #
-# Azure Container Apps Job (planned CD step):
-#   dotnet Api.dll --migrate
-#
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+LOG_PREFIX="[MIGRATE]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 # shellcheck source=scripts/shared/compose-env.sh
 source "$ROOT/scripts/shared/compose-env.sh"
 
 MODE="${1:-local}"
 
 if [[ "$MODE" == "--production" ]]; then
-  if [[ -z "${ConnectionStrings__DefaultConnection:-}" ]]; then
-    echo "ConnectionStrings__DefaultConnection is required for --production." >&2
-    exit 1
-  fi
+  require_env ConnectionStrings__DefaultConnection
 
+  log_step "PRODUCTION MIGRATE"
   tangle_compose build api
   tangle_compose run --rm --no-deps \
     -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}" \
     -e "ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}" \
     api dotnet Api.dll --migrate
 elif [[ "$MODE" == "local" ]]; then
+  log_step "LOCAL MIGRATE"
   tangle_compose build api
   tangle_compose run --rm --no-deps api dotnet Api.dll --migrate
 else
-  echo "Usage: $0 [local|--production]" >&2
-  exit 1
+  fail "usage: $0 [local|--production]"
 fi
+
+log_info "migration completed"

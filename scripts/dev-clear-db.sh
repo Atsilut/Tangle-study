@@ -11,6 +11,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+LOG_PREFIX="[DEV]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
 
 DB_USER="tangle"
 DB_NAME="tangledb"
@@ -27,39 +30,26 @@ for arg in "$@"; do
       exit 0
       ;;
     *)
-      echo "Unknown option: $arg" >&2
-      echo "Usage: $0 [--yes]" >&2
-      exit 1
+      fail "unknown option: $arg (usage: $0 [--yes])"
       ;;
   esac
 done
 
-if [[ ! -f docker-compose.yml ]]; then
-  echo "error: run from the Tangle repo root (docker-compose.yml not found)." >&2
-  exit 1
-fi
+[[ -f docker-compose.yml ]] || fail "run from the Tangle repo root (docker-compose.yml not found)"
 
 if ! docker compose ps --status running db --quiet 2>/dev/null | grep -q .; then
-  echo "error: the Compose db service is not running." >&2
-  echo "Start it with: docker compose up -d db" >&2
-  exit 1
+  fail "the Compose db service is not running (start with: docker compose up -d db)"
 fi
 
 if [[ "$SKIP_CONFIRM" != true ]]; then
-  echo "This will DELETE ALL application data in local Postgres:"
-  echo "  database: $DB_NAME"
-  echo "  host:     localhost:5433 (Compose db service)"
-  echo
-  echo "Schema and migrations are kept. Redis and blob storage are NOT cleared."
-  echo
+  log_info "this will DELETE ALL application data in local Postgres:"
+  log_info "database=$DB_NAME host=localhost:5433"
+  log_info "schema and migrations are kept; Redis and blob storage are NOT cleared"
   read -r -p "Type 'yes' to continue: " answer
-  if [[ "$answer" != "yes" ]]; then
-    echo "Aborted."
-    exit 1
-  fi
+  [[ "$answer" == "yes" ]] || fail "aborted"
 fi
 
-echo "Truncating application tables..."
+log_step "TRUNCATE APPLICATION TABLES"
 
 docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
 DO $truncate$
@@ -82,9 +72,5 @@ BEGIN
 END $truncate$;
 SQL
 
-echo "Done. Local dev database is empty (schema intact)."
-echo
-echo "Next steps for a clean frontend smoke test:"
-echo "  - Clear saved login: DevTools -> Application -> Local Storage -> remove 'tangle-auth'"
-echo "    (or use Sign out if the app still has a session)."
-echo "  - Sign up again at http://localhost:5173/register"
+log_info "local dev database is empty (schema intact)"
+log_info "next: clear saved login in DevTools or sign out, then sign up at http://localhost:5173/register"

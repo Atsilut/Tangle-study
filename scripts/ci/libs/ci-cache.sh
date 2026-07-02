@@ -76,5 +76,10 @@ build_sdk_image() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   set -euo pipefail
   ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  LOG_PREFIX="[CI][CACHE]"
+  # shellcheck source=scripts/shared/common.sh
+  source "$ROOT/scripts/shared/common.sh"
+  log_step "FIX CI CACHE OWNERSHIP"
   ci_fix_cache_ownership
+  log_info "cache ownership fixed"
 fi

@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Single source of truth - parameters.prod.json
+# Single source of truth: parameters.prod.json
 #
 # Usage:
 #   scripts/ci/render-versions-env.sh > docker/versions.prod.env
 #   scripts/ci/render-versions-env.sh docker/versions.prod.env
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+LOG_PREFIX="[CI][VERSIONS]"
+# shellcheck source=scripts/shared/common.sh
+source "$ROOT/scripts/shared/common.sh"
+
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 OUT_FILE="${1:-/dev/stdout}"
 
 # shellcheck source=scripts/ci/libs/read-parameters.sh
 source "$ROOT/scripts/ci/libs/read-parameters.sh"
 
-[[ -f "$PARAM_FILE" ]] || { echo "[render-versions-env] parameter file not found: $PARAM_FILE" >&2; exit 1; }
+[[ -f "$PARAM_FILE" ]] || fail "parameter file not found: $PARAM_FILE"
 
 if [[ "$OUT_FILE" != "/dev/stdout" ]]; then
   mkdir -p "$(dirname "$OUT_FILE")"
 fi
+
+log_step "RENDER VERSIONS ENV"
 
 {
   echo "# Pinned container versions for CI, deployment, and prod-like local runs."
@@ -45,7 +51,9 @@ fi
 } > "$OUT_FILE"
 
 if grep -q '=null$' "$OUT_FILE" 2>/dev/null; then
-  echo "[render-versions-env] ERROR: one or more keys resolved to null - check $PARAM_FILE" >&2
+  log_error "one or more keys resolved to null - check $PARAM_FILE"
   grep '=null$' "$OUT_FILE" >&2
-  exit 1
+  fail "one or more keys resolved to null"
 fi
+
+log_info "wrote $OUT_FILE"
