@@ -12,6 +12,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected ApiWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
 
+    protected FakeMediaClient FakeMediaClient => Factory.FakeMediaClient;
+
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
         bool redisEnabled = false,

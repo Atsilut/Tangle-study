@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/worker-core",
+    "crates/worker-media",
+    "rust-worker",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.96"
+publish = false

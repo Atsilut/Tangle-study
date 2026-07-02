@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
-using Api.Domain.Media.Domain;
+using Api.Client;
 using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Controllers;
@@ -236,12 +236,11 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         await LoginAs(userA);
 
-        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
-            Client,
+        var mediaAssetId = FakeMediaClientTestHelpers.SeedReadyAsset(
+            FakeMediaClient,
             MediaIntendedContext.ChatMessage,
             "image/png",
             "chat.png",
-            declaredSizeBytes: 68,
             storedSizeBytes: 67);
 
         var res = await Client.PostAsJsonAsync(

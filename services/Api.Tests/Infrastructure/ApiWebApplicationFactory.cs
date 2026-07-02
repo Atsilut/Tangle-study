@@ -1,4 +1,4 @@
-using Api.Domain.Media.Storage;
+using Api.Client;
 using Api.Global.Db;
 using Api.Global.Events;
 using Api.Global.Queue;
@@ -23,25 +23,22 @@ public sealed class ApiWebApplicationFactory(
 {
     public const string TestWorkerCallbackSecret = "test-media-worker-secret";
 
-    /// <summary>
-    /// Satisfies startup validation only. <see cref="FakeMediaStorage"/> replaces
-    /// <see cref="IMediaStorage"/> — no blob endpoint is contacted (unlike harness/prod).
-    /// </summary>
-    private const string StartupOnlyMediaConnectionString = "UseDevelopmentStorage=true";
-
     private readonly string _connectionString = connectionString;
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
     private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
     private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
+    private readonly FakeMediaClient _fakeMediaClient = new();
+
+    public FakeMediaClient FakeMediaClient => _fakeMediaClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Media:Enabled", "true");
-        builder.UseSetting("Media:ConnectionString", StartupOnlyMediaConnectionString);
-        builder.UseSetting("Media:WorkerCallbackSecret", TestWorkerCallbackSecret);
+        builder.UseSetting("WorkerCallback:Secret", TestWorkerCallbackSecret);
+        builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
+        builder.UseSetting("MediaClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -53,9 +50,10 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:InstanceName"] = "tangle:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Media:Enabled"] = "true",
-                ["Media:ConnectionString"] = StartupOnlyMediaConnectionString,
-                ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
+                ["MediaClient:BaseUrl"] = "http://media.test",
+                ["MediaClient:InternalSecret"] = "test-internal-service-secret",
+                ["InternalAccess:Secret"] = "test-internal-service-secret",
+                ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
                 ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
                 ["Jwt:Secret"] = "integration-test-jwt-secret-at-least-32-characters-long",
@@ -64,8 +62,8 @@ public sealed class ApiWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMediaStorage>(services);
-            services.AddSingleton<IMediaStorage, FakeMediaStorage>();
+            RemoveService<IMediaClient>(services);
+            services.AddSingleton<IMediaClient>(_fakeMediaClient);
         });
 
         builder.ConfigureServices(services =>

@@ -1,4 +1,4 @@
-using Api.Domain.Media.Domain;
+using Api.Client;
 using Api.Tests.Infrastructure;
 
 namespace Api.Tests.Harness;

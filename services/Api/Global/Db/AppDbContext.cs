@@ -1,13 +1,12 @@
-using Api.Domain.Users.Domain;
-using Api.Domain.Posts.Domain;
-using Microsoft.EntityFrameworkCore;
+using Api.Domain.Chat.Domain;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
-using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Groups.Domain;
-using Api.Domain.Chat.Domain;
-using Api.Domain.Media.Domain;
 using Api.Domain.Location.Domain;
+using Api.Domain.Posts.Domain;
+using Api.Domain.UserBlocks.Domain;
+using Api.Domain.Users.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Global.Db
 {
@@ -30,7 +29,6 @@ namespace Api.Global.Db
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
         public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
-        public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
         public DbSet<MapPin> MapPins => Set<MapPin>();
         public DbSet<LocationSession> LocationSessions => Set<LocationSession>();
 
@@ -274,37 +272,6 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(e => e.ChatMessageId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Uploader)
-                .WithMany()
-                .HasForeignKey(m => m.UploaderId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Post)
-                .WithMany()
-                .HasForeignKey(m => m.PostId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.Comment)
-                .WithMany()
-                .HasForeignKey(m => m.CommentId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasOne(m => m.ChatMessage)
-                .WithMany()
-                .HasForeignKey(m => m.ChatMessageId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>()
-                .HasIndex(m => m.UploaderId);
 
             modelBuilder.Entity<MapPin>()
                 .HasOne(p => p.User)

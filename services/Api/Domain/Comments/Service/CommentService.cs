@@ -1,8 +1,7 @@
+using Api.Client;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Comments.Dto;
-using Api.Domain.Media.Dto;
 using Api.Domain.Comments.Repository;
-using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
@@ -22,11 +21,11 @@ namespace Api.Domain.Comments.Service
         GroupBoardAccessService groupBoardAccess,
         UserService userService,
         UserBlockService userBlockService,
-        Lazy<MediaService> mediaService)
+        IMediaClient mediaClient)
     {
         private readonly ICommentRepository _repo = repo;
         private readonly AppDbContext _db = db;
-        private readonly Lazy<MediaService> _mediaService = mediaService;
+        private readonly IMediaClient _mediaClient = mediaClient;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly PostService _postService = postService;
         private readonly GroupBoardAccessService _groupBoardAccess = groupBoardAccess;
@@ -105,7 +104,7 @@ namespace Api.Domain.Comments.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreateCommentAsync(comment);
-                await _mediaService.Value.LinkToCommentAsync(comment.Id, userId, request.MediaAssetId);
+                await _mediaClient.LinkToCommentAsync(comment.Id, userId, request.MediaAssetId);
             });
         }
 
@@ -116,7 +115,7 @@ namespace Api.Domain.Comments.Service
             if (await IsAuthorBlockedByViewerAsync(comment.AuthorUserId)) return null;
             if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
             var nicknames = await _userService.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
-            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([comment.Id]);
+            var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([comment.Id]);
             return MapToDto(
                 comment,
                 nicknames.GetValueOrDefault(comment.AuthorUserId, "Deleted User"),
@@ -169,7 +168,7 @@ namespace Api.Domain.Comments.Service
             if (comments.Count == 0) return null;
 
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
+            var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
             return [.. comments.Select(c => MapToDto(
                 c,
                 nicknames.GetValueOrDefault(c.AuthorUserId, "Deleted User"),
@@ -199,7 +198,7 @@ namespace Api.Domain.Comments.Service
         private async Task<List<CommentGetResponseDto>> BuildCommentTreeAsync(IReadOnlyList<Comment> comments)
         {
             var nicknames = await _userService.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
-            var mediaByCommentId = await _mediaService.Value.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
+            var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
             var byId = comments.ToDictionary(
                 c => c.Id,
                 c => MapToDto(
@@ -250,7 +249,7 @@ namespace Api.Domain.Comments.Service
 
             var commentIds = await _repo.GetCommentIdsByPostIdsAsync(postIds);
             if (commentIds.Count > 0)
-                await _mediaService.Value.DeleteBlobStorageForCommentsAsync(commentIds);
+                await _mediaClient.DeleteBlobStorageForCommentsAsync(commentIds);
 
             await _repo.DeleteAllForPostIdsAsync(postIds);
         }
@@ -267,7 +266,7 @@ namespace Api.Domain.Comments.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.DetachParentFromRepliesAsync(id);
-                await _mediaService.Value.DeleteBlobStorageForCommentAsync(id);
+                await _mediaClient.DeleteBlobStorageForCommentAsync(id);
                 await _repo.DeleteCommentAsync(comment);
             });
         }

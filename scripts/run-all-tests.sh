@@ -34,19 +34,19 @@ run_rust() {
   log_step "RUST WORKER UNIT TESTS"
   docker run --rm \
     -v "${DOCKER_ROOT}:/src" \
-    -w /src/workers/rust-worker \
+    -w /src/workers \
     "$RUST_IMAGE" \
-    cargo test
+    cargo test --workspace
 }
 
 run_api() {
   log_step "API INTEGRATION TESTS"
-  "$ROOT/scripts/ci/docker-test.sh" "$@"
+  bash "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
 run_harness() {
   log_step "MEDIA HARNESS E2E"
-  "$ROOT/scripts/ci/run-media-harness.sh"
+  bash "$ROOT/scripts/ci/run-media-harness.sh"
 }
 
 run_web() {

@@ -1,16 +1,45 @@
-# Tangle Rust worker
+# Tangle Rust workers
 
-Consumes durable jobs from Redis Streams produced by the API (`IWorkQueue`). See [services/Api/Global/Queue/QUEUE.md](../../services/Api/Global/Queue/QUEUE.md) for stream contracts.
+Redis Streams consumers for async jobs from the API (`IWorkQueue`). See [services/Api/Global/Queue/QUEUE.md](../../services/Api/Global/Queue/QUEUE.md).
+
+## Workspace layout
+
+| Crate / binary | Role |
+|----------------|------|
+| `crates/worker-core` | Shared consumer loop, DLQ, retry, metrics |
+| `crates/worker-media` (`worker-media`) | `media.uploaded` — ffmpeg transcode + blob I/O + API callback |
+| `rust-worker` (`tangle-worker`) | `chat.message.created` + `location.cluster` |
+
+Media runs as a **separate binary and Docker image** (`workers/docker/Dockerfile.runtime.media`). Chat and location share the `tangle-worker` binary (`Dockerfile.runtime.chat` / `Dockerfile.runtime.location`).
+
+## CI / CD build (runtime images)
+
+Compile once, then build slim runtime images (same pattern as CI harness):
+
+```bash
+./scripts/ci/build-workers-release.sh          # cargo test + release binaries
+./scripts/ci/build-worker-images.sh            # all three worker runtime images
+```
+
+CD (`azure-cd-build-push.sh`) runs `build-workers-release.sh` (tests skipped) + `dotnet-publish.sh`, then builds runtime Dockerfiles and pushes to GHCR as `tangle-study-worker-media`, `tangle-study-worker-chat`, and `tangle-study-worker-location`.
+
+For prod-like local compose with prebuilt artifacts, add `-f docker-compose.runtime.yml` (see `scripts/ci/run-media-harness.sh`).
 
 ## Run locally (host)
 
-Requires Rust 1.96+ (`rust-toolchain.toml`). Redis must be reachable.
+Requires Rust 1.96+ (`workers/rust-toolchain.toml`). From the workspace root:
 
 ```bash
-cd workers/rust-worker
+cd workers
 export REDIS_URL=redis://127.0.0.1:6379
 export WORKER_STREAM_PREFIX=tangle:queue:
-cargo run
+
+# Chat stub
+export WORKER_STREAM_KEY=chat.message.created
+cargo run -p tangle-worker
+
+# Media (needs AZURE_STORAGE_CONNECTION_STRING, WORKER_CALLBACK_SECRET, API_BASE_URL)
+cargo run -p worker-media
 ```
 
 ## Run with Docker Compose
@@ -22,10 +51,10 @@ docker compose --profile workers build rust-worker rust-worker-media
 docker compose --profile workers up rust-worker rust-worker-media
 ```
 
-- `rust-worker` — consumes `chat.message.created` (stub handler today)
-- `rust-worker-media` — consumes `media.uploaded` (download → encode → upload → API callback)
+- `rust-worker` — `chat.message.created` (stub handler today)
+- `rust-worker-media` — `media.uploaded` (dedicated `worker-media` image with ffmpeg)
 
-With the default stack (`docker compose up`), start Redis, the API, and Azurite first so jobs can be enqueued. The chat worker only needs Redis; the media worker also needs the API, Azure/Azurite, and a matching `WORKER_CALLBACK_SECRET` (see `Media__WorkerCallbackSecret` on the API).
+With the default stack (`docker compose up`), start Redis, the API, media-service, and Azurite first so jobs can be enqueued. The chat worker only needs Redis; the media worker also needs media-service, Azure/Azurite, and a matching `WORKER_CALLBACK_SECRET` (see `Media:WorkerCallbackSecret` on the media service).
 
 ## Configuration
 
@@ -58,7 +87,7 @@ Required in consumer mode (validated at startup). Not required for `cargo run --
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_BASE_URL` | `http://127.0.0.1:5000` | Base URL for `PATCH /internal/media/{id}/processed` |
+| `API_BASE_URL` | `http://127.0.0.1:8080` | Base URL for `PATCH /internal/media/{id}/processed` (Compose: `http://media:8080`) |
 | `WORKER_CALLBACK_SECRET` | *(empty)* | Shared secret sent as `X-Worker-Callback-Secret`; must match API `Media__WorkerCallbackSecret` |
 | `AZURE_STORAGE_CONNECTION_STRING` | *(empty)* | Azure Blob connection string (Azurite in local compose) |
 | `MEDIA_CONTAINER_NAME` | `tangle-media` | Blob container for originals and processed output |
@@ -82,8 +111,10 @@ Required in consumer mode (validated at startup). Not required for `cargo run --
 Re-drive failed jobs from the DLQ back onto the main work stream:
 
 ```bash
-cd workers/rust-worker
-cargo run -- replay
+cd workers
+cargo run -p tangle-worker -- replay
+# or for media DLQ:
+cargo run -p worker-media -- replay
 ```
 
 Docker Compose:
@@ -116,25 +147,14 @@ Scraped by Prometheus when the Compose `monitoring` profile is active. See [infr
 ## Layout
 
 ```
-src/
-  main.rs                          # entrypoint; consumer or replay mode
-  config.rs                        # env configuration and startup validation
-  consumer.rs                      # XREADGROUP loop, retry, ack, DLQ handoff
-  message.rs                       # stream envelope decode; malformed-entry detection
-  job.rs                           # payload types (API contract)
-  handlers/
-    mod.rs                         # dispatch by WORKER_STREAM_KEY
-    chat_message_created.rs        # chat.message.created (stub)
-    media_uploaded.rs              # media.uploaded pipeline orchestration
-  processing.rs                    # ffmpeg encode stage machine
-  encode_plan.rs                   # ffmpeg argument planning
-  probe.rs                         # ffprobe metadata and feasibility checks
-  storage.rs                       # Azure Blob download/upload
-  api_callback.rs                  # PATCH callback to API (success/failure)
-  retry.rs                         # PEL backoff and eligibility
-  dlq.rs                           # dead-letter publish and replay
-  metrics.rs                       # Prometheus counters/gauges + HTTP listener
-  telemetry.rs                     # tracing subscriber setup
+workers/
+  Cargo.toml                       # workspace
+  crates/
+    worker-core/                   # shared consumer, DLQ, retry, metrics
+    worker-media/                  # media.uploaded binary
+  rust-worker/                     # chat + location binary
+  docker/Dockerfile.media           # multi-stage media image (local dev)
+  docker/Dockerfile.runtime.*       # slim runtime images (CI/CD; COPY release binaries)
 ```
 
 ## Tests
@@ -142,14 +162,14 @@ src/
 Unit tests (decode, encode planning, callback URLs). Also run via `./scripts/run-all-tests.sh` from the repo root.
 
 ```bash
-cd workers/rust-worker
-cargo test
+cd workers
+cargo test --workspace
 ```
 
 Or Docker-only (no host Rust / MSVC):
 
 ```bash
-docker run --rm -v "$(pwd):/src" -w /src/workers/rust-worker rust:bookworm cargo test
+docker run --rm -v "$(pwd):/src" -w /src/workers rust:bookworm cargo test --workspace
 ```
 
 ### Automated media pipeline harness (API + worker)
@@ -160,11 +180,11 @@ Full end-to-end path through Redis, Azurite, ffmpeg, and the API callback — no
 ./scripts/ci/run-media-harness.sh
 ```
 
-From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.
+From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `media`, `nginx`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.
 
 Against an already-running stack on the host:
 
 ```bash
-export TANGLE_HARNESS_API_BASE_URL=http://127.0.0.1:5000
+export TANGLE_HARNESS_API_BASE_URL=http://127.0.0.1:8080
 docker compose --profile test run --rm test test services/Api.Tests/Api.Tests.csproj -c Release --filter "Category=Harness"
 ```

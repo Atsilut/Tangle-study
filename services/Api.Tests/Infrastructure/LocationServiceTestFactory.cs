@@ -4,10 +4,7 @@ using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
 using Api.Domain.Location.Repository;
 using Api.Domain.Location.Service;
-using Api.Domain.Media;
-using Api.Domain.Media.Repository;
-using Api.Domain.Media.Service;
-using Api.Domain.Media.Storage;
+using Api.Client;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
@@ -46,27 +43,12 @@ internal static class LocationServiceTestFactory
 
         PostService postService = null!;
         CommentService commentService = null!;
-        MediaService mediaService = null!;
+        var mediaClient = new FakeMediaClient();
         FriendshipService friendshipService = null!;
         FriendRequestService friendRequestService = null!;
         GroupMembershipService groupMembershipService = null!;
         GroupService groupService = null!;
         GroupBoardAccessService groupBoardAccessService = null!;
-
-        var mediaOptions = Options.Create(new MediaOptions
-        {
-            Enabled = true,
-            IngressMultiplier = 3,
-            Post = new MediaContextLimitOptions
-            {
-                VideoPerFileBytes = 2L * 1024 * 1024 * 1024,
-                VideoTotalBytes = 10L * 1024 * 1024 * 1024,
-                ImagePerFileBytes = 150L * 1024 * 1024,
-                ImageTotalBytes = 3L * 1024 * 1024 * 1024,
-            },
-            Comment = new MediaContextLimitOptions(),
-            ChatMessage = new MediaContextLimitOptions(),
-        });
 
         MapPinService mapPinService = null!;
 
@@ -75,7 +57,7 @@ internal static class LocationServiceTestFactory
             db,
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
-            new Lazy<MediaService>(() => mediaService),
+            mediaClient,
             new Lazy<ChatMessageService>(() => null!),
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
@@ -103,24 +85,11 @@ internal static class LocationServiceTestFactory
             userService,
             http);
 
-        mediaService = new MediaService(
-            new MediaAssetRepository(db),
-            CreateMediaStorageProvider(new FakeMediaStorage()),
-            new MediaLimitPolicy(mediaOptions),
-            userService,
-            new Lazy<ChatMessageService>(() => null!),
-            new Lazy<PostService>(() => postService),
-            new Lazy<CommentService>(() => commentService),
-            groupBoardAccessService,
-            new FakeWorkQueue(),
-            mediaOptions,
-            http);
-
         postService = new PostService(
             new FakePostRepository(),
             db,
             new Lazy<CommentService>(() => commentService),
-            new Lazy<MediaService>(() => mediaService),
+            mediaClient,
             new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
@@ -135,7 +104,7 @@ internal static class LocationServiceTestFactory
             groupBoardAccessService,
             userService,
             userBlockService,
-            new Lazy<MediaService>(() => mediaService));
+            mediaClient);
 
         friendshipService = new FriendshipService(new FakeFriendshipRepository(), userService, http);
 
@@ -183,9 +152,4 @@ internal static class LocationServiceTestFactory
             userRepository,
             mapPinRepository);
     }
-
-    private static ServiceProvider CreateMediaStorageProvider(FakeMediaStorage storage) =>
-        new ServiceCollection()
-            .AddSingleton<IMediaStorage>(storage)
-            .BuildServiceProvider();
 }

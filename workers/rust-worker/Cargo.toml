@@ -1,34 +1,23 @@
 [package]
 name = "tangle-worker"
-version = "1.0.0"
-edition = "2021"
-rust-version = "1.96"
-description = "Redis Streams consumer for Tangle async jobs"
-publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Redis Streams consumer for Tangle chat and location jobs"
+publish.workspace = true
 
 [[bin]]
 name = "tangle-worker"
 path = "src/main.rs"
 
 [dependencies]
+worker-core = { path = "../crates/worker-core" }
 anyhow = "1.0"
-azure_core = "0.21"
-azure_storage = "0.21"
-azure_storage_blobs = "0.21"
-futures = "0.3"
+async-trait = "0.1"
 metrics = "0.24"
-metrics-exporter-prometheus = "0.16"
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "streams"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tempfile = "3"
-tokio = { version = "1.43", features = ["io-util", "macros", "process", "rt-multi-thread", "signal", "net"] }
-hyper = { version = "1", features = ["server", "http1"] }
-hyper-util = { version = "0.1", features = ["tokio"] }
-http-body-util = "0.1"
+tokio = { version = "1.43", features = ["io-util", "macros", "rt-multi-thread", "signal", "net"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
-
-[dev-dependencies]
-tokio-test = "0.4"

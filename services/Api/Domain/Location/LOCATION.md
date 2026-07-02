@@ -155,7 +155,7 @@ This interim path lacks content metadata, density resolution, and precomputed ti
 
 Worker: `docker compose --profile workers up -d rust-worker-location`.
 
-Internal worker routes (`GET /internal/location/cluster-points`, `PUT /internal/location/clusters`) use the same `X-Worker-Callback-Secret` header as media — configured via `Media:WorkerCallbackSecret` (see [MEDIA.md](../Media/MEDIA.md)).
+Internal worker routes (`GET /internal/location/cluster-points`, `PUT /internal/location/clusters`) use the same `X-Worker-Callback-Secret` header as media workers — configured via `WorkerCallback:Secret` on the Api (see [MEDIA.md](../../../Media/MEDIA.md) for media worker callbacks).
 
 ---
 

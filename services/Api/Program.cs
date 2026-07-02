@@ -47,7 +47,6 @@ builder.Services.AddCustomDependencies();
 
 builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
-    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true)
     // YAML is loaded after the host's default env vars; re-add so deploy secrets win.
     .AddEnvironmentVariables();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
@@ -134,7 +133,8 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 builder.Services.AddTangleRedis(builder.Configuration);
-builder.Services.AddTangleMedia(builder.Configuration);
+builder.Services.AddTangleWorkerCallbackAuth(builder.Configuration);
+builder.Services.AddTangleMediaClient(builder.Configuration);
 builder.Services.AddTanglePlaces(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -168,10 +168,6 @@ DependencyInjection.PrintLogs(logger);
 var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
 if (redisOptions.Enabled) logger.LogInformation("Redis enabled (cache + SignalR backplane).");
 else logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
-
-var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Value;
-if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
-else logger.LogInformation("Media uploads disabled.");
 
 var placesOptions = app.Services.GetRequiredService<IOptions<PlacesOptions>>().Value;
 if (placesOptions.Enabled && !string.IsNullOrWhiteSpace(placesOptions.ApiKey))

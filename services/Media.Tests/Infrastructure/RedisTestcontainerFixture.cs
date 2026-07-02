@@ -1,0 +1,20 @@
+using Testcontainers.Redis;
+
+namespace Media.Tests.Infrastructure;
+
+public sealed class RedisTestcontainerFixture : IAsyncLifetime
+{
+    private readonly RedisContainer _redis;
+
+    public RedisTestcontainerFixture()
+    {
+        _redis = new RedisBuilder("redis:8.8.0-alpine")
+            .Build();
+    }
+
+    public string ConnectionString => $"{_redis.Hostname}:{_redis.GetMappedPublicPort(6379)}";
+
+    public async ValueTask InitializeAsync() => await _redis.StartAsync();
+
+    public ValueTask DisposeAsync() => _redis.DisposeAsync();
+}

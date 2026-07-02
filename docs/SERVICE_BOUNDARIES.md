@@ -17,7 +17,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
-| **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented — [MEDIA.md](../services/Api/Domain/Media/MEDIA.md) |
+| **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
 | **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
 ---
@@ -97,22 +97,30 @@ Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
 
 ### media-service
 
-**Implemented in monolith (Phase 4).** Extract at [MSA step 1](MSA_MIGRATION.md#extraction-order). API reference: [MEDIA.md](../services/Api/Domain/Media/MEDIA.md).
+**Extracted in local Compose (MSA step 1).** API reference: [MEDIA.md](../services/Media/MEDIA.md).
 
-**Will own:** `MediaAsset` (storage key, mime, dimensions, processing status, CDN URLs).
+**Owns:** `MediaAsset` in Postgres `media` schema (storage key, mime, dimensions, processing status).
 
-**Will reference (by ID only):** posts, comments, chat messages — e.g. `mediaAssetIds[]` on each aggregate, not embedded blob metadata from another service's database.
+**References (by ID only):** `UploaderId`, `PostId`, `CommentId`, `ChatMessageId` — no cross-schema FKs.
 
-**Async flow (target):**
+**Inbound:** browser/app via Nginx `/api/media/*`; monolith via `IMediaClient` (`/internal/media/*`); worker callback `PATCH /internal/media/{id}/processed`.
+
+**Outbound:** `IMonolithAccessClient` → Api `/internal/access/*` for user existence and content visibility checks.
+
+**Async flow:**
 
 ```text
-Client upload → media-service (presigned URL or direct) → object storage
-              → Stream: media.uploaded → rust-worker (transcode, thumbnails)
-              → media-service updates asset status → pub/sub: media.ready
-              → posts/comments/chat store mediaAssetId only
+Client → nginx → media-service (presigned URL) → object storage
+              → Stream: media.uploaded → rust-worker-media (transcode)
+              → PATCH media-service /internal/media/{id}/processed
+              → monolith stores mediaAssetId on post/comment/chat (HttpMediaClient link)
 ```
 
-**Worker handlers:** `media.*` job types documented in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md) as they are added.
+**Interim auth:** media-service validates JWT (same secret as monolith) until a gateway owns auth (MSA step 7).
+
+**Worker:** `worker-media` binary; `API_BASE_URL=http://media:8080` in Compose.
+
+**Remaining:** Azure Container App + `nginx.production.conf` strangler; optional data backfill from legacy `public` → `media` schema for existing dev DBs.
 
 ### location-service
 
@@ -185,6 +193,53 @@ Apply these during Phase 7 (location in monolith) so later extraction does not r
 5. **Explicit contracts before extraction** — Groups ↔ Posts and Groups ↔ Chat documented in [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) (BFF compose for board posts).
 
 6. **Gateway owns auth context** — JWT validation at the edge; services receive user identity claims, not raw credentials.
+
+---
+
+## Extracted service layout
+
+When code moves from `services/Api/Domain/{Name}/` into `services/{Service}/`, **do not** nest another `Domain/{Name}/` folder — the project *is* the bounded context.
+
+**Monolith (many domains):**
+
+```text
+services/Api/
+  Domain/Posts/Api/
+  Domain/Posts/Service/
+  Client/                 → IMediaClient (calls media-service)
+  Global/...
+```
+
+**Extracted microservice (flat):**
+
+```text
+services/Media/          → root namespace Media.*
+  Api/                   → Media.Api
+  Service/               → Media.Service
+  Repository/            → Media.Repository
+  Dto/                   → Media.Dto
+  Entities/              → Media (MediaAsset, enums)
+  Storage/               → Media.Storage
+  Client/                → Media.Client (outbound HTTP to other services)
+  Global/                → Media.Global.* (Db, Security, Queue, Telemetry — copied infra slice)
+  Migrations/
+  Program.cs
+  {Service}.csproj
+  Dockerfile
+```
+
+| Folder | Purpose |
+|--------|---------|
+| `Api/` | Controllers |
+| `Service/` | Application services |
+| `Repository/` | EF/data access |
+| `Dto/` | Request/response records |
+| `Entities/` | Domain entities and enums owned by this service |
+| `Storage/` | Blob/object storage adapters |
+| `Client/` | Typed HTTP clients for other services |
+| `Global/` | Cross-cutting infra shared within the service (not a separate NuGet yet) |
+
+Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*`, `Location.*`, etc.
 
 ---
 

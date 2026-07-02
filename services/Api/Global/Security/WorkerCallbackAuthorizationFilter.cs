@@ -5,22 +5,22 @@ using Microsoft.Extensions.Options;
 
 namespace Api.Global.Security;
 
-public sealed class WorkerCallbackAuthorizationFilter(IOptions<MediaOptions> mediaOptions) : IAuthorizationFilter
+public sealed class WorkerCallbackAuthorizationFilter(IOptions<WorkerCallbackOptions> workerCallbackOptions) : IAuthorizationFilter
 {
     public const string HeaderName = "X-Worker-Callback-Secret";
 
-    private readonly MediaOptions _mediaOptions = mediaOptions.Value;
+    private readonly WorkerCallbackOptions _options = workerCallbackOptions.Value;
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        if (string.IsNullOrWhiteSpace(_mediaOptions.WorkerCallbackSecret))
+        if (string.IsNullOrWhiteSpace(_options.Secret))
         {
             context.Result = new UnauthorizedResult();
             return;
         }
 
         if (!context.HttpContext.Request.Headers.TryGetValue(HeaderName, out var provided)
-            || provided != _mediaOptions.WorkerCallbackSecret)
+            || provided != _options.Secret)
         {
             context.Result = new UnauthorizedResult();
         }

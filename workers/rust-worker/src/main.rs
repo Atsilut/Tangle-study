@@ -1,33 +1,29 @@
-mod api_callback;
 mod cluster;
-mod config;
-mod consumer;
-mod dlq;
 mod handlers;
-mod job;
-mod encode_plan;
-mod message;
-mod metrics;
-mod probe;
-mod processing;
-mod retry;
-mod storage;
-mod telemetry;
 
 use anyhow::Context;
 use redis::aio::ConnectionManager;
 use redis::Client;
 use tracing::info;
+use worker_core::{consumer, dlq, metrics, telemetry, Config};
 
-use crate::config::Config;
+use crate::handlers::ChatLocationHandler;
+
+const ALLOWED_STREAM_KEYS: &[&str] = &["chat.message.created", "location.cluster"];
+
+fn validate_config(config: &Config, consumer: bool) -> anyhow::Result<()> {
+    config.validate_stream_key(ALLOWED_STREAM_KEYS)?;
+    if consumer && config.stream_key == "location.cluster" {
+        config.validate_callback_env()?;
+    }
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::from_env().context("load worker configuration")?;
     let replay_mode = std::env::args().nth(1).as_deref() == Some("replay");
-    config
-        .validate(!replay_mode)
-        .context("validate worker configuration")?;
+    validate_config(&config, !replay_mode).context("validate worker configuration")?;
     telemetry::init(&config).context("initialize telemetry")?;
 
     let client = Client::open(config.redis_url.as_str()).context("open redis client")?;
@@ -57,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
             "starting tangle worker"
         );
 
-        consumer::run(config, connection).await
+        let handler = ChatLocationHandler;
+        consumer::run(config, connection, &handler).await
     }
 }

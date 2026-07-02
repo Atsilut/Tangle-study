@@ -1,0 +1,40 @@
+# Runtime-only service images for CI harness and CD parity.
+# Requires: scripts/ci/dotnet-publish.sh + scripts/ci/build-workers-release.sh
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/Api/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  media:
+    build:
+      context: .
+      dockerfile: services/Media/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  rust-worker:
+    image: ${WORKER_CHAT_IMAGE:-tangle-study-worker-chat:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.chat
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
+
+  rust-worker-location:
+    image: ${WORKER_LOCATION_IMAGE:-tangle-study-worker-location:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.location
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
+
+  rust-worker-media:
+    image: ${WORKER_MEDIA_IMAGE:-tangle-study-worker-media:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.media
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}

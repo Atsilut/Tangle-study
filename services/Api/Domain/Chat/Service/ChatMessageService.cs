@@ -1,10 +1,9 @@
+using Api.Client;
 using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
-using Api.Domain.Media.Dto;
 using Api.Domain.Chat.Realtime;
 using Api.Domain.Chat.Repository;
-using Api.Domain.Media.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
 using Api.Global.Events;
@@ -21,7 +20,7 @@ public class ChatMessageService(
     AppDbContext db,
     ChatRoomService chatRoomService,
     UserService userService,
-    Lazy<MediaService> mediaService,
+    IMediaClient mediaClient,
     IChatRealtimeNotifier realtime,
     IEventPublisher eventPublisher,
     IWorkQueue workQueue,
@@ -33,7 +32,7 @@ public class ChatMessageService(
 
     private readonly IChatMessageRepository _repo = repo;
     private readonly AppDbContext _db = db;
-    private readonly Lazy<MediaService> _mediaService = mediaService;
+    private readonly IMediaClient _mediaClient = mediaClient;
     private readonly ChatRoomService _chatRoomService = chatRoomService;
     private readonly UserService _userService = userService;
     private readonly IChatRealtimeNotifier _realtime = realtime;
@@ -101,7 +100,7 @@ public class ChatMessageService(
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _repo.CreateChatMessageAsync(message);
-            await _mediaService.Value.LinkToChatMessageAsync(message.Id, senderUserId, request.MediaAssetId);
+            await _mediaClient.LinkToChatMessageAsync(message.Id, senderUserId, request.MediaAssetId);
         });
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
@@ -136,7 +135,7 @@ public class ChatMessageService(
 
         var messages = messagesByRoom.Values.ToList();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(messages.Select(m => m.LogicalSenderUserId));
-        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
+        var mediaByMessageId = await _mediaClient.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
 
         return messages.ToDictionary(
             m => m.ChatRoomId,
@@ -145,7 +144,7 @@ public class ChatMessageService(
                 m.IsDeleted ? string.Empty : m.Body,
                 nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
                 m.SentAt,
-                !m.IsDeleted && mediaByMessageId.ContainsKey(m.Id)));
+                !m.IsDeleted && mediaByMessageId.GetValueOrDefault(m.Id) is not null));
     }
 
     public async Task<ChatMessageGetResponseDto> UpdateMessageAsync(
@@ -211,7 +210,7 @@ public class ChatMessageService(
 
         await _db.ExecuteInTransactionAsync(async () =>
         {
-            await _mediaService.Value.DeleteBlobStorageForChatMessageAsync(messageId);
+            await _mediaClient.DeleteBlobStorageForChatMessageAsync(messageId);
             message.MarkDeleted();
             await _repo.SaveChatMessageAsync(message);
         });
@@ -241,7 +240,7 @@ public class ChatMessageService(
     {
         var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
         var nicknames = await _userService.GetNicknamesByUserIdsAsync(senderIds);
-        var mediaByMessageId = await _mediaService.Value.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
+        var mediaByMessageId = await _mediaClient.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
         var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([.. messages.Select(m => m.Id)]);
         var editsByMessageId = await _repo.GetChatMessageEditsByMessageIdsAsync([.. messages.Select(m => m.Id)]);
         var utcNow = DateTime.UtcNow;
@@ -261,7 +260,7 @@ public class ChatMessageService(
         var nicknames = await _userService.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
         var media = message.IsDeleted
             ? null
-            : await _mediaService.Value.GetMediaForChatMessageAsync(message.Id);
+            : await _mediaClient.GetMediaForChatMessageAsync(message.Id);
         var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([message.Id]);
         var editsByMessageId = await _repo.GetChatMessageEditsByMessageIdsAsync([message.Id]);
         return MapToDto(

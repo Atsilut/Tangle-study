@@ -210,7 +210,7 @@ Central index: [docs/README.md](docs/README.md)
 | [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
 | [clients/web/README.md](clients/web/README.md) | React web client |
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
-| [services/Api/Domain/Media/MEDIA.md](services/Api/Domain/Media/MEDIA.md) | Media upload and processing |
+| [services/Media/MEDIA.md](services/Media/MEDIA.md) | Media upload and processing |
 | [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 | [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
@@ -229,9 +229,9 @@ Central index: [docs/README.md](docs/README.md)
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
 | 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
+| 9 | MSA migration — media extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (step 1 done locally) |
 
-Phase 9 starts only after Phases 5–7 are complete end-to-end (metrics, location API, React map). MAUI remains optional after the React path works.
+Phase 9 step 1 (media-service) is **complete in local Compose**. Azure strangler routing and monolith media cleanup are the next milestones. MAUI remains optional after the React path works.
 
 ---
 
@@ -270,7 +270,8 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 | Service | Profile | Always on? | Role |
 |---------|---------|------------|------|
-| `api` | — | yes (default `up`) | ASP.NET Core API |
+| `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media domains) |
+| `media` | — | yes | Media microservice (`/api/media/*`) |
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
@@ -396,15 +397,27 @@ chmod +x scripts/run-all-tests.sh
 ./scripts/run-all-tests.sh --skip-harness
 ```
 
-**API only** (Testcontainers):
+**API + Media integration** (Testcontainers; matches CI after `dotnet-publish.sh`):
 
 ```bash
 chmod +x scripts/ci/docker-test.sh
 
+# Full suite (builds inside test container)
 ./scripts/ci/docker-test.sh
+
+# CI-like (--no-build after ./scripts/ci/dotnet-publish.sh)
+./scripts/ci/dotnet-publish.sh
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
 
 # Filtered run
 ./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+```
+
+**Media harness E2E** (full stack, runtime images):
+
+```bash
+./scripts/ci/run-media-harness.sh
 ```
 
 Equivalent without the script:
@@ -421,15 +434,17 @@ Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` f
 
 ### Rust workers (optional, `workers` profile)
 
-Two workers share the `workers/rust-worker` image with different stream keys:
+Two workers share the `tangle-worker` release binary (chat + location); media uses `worker-media`:
 
-| Service | Stream | Notes |
-|---------|--------|-------|
-| `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
-| `rust-worker-media` | `media.uploaded` | Processes uploads after Azurite + API |
-| `rust-worker-location` | `location.cluster` | Clusters map pins for low-zoom `/map` view |
+| Service | Stream | Image (CI/CD) |
+|---------|--------|----------------|
+| `rust-worker` | `chat.message.created` | `tangle-study-worker-chat` |
+| `rust-worker-media` | `media.uploaded` | `tangle-study-worker-media` |
+| `rust-worker-location` | `location.cluster` | `tangle-study-worker-location` |
 
-Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Local `docker compose --profile workers up` uses multi-stage builds. CI/CD compile once via `./scripts/ci/build-workers-release.sh` and build slim runtime images with `./scripts/ci/build-worker-images.sh`. See [workers/rust-worker/README.md](workers/rust-worker/README.md).
+
+Requires Redis, the API, media-service, and Azurite for media jobs. See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 
 ```bash
 # Chat worker only (with core stack)
@@ -457,7 +472,7 @@ docker compose --profile monitoring --profile workers up --build
 
 ### Harness tests (optional, `harness` profile)
 
-End-to-end tests that run inside Compose against `http://api:8080` (no host API port required). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
+End-to-end tests that run inside Compose against `http://nginx` (nginx strangler: auth via monolith, uploads via media-service). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
 
 ```bash
 docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml run --rm harness

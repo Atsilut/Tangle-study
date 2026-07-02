@@ -14,7 +14,9 @@ log_step "GHCR CONSISTENCY GATE"
 IMAGES=(
   tangle-study-api
   tangle-study-web
-  tangle-study-worker
+  tangle-study-worker-media
+  tangle-study-worker-chat
+  tangle-study-worker-location
   tangle-study-prometheus
   tangle-study-grafana
 )
