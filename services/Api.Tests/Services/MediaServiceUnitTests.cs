@@ -466,7 +466,7 @@ public sealed class MediaServiceUnitTests
             db,
             new Lazy<PostService>(() => null!),
             new Lazy<CommentService>(() => null!),
-            new Lazy<MediaService>(() => null!),
+            new NoOpMediaClient(),
             new Lazy<ChatMessageService>(() => null!),
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => null!),

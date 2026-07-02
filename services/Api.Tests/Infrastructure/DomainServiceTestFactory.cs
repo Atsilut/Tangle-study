@@ -6,6 +6,7 @@ using Api.Domain.Location.Repository;
 using Api.Domain.Location.Service;
 using Api.Domain.Media;
 using Api.Domain.Media.Repository;
+using Api.Client;
 using Api.Domain.Media.Service;
 using Api.Domain.Media.Storage;
 using Api.Domain.Posts.Service;
@@ -120,7 +121,7 @@ internal static class DomainServiceTestFactory
             db,
             new Lazy<PostService>(() => postService),
             new Lazy<CommentService>(() => commentService),
-            new Lazy<MediaService>(() => mediaService),
+            new InProcessMediaClient(mediaService),
             new Lazy<ChatMessageService>(() => null!),
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => groupMembershipService),
@@ -167,7 +168,7 @@ internal static class DomainServiceTestFactory
             postRepository,
             db,
             new Lazy<CommentService>(() => commentService),
-            new Lazy<MediaService>(() => mediaService),
+            new InProcessMediaClient(mediaService),
             new Lazy<MapPinService>(() => mapPinService),
             http,
             userService,
@@ -182,7 +183,7 @@ internal static class DomainServiceTestFactory
             groupBoardAccessService,
             userService,
             userBlockService,
-            new Lazy<MediaService>(() => mediaService));
+            new InProcessMediaClient(mediaService));
 
         friendshipService = new FriendshipService(
             friendshipRepository,
