@@ -90,7 +90,8 @@ Copy this checklist for each service extraction. Replace `{service}` with the ta
 
 ### 4. Deploy independently
 
-- [ ] New project under `services/{service}/` (or split from Api)
+- [ ] New project under `services/{Service}/` (or split from Api)
+- [ ] **Flat project layout** — do not mirror `Api/Domain/{Name}/` inside the extracted service (see [Extracted service layout](SERVICE_BOUNDARIES.md#extracted-service-layout))
 - [ ] Dockerfile and `docker-compose.yml` service entry
 - [ ] Health check endpoint (`/health`)
 - [ ] Environment config (connection strings, Redis, JWT validation keys)

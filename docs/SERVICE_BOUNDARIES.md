@@ -17,7 +17,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
 | **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
-| **media** | `Domain/Media/` | MediaAsset, processing state | `api/media`, internal processed callback | Implemented — [MEDIA.md](../services/Api/Domain/Media/MEDIA.md) |
+| **media** | `Domain/Media/` → [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | Extracting — [MEDIA.md](../services/Media/MEDIA.md) |
 | **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
 ---
@@ -185,6 +185,53 @@ Apply these during Phase 7 (location in monolith) so later extraction does not r
 5. **Explicit contracts before extraction** — Groups ↔ Posts and Groups ↔ Chat documented in [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) (BFF compose for board posts).
 
 6. **Gateway owns auth context** — JWT validation at the edge; services receive user identity claims, not raw credentials.
+
+---
+
+## Extracted service layout
+
+When code moves from `services/Api/Domain/{Name}/` into `services/{Service}/`, **do not** nest another `Domain/{Name}/` folder — the project *is* the bounded context.
+
+**Monolith (many domains):**
+
+```text
+services/Api/
+  Domain/Media/Api/
+  Domain/Media/Service/
+  Domain/Posts/...
+  Global/...
+```
+
+**Extracted microservice (flat):**
+
+```text
+services/Media/          → root namespace Media.*
+  Api/                   → Media.Api
+  Service/               → Media.Service
+  Repository/            → Media.Repository
+  Dto/                   → Media.Dto
+  Entities/              → Media (MediaAsset, enums)
+  Storage/               → Media.Storage
+  Client/                → Media.Client (outbound HTTP to other services)
+  Global/                → Media.Global.* (Db, Security, Queue, Telemetry — copied infra slice)
+  Migrations/
+  Program.cs
+  {Service}.csproj
+  Dockerfile
+```
+
+| Folder | Purpose |
+|--------|---------|
+| `Api/` | Controllers |
+| `Service/` | Application services |
+| `Repository/` | EF/data access |
+| `Dto/` | Request/response records |
+| `Entities/` | Domain entities and enums owned by this service |
+| `Storage/` | Blob/object storage adapters |
+| `Client/` | Typed HTTP clients for other services |
+| `Global/` | Cross-cutting infra shared within the service (not a separate NuGet yet) |
+
+Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*`, `Location.*`, etc.
 
 ---
 

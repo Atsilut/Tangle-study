@@ -154,7 +154,9 @@ Optional: add **required reviewers** on the `prod` environment in GitHub for app
 
 ASP.NET Core binds nested config with double underscores, e.g. `Redis__ConnectionString` → `Redis:ConnectionString`.
 
-**Important:** Environment variables are re-applied after YAML in `[Program.cs](../services/Api/Program.cs)` so GitHub-injected secrets override `security.yml` placeholders.
+**Important:** Environment variables are re-applied after YAML in `[Program.cs](../services/Api/Program.cs)` (and `[services/Media/Program.cs](../services/Media/Program.cs)`) so GitHub-injected secrets override `security.yml` placeholders.
+
+Each extracted service ships its own `[security.yml](../services/Media/security.yml)` with the same `Jwt` shape; production CD must inject `Jwt__Secret` on every deployable that validates bearer tokens (same value as the monolith).
 
 ---
 
@@ -177,6 +179,21 @@ Store these on GitHub Environment `production`. The deploy workflow maps each se
 | `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (API + migrate)                        | Yes      | Neon Npgsql connection string from console                                                                            |
 | `GRAFANA_ADMIN_PASSWORD`                   | `GF_SECURITY_ADMIN_PASSWORD` (Grafana)                                        | Yes      | External Grafana Container App admin password                                                                         |
 | `PLACES_API_KEY`                           | `Places__ApiKey`                                                              | No       | Google Places / Geocoding; leave empty to disable search                                                              |
+
+### Media (`services/Media`)
+
+When the media Container App is added to Azure (MSA cutover), map the same GitHub secrets as the API where applicable:
+
+| GitHub secret                | Container App env var              | Required | Notes                                                                 |
+| ---------------------------- | ---------------------------------- | -------- | --------------------------------------------------------------------- |
+| `JWT_SECRET`                 | `Jwt__Secret`                      | Yes      | **Same value as monolith** — validates tokens issued by Api login     |
+| `BLOB_CONNECTION_STRING`     | `Media__ConnectionString`          | Yes      | Azure Storage account connection string                               |
+| `WORKER_CALLBACK_SECRET`     | `Media__WorkerCallbackSecret`      | Yes      | Shared with `worker-media` for `PATCH /internal/media/.../processed` |
+| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes  | Shared Postgres; media uses `media` schema                            |
+| `METRICS_SCRAPE_SECRET`      | `Metrics__ScrapeSecret`            | Yes      | When `Metrics:RequireScrapeSecret` is true                            |
+
+Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits) stay in each service's `security.yml` / `media-limits.yml` baked into the image.
+
 | `APPLICATIONINSIGHTS_CONNECTION_STRING`    | `APPLICATIONINSIGHTS_CONNECTION_STRING`                                       | No       | Auto-resolved from `tanglestudyprod-appi` when unset                                                                  |
 | `GHCR_REGISTRY_USERNAME`                   | (registry pull on all apps + migrate job)                                     | No       | Only if GHCR packages are **private**                                                                                 |
 | `GHCR_REGISTRY_PASSWORD`                   | (registry pull)                                                               | No       | GitHub PAT with `read:packages`                                                                                       |
