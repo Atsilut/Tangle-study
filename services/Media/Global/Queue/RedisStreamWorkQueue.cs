@@ -44,6 +44,7 @@ public sealed partial class RedisStreamWorkQueue(
         {
             WorkQueueMetrics.EnqueueFailedTotal.WithLabels(streamKey).Inc();
             LogFailedToEnqueueJob(_logger, ex, streamKey);
+            throw;
         }
     }
 
