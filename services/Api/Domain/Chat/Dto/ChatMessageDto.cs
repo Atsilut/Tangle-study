@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Api.Domain.Chat.Domain;
-using Api.Domain.Media.Dto;
+using Api.Client;
 
 namespace Api.Domain.Chat.Dto;
 

@@ -1,5 +1,4 @@
 using Api.Client;
-using Api.Domain.Media.Service;
 using Api.Global.Config;
 using Api.Global.Security;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +18,8 @@ public static class MediaClientServiceCollectionExtensions
 
         if (string.IsNullOrWhiteSpace(options.BaseUrl))
         {
-            services.AddScoped<IMediaClient, InProcessMediaClient>();
-            return services;
+            throw new InvalidOperationException(
+                "MediaClient:BaseUrl is not configured. Point it at the media-service base URL (e.g. http://media:8080 in Compose).");
         }
 
         services.AddHttpClient(nameof(HttpMediaClient), client =>

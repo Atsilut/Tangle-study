@@ -158,7 +158,6 @@ module api 'modules/container-app.bicep' = {
       { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
       { name: 'Redis__Enabled', value: 'true' }
       { name: 'Redis__ConnectionString', value: redisConnectionString }
-      { name: 'Media__Enabled', value: 'true' }
       { name: 'Media__ContainerName', value: storage.outputs.containerName }
       { name: 'Media__PublicBlobEndpoint', value: storage.outputs.blobEndpoint }
       { name: 'Metrics__RequireScrapeSecret', value: 'true' }

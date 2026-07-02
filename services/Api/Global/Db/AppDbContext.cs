@@ -1,13 +1,12 @@
-using Api.Domain.Users.Domain;
-using Api.Domain.Posts.Domain;
-using Microsoft.EntityFrameworkCore;
+using Api.Domain.Chat.Domain;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
-using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Groups.Domain;
-using Api.Domain.Chat.Domain;
-using Api.Domain.Media.Domain;
 using Api.Domain.Location.Domain;
+using Api.Domain.Posts.Domain;
+using Api.Domain.UserBlocks.Domain;
+using Api.Domain.Users.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Global.Db
 {
@@ -30,7 +29,6 @@ namespace Api.Global.Db
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
         public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
-        public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
         public DbSet<MapPin> MapPins => Set<MapPin>();
         public DbSet<LocationSession> LocationSessions => Set<LocationSession>();
 
@@ -274,14 +272,6 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(e => e.ChatMessageId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<MediaAsset>(entity =>
-            {
-                entity.HasIndex(m => m.UploaderId);
-                entity.HasIndex(m => m.PostId);
-                entity.HasIndex(m => m.CommentId);
-                entity.HasIndex(m => m.ChatMessageId);
-            });
 
             modelBuilder.Entity<MapPin>()
                 .HasOne(p => p.User)

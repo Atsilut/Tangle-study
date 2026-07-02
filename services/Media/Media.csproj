@@ -37,4 +37,7 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Media.Tests" />
+  </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using Api.Domain.Media.Dto;
+using Api.Client;
 
 namespace Api.Client;
 

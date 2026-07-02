@@ -21,12 +21,9 @@ public static class MediaServiceCollectionExtensions
         var connectionString = configuration[$"{MediaOptions.SectionName}:ConnectionString"];
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            if (options.Enabled)
-                throw new InvalidOperationException(
-                    "Media:Enabled is true but Media:ConnectionString is not configured. " +
-                    "Start Azurite (docker compose up azurite) and set the connection string.");
-
-            return services;
+            throw new InvalidOperationException(
+                "Media:ConnectionString is not configured. " +
+                "Start Azurite (docker compose up azurite) and set the connection string.");
         }
 
         try

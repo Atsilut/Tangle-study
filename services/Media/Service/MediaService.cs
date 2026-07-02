@@ -42,7 +42,6 @@ public sealed class MediaService(
 
     public async Task<MediaContentResult> GetContentAsync(long id)
     {
-        EnsureMediaEnabled();
         var asset = await GetMediaAssetOrThrowAsync(id);
         await EnsureCanReadContentAsync(asset);
 
@@ -54,7 +53,6 @@ public sealed class MediaService(
 
     public async Task DeleteUnlinkedMediaAssetByIdAsync(long id)
     {
-        EnsureMediaEnabled();
         var userId = GetUserIdFromLogin();
         var asset = await GetMediaAssetOrThrowAsync(id);
         if (asset.UploaderId != userId) throw new UnauthorizedAccessException("Unauthorized access");
@@ -106,7 +104,6 @@ public sealed class MediaService(
     {
         if (mediaAssetIds is null || mediaAssetIds.Count == 0) return;
 
-        EnsureMediaEnabled();
         if (mediaAssetIds.Distinct().Count() != mediaAssetIds.Count)
             throw new ArgumentException("Duplicate media asset IDs are not allowed.");
 
@@ -129,7 +126,6 @@ public sealed class MediaService(
         List<long> removeIds = removeMediaAssetIds is null ? [] : [.. removeMediaAssetIds];
         if (addIds.Count == 0 && removeIds.Count == 0) return;
 
-        EnsureMediaEnabled();
         if (addIds.Distinct().Count() != addIds.Count || removeIds.Distinct().Count() != removeIds.Count)
             throw new ArgumentException("Duplicate media asset IDs are not allowed.");
         if (addIds.Intersect(removeIds).Any())
@@ -167,7 +163,6 @@ public sealed class MediaService(
     {
         if (mediaAssetId is null) return;
 
-        EnsureMediaEnabled();
         var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, uploaderUserId, MediaIntendedContext.Comment);
         asset.LinkToComment(commentId);
         await _repo.SaveChangesAsync();
@@ -177,7 +172,6 @@ public sealed class MediaService(
     {
         if (mediaAssetId is null) return;
 
-        EnsureMediaEnabled();
         var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, senderUserId, MediaIntendedContext.ChatMessage);
         asset.LinkToChatMessage(chatMessageId);
         await _repo.SaveChangesAsync();
@@ -265,7 +259,6 @@ public sealed class MediaService(
 
     public async Task<MediaUploadInitResponseDto> InitUploadAsync(MediaUploadInitRequestDto request)
     {
-        EnsureMediaEnabled();
         var userId = GetUserIdFromLogin();
         await _monolithAccess.EnsureUserExistsAsync(userId);
 
@@ -301,7 +294,6 @@ public sealed class MediaService(
 
     public async Task<MediaAssetGetResponseDto> CompleteUploadAsync(long id)
     {
-        EnsureMediaEnabled();
         var userId = GetUserIdFromLogin();
         var asset = await GetMediaAssetOrThrowAsync(id);
         if (asset.UploaderId != userId) throw new UnauthorizedAccessException("Unauthorized access");
@@ -377,19 +369,11 @@ public sealed class MediaService(
         return $"raw/{userId}/{Guid.NewGuid():N}/{safeName}";
     }
 
-    private void EnsureMediaEnabled()
-    {
-        if (!_mediaOptions.Enabled) throw new InvalidOperationException("Media uploads are disabled.");
-    }
-
-    private IMediaStorage RequireMediaStorage()
-    {
-        EnsureMediaEnabled();
-        return _serviceProvider.GetService<IMediaStorage>()
+    private IMediaStorage RequireMediaStorage() =>
+        _serviceProvider.GetService<IMediaStorage>()
             ?? throw new InvalidOperationException(
                 "Media:ConnectionString is not configured. " +
                 "Start Azurite (docker compose up azurite) and set the connection string.");
-    }
 
     private async Task<MediaAsset> GetMediaAssetOrThrowAsync(long id) =>
         await _repo.GetMediaAssetByIdAsync(id) ?? throw new EntityNotFoundException("Media asset not found");

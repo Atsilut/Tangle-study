@@ -2,9 +2,6 @@
 services:
   api:
     ports: !reset []
-    environment:
-      # SAS URLs must target azurite:10000 in-network; rewriting the host breaks the signature.
-      Media__PublicBlobEndpoint: ""
 
   media:
     environment:

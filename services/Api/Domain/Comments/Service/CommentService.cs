@@ -1,7 +1,6 @@
 using Api.Client;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Comments.Dto;
-using Api.Domain.Media.Dto;
 using Api.Domain.Comments.Repository;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;

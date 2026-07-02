@@ -4,8 +4,6 @@ public sealed class MediaOptions
 {
     public const string SectionName = "Media";
 
-    public bool Enabled { get; set; }
-
     /// <summary>
     /// Azure Storage connection string (Blob). Use Azurite for local development.
     /// </summary>

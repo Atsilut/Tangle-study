@@ -2,7 +2,6 @@ using Api.Client;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
 using Api.Domain.Location.Service;
-using Api.Domain.Media.Dto;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;

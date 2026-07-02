@@ -1,6 +1,6 @@
 # Work queue (Redis Streams)
 
-Producer-only foundation for phase 4 Rust workers. Chat and the API work without consumers. Media upload flow: [Domain/Media/MEDIA.md](../../Domain/Media/MEDIA.md).
+Producer-only foundation for phase 4 Rust workers. Chat and the API work without consumers. Media upload flow: [services/Media/MEDIA.md](../../../Media/MEDIA.md).
 
 Pub/sub event contracts (separate mechanism): [Events/EVENTS.md](../Events/EVENTS.md).
 

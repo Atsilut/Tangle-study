@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using Api.Domain.Media.Dto;
+using Api.Client;
 using Api.Global.Config;
 using Microsoft.Extensions.Options;
 

@@ -2,7 +2,6 @@ using Api.Client;
 using Api.Domain.Chat.Config;
 using Api.Domain.Chat.Domain;
 using Api.Domain.Chat.Dto;
-using Api.Domain.Media.Dto;
 using Api.Domain.Chat.Realtime;
 using Api.Domain.Chat.Repository;
 using Api.Domain.Users.Service;
@@ -145,7 +144,7 @@ public class ChatMessageService(
                 m.IsDeleted ? string.Empty : m.Body,
                 nicknames.GetValueOrDefault(m.LogicalSenderUserId, "Deleted User"),
                 m.SentAt,
-                !m.IsDeleted && mediaByMessageId.ContainsKey(m.Id)));
+                !m.IsDeleted && mediaByMessageId.GetValueOrDefault(m.Id) is not null));
     }
 
     public async Task<ChatMessageGetResponseDto> UpdateMessageAsync(

@@ -106,9 +106,7 @@ var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Val
 if (redisOptions.Enabled) logger.LogInformation("Redis enabled (work queue).");
 else logger.LogInformation("Redis disabled; work queue uses no-op implementation.");
 
-var mediaOptions = app.Services.GetRequiredService<IOptions<MediaOptions>>().Value;
-if (mediaOptions.Enabled) logger.LogInformation("Media uploads enabled (Azure Blob Storage).");
-else logger.LogInformation("Media uploads disabled.");
+logger.LogInformation("Media blob storage configured.");
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {

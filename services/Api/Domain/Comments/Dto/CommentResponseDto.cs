@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Api.Domain.Media.Dto;
+using Api.Client;
 
 namespace Api.Domain.Comments.Dto
 {
