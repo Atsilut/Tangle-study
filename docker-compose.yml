@@ -1,6 +1,7 @@
 name: tangle-study
 
 # Image tags: defaults are latest (dev). Pin with --env-file docker/versions.prod.env
+# Runtime/prebuilt CI images: add -f docker-compose.runtime.yml (see scripts/ci/run-media-harness.sh)
 # See docker/README.md.
 
 x-dotnet-build-args: &dotnet-build-args

@@ -15,6 +15,28 @@ source "$ROOT/scripts/ci/libs/ci-cache.sh"
 source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
+if [[ " $* " == *" --no-build "* ]]; then
+  require_test_build_output() {
+    local proj="$1"
+    local dll="$2"
+    [[ -f "${ROOT}/services/${proj}/bin/Release/net10.0/${dll}" ]] \
+      || fail "missing services/${proj}/bin/Release/net10.0/${dll} — run ./scripts/ci/dotnet-publish.sh first"
+  }
+
+  case " $* " in
+    *Api.Tests*)
+      require_test_build_output "Api.Tests" "Api.Tests.dll"
+      ;;
+    *Media.Tests*)
+      require_test_build_output "Media.Tests" "Media.Tests.dll"
+      ;;
+    *)
+      require_test_build_output "Api.Tests" "Api.Tests.dll"
+      require_test_build_output "Media.Tests" "Media.Tests.dll"
+      ;;
+  esac
+fi
+
 log_step "BUILD SDK IMAGE"
 build_sdk_image tangle-study-sdk:local
 

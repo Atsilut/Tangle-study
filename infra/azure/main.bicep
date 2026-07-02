@@ -48,7 +48,9 @@ var namePrefix = '${baseName}${environment}'
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
 var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-api:${imageTag}'
 var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-web:${imageTag}'
-var workerImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker:${imageTag}'
+var workerChatImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-chat:${imageTag}'
+var workerMediaImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-media:${imageTag}'
+var workerLocationImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-location:${imageTag}'
 var resolvedPrometheusImage = usePlaceholderImages ? prometheusImage : '${containerRegistry}/tangle-study-prometheus:${imageTag}'
 var resolvedGrafanaImage = usePlaceholderImages ? grafanaImage : '${containerRegistry}/tangle-study-grafana:${imageTag}'
 
@@ -197,7 +199,7 @@ module workerChat 'modules/container-app.bicep' = {
     name: 'tangle-study-worker-chat'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerImage
+    containerImage: workerChatImage
     targetPort: 9090
     enableIngress: true
     externalIngress: false
@@ -225,7 +227,7 @@ module workerMedia 'modules/container-app.bicep' = {
     name: 'tangle-study-worker-media'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerImage
+    containerImage: workerMediaImage
     targetPort: 9090
     enableIngress: true
     externalIngress: false
@@ -258,7 +260,7 @@ module workerLocation 'modules/container-app.bicep' = {
     name: 'tangle-study-worker-location'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerImage
+    containerImage: workerLocationImage
     targetPort: 9090
     enableIngress: true
     externalIngress: false

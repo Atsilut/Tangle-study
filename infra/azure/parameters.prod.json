@@ -87,7 +87,7 @@
       "tangle-study-worker-chat": {
         "type": "worker",
         "worker": "chat",
-        "image": "tangle-study-worker",
+        "image": "tangle-study-worker-chat",
         "env": {
           "WORKER_TYPE": "chat",
           "WORKER_STREAM_KEY": "chat.message.created",
@@ -101,7 +101,7 @@
       "tangle-study-worker-location": {
         "type": "worker",
         "worker": "location",
-        "image": "tangle-study-worker",
+        "image": "tangle-study-worker-location",
         "env": {
           "WORKER_TYPE": "location",
           "WORKER_STREAM_KEY": "location.cluster",
@@ -116,7 +116,7 @@
       "tangle-study-worker-media": {
         "type": "worker",
         "worker": "media",
-        "image": "tangle-study-worker",
+        "image": "tangle-study-worker-media",
         "env": {
           "WORKER_TYPE": "media",
           "WORKER_STREAM_KEY": "media.uploaded",
