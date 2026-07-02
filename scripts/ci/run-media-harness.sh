@@ -36,17 +36,17 @@ trap cleanup EXIT
 
 if [[ "$SKIP_PUBLISH" != "1" ]]; then
   log_step "PUBLISH DOTNET SERVICES"
-  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" "$ROOT/scripts/ci/dotnet-publish.sh"
+  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" bash "$ROOT/scripts/ci/dotnet-publish.sh"
 fi
 
 if [[ "$SKIP_WORKERS" != "1" ]]; then
   log_step "BUILD RUST WORKERS"
-  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" "$ROOT/scripts/ci/build-workers-release.sh"
+  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" bash "$ROOT/scripts/ci/build-workers-release.sh"
 fi
 
 if [[ "$SKIP_COMPOSE_BUILD" != "1" ]]; then
   log_step "BUILD HARNESS STACK IMAGES"
-  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" "$ROOT/scripts/ci/compose-build-stack.sh"
+  COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" bash "$ROOT/scripts/ci/compose-build-stack.sh"
 else
   log_step "BUILD HARNESS SDK IMAGE"
   docker compose "${COMPOSE_ARGS[@]}" build harness

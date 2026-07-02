@@ -40,7 +40,7 @@ require_publish_output ".ci-cache/publish/media" "Media.dll"
 require_release_binary "workers/target/release/worker-media"
 
 log_step "BUILD WORKER RUNTIME IMAGE"
-WORKER_MEDIA_IMAGE="$WORKER_MEDIA_IMAGE" "$ROOT/scripts/ci/build-worker-images.sh" --media-only
+WORKER_MEDIA_IMAGE="$WORKER_MEDIA_IMAGE" bash "$ROOT/scripts/ci/build-worker-images.sh" --media-only
 
 log_step "BUILD STACK SERVICE IMAGES"
 tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media nginx rust-worker-media

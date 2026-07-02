@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   COMPOSE_ENV_FILE: docker/versions.prod.env
@@ -42,7 +43,7 @@ jobs:
       # 1. PATH FILTER
       ############################################
       - name: Detect changed paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
