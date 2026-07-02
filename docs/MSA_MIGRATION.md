@@ -65,6 +65,40 @@ Posts and comments may ship as one **community-service** in a first pass if two 
 
 ---
 
+## Extraction progress
+
+### Step 1 — media-service (Compose: done; Azure: pending)
+
+| Area | Status | Notes |
+|------|--------|-------|
+| `services/Media/` project | Done | Flat layout per [Extracted service layout](SERVICE_BOUNDARIES.md#extracted-service-layout) |
+| `media` schema + migrations | Done | `MediaDbContext`; Api dropped cross-schema FKs on `public."MediaAssets"` |
+| HTTP contracts | Done | `IMediaClient` / `IMonolithAccessClient`; internal routes on both sides |
+| Compose + Nginx strangler | Done | `/api/media/*`, `/internal/media/*` → `media:8080`; harness E2E via `http://nginx` |
+| `rust-worker-media` | Done | Dedicated binary; callbacks `http://media:8080` |
+| Tests / CI | Done | Integration tests use in-process media; harness exercises full stack |
+| Monolith cleanup | Pending | Remove Api `Domain/Media/*`, `MediaController`, `public."MediaAssets"` |
+| Azure CD | Pending | Media Container App, `nginx.production.conf` media upstream, worker `API_BASE_URL` |
+| Gateway JWT | Pending | Media still validates bearer tokens (interim); target is gateway-only validation |
+
+**Local Compose flow:**
+
+```text
+Browser → nginx:8080
+            ├─ /api/media/*        → media-service
+            └─ /api/* (rest)       → monolith
+monolith ──HttpMediaClient──► media-service (/internal/media/*)
+rust-worker-media ──────────► PATCH media-service /internal/media/{id}/processed
+```
+
+**Dev data note:** new uploads land in `media."MediaAssets"`. Rows in legacy `public."MediaAssets"` are not migrated automatically — reset the Compose volume or run a one-off copy if you need old assets.
+
+### Steps 2–7
+
+Not started. Follow the [per-extraction checklist](#per-extraction-checklist) for each service.
+
+---
+
 ## Per-extraction checklist
 
 Copy this checklist for each service extraction. Replace `{service}` with the target name.
@@ -118,17 +152,17 @@ Copy this checklist for each service extraction. Replace `{service}` with the ta
 
 ## Strangler fig pattern
 
-During Phase 9 the monolith shrinks incrementally:
+During Phase 9 the monolith shrinks incrementally. **Local Compose** uses Nginx as the edge strangler today; **Azure** still proxies all `/api/*` to the monolith until `nginx.production.conf` gains a media upstream and a media Container App is deployed.
 
 ```text
-Clients → Gateway
-            ├─ /api/media/*     → media-service     (extracted)
-            ├─ /api/chat/*      → chat-service      (extracted)
+Clients → Edge (Nginx today; gateway later)
+            ├─ /api/media/*     → media-service     (Compose: done)
+            ├─ /api/chat/*      → chat-service      (not yet)
             ├─ /api/posts/*     → monolith          (not yet)
             └─ /api/users/*     → monolith          (not yet)
 ```
 
-The gateway validates JWT once and forwards identity claims. Avoid duplicating business rules in the gateway — compose responses only when needed (e.g. board post create).
+The gateway (MSA step 7) validates JWT once and forwards identity claims. Media-service validates bearer tokens **interim** until then. Avoid duplicating business rules in the edge — compose responses only when needed (e.g. board post create).
 
 ---
 
@@ -152,10 +186,13 @@ Grouped by [extraction order](#extraction-order). Configured in [`AppDbContext.c
 
 ### Step 1 — media-service
 
-| Table | FK columns | Drop FK to |
-|-------|------------|------------|
-| `MediaAssets` | `UploaderId` | users |
-| `MediaAssets` | `PostId`, `CommentId`, `ChatMessageId` | posts, comments, chat |
+| Table | FK columns | Drop FK to | Status |
+|-------|------------|------------|--------|
+| `MediaAssets` (`public`, monolith) | `UploaderId` | users | FK dropped |
+| `MediaAssets` (`public`, monolith) | `PostId`, `CommentId`, `ChatMessageId` | posts, comments, chat | FK dropped |
+| `MediaAssets` (`media` schema) | same ID columns | — | Owned by media-service; no FKs |
+
+**Still to do:** remove `MediaAssets` from `AppDbContext` and drop `public."MediaAssets"` after monolith code removal.
 
 ### Step 2 — chat-service
 

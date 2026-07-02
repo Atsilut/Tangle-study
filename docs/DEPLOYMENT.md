@@ -2,7 +2,29 @@
 
 Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via `[.github/workflows/cd-v1.yml](../.github/workflows/cd-v1.yml)`.
 
-Local development continues to use Docker Compose — see [README](../README.md).
+Local development uses Docker Compose with **media-service extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#extraction-progress). **Azure production** still deploys only the monolith for `/api/*` until media ACA + `nginx.production.conf` cutover lands.
+
+---
+
+## Local Compose (media extracted)
+
+Default `docker compose up` runs `api`, `media`, `nginx`, `db`, `redis`, and `azurite`.
+
+| Path | Routed to | Config |
+|------|-----------|--------|
+| `/api/media/*` | `media:8080` | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/internal/media/*` | `media:8080` | Same (worker callbacks; monolith `HttpMediaClient`) |
+| Other `/api/*`, `/hubs/*` | `api:8080` | Monolith |
+
+**Api (Docker):** `MediaClient__BaseUrl=http://media:8080` in [`appsettings.Docker.json`](../services/Api/appsettings.Docker.json) — uses `HttpMediaClient` for link/batch/delete.
+
+**Media (Docker):** [`appsettings.Docker.json`](../services/Media/appsettings.Docker.json) — Redis work queue on, `Monolith__BaseUrl=http://api:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`.
+
+**Worker:** `API_BASE_URL=http://media:8080` on `rust-worker-media`.
+
+**Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-media-harness.sh`.
+
+**Integration tests** (Testcontainers) still use in-process media on the monolith test host (`MediaClient:BaseUrl` empty) — no running `media` container required.
 
 ---
 
@@ -49,6 +71,9 @@ Study-friendly stack — **no managed Redis or ACR** on Azure (no useful free ti
 
 | Compose (local)                      | Azure                                       |
 | ------------------------------------ | ------------------------------------------- |
+| `api`                                | `tangle-study-api` Container App (monolith)   |
+| `media`                              | **Not deployed yet** — still in monolith on Azure |
+| `nginx` / web                        | `tangle-study-web` Container App            |
 | `db`                                 | **Neon** (external Postgres)                |
 | `redis`                              | `tangle-study-redis` Container App          |
 | `prometheus` / `grafana` / exporters | Monitoring Container Apps on ACA            |
@@ -175,6 +200,7 @@ Store these on GitHub Environment `production`. The deploy workflow maps each se
 | `JWT_SECRET`                               | `Jwt__Secret`                                                                 | Yes      | Min 32 chars; overrides `security.yml` placeholder                                                                    |
 | `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes`                                                          | No       | Token lifetime in minutes; default `15` from `[parameters.prod.json](../infra/azure/parameters.prod.json)` when unset |
 | `WORKER_CALLBACK_SECRET`                   | `Media__WorkerCallbackSecret`                                                 | Yes      | Shared with media worker for internal callbacks                                                                       |
+| `INTERNAL_SERVICE_SECRET` (planned)        | `InternalAccess__Secret` (Api), `MediaClient__InternalSecret` (Api)           | When media on ACA | Monolith ↔ media `X-Internal-Secret`; already set in Compose dev |
 | `METRICS_SCRAPE_SECRET`                    | `Metrics__ScrapeSecret` (API), `METRICS_SCRAPE_SECRET` (Prometheus + workers) | Yes      | Required when `Metrics:RequireScrapeSecret` is true                                                                   |
 | `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (API + migrate)                        | Yes      | Neon Npgsql connection string from console                                                                            |
 | `GRAFANA_ADMIN_PASSWORD`                   | `GF_SECURITY_ADMIN_PASSWORD` (Grafana)                                        | Yes      | External Grafana Container App admin password                                                                         |
@@ -182,18 +208,38 @@ Store these on GitHub Environment `production`. The deploy workflow maps each se
 
 ### Media (`services/Media`)
 
-When the media Container App is added to Azure (MSA cutover), map the same GitHub secrets as the API where applicable:
+**Compose:** deployed by default (see [Local Compose (media extracted)](#local-compose-media-extracted)).
+
+**Azure:** not in Bicep/CD yet. When added, map secrets and wire strangler routing:
 
 | GitHub secret                | Container App env var              | Required | Notes                                                                 |
 | ---------------------------- | ---------------------------------- | -------- | --------------------------------------------------------------------- |
 | `JWT_SECRET`                 | `Jwt__Secret`                      | Yes      | **Same value as monolith** — validates tokens issued by Api login     |
 | `BLOB_CONNECTION_STRING`     | `Media__ConnectionString`          | Yes      | Azure Storage account connection string                               |
 | `WORKER_CALLBACK_SECRET`     | `Media__WorkerCallbackSecret`      | Yes      | Shared with `worker-media` for `PATCH /internal/media/.../processed` |
-| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes  | Shared Postgres; media uses `media` schema                            |
+| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes  | Shared Neon; media uses `media` schema — run Media EF migrate job   |
 | `METRICS_SCRAPE_SECRET`      | `Metrics__ScrapeSecret`            | Yes      | When `Metrics:RequireScrapeSecret` is true                            |
+| `INTERNAL_SERVICE_SECRET` (new) | `Media__InternalServiceSecret` | Yes   | Monolith → media `X-Internal-Secret`; same value on Api `InternalAccess__Secret` / `MediaClient__InternalSecret` |
+
+Non-secrets at deploy time:
+
+| Variable / Bicep output      | Container App env var       | Example                                       |
+| ---------------------------- | --------------------------- | --------------------------------------------- |
+| —                            | `Monolith__BaseUrl`         | `http://tangle-study-api` (ACA short name)    |
+| `MEDIA_PUBLIC_BLOB_ENDPOINT` | `Media__PublicBlobEndpoint` | `https://tanglestaging.blob.core.windows.net` |
+| —                            | `Redis__Enabled`            | `true`                                        |
+| —                            | `Redis__ConnectionString`   | `tangle-study-redis` (ACA short name)         |
+
+**Web nginx (Azure cutover):** add `TANGLE_MEDIA_UPSTREAM` (or equivalent) to [`nginx.production.conf`](../infra/nginx/nginx.production.conf) mirroring local [`nginx.conf`](../infra/nginx/nginx.conf) media `location` blocks. Until then, production keeps serving `/api/media/*` from the monolith.
+
+**Worker:** change `API_BASE_URL` on `tangle-study-worker-media` from `http://tangle-study-api` to `http://tangle-study-media` when the media Container App exists.
 
 Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits) stay in each service's `security.yml` / `media-limits.yml` baked into the image.
 
+**Shared (all Container Apps):**
+
+| GitHub secret / variable                   | Container App env var                                                         | Required | Notes                                                                                                                 |
+| ------------------------------------------ | ----------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING`    | `APPLICATIONINSIGHTS_CONNECTION_STRING`                                       | No       | Auto-resolved from `tanglestudyprod-appi` when unset                                                                  |
 | `GHCR_REGISTRY_USERNAME`                   | (registry pull on all apps + migrate job)                                     | No       | Only if GHCR packages are **private**                                                                                 |
 | `GHCR_REGISTRY_PASSWORD`                   | (registry pull)                                                               | No       | GitHub PAT with `read:packages`                                                                                       |
@@ -229,18 +275,18 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 | GitHub secret            | Env var                           | Required                 | Notes                                                    |
 | ------------------------ | --------------------------------- | ------------------------ | -------------------------------------------------------- |
 | `BLOB_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | Media worker only        | Same storage account as API                              |
-| `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET`          | Media + location workers | Must match `Media__WorkerCallbackSecret`                 |
+| `WORKER_CALLBACK_SECRET` | `WORKER_CALLBACK_SECRET`          | Media + location workers | Must match `Media__WorkerCallbackSecret` on **media-service** (Compose/Azure target) or Api until Azure cutover |
 | `METRICS_SCRAPE_SECRET`  | `METRICS_SCRAPE_SECRET`           | Yes                      | Protects `/metrics`; Prometheus sends `X-Metrics-Secret` |
 
 
-Redis URL and API base URL are set at CD deploy time (`REDIS_URL`, `API_BASE_URL=http://tangle-study-api` — ACA short name, no `:8080`).
+Redis URL and API base URL are set at CD deploy time. **Today:** `API_BASE_URL=http://tangle-study-api` for both media and location workers (monolith still owns media callbacks on Azure). **After media ACA:** media worker uses `http://tangle-study-media`; location worker keeps `http://tangle-study-api`.
 
 Per-worker settings in `[parameters.prod.json](../infra/azure/parameters.prod.json)`:
 
 
 | Variable               | Env var                | Example                                                      |
 | ---------------------- | ---------------------- | ------------------------------------------------------------ |
-| `API_BASE_URL`         | `API_BASE_URL`         | `http://tangle-study-api` (injected; media + location only)  |
+| `API_BASE_URL`         | `API_BASE_URL`         | Compose: `http://media:8080` (media worker). Azure today: `http://tangle-study-api`; target: `http://tangle-study-media` |
 | `WORKER_STREAM_KEY`    | `WORKER_STREAM_KEY`    | `media.uploaded`, `chat.message.created`, `location.cluster` |
 | `MEDIA_CONTAINER_NAME` | `MEDIA_CONTAINER_NAME` | `tangle-media`                                               |
 
@@ -702,6 +748,6 @@ docker build -f clients/web/Dockerfile \
 
 ## Related docs
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — current monolith layout
-- [MSA_MIGRATION.md](MSA_MIGRATION.md) — Phase 9 service extraction (after prod monolith is proven)
+- [ARCHITECTURE.md](ARCHITECTURE.md) — monolith + media-service in Compose
+- [MSA_MIGRATION.md](MSA_MIGRATION.md) — Phase 9 extraction progress and Azure follow-ups
 

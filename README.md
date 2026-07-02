@@ -229,9 +229,9 @@ Central index: [docs/README.md](docs/README.md)
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
 | 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 9 | MSA migration — follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Planned |
+| 9 | MSA migration — media extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (step 1 done locally) |
 
-Phase 9 starts only after Phases 5–7 are complete end-to-end (metrics, location API, React map). MAUI remains optional after the React path works.
+Phase 9 step 1 (media-service) is **complete in local Compose**. Azure strangler routing and monolith media cleanup are the next milestones. MAUI remains optional after the React path works.
 
 ---
 
