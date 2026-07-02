@@ -13,6 +13,7 @@ public static class MediaServiceCollectionExtensions
         services.Configure<MediaOptions>(configuration.GetSection(MediaOptions.SectionName));
         services.AddSingleton<MediaLimitPolicy>();
         services.AddScoped<WorkerCallbackAuthorizationFilter>();
+        services.AddScoped<InternalServiceAuthorizationFilter>();
 
         var options = configuration.GetSection(MediaOptions.SectionName).Get<MediaOptions>() ?? new MediaOptions();
         EnsureLimitsConfigured(options);

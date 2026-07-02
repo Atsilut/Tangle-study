@@ -25,6 +25,9 @@ public sealed class MediaOptions
 
     public string WorkerCallbackSecret { get; set; } = string.Empty;
 
+    /// <summary>Shared secret for monolith → media internal routes (<c>X-Internal-Secret</c>).</summary>
+    public string InternalServiceSecret { get; set; } = string.Empty;
+
     public MediaContextLimitOptions Post { get; set; } = new();
 
     public MediaContextLimitOptions Comment { get; set; } = new();
