@@ -16,7 +16,9 @@ WORKDIR /src
 COPY Tangle.slnx .
 COPY services/Api/Api.csproj services/Api/
 COPY services/Api.Tests/Api.Tests.csproj services/Api.Tests/
+COPY services/Media/Media.csproj services/Media/
 RUN --mount=type=cache,target=/tmp/nuget-packages \
-    dotnet restore services/Api.Tests/Api.Tests.csproj
+    dotnet restore services/Api.Tests/Api.Tests.csproj && \
+    dotnet restore services/Media/Media.csproj
 
 ENTRYPOINT ["dotnet"]
