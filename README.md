@@ -270,7 +270,8 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 | Service | Profile | Always on? | Role |
 |---------|---------|------------|------|
-| `api` | — | yes (default `up`) | ASP.NET Core API |
+| `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media domains) |
+| `media` | — | yes | Media microservice (`/api/media/*`) |
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
@@ -426,10 +427,10 @@ Two workers share the `workers/rust-worker` image with different stream keys:
 | Service | Stream | Notes |
 |---------|--------|-------|
 | `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
-| `rust-worker-media` | `media.uploaded` | Processes uploads after Azurite + API |
+| `rust-worker-media` | `media.uploaded` | Processes uploads after Azurite + media-service |
 | `rust-worker-location` | `location.cluster` | Clusters map pins for low-zoom `/map` view |
 
-Requires Redis and the API (and Azurite for media). See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Requires Redis, the API, media-service, and Azurite for media jobs. See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 
 ```bash
 # Chat worker only (with core stack)
@@ -457,7 +458,7 @@ docker compose --profile monitoring --profile workers up --build
 
 ### Harness tests (optional, `harness` profile)
 
-End-to-end tests that run inside Compose against `http://api:8080` (no host API port required). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
+End-to-end tests that run inside Compose against `http://nginx` (nginx strangler: auth via monolith, uploads via media-service). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
 
 ```bash
 docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml run --rm harness

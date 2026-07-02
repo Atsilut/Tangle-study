@@ -41,7 +41,7 @@ docker compose --profile workers up rust-worker rust-worker-media
 - `rust-worker` — `chat.message.created` (stub handler today)
 - `rust-worker-media` — `media.uploaded` (dedicated `worker-media` image with ffmpeg)
 
-With the default stack (`docker compose up`), start Redis, the API, and Azurite first so jobs can be enqueued. The chat worker only needs Redis; the media worker also needs the API, Azure/Azurite, and a matching `WORKER_CALLBACK_SECRET` (see `Media__WorkerCallbackSecret` on the API).
+With the default stack (`docker compose up`), start Redis, the API, media-service, and Azurite first so jobs can be enqueued. The chat worker only needs Redis; the media worker also needs media-service, Azure/Azurite, and a matching `WORKER_CALLBACK_SECRET` (see `Media:WorkerCallbackSecret` on the media service).
 
 ## Configuration
 
@@ -74,7 +74,7 @@ Required in consumer mode (validated at startup). Not required for `cargo run --
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_BASE_URL` | `http://127.0.0.1:5000` | Base URL for `PATCH /internal/media/{id}/processed` |
+| `API_BASE_URL` | `http://127.0.0.1:8080` | Base URL for `PATCH /internal/media/{id}/processed` (Compose: `http://media:8080`) |
 | `WORKER_CALLBACK_SECRET` | *(empty)* | Shared secret sent as `X-Worker-Callback-Secret`; must match API `Media__WorkerCallbackSecret` |
 | `AZURE_STORAGE_CONNECTION_STRING` | *(empty)* | Azure Blob connection string (Azurite in local compose) |
 | `MEDIA_CONTAINER_NAME` | `tangle-media` | Blob container for originals and processed output |
@@ -166,11 +166,11 @@ Full end-to-end path through Redis, Azurite, ffmpeg, and the API callback — no
 ./scripts/ci/run-media-harness.sh
 ```
 
-From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.
+From the repository root. Brings up `db`, `redis`, `azurite`, `api`, `media`, `nginx`, `rust-worker-media`, then runs `Category=Harness` tests in `services/Api.Tests`. Requires Docker.
 
 Against an already-running stack on the host:
 
 ```bash
-export TANGLE_HARNESS_API_BASE_URL=http://127.0.0.1:5000
+export TANGLE_HARNESS_API_BASE_URL=http://127.0.0.1:8080
 docker compose --profile test run --rm test test services/Api.Tests/Api.Tests.csproj -c Release --filter "Category=Harness"
 ```

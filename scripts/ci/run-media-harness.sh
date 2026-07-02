@@ -26,7 +26,7 @@ cleanup() {
 trap cleanup EXIT
 
 log_step "BUILD HARNESS SERVICES"
-docker compose "${COMPOSE_ARGS[@]}" build --parallel api rust-worker-media harness
+docker compose "${COMPOSE_ARGS[@]}" build --parallel api media nginx rust-worker-media harness
 
 log_step "START HARNESS STACK"
 docker compose "${COMPOSE_ARGS[@]}" up -d --wait

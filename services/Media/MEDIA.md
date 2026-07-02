@@ -19,7 +19,7 @@ Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Size limits: [`me
 
 \* Content is public when the asset is linked to a post or comment the caller could read; chat attachments require auth.
 
-Swagger: `http://localhost:5000/api` under `api/media`.
+Swagger: `http://localhost:8080/api` (via nginx) or direct `http://localhost:5000/api` on the monolith during migration.
 
 ---
 
@@ -27,7 +27,7 @@ Swagger: `http://localhost:5000/api` under `api/media`.
 
 1. `POST /api/media/upload-init` with `{ intendedContext, kind, fileName, contentType, sizeBytes }`.
 2. `PUT` bytes to the returned `uploadUrl` (Azurite in dev: proxied via Nginx `/devstoreaccount1`).
-3. `POST /api/media/{id}/complete` — API verifies blob, enqueues worker job, returns asset (usually `Pending`).
+3. `POST /api/media/{id}/complete` — verifies blob, enqueues worker job, returns asset (usually `Pending`).
 4. Poll `GET /api/media/{id}` until `processingStatus` is `Ready` (or handle `Failed`).
 5. Attach `mediaAssetId` / `mediaAssetIds` when creating a post, comment, or chat message.
 
@@ -43,7 +43,7 @@ CompleteUpload → XADD media.uploaded → rust-worker-media
   → PATCH /internal/media/{id}/processed → status Ready
 ```
 
-Worker config: `WORKER_STREAM_KEY=media.uploaded`, `API_BASE_URL`, `WORKER_CALLBACK_SECRET` (must match API `Media:WorkerCallbackSecret`).
+Worker config: `WORKER_STREAM_KEY=media.uploaded`, `API_BASE_URL` (media-service base, e.g. `http://media:8080` in Compose), `WORKER_CALLBACK_SECRET` (must match `Media:WorkerCallbackSecret` on media-service).
 
 Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../../Global/Queue/QUEUE.md).
 

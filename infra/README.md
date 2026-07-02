@@ -152,7 +152,7 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 2. **Dependency unhealthy** — `docker compose logs api db redis`; verify `/health`.
 3. **5xx spike** — Grafana dashboard → errors by controller; check API logs.
 4. **Worker DLQ** — `cargo run -- replay` or inspect `{stream}.dlq` in Redis.
-5. **Callback 5xx** — media worker cannot reach API; check `API_BASE_URL` and `WORKER_CALLBACK_SECRET`.
+5. **Callback 5xx** — media worker cannot reach media-service; check `API_BASE_URL` and `WORKER_CALLBACK_SECRET`.
 
 ## Verification
 
