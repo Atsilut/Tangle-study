@@ -397,15 +397,27 @@ chmod +x scripts/run-all-tests.sh
 ./scripts/run-all-tests.sh --skip-harness
 ```
 
-**API only** (Testcontainers):
+**API + Media integration** (Testcontainers; matches CI after `dotnet-publish.sh`):
 
 ```bash
 chmod +x scripts/ci/docker-test.sh
 
+# Full suite (builds inside test container)
 ./scripts/ci/docker-test.sh
+
+# CI-like (--no-build after ./scripts/ci/dotnet-publish.sh)
+./scripts/ci/dotnet-publish.sh
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
 
 # Filtered run
 ./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+```
+
+**Media harness E2E** (full stack, runtime images):
+
+```bash
+./scripts/ci/run-media-harness.sh
 ```
 
 Equivalent without the script:
@@ -422,13 +434,15 @@ Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` f
 
 ### Rust workers (optional, `workers` profile)
 
-Two workers share the `workers/rust-worker` image with different stream keys:
+Two workers share the `tangle-worker` release binary (chat + location); media uses `worker-media`:
 
-| Service | Stream | Notes |
-|---------|--------|-------|
-| `rust-worker` | `chat.message.created` | Stub handler; delivery is via SignalR |
-| `rust-worker-media` | `media.uploaded` | Processes uploads after Azurite + media-service |
-| `rust-worker-location` | `location.cluster` | Clusters map pins for low-zoom `/map` view |
+| Service | Stream | Image (CI/CD) |
+|---------|--------|----------------|
+| `rust-worker` | `chat.message.created` | `tangle-study-worker-chat` |
+| `rust-worker-media` | `media.uploaded` | `tangle-study-worker-media` |
+| `rust-worker-location` | `location.cluster` | `tangle-study-worker-location` |
+
+Local `docker compose --profile workers up` uses multi-stage builds. CI/CD compile once via `./scripts/ci/build-workers-release.sh` and build slim runtime images with `./scripts/ci/build-worker-images.sh`. See [workers/rust-worker/README.md](workers/rust-worker/README.md).
 
 Requires Redis, the API, media-service, and Azurite for media jobs. See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 

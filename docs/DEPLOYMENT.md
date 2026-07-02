@@ -150,7 +150,7 @@ Create a Neon project + database and set `POSTGRES_CONNECTION_STRING` in GitHub.
 
 After CI passes on `main`, [cd-v1.yml](../.github/workflows/cd-v1.yml):
 
-1. Builds and pushes `tangle-study-api`, `tangle-study-web`, and `tangle-study-worker` to GHCR (`[azure-cd-build-push.sh](../scripts/cd/azure-cd-build-push.sh)`)
+1. Compiles once (`dotnet-publish.sh`, `build-workers-release.sh`), then builds and pushes runtime images to GHCR: `tangle-study-api`, `tangle-study-web`, `tangle-study-worker-media`, `tangle-study-worker-chat`, `tangle-study-worker-location`, plus monitoring images (`[azure-cd-build-push.sh](../scripts/cd/azure-cd-build-push.sh)`)
 2. Waits for GHCR image propagation (`[azure-cd-wait-image.sh](../scripts/cd/azure-cd-wait-image.sh)`)
 3. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.) (`[azure-cd-inject-secrets.sh](../scripts/cd/azure-cd-inject-secrets.sh)`)
 4. Updates app images and env from `[parameters.prod.json](../infra/azure/parameters.prod.json)` (`[azure-cd-deploy-image.sh](../scripts/cd/azure-cd-deploy-image.sh)`) — includes `TANGLE_API_UPSTREAM` for web

@@ -62,7 +62,9 @@ CD builds and pushes:
 
 - `ghcr.io/<org>/tangle-study/tangle-study-api:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-web:<tag>`
-- `ghcr.io/<org>/tangle-study/tangle-study-worker:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-media:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-chat:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-location:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-prometheus:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-grafana:<tag>`
 

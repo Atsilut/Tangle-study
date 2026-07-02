@@ -10,7 +10,20 @@ Redis Streams consumers for async jobs from the API (`IWorkQueue`). See [service
 | `crates/worker-media` (`worker-media`) | `media.uploaded` — ffmpeg transcode + blob I/O + API callback |
 | `rust-worker` (`tangle-worker`) | `chat.message.created` + `location.cluster` |
 
-Media runs as a **separate binary and Docker image** (`workers/docker/Dockerfile.media`). Chat and location share `workers/rust-worker/Dockerfile`.
+Media runs as a **separate binary and Docker image** (`workers/docker/Dockerfile.runtime.media`). Chat and location share the `tangle-worker` binary (`Dockerfile.runtime.chat` / `Dockerfile.runtime.location`).
+
+## CI / CD build (runtime images)
+
+Compile once, then build slim runtime images (same pattern as CI harness):
+
+```bash
+./scripts/ci/build-workers-release.sh          # cargo test + release binaries
+./scripts/ci/build-worker-images.sh            # all three worker runtime images
+```
+
+CD (`azure-cd-build-push.sh`) runs `build-workers-release.sh` (tests skipped) + `dotnet-publish.sh`, then builds runtime Dockerfiles and pushes to GHCR as `tangle-study-worker-media`, `tangle-study-worker-chat`, and `tangle-study-worker-location`.
+
+For prod-like local compose with prebuilt artifacts, add `-f docker-compose.runtime.yml` (see `scripts/ci/run-media-harness.sh`).
 
 ## Run locally (host)
 
@@ -140,7 +153,8 @@ workers/
     worker-core/                   # shared consumer, DLQ, retry, metrics
     worker-media/                  # media.uploaded binary
   rust-worker/                     # chat + location binary
-  docker/Dockerfile.media           # media image (ffmpeg)
+  docker/Dockerfile.media           # multi-stage media image (local dev)
+  docker/Dockerfile.runtime.*       # slim runtime images (CI/CD; COPY release binaries)
 ```
 
 ## Tests
