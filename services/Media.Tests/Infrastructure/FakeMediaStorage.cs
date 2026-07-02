@@ -1,11 +1,10 @@
-using Api.Domain.Media.Storage;
+using Media.Storage;
 
-namespace Api.Tests.Infrastructure;
+namespace Media.Tests.Infrastructure;
 
-internal sealed class FakeMediaStorage : IMediaStorage
+public sealed class FakeMediaStorage : IMediaStorage
 {
     private readonly HashSet<string> _objects = new(StringComparer.Ordinal);
-
     private readonly List<string> _deletedObjectKeys = [];
 
     public Task<PresignedUpload> CreatePresignedUploadAsync(

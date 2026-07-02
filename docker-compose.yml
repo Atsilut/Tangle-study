@@ -380,6 +380,7 @@ services:
       [
         "test",
         "services/Api.Tests/Api.Tests.csproj",
+        "services/Media.Tests/Media.Tests.csproj",
         "-c",
         "Release",
         "--filter",

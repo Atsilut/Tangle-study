@@ -1,5 +1,5 @@
-﻿using Api.Domain.Comments.Dto;
-using Api.Domain.Media.Domain;
+﻿using Api.Client;
+using Api.Domain.Comments.Dto;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Users.Dto;
 using Api.Tests.Infrastructure;
@@ -155,12 +155,11 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var post = await CreatePostForTest(testMethodName, user.Id);
-        var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
-            Client,
+        var mediaAssetId = MediaIntegrationTestHelpers.SeedReadyAsset(
+            FakeMediaClient,
             MediaIntendedContext.Comment,
             "image/png",
             "comment.png",
-            declaredSizeBytes: 68,
             storedSizeBytes: 67);
 
         var req = new CommentCreateRequestDto

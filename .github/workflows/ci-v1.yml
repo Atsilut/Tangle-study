@@ -58,7 +58,6 @@ jobs:
             harness:
               - 'services/Api.Tests/Harness/**'
               - 'services/Media/**'
-              - 'services/Api/Domain/Media/**'
               - 'services/Api/Client/**'
               - 'infra/nginx/**'
               - 'workers/**'
@@ -234,6 +233,8 @@ jobs:
             services/Api.Tests/obj
             services/Media/bin
             services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -297,6 +298,8 @@ jobs:
             services/Api.Tests/obj
             services/Media/bin
             services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-

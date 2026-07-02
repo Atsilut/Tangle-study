@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Api.Domain.Media.Domain;
-using Api.Domain.Media.Dto;
+using Api.Client;
 
 namespace Api.Tests.Infrastructure;
 
@@ -106,6 +105,32 @@ internal static class MediaHarnessHelpers
         return await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
     }
 
+    public static async Task<MediaUploadInitResponseDto> InitUploadAsync(
+        HttpClient client,
+        MediaIntendedContext context,
+        string mimeType,
+        string fileName,
+        long sizeBytes)
+    {
+        var req = new MediaUploadInitRequestDto
+        {
+            IntendedContext = context,
+            MimeType = mimeType,
+            FileName = fileName,
+            SizeBytes = sizeBytes,
+        };
+        var res = await client.PostAsJsonAsync("api/media/upload-init", req, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        return (await res.Content.ReadFromJsonAsync<MediaUploadInitResponseDto>(TestContext.Current.CancellationToken))!;
+    }
+
+    public static async Task<MediaAssetGetResponseDto> CompleteUploadAsync(HttpClient client, long mediaAssetId)
+    {
+        var res = await client.PostAsync($"api/media/{mediaAssetId}/complete", null, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        return (await res.Content.ReadFromJsonAsync<MediaAssetGetResponseDto>(TestContext.Current.CancellationToken))!;
+    }
+
     public static async Task<MediaAssetGetResponseDto> UploadFixtureThroughPipelineAsync(
         HttpClient client,
         string fixtureFileName,
@@ -114,15 +139,10 @@ internal static class MediaHarnessHelpers
         TimeSpan processingTimeout)
     {
         var bytes = await ReadFixtureAsync(fixtureFileName);
-        var init = await MediaIntegrationTestHelpers.InitUploadAsync(
-            client,
-            context,
-            mimeType,
-            fixtureFileName,
-            bytes.Length);
+        var init = await InitUploadAsync(client, context, mimeType, fixtureFileName, bytes.Length);
         await UploadFixtureToBlobAsync(init.UploadUrl, bytes, mimeType);
 
-        var completed = await MediaIntegrationTestHelpers.CompleteUploadAsync(client, init.MediaAssetId);
+        var completed = await CompleteUploadAsync(client, init.MediaAssetId);
         Assert.Equal(MediaProcessingStatus.Processing, completed.ProcessingStatus);
 
         return await PollUntilTerminalAsync(client, init.MediaAssetId, processingTimeout);

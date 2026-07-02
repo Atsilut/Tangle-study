@@ -8,7 +8,6 @@ using Api.Domain.Location.Realtime;
 using Api.Domain.Location.Repository;
 using Api.Domain.Location.Service;
 using Api.Domain.Location.Storage;
-using Api.Domain.Media.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.UserBlocks.Service;
@@ -88,7 +87,7 @@ internal static class LocationSessionServiceTestFactory
             db,
             new Lazy<PostService>(() => null!),
             new Lazy<CommentService>(() => null!),
-            new NoOpMediaClient(),
+            new FakeMediaClient(),
             new Lazy<ChatMessageService>(() => null!),
             new Lazy<ChatRoomService>(() => null!),
             new Lazy<GroupMembershipService>(() => null!),

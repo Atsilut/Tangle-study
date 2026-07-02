@@ -1,7 +1,9 @@
-using Api.Client;
-using Api.Global.Db;
-using Api.Global.Events;
-using Api.Global.Queue;
+using Media.Client;
+using Media.Global.Config;
+using Media.Global.Db;
+using Media.Global.Queue;
+using Media.Global.Security;
+using Media.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -12,33 +14,38 @@ using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
 
-namespace Api.Tests.Infrastructure;
+namespace Media.Tests.Infrastructure;
 
-public sealed class ApiWebApplicationFactory(
+public sealed class MediaWebApplicationFactory(
     string connectionString,
     bool redisEnabled = false,
-    string? redisConnectionString = null,
-    bool metricsRequireScrapeSecret = false,
-    string? metricsScrapeSecret = null) : WebApplicationFactory<Program>
+    string? redisConnectionString = null) : WebApplicationFactory<Program>
 {
+    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
+    public const string TestJwtIssuer = "Tangle";
+    public const string TestJwtAudience = "TangleClient";
     public const string TestWorkerCallbackSecret = "test-media-worker-secret";
+    public const string TestInternalServiceSecret = "test-internal-service-secret";
+
+    private const string TestBlobConnectionString =
+        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
 
     private readonly string _connectionString = connectionString;
     private readonly bool _redisEnabled = redisEnabled;
     private readonly string? _redisConnectionString = redisConnectionString;
-    private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
-    private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
-    private readonly FakeMediaClient _fakeMediaClient = new();
+    private readonly FakeMediaStorage _fakeStorage = new();
 
-    public FakeMediaClient FakeMediaClient => _fakeMediaClient;
+    public FakeMediaStorage FakeStorage => _fakeStorage;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("WorkerCallback:Secret", TestWorkerCallbackSecret);
-        builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
-        builder.UseSetting("MediaClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("Media:ConnectionString", TestBlobConnectionString);
+        builder.UseSetting("Media:WorkerCallbackSecret", TestWorkerCallbackSecret);
+        builder.UseSetting("Media:InternalServiceSecret", TestInternalServiceSecret);
+        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
+        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -47,47 +54,50 @@ public sealed class ApiWebApplicationFactory(
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Redis:Enabled"] = _redisEnabled ? "true" : "false",
                 ["Redis:ConnectionString"] = _redisEnabled ? _redisConnectionString : "",
-                ["Redis:InstanceName"] = "tangle:",
-                ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["MediaClient:BaseUrl"] = "http://media.test",
-                ["MediaClient:InternalSecret"] = "test-internal-service-secret",
-                ["InternalAccess:Secret"] = "test-internal-service-secret",
-                ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
-                ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
-                ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
-                ["Jwt:Secret"] = "integration-test-jwt-secret-at-least-32-characters-long",
+                ["Media:ConnectionString"] = TestBlobConnectionString,
+                ["Media:ContainerName"] = "tangle-media",
+                ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
+                ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
+                ["Monolith:BaseUrl"] = "http://monolith.test",
+                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Jwt:Secret"] = TestJwtSecret,
+                ["Jwt:Issuer"] = TestJwtIssuer,
+                ["Jwt:Audience"] = TestJwtAudience,
+                ["Metrics:RequireScrapeSecret"] = "false",
             });
         });
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMediaClient>(services);
-            services.AddSingleton<IMediaClient>(_fakeMediaClient);
+            RemoveService<IMediaStorage>(services);
+            services.AddSingleton<IMediaStorage>(_fakeStorage);
+
+            RemoveService<IMonolithAccessClient>(services);
+            services.AddSingleton<IMonolithAccessClient, AllowAllMonolithAccessClient>();
         });
 
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<MediaDbContext>));
             if (descriptor is not null) services.Remove(descriptor);
 
-            services.AddDbContext<AppDbContext>(options =>
+            services.AddDbContext<MediaDbContext>(options =>
                 options.UseNpgsql(_connectionString, npgsql =>
                     npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
         });
 
         if (_redisEnabled && !string.IsNullOrWhiteSpace(_redisConnectionString))
+        {
             builder.ConfigureTestServices(services =>
             {
                 RemoveService<IConnectionMultiplexer>(services);
                 RemoveService<IWorkQueue>(services);
-                RemoveService<IEventPublisher>(services);
-
                 services.AddSingleton<IConnectionMultiplexer>(_ =>
                     ConnectionMultiplexer.Connect(_redisConnectionString!));
                 services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
-                services.AddSingleton<IEventPublisher, RedisEventPublisher>();
             });
+        }
     }
 
     protected override void Dispose(bool disposing)

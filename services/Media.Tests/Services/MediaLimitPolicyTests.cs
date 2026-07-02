@@ -1,9 +1,7 @@
-using Api.Domain.Media;
-using Api.Domain.Media.Domain;
-using Api.Global.Config;
+using Media.Global.Config;
 using Microsoft.Extensions.Options;
 
-namespace Api.Tests.Services;
+namespace Media.Tests.Services;
 
 public sealed class MediaLimitPolicyTests
 {
@@ -42,13 +40,8 @@ public sealed class MediaLimitPolicyTests
     [Fact]
     public void GetStorageLimits_PostVideo_MatchesConfiguredCaps()
     {
-        // Arrange
         var policy = CreatePolicy();
-
-        // Act
         var limits = policy.GetStorageLimits(MediaIntendedContext.Post, MediaKind.Video);
-
-        // Assert
         Assert.Equal(2L * 1024 * 1024 * 1024, limits.PerFileBytes);
         Assert.Equal(10L * 1024 * 1024 * 1024, limits.TotalBytes);
     }
@@ -56,13 +49,8 @@ public sealed class MediaLimitPolicyTests
     [Fact]
     public void GetStorageLimits_CommentImage_HasSingleFileCapOnly()
     {
-        // Arrange
         var policy = CreatePolicy();
-
-        // Act
         var limits = policy.GetStorageLimits(MediaIntendedContext.Comment, MediaKind.Image);
-
-        // Assert
         Assert.Equal(75L * 1024 * 1024, limits.PerFileBytes);
         Assert.Null(limits.TotalBytes);
     }
@@ -70,13 +58,8 @@ public sealed class MediaLimitPolicyTests
     [Fact]
     public void GetIngressLimit_UsesConfiguredMultiplier()
     {
-        // Arrange
         var policy = CreatePolicy(ingressMultiplier: 4);
-
-        // Act
         var ingress = policy.GetIngressLimit(MediaIntendedContext.ChatMessage, MediaKind.Image);
-
-        // Assert
         Assert.Equal(75L * 1024 * 1024 * 4, ingress);
     }
 
@@ -84,23 +67,14 @@ public sealed class MediaLimitPolicyTests
     [InlineData(1)]
     [InlineData(3)]
     [InlineData(5)]
-    public void GetIngressMultiplier_UsesConfiguredValue(double ingressMultiplier)
-    {
-        // Arrange
-        var policy = CreatePolicy(ingressMultiplier);
-
-        // Act + Assert
-        Assert.Equal(ingressMultiplier, policy.GetIngressMultiplier());
-    }
+    public void GetIngressMultiplier_UsesConfiguredValue(double ingressMultiplier) =>
+        Assert.Equal(ingressMultiplier, CreatePolicy(ingressMultiplier).GetIngressMultiplier());
 
     [Fact]
     public void EnsureWithinIngressLimit_RejectsOversizedUpload()
     {
-        // Arrange
         var policy = CreatePolicy();
         var ingress = policy.GetIngressLimit(MediaIntendedContext.Post, MediaKind.Video);
-
-        // Act + Assert
         var ex = Assert.Throws<ArgumentException>(() =>
             policy.EnsureWithinIngressLimit(MediaIntendedContext.Post, MediaKind.Video, ingress + 1));
         Assert.Contains("upload limit", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -109,10 +83,7 @@ public sealed class MediaLimitPolicyTests
     [Fact]
     public void AllowsMultipleFiles_OnlyForPosts()
     {
-        // Arrange
         var policy = CreatePolicy();
-
-        // Act + Assert
         Assert.True(policy.AllowsMultipleFiles(MediaIntendedContext.Post));
         Assert.False(policy.AllowsMultipleFiles(MediaIntendedContext.Comment));
         Assert.False(policy.AllowsMultipleFiles(MediaIntendedContext.ChatMessage));
