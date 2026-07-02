@@ -3,14 +3,12 @@ using Api.Domain.Comments.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Security;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Global.Api;
 
 [ApiController]
 [Route("internal/access")]
-[Authorize]
 [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
 public sealed class InternalAccessController(
     UserService userService,
