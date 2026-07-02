@@ -47,7 +47,7 @@ internal sealed class HttpMonolithAccessClient(
             throw new UnauthorizedAccessException(await ReadBodyAsync(response, cancellationToken));
 
         if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-            throw new UnauthorizedAccessException(await ReadBodyAsync(response, cancellationToken));
+            throw new AccessForbiddenException(await ReadBodyAsync(response, cancellationToken));
 
         throw new InvalidOperationException(
             $"Monolith access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");

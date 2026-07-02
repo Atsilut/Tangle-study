@@ -37,6 +37,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     statusCode = notFound.StatusCode;
                     title = TitleForStatus(statusCode);
                     return true;
+                case AccessForbiddenException forbidden:
+                    statusCode = forbidden.StatusCode;
+                    title = TitleForStatus(statusCode);
+                    return true;
                 case UnauthorizedAccessException:
                     statusCode = StatusCodes.Status401Unauthorized;
                     title = TitleForStatus(statusCode);
@@ -64,6 +68,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         StatusCodes.Status400BadRequest => "Bad Request",
         StatusCodes.Status401Unauthorized => "Unauthorized",
+        StatusCodes.Status403Forbidden => "Forbidden",
         StatusCodes.Status404NotFound => "Not Found",
         StatusCodes.Status409Conflict => "Conflict",
         _ => "Error",
