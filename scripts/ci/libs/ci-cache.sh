@@ -29,7 +29,7 @@ ci_fix_cache_ownership() {
 
   [[ -d "$(ci_cache_root)" ]] && paths+=("$(ci_cache_root)")
 
-  p="${ROOT}/workers/rust-worker/target"
+  p="${ROOT}/workers/target"
   [[ -d "$p" ]] && paths+=("$p")
 
   for proj in Api Api.Tests; do

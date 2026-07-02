@@ -1,54 +1,34 @@
 pub mod chat_message_created;
 pub mod location_cluster;
-pub mod media_uploaded;
 
 use anyhow::{bail, Result};
+use async_trait::async_trait;
 use redis::streams::StreamId;
+use reqwest::Client;
+use worker_core::handler::StreamHandler;
+use worker_core::message;
+use worker_core::Config;
 
-use crate::config::Config;
-use crate::job::{ChatMessageCreatedJob, LocationClusterJob, MediaUploadedJob};
-use crate::message;
+pub struct ChatLocationHandler;
 
-/// Decode and process a stream entry for the configured worker stream.
-pub async fn dispatch_entry(
-    config: &Config,
-    entry: &StreamId,
-    http: &reqwest::Client,
-) -> Result<()> {
-    match config.stream_key.as_str() {
-        "chat.message.created" => {
-            let job = message::decode_chat_message_created(&config.stream_key, entry)?;
-            dispatch_chat_message_created(&job).await
+#[async_trait]
+impl StreamHandler for ChatLocationHandler {
+    async fn dispatch(
+        &self,
+        config: &Config,
+        entry: &StreamId,
+        http: &Client,
+    ) -> Result<()> {
+        match config.stream_key.as_str() {
+            "chat.message.created" => {
+                let job = message::decode_chat_message_created(&config.stream_key, entry)?;
+                chat_message_created::handle(&job).await
+            }
+            "location.cluster" => {
+                let job = message::decode_location_cluster(&config.stream_key, entry)?;
+                location_cluster::handle(&job, config, http).await
+            }
+            other => bail!("unsupported worker stream key {other}"),
         }
-        "media.uploaded" => {
-            let job = message::decode_media_uploaded(&config.stream_key, entry)?;
-            dispatch_media_uploaded(&job, config, http).await
-        }
-        "location.cluster" => {
-            let job = message::decode_location_cluster(&config.stream_key, entry)?;
-            dispatch_location_cluster(&job, config, http).await
-        }
-        other => bail!("unsupported worker stream key {other}"),
     }
-}
-
-/// Process a decoded job payload.
-pub async fn dispatch_chat_message_created(job: &ChatMessageCreatedJob) -> Result<()> {
-    chat_message_created::handle(job).await
-}
-
-pub async fn dispatch_media_uploaded(
-    job: &MediaUploadedJob,
-    config: &Config,
-    http: &reqwest::Client,
-) -> Result<()> {
-    media_uploaded::handle(job, config, http).await
-}
-
-pub async fn dispatch_location_cluster(
-    job: &LocationClusterJob,
-    config: &Config,
-    http: &reqwest::Client,
-) -> Result<()> {
-    location_cluster::handle(job, config, http).await
 }

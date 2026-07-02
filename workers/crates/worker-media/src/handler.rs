@@ -5,14 +5,14 @@ use tempfile::tempdir;
 use tracing::info;
 
 use crate::api_callback;
-use crate::config::Config;
-use crate::job::MediaUploadedJob;
+use crate::config::MediaConfig;
+use crate::config::MediaUploadedJob;
 use crate::processing;
 use crate::storage::BlobStorage;
 
 pub async fn handle(
     job: &MediaUploadedJob,
-    config: &Config,
+    config: &MediaConfig,
     http: &reqwest::Client,
 ) -> Result<()> {
     if config.azure_storage_connection_string.trim().is_empty() {
@@ -41,8 +41,8 @@ pub async fn handle(
                 .with_context(|| format!("upload processed blob {processed_object_key}"))?;
 
             api_callback::report_success(
-                &http,
-                config,
+                http,
+                &config.core,
                 job.media_asset_id,
                 &processed_object_key,
                 stored_size_bytes,
@@ -59,7 +59,7 @@ pub async fn handle(
         }
         Err(err) => {
             let reason = err.to_string();
-            api_callback::report_failure(&http, config, job.media_asset_id, &reason).await?;
+            api_callback::report_failure(&http, &config.core, job.media_asset_id, &reason).await?;
             info!(
                 media_asset_id = job.media_asset_id,
                 error = %reason,

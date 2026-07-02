@@ -235,11 +235,10 @@ services:
     profiles: ["workers", "harness"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.media
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
-      WORKER_TYPE: media
       WORKER_STREAM_PREFIX: "tangle:queue:"
       WORKER_STREAM_KEY: media.uploaded
       WORKER_CONSUMER_GROUP: tangle-study-workers

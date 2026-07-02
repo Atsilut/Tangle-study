@@ -54,11 +54,11 @@ jobs:
             web:
               - 'clients/web/**'
             rust:
-              - 'workers/rust-worker/**'
+              - 'workers/**'
             harness:
               - 'services/Api.Tests/Harness/**'
               - 'services/Api/Domain/Media/**'
-              - 'workers/rust-worker/**'
+              - 'workers/**'
               - 'docker-compose.harness.yml'
               - 'docker-compose.yml'
               - 'scripts/ci/run-media-harness.sh'
@@ -104,8 +104,8 @@ jobs:
           path: |
             .ci-cache/cargo/registry
             .ci-cache/cargo/git
-            workers/rust-worker/target
-          key: ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-${{ hashFiles('workers/rust-worker/Cargo.lock') }}
+            workers/target
+          key: ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-${{ hashFiles('workers/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-
             ${{ runner.os }}-cargo-
@@ -115,16 +115,16 @@ jobs:
       ############################################
       - name: Run Rust worker tests
         run: |
-          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/rust-worker/target
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/target
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
-            -v "${{ github.workspace }}/workers/rust-worker/target:/src/workers/rust-worker/target" \
-            -w /src/workers/rust-worker \
+            -v "${{ github.workspace }}/workers/target:/src/workers/target" \
+            -w /src/workers \
             "${{ env.RUST_IMAGE }}" \
-            cargo test
+            cargo test --workspace
           bash scripts/ci/libs/ci-cache.sh
 
   web:

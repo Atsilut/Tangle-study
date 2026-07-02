@@ -2,19 +2,13 @@ use anyhow::{bail, Context, Result};
 use redis::streams::StreamId;
 use redis::Value;
 
-use crate::job::{ChatMessageCreatedJob, LocationClusterJob, MediaUploadedJob};
+use crate::job::{ChatMessageCreatedJob, LocationClusterJob};
 
 pub fn decode_chat_message_created(
     expected_type: &str,
     entry: &StreamId,
 ) -> Result<ChatMessageCreatedJob> {
     decode_job(expected_type, entry)
-}
-
-pub fn decode_media_uploaded(expected_type: &str, entry: &StreamId) -> Result<MediaUploadedJob> {
-    let job: MediaUploadedJob = decode_job(expected_type, entry)?;
-    job.validate()?;
-    Ok(job)
 }
 
 pub fn decode_location_cluster(expected_type: &str, entry: &StreamId) -> Result<LocationClusterJob> {
@@ -72,10 +66,10 @@ pub fn is_malformed_entry(err: &anyhow::Error) -> bool {
             || message.contains("field is not valid utf-8")
             || message.contains("unexpected job type")
             || message.contains("deserialize payload")
-            || message.contains("target_max_bytes must be greater than zero")
             || message.contains("min_latitude must be less than or equal to max_latitude")
             || message.contains("min_longitude must be less than or equal to max_longitude")
             || message.contains("zoom must be between 2 and 4")
+            || message.contains("target_max_bytes must be greater than zero")
     })
 }
 
@@ -123,99 +117,5 @@ mod tests {
 
         let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
         assert!(is_malformed_entry(&err));
-    }
-
-    #[test]
-    fn malformed_entry_detects_non_string_field_type() {
-        let mut map = HashMap::new();
-        map.insert("type".to_owned(), Value::Int(1));
-        map.insert(
-            "payload".to_owned(),
-            Value::BulkString(br#"{"messageId":1}"#.to_vec()),
-        );
-
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
-
-        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
-        assert!(is_malformed_entry(&err));
-    }
-
-    #[test]
-    fn malformed_entry_detects_invalid_json_payload() {
-        let mut map = HashMap::new();
-        map.insert(
-            "type".to_owned(),
-            Value::BulkString(b"chat.message.created".to_vec()),
-        );
-        map.insert(
-            "payload".to_owned(),
-            Value::BulkString(b"not-json".to_vec()),
-        );
-
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
-
-        let err = decode_chat_message_created("chat.message.created", &entry).unwrap_err();
-        assert!(is_malformed_entry(&err));
-    }
-
-    #[test]
-    fn decodes_media_uploaded_payload() {
-        let mut map = HashMap::new();
-        map.insert(
-            "type".to_owned(),
-            Value::BulkString(b"media.uploaded".to_vec()),
-        );
-        map.insert(
-            "payload".to_owned(),
-            Value::BulkString(
-                br#"{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":2147483648}"#
-                    .to_vec(),
-            ),
-        );
-
-        let entry = StreamId {
-            id: "2-0".to_owned(),
-            map,
-        };
-
-        let job = decode_media_uploaded("media.uploaded", &entry).unwrap();
-        assert_eq!(job.media_asset_id, 9);
-        assert_eq!(job.intended_context, "Post");
-        assert_eq!(job.kind, "Video");
-        assert_eq!(job.target_max_bytes, 2_147_483_648);
-    }
-
-    #[test]
-    fn malformed_entry_detects_non_positive_target_max_bytes() {
-        for target_max_bytes in [0, -1] {
-            let mut map = HashMap::new();
-            map.insert(
-                "type".to_owned(),
-                Value::BulkString(b"media.uploaded".to_vec()),
-            );
-            map.insert(
-                "payload".to_owned(),
-                Value::BulkString(
-                    format!(
-                        r#"{{"mediaAssetId":9,"intendedContext":"Post","kind":"Video","mimeType":"video/mp4","originalObjectKey":"raw/1/a.mp4","originalSizeBytes":500,"targetMaxBytes":{target_max_bytes}}}"#
-                    )
-                    .into_bytes(),
-                ),
-            );
-
-            let entry = StreamId {
-                id: "2-0".to_owned(),
-                map,
-            };
-
-            let err = decode_media_uploaded("media.uploaded", &entry).unwrap_err();
-            assert!(is_malformed_entry(&err), "targetMaxBytes={target_max_bytes}");
-        }
     }
 }

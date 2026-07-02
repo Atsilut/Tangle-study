@@ -34,9 +34,9 @@ run_rust() {
   log_step "RUST WORKER UNIT TESTS"
   docker run --rm \
     -v "${DOCKER_ROOT}:/src" \
-    -w /src/workers/rust-worker \
+    -w /src/workers \
     "$RUST_IMAGE" \
-    cargo test
+    cargo test --workspace
 }
 
 run_api() {

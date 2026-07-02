@@ -1,23 +1,27 @@
 [package]
-name = "tangle-worker"
+name = "worker-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Redis Streams consumer for Tangle chat and location jobs"
+description = "Shared Redis Streams consumer infrastructure for Tangle workers"
 publish.workspace = true
 
-[[bin]]
-name = "tangle-worker"
-path = "src/main.rs"
+[lib]
+name = "worker_core"
+path = "src/lib.rs"
 
 [dependencies]
-worker-core = { path = "../crates/worker-core" }
 anyhow = "1.0"
 async-trait = "0.1"
 metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "streams"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.43", features = ["io-util", "macros", "rt-multi-thread", "signal", "net"] }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }

@@ -7,7 +7,7 @@ use crate::encode_plan::{
     self, build_image_plan, build_quality_bump_image_plan, build_quality_bump_video_plan,
     build_video_plan, exceeds_hard_cap, EncodePlan, FIRST_TARGET_RATIO, SECOND_TARGET_RATIO,
 };
-use crate::job::{MediaKind, MediaUploadedJob};
+use crate::config::{MediaKind, MediaUploadedJob};
 use crate::probe::{self, DEFAULT_FEASIBILITY_RATIO, MediaProbe};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

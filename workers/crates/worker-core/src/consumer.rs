@@ -4,10 +4,10 @@ use redis::streams::{StreamClaimReply, StreamPendingCountReply, StreamReadOption
 use redis::{AsyncCommands, RedisError};
 use tracing::{error, info, warn};
 
-use crate::api_callback;
 use crate::config::Config;
 use crate::dlq;
-use crate::handlers;
+use crate::handler::StreamHandler;
+use crate::http_client;
 use crate::message;
 use crate::metrics::{self, JobOutcome};
 use crate::retry;
@@ -36,9 +36,13 @@ pub async fn ensure_consumer_group(conn: &mut ConnectionManager, config: &Config
 }
 
 /// Blocking `XREADGROUP` loop; acks entries after successful handler execution.
-pub async fn run(config: Config, mut conn: ConnectionManager) -> Result<()> {
+pub async fn run(
+    config: Config,
+    mut conn: ConnectionManager,
+    handler: &dyn StreamHandler,
+) -> Result<()> {
     ensure_consumer_group(&mut conn, &config).await?;
-    let http = api_callback::build_client(&config)?;
+    let http = http_client::build_callback_client(&config)?;
 
     let stream = config.full_stream_key();
     info!(
@@ -63,7 +67,7 @@ pub async fn run(config: Config, mut conn: ConnectionManager) -> Result<()> {
                 info!("shutdown signal received");
                 break;
             }
-            res = read_and_process_batch(&mut conn, &config, &http) => {
+            res = read_and_process_batch(&mut conn, &config, &http, handler) => {
                 res.context("process stream batch")?;
             }
         }
@@ -76,9 +80,10 @@ async fn read_and_process_batch(
     conn: &mut ConnectionManager,
     config: &Config,
     http: &reqwest::Client,
+    handler: &dyn StreamHandler,
 ) -> Result<()> {
-    read_new_messages(conn, config, http).await?;
-    reclaim_pending_retries(conn, config, http).await?;
+    read_new_messages(conn, config, http, handler).await?;
+    reclaim_pending_retries(conn, config, http, handler).await?;
     metrics::refresh_queue_gauges(conn, config).await?;
     Ok(())
 }
@@ -87,6 +92,7 @@ async fn read_new_messages(
     conn: &mut ConnectionManager,
     config: &Config,
     http: &reqwest::Client,
+    handler: &dyn StreamHandler,
 ) -> Result<()> {
     let stream = config.full_stream_key();
     let opts = StreamReadOptions::default()
@@ -101,7 +107,7 @@ async fn read_new_messages(
 
     for key in reply.keys {
         for entry in key.ids {
-            process_entry(conn, config, http, &key.key, &entry, 1).await?;
+            process_entry(conn, config, http, handler, &key.key, &entry, 1).await?;
         }
     }
 
@@ -112,6 +118,7 @@ async fn reclaim_pending_retries(
     conn: &mut ConnectionManager,
     config: &Config,
     http: &reqwest::Client,
+    handler: &dyn StreamHandler,
 ) -> Result<()> {
     let stream = config.full_stream_key();
     let pending: StreamPendingCountReply = conn
@@ -187,7 +194,7 @@ async fn reclaim_pending_retries(
                 min_idle_ms = min_idle,
                 "reclaimed pending message for retry"
             );
-            process_entry(conn, config, http, &stream, &entry, delivery_count).await?;
+            process_entry(conn, config, http, handler, &stream, &entry, delivery_count).await?;
         }
     }
 
@@ -198,13 +205,14 @@ async fn process_entry(
     conn: &mut ConnectionManager,
     config: &Config,
     http: &reqwest::Client,
+    handler: &dyn StreamHandler,
     stream: &str,
     entry: &redis::streams::StreamId,
     times_delivered: u32,
 ) -> Result<()> {
     let message_id = entry.id.as_str();
 
-    match handlers::dispatch_entry(config, entry, http).await {
+    match handler.dispatch(config, entry, http).await {
         Ok(()) => {
             ack(conn, stream, &config.consumer_group, message_id).await?;
             metrics::record_job_processed(&config.stream_key, JobOutcome::Success);

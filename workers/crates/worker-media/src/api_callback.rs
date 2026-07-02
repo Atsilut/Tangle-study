@@ -5,8 +5,8 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use tracing::warn;
 
-use crate::config::Config;
-use crate::metrics;
+use worker_core::Config;
+use worker_core::metrics;
 
 pub const CALLBACK_HEADER: &str = "X-Worker-Callback-Secret";
 
@@ -26,15 +26,6 @@ enum CallbackAttemptOutcome {
     Success,
     HttpError(StatusCode),
     TransportError,
-}
-
-/// Builds a shared HTTP client with configured connect and request timeouts.
-pub fn build_client(config: &Config) -> Result<reqwest::Client> {
-    reqwest::Client::builder()
-        .connect_timeout(Duration::from_millis(config.callback_connect_timeout_ms))
-        .timeout(Duration::from_millis(config.callback_timeout_ms))
-        .build()
-        .context("build media callback HTTP client")
 }
 
 pub async fn report_success(

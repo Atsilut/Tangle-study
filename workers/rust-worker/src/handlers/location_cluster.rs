@@ -5,10 +5,11 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+use worker_core::config::Config;
+use worker_core::job::LocationClusterJob;
+use worker_core::metrics;
+
 use crate::cluster::ClusterPoint;
-use crate::config::Config;
-use crate::job::LocationClusterJob;
-use crate::metrics;
 
 pub const CALLBACK_HEADER: &str = "X-Worker-Callback-Secret";
 

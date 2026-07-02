@@ -1,0 +1,2 @@
+# Cargo build output (workspace target/ and any per-crate leftovers)
+target/
