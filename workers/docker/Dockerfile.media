@@ -8,12 +8,14 @@ FROM ${RUST_IMAGE} AS builder
 WORKDIR /build
 
 COPY workers/Cargo.toml workers/rust-toolchain.toml ./
-COPY workers/crates/worker-core/Cargo.toml workers/crates/worker-core/
-COPY workers/crates/worker-media/Cargo.toml workers/crates/worker-media/
+COPY workers/crates/worker-core/Cargo.toml crates/worker-core/
+COPY workers/crates/worker-media/Cargo.toml crates/worker-media/
+COPY workers/rust-worker/Cargo.toml rust-worker/
 
-RUN mkdir -p crates/worker-core/src crates/worker-media/src \
+RUN mkdir -p crates/worker-core/src crates/worker-media/src rust-worker/src \
     && printf 'pub fn dummy() {}\n' > crates/worker-core/src/lib.rs \
-    && printf 'fn main() {}\n' > crates/worker-media/src/main.rs
+    && printf 'fn main() {}\n' > crates/worker-media/src/main.rs \
+    && printf 'fn main() {}\n' > rust-worker/src/main.rs
 
 # Workspace lock is generated on first build when absent from the repo.
 RUN cargo generate-lockfile \
@@ -21,7 +23,7 @@ RUN cargo generate-lockfile \
 
 COPY workers/crates/worker-core/src ./crates/worker-core/src
 COPY workers/crates/worker-media/src ./crates/worker-media/src
-RUN touch crates/worker-media/src/main.rs \
+RUN touch crates/worker-core/src/lib.rs crates/worker-media/src/main.rs \
     && cargo build --release -p worker-media
 
 FROM ${DEBIAN_IMAGE}
