@@ -155,7 +155,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
         var post = await CreatePostForTest(testMethodName, user.Id);
-        var mediaAssetId = MediaIntegrationTestHelpers.SeedReadyAsset(
+        var mediaAssetId = FakeMediaClientTestHelpers.SeedReadyAsset(
             FakeMediaClient,
             MediaIntendedContext.Comment,
             "image/png",

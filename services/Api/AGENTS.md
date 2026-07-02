@@ -97,7 +97,7 @@ In `MapManyAsync` and other list endpoints, **batch all enrichment before the lo
 ```csharp
 // Good — batch first, sync map
 var nicknames = await _userService.GetNicknamesByUserIdsAsync(items.Select(i => i.AuthorUserId));
-var mediaById = await _mediaService.GetMediaByCommentIdsAsync(items.Select(i => i.Id).ToList());
+var mediaById = await _mediaClient.GetMediaByCommentIdsAsync(items.Select(i => i.Id).ToList());
 return [.. items.Select(i => MapToDto(i, nicknames[...], mediaById.GetValueOrDefault(i.Id)))];
 
 // Bad — N round trips
@@ -107,7 +107,7 @@ foreach (var item in items)
 
 Single-item GET (`GetPostByIdAsync`, `GetCommentByIdAsync`) may use one enrichment call per field — that is not N+1.
 
-Prefer batch `WHERE ... IN (...)` over JOINs for cross-aggregate enrichment. JOIN saves at most one round trip; batch `IN` fixes query count. Do not use lazy loading — it hides queries and bypasses `NicknameCacheService` / `MediaService` boundaries.
+Prefer batch `WHERE ... IN (...)` over JOINs for cross-aggregate enrichment. JOIN saves at most one round trip; batch `IN` fixes query count. Do not use lazy loading — it hides queries and bypasses `NicknameCacheService` / `IMediaClient` boundaries.
 
 Use explicit `Include` only when the graph is one aggregate and always needed together (e.g. `ChatRoom.Participants` in `ChatRoomRepository`).
 
@@ -118,7 +118,7 @@ Use explicit `Include` only when the graph is one aggregate and always needed to
 | List + nicknames + media batch | `CommentService.BuildCommentTreeAsync` |
 | List + nicknames + media batch | `ChatMessageService.MapManyAsync` |
 | Batch lookup by IDs | `UserRepository.GetNicknamesByIdsAsync` |
-| Batch media by FK | `MediaAssetRepository.GetMediaAssetByCommentIdsAsync` |
+| Batch media by FK | `IMediaClient.GetMediaByCommentIdsAsync` (media-service: [`services/Media/`](../../Media/)) |
 
 ### Inventory
 
@@ -127,9 +127,9 @@ Update the **Status** column when a fix group lands.
 | ID | Domain | Location | Trigger | Status |
 |----|--------|----------|---------|--------|
 | P-1 | Posts | `PostService.MapManyAsync` | Post list GETs | fixed |
-| P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `MediaService.DeleteBlobStorageForPostsAsync` | Group delete | fixed |
-| M-1 | Media | `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync` | Post list + group delete | fixed |
-| M-2 | Media | `MediaService.DeleteBlobStorageForAssetsAsync` | Bulk blob cleanup (parallel, max 8 concurrent) | fixed |
+| P-2 | Posts | `PostService.DeleteAllByGroupAsync` → `IMediaClient.DeleteBlobStorageForPostsAsync` | Group delete | fixed |
+| M-1 | Media | `IMediaClient.GetMediaByPostIdsAsync` (implemented in [`services/Media/`](../../Media/)) | Post list + group delete | fixed |
+| M-2 | Media | `IMediaClient` + media-service blob cleanup | Bulk blob cleanup (parallel, max 8 concurrent) | fixed |
 | G-1 | Groups | `GroupBoardService.ListAsync` → `GroupBoardAccessService.FilterViewableBoardsAsync` | Board list | fixed |
 | G-2 | Groups | `GroupRepository.GetGroupNamesByIdsAsync` | Invitation list | fixed |
 | G-3 | Groups | `GroupMembershipService.HandleUserDeletionAsync` | User delete (rare) | fixed |
@@ -153,7 +153,7 @@ Fix together; suggested order is 1 → 2 → 3, then 4 only if profiling warrant
 
 | Group | Issues | Fix summary |
 |-------|--------|-------------|
-| **1 — Post media** | M-1, P-1, P-2 | Add `GetMediaAssetsByPostIdsAsync` / `GetMediaByPostIdsAsync`; refactor `PostService.MapManyAsync` and `DeleteBlobStorageForPostsAsync`. Copy comment/chat batch in `MediaAssetRepository`. |
+| **1 — Post media** | M-1, P-1, P-2 | Batch via `IMediaClient.GetMediaByPostIdsAsync` / `DeleteBlobStorageForPostsAsync`; media persistence in [`services/Media/`](../../Media/). |
 | **2 — Groups** | G-1, G-2, (G-3) | `FilterViewableBoardsAsync` (load group + member once); repo `GetGroupNamesByIdsAsync` with `WHERE Id IN (...)`; optional `GetMembersByGroupIdsAsync` on user delete. |
 | **3 — Chat validation** | C-1, C-2, C-3 | Batch block/exists/membership helpers on `UserBlockService`, `UserService`, `GroupMembershipService`; refactor `ChatRoomAccessService` loops. Preserve error messages. |
 | **4 — Infra (optional)** | U-1, M-2 | Redis pipeline / MGET for nicknames; bounded parallel blob deletes. Not EF N+1. |

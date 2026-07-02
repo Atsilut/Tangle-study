@@ -236,7 +236,7 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         await LoginAs(userA);
 
-        var mediaAssetId = MediaIntegrationTestHelpers.SeedReadyAsset(
+        var mediaAssetId = FakeMediaClientTestHelpers.SeedReadyAsset(
             FakeMediaClient,
             MediaIntendedContext.ChatMessage,
             "image/png",

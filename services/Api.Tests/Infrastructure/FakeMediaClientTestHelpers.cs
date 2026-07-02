@@ -2,11 +2,8 @@ using Api.Client;
 
 namespace Api.Tests.Infrastructure;
 
-internal static class MediaIntegrationTestHelpers
+internal static class FakeMediaClientTestHelpers
 {
-    public const long PostVideoPerFileBytes = 2_147_483_648;
-    public const int IngressMultiplier = 3;
-
     public static long SeedReadyAsset(
         FakeMediaClient mediaClient,
         MediaIntendedContext context,

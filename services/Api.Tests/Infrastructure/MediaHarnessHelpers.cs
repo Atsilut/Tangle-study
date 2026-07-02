@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -105,7 +106,7 @@ internal static class MediaHarnessHelpers
         return await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
     }
 
-    public static async Task<MediaUploadInitResponseDto> InitUploadAsync(
+    private static async Task<MediaUploadInitResponseDto> InitUploadAsync(
         HttpClient client,
         MediaIntendedContext context,
         string mimeType,
@@ -124,7 +125,7 @@ internal static class MediaHarnessHelpers
         return (await res.Content.ReadFromJsonAsync<MediaUploadInitResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
-    public static async Task<MediaAssetGetResponseDto> CompleteUploadAsync(HttpClient client, long mediaAssetId)
+    private static async Task<MediaAssetGetResponseDto> CompleteUploadAsync(HttpClient client, long mediaAssetId)
     {
         var res = await client.PostAsync($"api/media/{mediaAssetId}/complete", null, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
@@ -147,4 +148,27 @@ internal static class MediaHarnessHelpers
 
         return await PollUntilTerminalAsync(client, init.MediaAssetId, processingTimeout);
     }
+
+    private sealed record MediaUploadInitRequestDto
+    {
+        [Required]
+        public required MediaIntendedContext IntendedContext { get; init; }
+
+        [Required]
+        public required string MimeType { get; init; }
+
+        [Required]
+        public required string FileName { get; init; }
+
+        [Required]
+        public required long SizeBytes { get; init; }
+    }
+
+    private sealed record MediaUploadInitResponseDto(
+        long MediaAssetId,
+        string UploadUrl,
+        string ObjectKey,
+        DateTime ExpiresAt,
+        long IngressLimitBytes,
+        long StorageLimitBytes);
 }
