@@ -1,8 +1,8 @@
+using Api.Client;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
 using Api.Domain.Location.Service;
 using Api.Domain.Media.Dto;
-using Api.Domain.Media.Service;
 using Api.Domain.Posts.Domain;
 using Api.Domain.Posts.Dto;
 using Api.Domain.Posts.Repository;
@@ -19,7 +19,7 @@ namespace Api.Domain.Posts.Service
         IPostRepository repo,
         AppDbContext db,
         Lazy<CommentService> commentService,
-        Lazy<MediaService> mediaService,
+        IMediaClient mediaClient,
         Lazy<MapPinService> mapPinService,
         IHttpContextAccessor httpContextAccessor,
         UserService userService,
@@ -29,7 +29,7 @@ namespace Api.Domain.Posts.Service
         private readonly IPostRepository _repo = repo;
         private readonly AppDbContext _db = db;
         private readonly Lazy<CommentService> _commentService = commentService;
-        private readonly Lazy<MediaService> _mediaService = mediaService;
+        private readonly IMediaClient _mediaClient = mediaClient;
         private readonly Lazy<MapPinService> _mapPinService = mapPinService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly UserService _userService = userService;
@@ -96,7 +96,7 @@ namespace Api.Domain.Posts.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreatePostAsync(post);
-                await _mediaService.Value.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
+                await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
                 if (request.Latitude.HasValue)
                 {
                     await _mapPinService.Value.UpsertLocationForPostAsync(
@@ -187,7 +187,7 @@ namespace Api.Domain.Posts.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _repo.CreatePostAsync(post);
-                await _mediaService.Value.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
+                await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
                 if (request.Latitude.HasValue)
                 {
                     await _mapPinService.Value.UpsertLocationForPostAsync(
@@ -262,7 +262,7 @@ namespace Api.Domain.Posts.Service
             IReadOnlyList<Post> posts,
             IReadOnlyDictionary<long, string> nicknames)
         {
-            var mediaByPostId = await _mediaService.Value.GetMediaByPostIdsAsync([.. posts.Select(p => p.Id)]);
+            var mediaByPostId = await _mediaClient.GetMediaByPostIdsAsync([.. posts.Select(p => p.Id)]);
             var locationsByPostId = await _mapPinService.Value.GetLocationsByPostIdsAsync(posts.Select(p => p.Id));
 
             return [.. posts.Select(post => MapToDto(
@@ -274,7 +274,7 @@ namespace Api.Domain.Posts.Service
 
         private async Task<PostGetResponseDto> MapToDtoAsync(Post post, string authorNickname)
         {
-            var media = await _mediaService.Value.GetMediaForPostAsync(post.Id);
+            var media = await _mediaClient.GetMediaForPostAsync(post.Id);
             var locations = await _mapPinService.Value.GetLocationsByPostIdsAsync([post.Id]);
             return MapToDto(post, authorNickname, media, locations.GetValueOrDefault(post.Id));
         }
@@ -306,7 +306,7 @@ namespace Api.Domain.Posts.Service
             {
                 post.Update(request.Title, request.Content);
                 await _repo.UpdatePostAsync(post);
-                await _mediaService.Value.PatchPostMediaAsync(
+                await _mediaClient.PatchPostMediaAsync(
                     post.Id,
                     user.Id,
                     request.AddMediaAssetIds,
@@ -340,13 +340,20 @@ namespace Api.Domain.Posts.Service
             return (post.GroupId.Value, post.GroupBoardId.Value);
         }
 
+        public async Task EnsureCanViewPostMediaAsync(long postId)
+        {
+            var ctx = await TryGetGroupBoardContextAsync(postId);
+            if (ctx is not null)
+                await _groupBoardAccess.EnsureCanViewBoardAsync(ctx.Value.GroupId, ctx.Value.GroupBoardId);
+        }
+
         public async Task DeleteAllByGroupAsync(long groupId)
         {
             var postIds = await _repo.GetPostIdsByGroupAsync(groupId);
             if (postIds.Count > 0)
             {
                 await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
-                await _mediaService.Value.DeleteBlobStorageForPostsAsync(postIds);
+                await _mediaClient.DeleteBlobStorageForPostsAsync(postIds);
             }
 
             await _repo.DeleteAllByGroupAsync(groupId);
@@ -362,7 +369,7 @@ namespace Api.Domain.Posts.Service
             await _db.ExecuteInTransactionAsync(async () =>
             {
                 await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
-                await _mediaService.Value.DeleteBlobStorageForPostAsync(id);
+                await _mediaClient.DeleteBlobStorageForPostAsync(id);
                 await _repo.DeletePostAsync(post);
             });
         }
