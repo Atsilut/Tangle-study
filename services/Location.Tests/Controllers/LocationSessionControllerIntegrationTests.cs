@@ -1,19 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
-using Api.Domain.Groups.Domain;
-using Api.Domain.Location.Dto;
-using Api.Domain.Location.Storage;
-using Api.Domain.UserBlocks.Dto;
-using Api.Tests.Infrastructure;
+using Location.Dto;
+using Location.Storage;
+using Location.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Api.Tests.Controllers;
+namespace Location.Tests.Controllers;
 
-[Collection(RedisRealtimeIntegrationTestCollection.Name)]
+[Collection(LocationIntegrationTestCollection.Name)]
 public sealed class LocationSessionControllerIntegrationTests(
     PostgresTestcontainerFixture postgres,
     RedisTestcontainerFixture redis)
-    : FriendshipDomainIntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
+    : LocationIntegrationTestBase(postgres, redis)
 {
     private const decimal TestLat = 37.5665m;
     private const decimal TestLng = 126.9780m;
@@ -23,16 +21,16 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(StartSession_Returns201_WhenGroupMember);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await LoginAs(owner);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var groupId = CreateGroupWithOwner(owner);
+        LoginAs(owner);
 
         // Act
         var res = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -42,7 +40,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
         var session = await res.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(session);
-        Assert.Equal(group.Id, session.GroupId);
+        Assert.Equal(groupId, session.GroupId);
         Assert.Equal(owner.Id, session.UserId);
     }
 
@@ -51,13 +49,13 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(GetMyActiveSession_Returns204_WhenNotSharing);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await LoginAs(owner);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var groupId = CreateGroupWithOwner(owner);
+        LoginAs(owner);
 
         // Act
         var res = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={groupId}",
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -69,14 +67,14 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(StopSession_Returns204_ForOwner);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await LoginAs(owner);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var groupId = CreateGroupWithOwner(owner);
+        LoginAs(owner);
         var startRes = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -92,7 +90,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
         var mineRes = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={groupId}",
             TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(mineRes, HttpStatusCode.NoContent);
     }
@@ -102,17 +100,17 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(GetActiveGroupLocations_Returns200_WithOtherMemberSession);
-        var sharer = await CreateUserForTest(testMethodName, 1);
-        var viewer = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, sharer);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, viewer.Id, GroupRole.Member);
+        var sharer = CreateUserForTest(testMethodName, 1);
+        var viewer = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(sharer);
+        AddGroupMember(groupId, viewer);
 
-        await LoginAs(sharer);
+        LoginAs(sharer);
         var startRes = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -120,11 +118,11 @@ public sealed class LocationSessionControllerIntegrationTests(
         var session = (await startRes.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(
             TestContext.Current.CancellationToken))!;
 
-        await LoginAs(viewer);
+        LoginAs(viewer);
 
         // Act
         var res = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/active?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/active?groupId={groupId}",
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -140,29 +138,29 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(GetGroupMemberSharingStatus_ReturnsSharingAndIdleMembers);
-        var sharer = await CreateUserForTest(testMethodName, 1);
-        var idle = await CreateUserForTest(testMethodName, 2);
-        var viewer = await CreateUserForTest(testMethodName, 3);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, sharer);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, idle.Id, GroupRole.Member);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, viewer.Id, GroupRole.Member);
+        var sharer = CreateUserForTest(testMethodName, 1);
+        var idle = CreateUserForTest(testMethodName, 2);
+        var viewer = CreateUserForTest(testMethodName, 3);
+        var groupId = CreateGroupWithOwner(sharer);
+        AddGroupMember(groupId, idle);
+        AddGroupMember(groupId, viewer);
 
-        await LoginAs(sharer);
+        LoginAs(sharer);
         await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
             TestContext.Current.CancellationToken);
 
-        await LoginAs(viewer);
+        LoginAs(viewer);
 
         // Act
         var res = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/members?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/members?groupId={groupId}",
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -179,17 +177,17 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(StartSession_Returns404_WhenNotGroupMember);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var stranger = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await LoginAs(stranger);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var stranger = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(owner);
+        LoginAs(stranger);
 
         // Act
         var res = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -204,17 +202,17 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(UpdatePosition_Returns401_WhenNonOwner);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var other = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, other.Id, GroupRole.Member);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var other = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(owner);
+        AddGroupMember(groupId, other);
 
-        await LoginAs(owner);
+        LoginAs(owner);
         var startRes = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -222,7 +220,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         var session = (await startRes.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(
             TestContext.Current.CancellationToken))!;
 
-        await LoginAs(other);
+        LoginAs(other);
 
         // Act
         var res = await Client.PatchAsJsonAsync(
@@ -239,17 +237,17 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(StopSession_Returns401_WhenNonOwner);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var other = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, other.Id, GroupRole.Member);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var other = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(owner);
+        AddGroupMember(groupId, other);
 
-        await LoginAs(owner);
+        LoginAs(owner);
         var startRes = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -257,7 +255,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         var session = (await startRes.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(
             TestContext.Current.CancellationToken))!;
 
-        await LoginAs(other);
+        LoginAs(other);
 
         // Act
         var res = await Client.DeleteAsync(
@@ -273,17 +271,17 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(TriggerSos_Returns401_WhenNonOwner);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var other = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, other.Id, GroupRole.Member);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var other = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(owner);
+        AddGroupMember(groupId, other);
 
-        await LoginAs(owner);
+        LoginAs(owner);
         var startRes = await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -291,7 +289,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         var session = (await startRes.Content.ReadFromJsonAsync<LocationSessionGetResponseDto>(
             TestContext.Current.CancellationToken))!;
 
-        await LoginAs(other);
+        LoginAs(other);
 
         // Act
         var res = await Client.PostAsync(
@@ -308,33 +306,29 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(GetActiveGroupLocations_Returns204_WhenBlockedMemberIsSharing);
-        var sharer = await CreateUserForTest(testMethodName, 1);
-        var viewer = await CreateUserForTest(testMethodName, 2);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, sharer);
-        await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, viewer.Id, GroupRole.Member);
+        var sharer = CreateUserForTest(testMethodName, 1);
+        var viewer = CreateUserForTest(testMethodName, 2);
+        var groupId = CreateGroupWithOwner(sharer);
+        AddGroupMember(groupId, viewer);
 
-        await LoginAs(viewer);
-        await Client.PostAsJsonAsync(
-            "/api/users/blocks",
-            new UserBlockCreateRequestDto { BlockedUserId = sharer.Id },
-            TestContext.Current.CancellationToken);
+        MonolithAccess.AddBlock(viewer.Id, sharer.Id);
 
-        await LoginAs(sharer);
+        LoginAs(sharer);
         await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
             TestContext.Current.CancellationToken);
 
-        await LoginAs(viewer);
+        LoginAs(viewer);
 
         // Act
         var res = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/active?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/active?groupId={groupId}",
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -346,14 +340,14 @@ public sealed class LocationSessionControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = nameof(GetMyActiveSession_Returns204_AndEndsGhostSession_WhenRedisMissing);
-        var owner = await CreateUserForTest(testMethodName, 1);
-        var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
-        await LoginAs(owner);
+        var owner = CreateUserForTest(testMethodName, 1);
+        var groupId = CreateGroupWithOwner(owner);
+        LoginAs(owner);
         await Client.PostAsJsonAsync(
             LocationIntegrationTestHelpers.SessionsBase,
             new LocationSessionCreateRequestDto
             {
-                GroupId = group.Id,
+                GroupId = groupId,
                 Latitude = TestLat,
                 Longitude = TestLng,
             },
@@ -362,19 +356,19 @@ public sealed class LocationSessionControllerIntegrationTests(
         using (var scope = Factory.Services.CreateScope())
         {
             var liveStore = scope.ServiceProvider.GetRequiredService<LiveLocationRedisStore>();
-            await liveStore.RemoveLiveLocationAsync(group.Id, owner.Id);
+            await liveStore.RemoveLiveLocationAsync(groupId, owner.Id);
         }
 
         // Act
         var res = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={groupId}",
             TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
         var secondRes = await Client.GetAsync(
-            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={group.Id}",
+            $"{LocationIntegrationTestHelpers.SessionsBase}/mine?groupId={groupId}",
             TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(secondRes, HttpStatusCode.NoContent);
     }

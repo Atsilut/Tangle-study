@@ -1,8 +1,6 @@
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
-using Api.Domain.Location.Repository;
-using Api.Domain.Location.Service;
 using Api.Client;
 using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
@@ -48,8 +46,7 @@ internal static class DomainServiceTestFactory
         FakeGroupBoardRepository GroupBoardRepository,
         GroupBoardAccessService GroupBoardAccessService,
         GroupBoardService GroupBoardService,
-        MapPinService MapPinService,
-        IMapPinRepository MapPinRepository);
+        FakeLocationClient LocationClient);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
@@ -69,6 +66,7 @@ internal static class DomainServiceTestFactory
         var distributedCache = new FakeDistributedCache();
         var nicknameCacheService = CreateNicknameCacheService(userRepository, distributedCache);
         var eventPublisher = new NoOpEventPublisher();
+        var locationClient = new FakeLocationClient();
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -86,7 +84,6 @@ internal static class DomainServiceTestFactory
         GroupBlacklistService groupBlacklistService = null!;
         GroupService groupService = null!;
         GroupBoardService groupBoardService = null!;
-        MapPinService mapPinService = null!;
 
         var userService = new UserService(
             userRepository,
@@ -95,9 +92,8 @@ internal static class DomainServiceTestFactory
             new Lazy<CommentService>(() => commentService),
             mediaClient,
             new FakeChatClient(),
+            locationClient,
             new Lazy<GroupMembershipService>(() => groupMembershipService),
-            new Lazy<MapPinService>(() => mapPinService),
-            new Lazy<LocationSessionService>(() => null!),
             http,
             nicknameCacheService,
             eventPublisher);
@@ -120,14 +116,12 @@ internal static class DomainServiceTestFactory
             userService,
             http);
 
-        var mapPinRepository = new MapPinRepository(db);
-
         postService = new PostService(
             postRepository,
             db,
             new Lazy<CommentService>(() => commentService),
             mediaClient,
-            new Lazy<MapPinService>(() => mapPinService),
+            locationClient,
             http,
             userService,
             userBlockService,
@@ -146,20 +140,6 @@ internal static class DomainServiceTestFactory
         friendshipService = new FriendshipService(
             friendshipRepository,
             userService,
-            http);
-
-        var locationAccessService = new LocationAccessService(postService, userBlockService, http);
-
-        var locationClusterService = new LocationClusterService(
-            mapPinRepository,
-            locationAccessService,
-            distributedCache,
-            new FakeWorkQueue());
-        mapPinService = new MapPinService(
-            mapPinRepository,
-            userService,
-            locationAccessService,
-            new Lazy<LocationClusterService>(() => locationClusterService),
             http);
 
         friendRequestService = new FriendRequestService(
@@ -235,7 +215,8 @@ internal static class DomainServiceTestFactory
             new Lazy<GroupApplicationService>(() => groupApplicationService),
             new Lazy<GroupBlacklistService>(() => groupBlacklistService),
             new Lazy<GroupBoardService>(() => groupBoardService),
-            new Lazy<PostService>(() => postService));
+            new Lazy<PostService>(() => postService),
+            locationClient);
 
         return new Graph(
             userService,
@@ -265,8 +246,7 @@ internal static class DomainServiceTestFactory
             groupBoardRepository,
             groupBoardAccessService,
             groupBoardService,
-            mapPinService,
-            mapPinRepository);
+            locationClient);
     }
 
     internal static NicknameCacheService CreateNicknameCacheService(

@@ -1,12 +1,14 @@
 using System.Net;
-using Api.Domain.Location.Dto;
-using Api.Tests.Infrastructure;
+using Location.Dto;
+using Location.Tests.Infrastructure;
 
-namespace Api.Tests.Controllers;
+namespace Location.Tests.Controllers;
 
-[Collection(IntegrationTestCollection.Name)]
-public sealed class LocationClusterControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+[Collection(LocationIntegrationTestCollection.Name)]
+public sealed class LocationClusterControllerIntegrationTests(
+    PostgresTestcontainerFixture postgres,
+    RedisTestcontainerFixture redis)
+    : LocationIntegrationTestBase(postgres, redis)
 {
     [Fact]
     public async Task GetClusters_Returns401_WhenUnauthenticated()
@@ -28,8 +30,8 @@ public sealed class LocationClusterControllerIntegrationTests(PostgresTestcontai
     {
         // Arrange
         const string testMethodName = nameof(GetClusters_Returns204_WhenNoCachedClusters);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var user = CreateUserForTest(testMethodName);
+        LoginAs(user);
 
         // Act
         var res = await Client.GetAsync(

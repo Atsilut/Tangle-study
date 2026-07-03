@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
-using Api.Domain.Location.Dto;
-using Api.Global.Security;
+using Location.Dto;
+using Location.Security;
 
-namespace Api.Tests.Infrastructure;
+namespace Location.Tests.Infrastructure;
 
 internal static class LocationIntegrationTestHelpers
 {
@@ -14,7 +14,7 @@ internal static class LocationIntegrationTestHelpers
         HttpMethod method,
         string url,
         object? body = null,
-        string? workerSecret = ApiWebApplicationFactory.TestWorkerCallbackSecret)
+        string? workerSecret = LocationWebApplicationFactory.TestWorkerCallbackSecret)
     {
         var message = new HttpRequestMessage(method, url);
         if (body is not null)

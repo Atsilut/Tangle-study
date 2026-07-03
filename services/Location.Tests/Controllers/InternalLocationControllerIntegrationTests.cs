@@ -1,14 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
-using Api.Domain.Location.Dto;
-using Api.Domain.Posts.Dto;
-using Api.Tests.Infrastructure;
+using Location.Dto;
+using Location.Tests.Infrastructure;
 
-namespace Api.Tests.Controllers;
+namespace Location.Tests.Controllers;
 
-[Collection(IntegrationTestCollection.Name)]
-public sealed class InternalLocationControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+[Collection(LocationIntegrationTestCollection.Name)]
+public sealed class InternalLocationControllerIntegrationTests(
+    PostgresTestcontainerFixture postgres,
+    RedisTestcontainerFixture redis)
+    : LocationIntegrationTestBase(postgres, redis)
 {
     private const decimal TestLat = 37.5665m;
     private const decimal TestLng = 126.9780m;
@@ -74,18 +75,12 @@ public sealed class InternalLocationControllerIntegrationTests(PostgresTestconta
     {
         // Arrange
         const string testMethodName = nameof(GetClusterPoints_Returns200_WithVisiblePin);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
-        var postRes = await Client.PostAsJsonAsync(
-            "/api/posts",
-            new PostCreateRequestDto { Title = "cluster post", Content = "content" },
-            TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
-        var posts = await Client.GetFromJsonAsync<List<PostGetResponseDto>>("/api/posts", TestContext.Current.CancellationToken);
-        var post = posts!.Single();
+        var user = CreateUserForTest(testMethodName);
+        LoginAs(user);
+        var postId = MonolithAccess.SeedPost(user.Id);
         await Client.PostAsJsonAsync(
             "/api/location/pins",
-            new MapPinCreateRequestDto { Latitude = TestLat, Longitude = TestLng, PostId = post.Id },
+            new MapPinCreateRequestDto { Latitude = TestLat, Longitude = TestLng, PostId = postId },
             TestContext.Current.CancellationToken);
 
         var query = BuildBoundsQuery();

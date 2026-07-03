@@ -1,29 +1,24 @@
-using Api.Domain.Location.Dto;
-using Api.Global.Exceptions;
-using Api.Tests.Infrastructure;
-using Api.Tests.Repositories;
+using Location.Dto;
+using Location.Tests.Infrastructure;
 
-namespace Api.Tests.Services;
+namespace Location.Tests.Services;
 
 public sealed class MapPinServiceUnitTests
 {
     [Fact]
     public async Task CreateMapPinAsync_ValidRequest_CreatesPin()
     {
-        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
-        // Act
         var dto = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
             Latitude = 37.5665m,
             Longitude = 126.9780m,
         });
 
-        // Assert
         Assert.Equal(user.Id, dto.OwnerUserId);
         Assert.Equal(37.5665m, dto.Latitude);
     }
@@ -31,11 +26,10 @@ public sealed class MapPinServiceUnitTests
     [Fact]
     public async Task DeleteMapPinByIdAsync_NonOwner_ThrowsUnauthorized()
     {
-        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var owner = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "owner");
-        var other = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository, "other");
+        var owner = ServiceTestHelpers.CreateUser(graph.MonolithAccess, "owner");
+        var other = ServiceTestHelpers.CreateUser(graph.MonolithAccess, "other");
         http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var created = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
@@ -44,7 +38,6 @@ public sealed class MapPinServiceUnitTests
         });
         http.HttpContext = ServiceTestHelpers.ContextFor(other.Id);
 
-        // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             graph.MapPinService.DeleteMapPinByIdAsync(created.Id));
     }
@@ -52,13 +45,10 @@ public sealed class MapPinServiceUnitTests
     [Fact]
     public async Task GetMapPinByIdAsync_ReturnsNull_WhenMissing()
     {
-        // Arrange
         var graph = LocationServiceTestFactory.Create();
 
-        // Act
         var dto = await graph.MapPinService.GetMapPinByIdAsync(99999);
 
-        // Assert
         Assert.Null(dto);
     }
 }

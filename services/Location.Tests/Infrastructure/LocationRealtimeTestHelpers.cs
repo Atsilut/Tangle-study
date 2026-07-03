@@ -1,14 +1,13 @@
-using Api.Domain.Location.Realtime;
-using Api.Global.Config;
-using Api.Tests.Infrastructure;
+using Location.Config;
+using Location.Realtime;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace Api.Tests.Infrastructure;
+namespace Location.Tests.Infrastructure;
 
 internal static class LocationRealtimeTestHelpers
 {
     public static HubConnection BuildHubConnection(
-        ApiWebApplicationFactory factory,
+        LocationWebApplicationFactory factory,
         HttpClient client,
         string token) =>
         new HubConnectionBuilder()

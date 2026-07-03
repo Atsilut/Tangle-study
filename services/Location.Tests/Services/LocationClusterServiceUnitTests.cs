@@ -1,17 +1,14 @@
-using Api.Domain.Location.Dto;
-using Api.Domain.Location.Service;
-using Api.Domain.Posts.Dto;
-using Api.Tests.Infrastructure;
-using Api.Tests.Repositories;
+using Location.Dto;
+using Location.Service;
+using Location.Tests.Infrastructure;
 
-namespace Api.Tests.Services;
+namespace Location.Tests.Services;
 
 public sealed class LocationClusterServiceUnitTests
 {
     [Fact]
     public async Task StoreClustersAsync_ThenGetClustersAsync_ReturnsStoredClusters()
     {
-        // Arrange
         var graph = LocationServiceTestFactory.Create();
         var query = new MapClusterBoundsQueryDto
         {
@@ -26,7 +23,6 @@ public sealed class LocationClusterServiceUnitTests
             new(37.5m, 126.9m, 2, 1),
         };
 
-        // Act
         await graph.LocationClusterService.StoreClustersAsync(new LocationClusterStoreRequestDto
         {
             MinLatitude = query.MinLatitude,
@@ -38,7 +34,6 @@ public sealed class LocationClusterServiceUnitTests
         });
         var result = await graph.LocationClusterService.GetClustersAsync(query);
 
-        // Assert
         Assert.NotNull(result);
         Assert.Single(result);
         Assert.Equal(2, result[0].PinCount);
@@ -47,18 +42,12 @@ public sealed class LocationClusterServiceUnitTests
     [Fact]
     public async Task GetClusterPointsInBoundsAsync_ReturnsVisiblePins()
     {
-        // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = await ServiceTestHelpers.CreateUserAsync(graph.UserRepository);
+        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
-        await graph.PostService.CreatePostAsync(new PostCreateRequestDto
-        {
-            Title = "cluster post",
-            Content = "content",
-        });
-        var posts = await graph.PostService.GetAllPostsAsync();
-        var postId = posts!.Single().Id;
+        var postId = graph.MonolithAccess.SeedPost(user.Id);
+        graph.MonolithAccess.SetPostViewable(postId, user.Id);
         await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
             Latitude = 37.5665m,
@@ -66,7 +55,6 @@ public sealed class LocationClusterServiceUnitTests
             PostId = postId,
         });
 
-        // Act
         var points = await graph.LocationClusterService.GetClusterPointsInBoundsAsync(
             new MapPinBoundsQueryDto
             {
@@ -76,7 +64,6 @@ public sealed class LocationClusterServiceUnitTests
                 MaxLongitude = 127m,
             });
 
-        // Assert
         Assert.NotNull(points);
         Assert.Single(points);
     }

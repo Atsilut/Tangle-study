@@ -1,11 +1,13 @@
 using System.Net;
-using Api.Tests.Infrastructure;
+using Location.Tests.Infrastructure;
 
-namespace Api.Tests.Controllers;
+namespace Location.Tests.Controllers;
 
-[Collection(IntegrationTestCollection.Name)]
-public sealed class PlaceControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+[Collection(LocationIntegrationTestCollection.Name)]
+public sealed class PlaceControllerIntegrationTests(
+    PostgresTestcontainerFixture postgres,
+    RedisTestcontainerFixture redis)
+    : LocationIntegrationTestBase(postgres, redis)
 {
     [Fact]
     public async Task SearchPlaces_Returns401_WhenAnonymous()
@@ -30,9 +32,8 @@ public sealed class PlaceControllerIntegrationTests(PostgresTestcontainerFixture
     [Fact]
     public async Task ReverseGeocode_Returns400_WhenLatitudeOutOfRange()
     {
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(
-            Client, nameof(ReverseGeocode_Returns400_WhenLatitudeOutOfRange));
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var user = CreateUserForTest(nameof(ReverseGeocode_Returns400_WhenLatitudeOutOfRange));
+        LoginAs(user);
 
         var res = await Client.GetAsync(
             "/api/location/places/reverse?latitude=95&longitude=0",
