@@ -1,7 +1,7 @@
-using Chat.Global.Config;
+using Chat.Config;
 using Microsoft.Extensions.Options;
 
-namespace Chat.Global.Telemetry;
+namespace Chat.Telemetry;
 
 public sealed class MetricsScrapeAuthMiddleware(RequestDelegate next, IOptions<MetricsOptions> metricsOptions)
 {

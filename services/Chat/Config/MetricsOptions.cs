@@ -1,4 +1,4 @@
-namespace Chat.Global.Config;
+namespace Chat.Config;
 
 public class MetricsOptions
 {

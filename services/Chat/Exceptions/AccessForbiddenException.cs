@@ -1,4 +1,4 @@
-namespace Chat.Global.Exceptions;
+namespace Chat.Exceptions;
 
 public sealed class AccessForbiddenException : Exception
 {

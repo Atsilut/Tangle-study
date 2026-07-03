@@ -1,4 +1,4 @@
-namespace Chat.Global.Telemetry;
+namespace Chat.Telemetry;
 
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using OpenTelemetry;

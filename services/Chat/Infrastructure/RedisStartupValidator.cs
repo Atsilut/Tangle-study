@@ -1,6 +1,6 @@
-using Chat.Global.Config;
+using Chat.Config;
 
-namespace Chat.Global.Infrastructure;
+namespace Chat.Infrastructure;
 
 public static class RedisStartupValidator
 {

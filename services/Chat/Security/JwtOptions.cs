@@ -1,4 +1,4 @@
-namespace Chat.Global.Security;
+namespace Chat.Security;
 
 public class JwtOptions
 {

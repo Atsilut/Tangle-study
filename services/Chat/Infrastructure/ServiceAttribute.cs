@@ -1,4 +1,4 @@
-namespace Chat.Global.Infrastructure
+namespace Chat.Infrastructure
 {
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class ServiceAttribute(ServiceLifetime lifetime = ServiceLifetime.Scoped) : Attribute

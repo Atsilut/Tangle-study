@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace Chat.Global.Config;
+namespace Chat.Config;
 
 public class SwaggerDefaultValueSchemaFilter : ISchemaFilter
 {

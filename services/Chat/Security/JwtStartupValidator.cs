@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace Chat.Global.Security;
+namespace Chat.Security;
 
 /// <summary>
 /// Startup guard for JWT configuration. The signing secret is always read from

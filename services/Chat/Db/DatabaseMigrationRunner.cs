@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using System.Text.RegularExpressions;
 
-namespace Chat.Global.Db;
+namespace Chat.Db;
 
 /// <summary>
 /// Applies EF Core migrations and exits. Invoked via <c>dotnet Chat.dll --migrate</c>.

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace Chat.Global.Exceptions;
+namespace Chat.Exceptions;
 
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {

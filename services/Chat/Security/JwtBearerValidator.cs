@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace Chat.Global.Security;
+namespace Chat.Security;
 
 /// <summary>
 /// Builds JWT bearer validation parameters. Chat does not issue tokens — login stays on the monolith

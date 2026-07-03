@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Chat.Global.Infrastructure;
+namespace Chat.Infrastructure;
 
 public static partial class DependencyInjection
 {
