@@ -23,15 +23,16 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Api + Media + Chat publish, test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
 Tier 2 (needs dotnet-build)
   api-tests      → Api.Tests --no-build (Category!=Harness)
   media-tests    → Media.Tests --no-build
+  chat-tests     → Chat.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests)
+Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
@@ -40,10 +41,10 @@ Tier 4 (needs compose-build)
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media}`, test `bin/` | Yes — runtime Api/Media Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{api,media,chat}`, test `bin/` | Yes — runtime Api/Media/Chat Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` | Pass/fail | Gate only |
-| `compose-build` | `api`, `media`, `nginx`, `rust-worker-media` images + tar | Yes — harness loads tar |
+| `api-tests` / `media-tests` / `chat-tests` | Pass/fail | Gate only |
+| `compose-build` | `api`, `media`, `chat`, `nginx`, `rust-worker-media`, `rust-worker-chat` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
 **PR path filters:** integration jobs run only when their service paths change; harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).
@@ -75,7 +76,7 @@ Tier 4 (needs compose-build)
 
 ```text
 1. media      ← done on develop (Compose)
-2. chat
+2. chat       ← done on develop (Compose)
 3. location
 4. posts + comments
 5. groups
@@ -150,10 +151,54 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 
 **Dev data:** uploads live in `media."MediaAssets"`. Legacy `public."MediaAssets"` is gone — reset the Compose DB volume if you need a clean slate.
 
+---
+
+## Step 2 — chat-service (`develop`: done)
+
+### Runtime (local Compose)
+
+```text
+Browser → nginx:8080
+  ├─ /api/media/*, /internal/media/*           → media:8080
+  ├─ /api/chat/*, /api/groups/*/chat-rooms,
+  │  /internal/chat/*, /hubs/chat              → chat:8080
+  └─ /api/* (other), /hubs/location            → api:8080
+
+api ──HttpChatClient──► chat (/internal/chat/users/{id}/detach-on-deletion)
+media ──HttpChatAccessClient──► chat (/internal/chat/messages/{id}/media-view)
+chat ──HttpMonolithAccessClient──► api (/internal/access/*)
+chat ──HttpMediaClient──► media (/internal/media/*)
+rust-worker-chat ──POST──► chat (chat.message.created callback)
+```
+
+Postgres: one instance — `public` schema (monolith), `media` schema (media-service), `chat` schema (chat-service). Redis: `chat.message.created` stream → `rust-worker-chat`.
+
+### Completed on develop
+
+| Item | Status |
+|------|--------|
+| `services/Chat/` | Done |
+| `chat` schema + `ChatDbContext` migrations | Done |
+| Nginx strangler + compose `chat` service | Done |
+| `IChatClient` / `IChatAccessClient` / `IMonolithAccessClient` | Done |
+| `rust-worker-chat` → chat callbacks | Done |
+| Monolith cleanup (`Domain/Chat`, public chat tables) | Done |
+| `Chat.Tests` + `Api.Tests` boundary tests | Done |
+
+### Still open (before `main` cutover)
+
+| Item | Notes |
+|------|-------|
+| Azure chat Container App | CD + Bicep/parameters |
+| `nginx.production.conf` chat upstream | Strangler for prod |
+| Worker `API_BASE_URL` on Azure | Point at chat-service, not monolith |
+
+**Dev data:** chat rows live in `chat` schema. Legacy `public."Chat*"` tables are dropped by `RemoveMonolithChatTables` — reset the Compose DB volume if you need a clean slate.
+
 ### Local commands
 
 ```bash
-# Stack (media + monolith + nginx) — multi-stage dev build
+# Stack (media + chat + monolith + nginx) — multi-stage dev build
 docker compose up --build
 
 # Workers + monitoring (optional)
@@ -163,6 +208,7 @@ docker compose --profile workers --profile monitoring up --build
 ./scripts/ci/dotnet-publish.sh
 ./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
 ./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
 
 # Media harness E2E (runtime images via docker-compose.runtime.yml)
 ./scripts/ci/run-media-harness.sh
@@ -170,7 +216,7 @@ docker compose --profile workers --profile monitoring up --build
 
 ---
 
-## Steps 2–7
+## Steps 3–7
 
 Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-route notes live in [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
 
@@ -178,9 +224,9 @@ Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-rou
 
 ## Strangler edge
 
-| Environment | Edge | Media routes |
-|-------------|------|--------------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080` |
+| Environment | Edge | Extracted routes |
+|-------------|------|------------------|
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080` |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
 
 Target end state: gateway validates JWT once; services receive identity claims. Until step 7, each service validates bearer tokens with the shared `Jwt:Secret`.

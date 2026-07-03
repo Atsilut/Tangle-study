@@ -8,7 +8,7 @@ Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../servi
 
 ## Current state (as-built)
 
-The monolith (`services/Api`) still owns most domains and the `public` schema. **Media is the first extracted deployable:** `services/Media` runs as a separate Compose service; Nginx routes `/api/media/*` and `/internal/media/*` to it. The monolith calls media over HTTP (`IMediaClient`) for link/batch/delete operations. Monolith media ownership (`Domain/Media/`, `public."MediaAssets"`) has been removed — uploads and asset rows live in the `media` schema only.
+The monolith (`services/Api`) still owns most domains and the `public` schema. **Media and chat are extracted deployables:** `services/Media` and `services/Chat` run as separate Compose services; Nginx routes media and chat paths to them. The monolith calls media over HTTP (`IMediaClient`) and chat over HTTP (`IChatClient`) for cross-domain operations. Monolith ownership of `Domain/Media/` and `Domain/Chat/` has been removed — uploads live in the `media` schema; chat rows live in the `chat` schema.
 
 PostgreSQL remains one instance (schema-per-service for media). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
 
@@ -18,27 +18,38 @@ flowchart TB
   Nginx["Nginx edge"]
   API["Api monolith"]
   Media["media-service (Compose)"]
+  Chat["chat-service (Compose)"]
   PG[(PostgreSQL)]
   Redis[(Redis)]
   WorkerMedia["rust-worker-media"]
-  Worker["rust-worker (optional)"]
+  WorkerChat["rust-worker-chat"]
+  WorkerLocation["rust-worker-location"]
   Prom["Prometheus (optional)"]
   Graf["Grafana (optional)"]
 
   Web --> Nginx
   Nginx -->|"/api/media/*"| Media
-  Nginx -->|"/api/* (other), /hubs"| API
+  Nginx -->|"/api/chat/*, /hubs/chat"| Chat
+  Nginx -->|"/api/* (other), /hubs/location"| API
   API -->|HTTP internal| Media
+  API -->|HTTP internal| Chat
+  Chat -->|HTTP internal| Media
+  Chat --> PG
   Media --> PG
   API --> PG
   API --> Redis
   Media --> Redis
+  Chat --> Redis
   Redis --> WorkerMedia
-  Redis --> Worker
+  Redis --> WorkerChat
+  Redis --> WorkerLocation
   WorkerMedia -->|PATCH /internal/media/.../processed| Media
+  WorkerChat -->|chat.message.created callback| Chat
   API --> Prom
   Media --> Prom
+  Chat --> Prom
   WorkerMedia --> Prom
+  WorkerChat --> Prom
   Prom --> Graf
 ```
 
@@ -57,14 +68,14 @@ Cross-process work paths:
 ```text
 media-service (CompleteUpload) → Redis Stream media.uploaded → rust-worker-media → PATCH media-service /internal/media/{id}/processed
 
-Api (ChatMessageService) → Redis Stream chat.message.created → rust-worker → handler → XACK
+chat-service (ChatMessageService) → Redis Stream chat.message.created → rust-worker-chat → callback → chat-service
 ```
 
-See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [services/Media/MEDIA.md](../services/Media/MEDIA.md), and [rust-worker README](../workers/rust-worker/README.md). The chat handler is currently a stub; worker infra (consumer group, retry, DLQ, replay) is implemented.
+See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [services/Media/MEDIA.md](../services/Media/MEDIA.md), [services/Chat/CHAT.md](../services/Chat/CHAT.md), and [workers/README.md](../workers/README.md).
 
 ### Realtime
 
-Chat uses SignalR (`/hubs/chat`) in-process. With Redis enabled, the SignalR backplane allows multiple API replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md) and [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
+Chat uses SignalR (`/hubs/chat`) in the chat-service. With Redis enabled, the SignalR backplane allows multiple chat replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md) and [CHAT.md](../services/Chat/CHAT.md).
 
 ### Observability
 

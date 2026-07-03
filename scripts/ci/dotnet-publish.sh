@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish Api + Media for runtime Dockerfiles; build test projects for CI --no-build runs.
+# Publish Api + Media + Chat for runtime Dockerfiles; build test projects for CI --no-build runs.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -18,8 +18,9 @@ load_versions_prod_env "$ROOT"
 CONFIGURATION="${CONFIGURATION:-Release}"
 API_PUBLISH_DIR=".ci-cache/publish/api"
 MEDIA_PUBLISH_DIR=".ci-cache/publish/media"
+CHAT_PUBLISH_DIR=".ci-cache/publish/chat"
 
-mkdir -p "${ROOT}/${API_PUBLISH_DIR}" "${ROOT}/${MEDIA_PUBLISH_DIR}"
+mkdir -p "${ROOT}/${API_PUBLISH_DIR}" "${ROOT}/${MEDIA_PUBLISH_DIR}" "${ROOT}/${CHAT_PUBLISH_DIR}"
 
 require_publish_output() {
   local dir="$1"
@@ -30,7 +31,7 @@ require_publish_output() {
 log_step "BUILD SDK IMAGE"
 build_sdk_image tangle-study-sdk:local
 
-log_step "PUBLISH API AND MEDIA (${CONFIGURATION})"
+log_step "PUBLISH API, MEDIA, AND CHAT (${CONFIGURATION})"
 nuget_mount="$(ci_nuget_mount)"
 tangle_compose --profile tools run --rm \
   -v "$nuget_mount" \
@@ -45,12 +46,18 @@ tangle_compose --profile tools run --rm \
       -c '${CONFIGURATION}' \
       -o '${MEDIA_PUBLISH_DIR}' \
       /p:UseAppHost=false
+    dotnet publish services/Chat/Chat.csproj \
+      -c '${CONFIGURATION}' \
+      -o '${CHAT_PUBLISH_DIR}' \
+      /p:UseAppHost=false
     dotnet build services/Api.Tests/Api.Tests.csproj -c '${CONFIGURATION}'
     dotnet build services/Media.Tests/Media.Tests.csproj -c '${CONFIGURATION}'
+    dotnet build services/Chat.Tests/Chat.Tests.csproj -c '${CONFIGURATION}'
   "
 
 require_publish_output "$API_PUBLISH_DIR" "Api.dll"
 require_publish_output "$MEDIA_PUBLISH_DIR" "Media.dll"
+require_publish_output "$CHAT_PUBLISH_DIR" "Chat.dll"
 
 ci_fix_cache_ownership
 

@@ -16,7 +16,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **groups** | `Domain/Groups/` | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, `api/groups/{id}/boards/{id}/posts` | Implemented |
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
-| **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
+| **chat** | [`services/Chat/`](../services/Chat/) | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | **Extracted (Compose)** — [CHAT.md](../services/Chat/CHAT.md); Azure CD pending |
 | **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
 | **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
@@ -83,17 +83,22 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 ### chat-service
 
-**Owns:** chat rooms, messages, participants, SignalR hub.
+**Extracted in local Compose (MSA step 2).** API reference: [CHAT.md](../services/Chat/CHAT.md).
+
+**Owns:** chat rooms, messages, participants, SignalR hub in Postgres `chat` schema.
 
 **Depends on:**
-- **users** — participants, sender identity
+- **users** — participants, sender identity (via `IMonolithAccessClient`)
 - **groups** — `PlatformGroup` room type ties to a group ID — cross-service contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
+- **media** — chat message attachments (via `IMediaClient`)
 
-**Async:** enqueues `chat.message.created` to Redis Streams after persist ([QUEUE.md](../services/Api/Global/Queue/QUEUE.md)).
+**Async:** enqueues `chat.message.created` to Redis Streams after persist; `rust-worker-chat` callbacks to chat-service.
 
-**Realtime:** SignalR hub stays with this service. Redis backplane for multi-replica scale-out.
+**Realtime:** SignalR `/hubs/chat` — Redis backplane for multi-replica scale-out.
 
-Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
+**Monolith boundary:** user deletion calls `IChatClient.DetachOnDeletionAsync`; media links via `IChatAccessClient`.
+
+Hub contract: [CHAT.md](../services/Chat/CHAT.md).
 
 ### media-service
 

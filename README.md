@@ -146,10 +146,12 @@ All services, workers, and tools are managed in a single repository for clarity
 ```
 services/
   Api/              ← ASP.NET Core monolith (+ Api.Tests)
+  Chat/             ← Chat microservice (+ Chat.Tests)
+  Media/            ← Media microservice (+ Media.Tests)
 clients/
   web/              ← React SPA (Phase 6)
 workers/
-  rust-worker/      ← Redis Streams consumer
+  crates/           ← worker-chat, worker-media, worker-location
 infra/              ← Nginx edge, Prometheus, Grafana
 docs/               ← architecture and migration hub
 scripts/            ← docker-dotnet.sh, ci/docker-test.sh, run-all-tests.sh
@@ -211,6 +213,7 @@ Central index: [docs/README.md](docs/README.md)
 | [clients/web/README.md](clients/web/README.md) | React web client |
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
 | [services/Media/MEDIA.md](services/Media/MEDIA.md) | Media upload and processing |
+| [services/Chat/CHAT.md](services/Chat/CHAT.md) | Chat REST routes and SignalR hub |
 | [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 | [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
@@ -222,16 +225,16 @@ Central index: [docs/README.md](docs/README.md)
 | Phase | Focus | Status |
 |-------|-------|--------|
 | 1 | Core API (auth, community, friends) | Done |
-| 2 | Real-time chat (SignalR) — [CHAT.md](services/Api/Domain/Chat/CHAT.md) | Done |
+| 2 | Real-time chat (SignalR) — [CHAT.md](services/Chat/CHAT.md) | Done (extracted to chat-service) |
 | 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 4 | Rust workers + media on post/comment/chat — [rust-worker README](workers/rust-worker/README.md) | Done (`chat.message.created` worker handler is an intentional stub; delivery is SignalR) |
+| 4 | Rust workers + media on post/comment/chat — [workers README](workers/README.md) | Done |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
 | 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 9 | MSA migration — media extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (step 1 done locally) |
+| 9 | MSA migration — media and chat extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (steps 1–2 done locally) |
 
-Phase 9 step 1 (media-service) is **complete in local Compose**. Azure strangler routing and monolith media cleanup are the next milestones. MAUI remains optional after the React path works.
+Phase 9 steps 1–2 (media-service, chat-service) are **complete in local Compose**. Azure strangler routing and remaining service extractions are the next milestones. MAUI remains optional after the React path works.
 
 ---
 
@@ -270,13 +273,14 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 | Service | Profile | Always on? | Role |
 |---------|---------|------------|------|
-| `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media domains) |
+| `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media, non-chat domains) |
 | `media` | — | yes | Media microservice (`/api/media/*`) |
+| `chat` | — | yes | Chat microservice (`/api/chat/*`, `/hubs/chat`) |
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
 | `nginx` | — | yes | Edge proxy + React SPA (built in [clients/web/Dockerfile](clients/web/Dockerfile)) |
-| `rust-worker` | `workers` | no | Chat queue consumer |
+| `rust-worker-chat` | `workers`, `harness` | no | Chat message worker (`chat.message.created`) |
 | `rust-worker-media` | `workers`, `harness` | no | Media upload processor |
 | `rust-worker-location` | `workers` | no | Memory Map pin clustering (`location.cluster`) |
 | `prometheus`, `postgres-exporter`, `redis-exporter`, `grafana` | `monitoring` | no | Metrics stack |
@@ -305,7 +309,7 @@ docker compose --env-file docker/versions.prod.env up --build
 
 Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Docker`.
 
-Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Api/Domain/Chat/CHAT.md). Location: [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Chat/CHAT.md). Location: [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 
 ### Phase 7 E2E gate (Memory Map)
 
@@ -434,23 +438,23 @@ Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` f
 
 ### Rust workers (optional, `workers` profile)
 
-Two workers share the `tangle-worker` release binary (chat + location); media uses `worker-media`:
+Three dedicated worker binaries (chat, media, location):
 
 | Service | Stream | Image (CI/CD) |
 |---------|--------|----------------|
-| `rust-worker` | `chat.message.created` | `tangle-study-worker-chat` |
+| `rust-worker-chat` | `chat.message.created` | `tangle-study-worker-chat` |
 | `rust-worker-media` | `media.uploaded` | `tangle-study-worker-media` |
 | `rust-worker-location` | `location.cluster` | `tangle-study-worker-location` |
 
-Local `docker compose --profile workers up` uses multi-stage builds. CI/CD compile once via `./scripts/ci/build-workers-release.sh` and build slim runtime images with `./scripts/ci/build-worker-images.sh`. See [workers/rust-worker/README.md](workers/rust-worker/README.md).
+Local `docker compose --profile workers up` uses multi-stage builds. CI/CD compile once via `./scripts/ci/build-workers-release.sh` and build slim runtime images with `./scripts/ci/build-worker-images.sh`. See [workers/README.md](workers/README.md).
 
-Requires Redis, the API, media-service, and Azurite for media jobs. See [workers/rust-worker/README.md](workers/rust-worker/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Requires Redis, the API, media-service, chat-service, and Azurite for media jobs. See [workers/README.md](workers/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
 
 ```bash
 # Chat worker only (with core stack)
-docker compose --profile workers up --build rust-worker
+docker compose --profile workers up --build rust-worker-chat
 
-# Both workers + core stack
+# All workers + core stack
 docker compose --profile workers up --build
 ```
 
