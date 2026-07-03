@@ -44,6 +44,7 @@ builder.Configuration
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
+builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
 builder.Services.AddSingleton<JwtBearerValidator>();
@@ -83,6 +84,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddTangleMonolithAccess(builder.Configuration);
 
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
