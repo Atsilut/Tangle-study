@@ -210,36 +210,44 @@ services/Api/
   Global/...
 ```
 
-**Extracted microservice (flat):**
+**Extracted microservice (flat folders, namespaced layers):**
+
+Physical folders sit at the service root — no `Global/` parent directory. **Logical** grouping uses the `{Service}.Global.*` namespace for the copied infra slice (same code that lived under `Api/Global/` during monolith extraction).
 
 ```text
-services/Media/          → root namespace Media.*
-  Api/                   → Media.Api
-  Service/               → Media.Service
-  Repository/            → Media.Repository
-  Dto/                   → Media.Dto
-  Entities/              → Media (MediaAsset, enums)
-  Storage/               → Media.Storage
-  Client/                → Media.Client (outbound HTTP to other services)
-  Global/                → Media.Global.* (Db, Security, Queue, Telemetry — copied infra slice)
+services/Media/          → namespace layer decides domain vs global
+  Api/                   → Media.Api              (domain)
+  Service/               → Media.Service          (domain)
+  Repository/            → Media.Repository       (domain)
+  Dto/                   → Media.Dto              (domain)
+  Entities/              → Media                  (domain)
+  Storage/               → Media.Storage          (domain)
+  Client/                → Media.Client           (domain)
+  Config/                → Media.Config           (domain options, e.g. upload limits)
+                         → Media.Global.Config    (platform: Redis, Metrics, Swagger filter)
+  Db/                    → Media.Global.Db
+  Security/              → Media.Global.Security
+  Queue/                 → Media.Global.Queue
+  Telemetry/             → Media.Global.Telemetry
+  Exceptions/            → Media.Global.Exceptions
+  Infrastructure/        → Media.Global.Infrastructure
   Migrations/
   Program.cs
-  {Service}.csproj
-  Dockerfile
 ```
 
-| Folder | Purpose |
-|--------|---------|
-| `Api/` | Controllers |
-| `Service/` | Application services |
-| `Repository/` | EF/data access |
-| `Dto/` | Request/response records |
-| `Entities/` | Domain entities and enums owned by this service |
-| `Storage/` | Blob/object storage adapters |
-| `Client/` | Typed HTTP clients for other services |
-| `Global/` | Cross-cutting infra shared within the service (not a separate NuGet yet) |
+| Layer | Folders | Namespace | Examples |
+|-------|---------|-----------|----------|
+| **Domain** | `Api/`, `Service/`, `Repository/`, `Dto/`, `Entities/`, `Storage/`, `Client/`, `Config/` (domain-only) | `{Service}.*` | `MediaService`, `MediaAsset`, `MediaOptions` |
+| **Global infra** | `Db/`, `Security/`, `Queue/`, `Telemetry/`, `Exceptions/`, `Infrastructure/`, `Config/` (platform) | `{Service}.Global.*` | `MediaDbContext`, `JwtBearerValidator`, `RedisOptions`, `GlobalExceptionHandler` |
 
-Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*`, `Location.*`, etc.
+**Rules:**
+
+1. **Folder ≠ namespace required** — `Config/RedisOptions.cs` can live beside `Config/MediaOptions.cs`; namespace distinguishes platform (`Media.Global.Config`) from domain (`Media.Config`).
+2. **Dependency direction** — domain may import global; global **must not** reference domain (`Service/`, `Repository/`, `Entities/`, etc.). Keeps the infra slice copy-pasteable across extractions.
+3. **Monolith keeps `Global/` folder** — `Api` has many `Domain/*` siblings, so a physical `Global/` directory still separates cross-cutting code from bounded contexts. Extracted services drop the folder but keep the namespace segment.
+4. **Future consolidation** — when duplication hurts, promote the infra slice to a shared NuGet (e.g. `Tangle.ServiceInfrastructure`) and replace `{Service}.Global.*` with package references. Until then, copy-on-extract + namespace convention keeps intent clear.
+
+Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*` / `Chat.Global.*`, etc.
 
 ---
 

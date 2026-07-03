@@ -173,7 +173,8 @@ Optional: add **required reviewers** on the `prod` environment in GitHub for app
 | `appsettings.json`            | Base defaults                                                                     |
 | `appsettings.Production.json` | Production flags (Redis on, media on, metrics auth on); empty connection strings  |
 | `security.yml`                | JWT issuer/audience/expiry; placeholder secret allowed only in Development/Docker |
-| `media-limits.yml`            | Upload size limits                                                                |
+| `media-config.yml`            | Upload limits, `Redis:WorkQueueStreamPrefix`                                      |
+| `chat-config.yml`             | Chat policy, `Redis:WorkQueueStreamPrefix` (chat-service)                         |
 | **Environment variables**     | Secrets and connection strings from GitHub Actions → Container Apps               |
 
 
@@ -227,14 +228,15 @@ Non-secrets at deploy time:
 | ---------------------------- | --------------------------- | --------------------------------------------- |
 | —                            | `Monolith__BaseUrl`         | `http://tangle-study-api` (ACA short name)    |
 | `MEDIA_PUBLIC_BLOB_ENDPOINT` | `Media__PublicBlobEndpoint` | `https://tanglestaging.blob.core.windows.net` |
-| —                            | `Redis__Enabled`            | `true`                                        |
 | —                            | `Redis__ConnectionString`   | `tangle-study-redis` (ACA short name)         |
+
+Queue stream prefix comes from each service's `*-config.yml` (`Redis:WorkQueueStreamPrefix`); override with `Redis__WorkQueueStreamPrefix` if needed.
 
 **Web nginx (Azure cutover):** add `TANGLE_MEDIA_UPSTREAM` (or equivalent) to [`nginx.production.conf`](../infra/nginx/nginx.production.conf) mirroring local [`nginx.conf`](../infra/nginx/nginx.conf) media `location` blocks. Until then, production keeps serving `/api/media/*` from the monolith.
 
 **Worker:** change `API_BASE_URL` on `tangle-study-worker-media` from `http://tangle-study-api` to `http://tangle-study-media` when the media Container App exists.
 
-Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits) stay in each service's `security.yml` / `media-limits.yml` baked into the image.
+Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits, queue stream prefix) stay in each service's `security.yml` / `*-config.yml` baked into the image.
 
 **Shared (all Container Apps):**
 
