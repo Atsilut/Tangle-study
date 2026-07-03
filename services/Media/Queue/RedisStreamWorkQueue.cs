@@ -1,10 +1,10 @@
 using System.Text.Json;
-using Media.Global.Config;
-using Media.Global.Telemetry;
+using Media.Config;
+using Media.Telemetry;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace Media.Global.Queue;
+namespace Media.Queue;
 
 public sealed partial class RedisStreamWorkQueue(
     IConnectionMultiplexer connectionMultiplexer,

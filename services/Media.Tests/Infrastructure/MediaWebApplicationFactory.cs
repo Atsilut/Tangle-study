@@ -1,8 +1,8 @@
 using Media.Client;
 using Media.Config;
-using Media.Global.Db;
-using Media.Global.Queue;
-using Media.Global.Security;
+using Media.Db;
+using Media.Queue;
+using Media.Security;
 using Media.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

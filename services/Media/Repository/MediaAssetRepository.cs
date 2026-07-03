@@ -1,6 +1,6 @@
 using Media;
-using Media.Global.Db;
-using Media.Global.Infrastructure;
+using Media.Db;
+using Media.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace Media.Repository;

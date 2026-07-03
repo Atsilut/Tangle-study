@@ -1,6 +1,6 @@
-using Media.Global.Config;
+using Media.Config;
 
-namespace Media.Global.Infrastructure;
+namespace Media.Infrastructure;
 
 public static class RedisStartupValidator
 {

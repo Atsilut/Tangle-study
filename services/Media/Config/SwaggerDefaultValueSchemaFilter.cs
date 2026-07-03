@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace Media.Global.Config;
+namespace Media.Config;
 
 public class SwaggerDefaultValueSchemaFilter : ISchemaFilter
 {

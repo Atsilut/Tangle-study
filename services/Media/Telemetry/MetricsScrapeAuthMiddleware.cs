@@ -1,7 +1,7 @@
-using Media.Global.Config;
+using Media.Config;
 using Microsoft.Extensions.Options;
 
-namespace Media.Global.Telemetry;
+namespace Media.Telemetry;
 
 public sealed class MetricsScrapeAuthMiddleware(RequestDelegate next, IOptions<MetricsOptions> metricsOptions)
 {

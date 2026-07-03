@@ -1,4 +1,4 @@
-namespace Media.Global.Exceptions;
+namespace Media.Exceptions;
 
 public sealed class AccessForbiddenException : Exception
 {

@@ -1,6 +1,6 @@
 using Prometheus;
 
-namespace Media.Global.Telemetry;
+namespace Media.Telemetry;
 
 internal static class WorkQueueMetrics
 {

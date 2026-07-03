@@ -1,4 +1,4 @@
-namespace Media.Global.Security;
+namespace Media.Security;
 
 public class JwtOptions
 {

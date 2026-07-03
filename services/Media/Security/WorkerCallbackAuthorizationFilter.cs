@@ -1,9 +1,9 @@
-using Media.Global.Config;
+using Media.Config;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
 
-namespace Media.Global.Security;
+namespace Media.Security;
 
 public sealed class WorkerCallbackAuthorizationFilter(IOptions<MediaOptions> mediaOptions) : IAuthorizationFilter
 {

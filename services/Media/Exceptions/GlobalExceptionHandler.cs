@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace Media.Global.Exceptions;
+namespace Media.Exceptions;
 
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {

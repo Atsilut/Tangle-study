@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace Media.Global.Security;
+namespace Media.Security;
 
 /// <summary>
 /// Startup guard for JWT configuration. The signing secret is always read from

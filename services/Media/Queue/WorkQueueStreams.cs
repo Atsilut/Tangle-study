@@ -1,4 +1,4 @@
-namespace Media.Global.Queue;
+namespace Media.Queue;
 
 public static class WorkQueueStreams
 {

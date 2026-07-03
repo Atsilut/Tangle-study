@@ -1,8 +1,8 @@
-using Media.Global.Config;
-using Media.Global.Queue;
+using Media.Config;
+using Media.Queue;
 using StackExchange.Redis;
 
-namespace Media.Global.Infrastructure;
+namespace Media.Infrastructure;
 
 public static class RedisServiceCollectionExtensions
 {

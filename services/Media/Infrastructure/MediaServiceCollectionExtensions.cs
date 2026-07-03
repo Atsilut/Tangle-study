@@ -1,10 +1,10 @@
 using Media;
 using Media.Storage;
-using Media.Global.Config;
-using Media.Global.Security;
+using Media.Config;
+using Media.Security;
 using Azure.Storage.Blobs;
 
-namespace Media.Global.Infrastructure;
+namespace Media.Infrastructure;
 
 public static class MediaServiceCollectionExtensions
 {

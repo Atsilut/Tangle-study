@@ -4,9 +4,9 @@ using Media.Dto;
 using Media.Repository;
 using Media.Storage;
 using Media.Config;
-using Media.Global.Exceptions;
-using Media.Global.Infrastructure;
-using Media.Global.Queue;
+using Media.Exceptions;
+using Media.Infrastructure;
+using Media.Queue;
 using Microsoft.Extensions.Options;
 
 namespace Media.Service;

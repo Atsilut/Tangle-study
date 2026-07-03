@@ -1,4 +1,4 @@
-namespace Media.Global.Telemetry;
+namespace Media.Telemetry;
 
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using OpenTelemetry;

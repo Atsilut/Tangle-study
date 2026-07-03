@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace Media.Global.Security;
+namespace Media.Security;
 
 /// <summary>
 /// Builds JWT bearer validation parameters. Media does not issue tokens — login stays on the monolith

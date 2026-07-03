@@ -1,6 +1,6 @@
 using Media.Dto;
 using Media.Service;
-using Media.Global.Security;
+using Media.Security;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 

@@ -1,4 +1,4 @@
-using Media.Global.Db;
+using Media.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

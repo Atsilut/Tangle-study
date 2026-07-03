@@ -4,8 +4,8 @@ using Media.Storage;
 using Media;
 using Media.Dto;
 using Media.Config;
-using Media.Global.Queue;
-using Media.Global.Security;
+using Media.Queue;
+using Media.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 

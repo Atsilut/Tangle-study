@@ -1,7 +1,7 @@
 using Media.Dto;
 using Media.Config;
-using Media.Global.Db;
-using Media.Global.Queue;
+using Media.Db;
+using Media.Queue;
 using Media.Repository;
 using Media.Service;
 using Media.Storage;

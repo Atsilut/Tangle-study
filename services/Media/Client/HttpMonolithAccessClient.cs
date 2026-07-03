@@ -1,5 +1,5 @@
 using Media.Config;
-using Media.Global.Exceptions;
+using Media.Exceptions;
 using Microsoft.Extensions.Options;
 
 namespace Media.Client;

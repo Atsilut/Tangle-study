@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Media.Global.Infrastructure;
+namespace Media.Infrastructure;
 
 public static partial class DependencyInjection
 {

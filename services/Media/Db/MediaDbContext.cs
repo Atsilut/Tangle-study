@@ -1,7 +1,7 @@
 using Media;
 using Microsoft.EntityFrameworkCore;
 
-namespace Media.Global.Db;
+namespace Media.Db;
 
 public class MediaDbContext(DbContextOptions<MediaDbContext> options) : DbContext(options)
 {

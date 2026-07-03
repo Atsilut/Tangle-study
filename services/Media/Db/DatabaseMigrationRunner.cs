@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using System.Text.RegularExpressions;
 
-namespace Media.Global.Db;
+namespace Media.Db;
 
 /// <summary>
 /// Applies EF Core migrations and exits. Invoked via <c>dotnet Media.dll --migrate</c>.

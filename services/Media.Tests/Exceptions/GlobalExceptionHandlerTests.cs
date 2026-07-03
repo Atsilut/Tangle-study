@@ -1,7 +1,7 @@
-using Media.Global.Exceptions;
+using Media.Exceptions;
 using Microsoft.AspNetCore.Http;
 
-namespace Media.Tests.Global;
+namespace Media.Tests.Exceptions;
 
 public sealed class GlobalExceptionHandlerTests
 {
