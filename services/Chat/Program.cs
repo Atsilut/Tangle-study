@@ -48,6 +48,8 @@ builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(Metr
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
+builder.Services.Configure<InternalAccessOptions>(builder.Configuration.GetSection(InternalAccessOptions.SectionName));
+builder.Services.AddScoped<InternalAccessAuthorizationFilter>();
 builder.Services.AddSingleton<JwtBearerValidator>();
 
 // Interim JWT validation: tokens are issued by the monolith (future users-service). Chat only
