@@ -53,11 +53,23 @@ else
 fi
 
 log_step "START HARNESS STACK"
-docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait
+docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait \
+  db redis azurite api media chat nginx rust-worker-media rust-worker-chat
 
 log_step "RUN HARNESS TESTS"
+[[ -f "${ROOT}/services/Api.Tests/bin/Release/net10.0/Api.Tests.dll" ]] \
+  || fail "missing services/Api.Tests/bin/Release/net10.0/Api.Tests.dll — run ./scripts/ci/dotnet-publish.sh first"
+
+# compose run --no-deps does not register service-name DNS; target the running nginx container directly.
+nginx_id="$(docker compose "${COMPOSE_ARGS[@]}" ps -q nginx | head -1)"
+[[ -n "$nginx_id" ]] || fail "nginx is not running — harness stack may not have started correctly"
+nginx_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{break}}{{end}}' "$nginx_id")"
+[[ -n "$nginx_ip" ]] || fail "nginx has no network address — is the stack healthy?"
+
 nuget_mount="$(ci_nuget_mount)"
-docker compose "${COMPOSE_ARGS[@]}" run --rm -v "$nuget_mount" harness
+docker compose "${COMPOSE_ARGS[@]}" run --rm --no-deps \
+  -e "TANGLE_HARNESS_API_BASE_URL=http://${nginx_ip}" \
+  -v "$nuget_mount" harness
 
 ci_fix_cache_ownership
 

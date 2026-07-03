@@ -387,6 +387,7 @@ services:
         "services/Api.Tests/Api.Tests.csproj",
         "-c",
         "Release",
+        "--no-build",
         "--filter",
         "Category=Harness",
         "--verbosity",
