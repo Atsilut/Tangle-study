@@ -1,7 +1,5 @@
-use std::env;
-
-use anyhow::{bail, Result};
-use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use worker_core::config::env_var;
 use worker_core::Config;
 
 pub const STREAM_KEY: &str = "media.uploaded";
@@ -16,7 +14,7 @@ pub struct MediaConfig {
 impl MediaConfig {
     pub fn from_env() -> Result<Self> {
         let mut core = Config::from_env()?;
-        core.stream_key = STREAM_KEY.to_owned();
+        core.stream.stream_key = STREAM_KEY.to_owned();
 
         Ok(Self {
             core,
@@ -26,67 +24,98 @@ impl MediaConfig {
     }
 
     pub fn validate_consumer(&self) -> Result<()> {
-        self.core.validate_stream_key(&[STREAM_KEY])?;
+        self.core.stream.validate_stream_key(&[STREAM_KEY])?;
         Config::require_non_empty(
             &self.azure_storage_connection_string,
             "AZURE_STORAGE_CONNECTION_STRING",
         )?;
-        self.core.validate_callback_env()?;
+        self.core.callback.validate_env()?;
         Ok(())
     }
 
     pub fn validate_replay(&self) -> Result<()> {
-        self.core.validate_stream_key(&[STREAM_KEY])
+        self.core.stream.validate_stream_key(&[STREAM_KEY])
     }
 }
 
-fn env_var(key: &str, default: &str) -> Result<String> {
-    match env::var(key) {
-        Ok(value) if !value.trim().is_empty() => Ok(value.trim().to_owned()),
-        Ok(_) => Ok(default.to_owned()),
-        Err(env::VarError::NotPresent) => Ok(default.to_owned()),
-        Err(err) => Err(err.into()),
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use worker_core::config::{CallbackConfig, StreamConfig};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MediaKind {
-    Video,
-    Image,
-}
-
-impl MediaKind {
-    pub fn parse(kind: &str) -> Result<Self> {
-        match kind.to_ascii_lowercase().as_str() {
-            "video" => Ok(Self::Video),
-            "image" => Ok(Self::Image),
-            other => bail!("unsupported media kind {other}"),
+    fn test_core(stream_key: &str, callback_secret: &str) -> Config {
+        Config {
+            stream: StreamConfig {
+                redis_url: String::new(),
+                stream_prefix: "tangle:queue:".to_owned(),
+                stream_key: stream_key.to_owned(),
+                consumer_group: String::new(),
+                consumer_name: String::new(),
+                block_ms: 0,
+                batch_count: 0,
+                max_attempts: 0,
+                retry_base_ms: 1_000,
+                retry_max_ms: 60_000,
+                retry_jitter_pct: 0.1,
+                dlq_stream_suffix: ".dlq".to_owned(),
+                replay_count: 10,
+                replay_dry_run: false,
+                replay_delete: true,
+                log_json: false,
+                metrics_port: 9090,
+            },
+            callback: CallbackConfig {
+                api_base_url: "http://media:8080".to_owned(),
+                worker_callback_secret: callback_secret.to_owned(),
+                timeout_ms: 30_000,
+                connect_timeout_ms: 10_000,
+                max_retries: 3,
+                retry_base_ms: 500,
+            },
         }
     }
-}
 
-/// Matches `Api.Global.Queue.MediaUploadedJob` (System.Text.Json web defaults).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct MediaUploadedJob {
-    pub media_asset_id: i64,
-    pub intended_context: String,
-    pub kind: String,
-    pub mime_type: String,
-    pub original_object_key: String,
-    pub original_size_bytes: i64,
-    pub target_max_bytes: i64,
-}
-
-impl MediaUploadedJob {
-    pub fn validate(&self) -> Result<()> {
-        if self.target_max_bytes <= 0 {
-            bail!("target_max_bytes must be greater than zero");
+    fn test_media_config(core: Config, storage: &str) -> MediaConfig {
+        MediaConfig {
+            core,
+            azure_storage_connection_string: storage.to_owned(),
+            media_container_name: "tangle-media".to_owned(),
         }
-        Ok(())
     }
 
-    pub fn media_kind(&self) -> Result<MediaKind> {
-        MediaKind::parse(&self.kind)
+    #[test]
+    fn validate_consumer_accepts_media_stream_with_storage_and_callback() {
+        let config = test_media_config(test_core(STREAM_KEY, "secret"), "UseDevelopmentStorage=true");
+        config.validate_consumer().unwrap();
+    }
+
+    #[test]
+    fn validate_consumer_requires_azure_storage_connection_string() {
+        let config = test_media_config(test_core(STREAM_KEY, "secret"), "");
+        assert!(config.validate_consumer().is_err());
+    }
+
+    #[test]
+    fn validate_consumer_requires_callback_secret() {
+        let config = test_media_config(
+            test_core(STREAM_KEY, ""),
+            "UseDevelopmentStorage=true",
+        );
+        assert!(config.validate_consumer().is_err());
+    }
+
+    #[test]
+    fn validate_consumer_rejects_other_stream_keys() {
+        let config = test_media_config(
+            test_core("chat.message.created", "secret"),
+            "UseDevelopmentStorage=true",
+        );
+        assert!(config.validate_consumer().is_err());
+    }
+
+    #[test]
+    fn validate_replay_accepts_media_stream_key() {
+        let config = test_media_config(test_core(STREAM_KEY, ""), "");
+        config.validate_replay().unwrap();
     }
 }

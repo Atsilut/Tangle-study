@@ -2,8 +2,9 @@
 resolver = "2"
 members = [
     "crates/worker-core",
+    "crates/worker-chat",
+    "crates/worker-location",
     "crates/worker-media",
-    "rust-worker",
 ]
 
 [workspace.package]

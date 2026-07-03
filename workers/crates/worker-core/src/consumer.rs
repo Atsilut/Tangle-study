@@ -6,16 +6,16 @@ use tracing::{error, info, warn};
 
 use crate::config::Config;
 use crate::dlq;
+use crate::error;
 use crate::handler::StreamHandler;
 use crate::http_client;
-use crate::message;
 use crate::metrics::{self, JobOutcome};
 use crate::retry;
 
 /// Ensures the consumer group exists (idempotent). New groups read from the start of the stream (`0`).
 pub async fn ensure_consumer_group(conn: &mut ConnectionManager, config: &Config) -> Result<()> {
     let stream = config.full_stream_key();
-    let group = &config.consumer_group;
+    let group = &config.stream.consumer_group;
 
     match conn
         .xgroup_create_mkstream::<_, _, _, ()>(&stream, group, "0")
@@ -42,19 +42,24 @@ pub async fn run(
     handler: &dyn StreamHandler,
 ) -> Result<()> {
     ensure_consumer_group(&mut conn, &config).await?;
-    let http = http_client::build_callback_client(&config)?;
+
+    let http = if handler.needs_http_client() {
+        Some(http_client::build_callback_client(&config.callback)?)
+    } else {
+        None
+    };
 
     let stream = config.full_stream_key();
     info!(
         stream = %stream,
         dlq_stream = %config.dlq_stream_key(),
-        group = %config.consumer_group,
-        consumer = %config.consumer_name,
-        block_ms = config.block_ms,
-        batch_count = config.batch_count,
-        max_attempts = config.max_attempts,
-        retry_base_ms = config.retry_base_ms,
-        retry_max_ms = config.retry_max_ms,
+        group = %config.stream.consumer_group,
+        consumer = %config.stream.consumer_name,
+        block_ms = config.stream.block_ms,
+        batch_count = config.stream.batch_count,
+        max_attempts = config.stream.max_attempts,
+        retry_base_ms = config.stream.retry_base_ms,
+        retry_max_ms = config.stream.retry_max_ms,
         "consumer loop started"
     );
 
@@ -67,7 +72,7 @@ pub async fn run(
                 info!("shutdown signal received");
                 break;
             }
-            res = read_and_process_batch(&mut conn, &config, &http, handler) => {
+            res = read_and_process_batch(&mut conn, &config, http.as_ref(), handler) => {
                 res.context("process stream batch")?;
             }
         }
@@ -79,7 +84,7 @@ pub async fn run(
 async fn read_and_process_batch(
     conn: &mut ConnectionManager,
     config: &Config,
-    http: &reqwest::Client,
+    http: Option<&reqwest::Client>,
     handler: &dyn StreamHandler,
 ) -> Result<()> {
     read_new_messages(conn, config, http, handler).await?;
@@ -91,14 +96,14 @@ async fn read_and_process_batch(
 async fn read_new_messages(
     conn: &mut ConnectionManager,
     config: &Config,
-    http: &reqwest::Client,
+    http: Option<&reqwest::Client>,
     handler: &dyn StreamHandler,
 ) -> Result<()> {
     let stream = config.full_stream_key();
     let opts = StreamReadOptions::default()
-        .group(&config.consumer_group, &config.consumer_name)
-        .count(config.batch_count)
-        .block(config.block_ms as usize);
+        .group(&config.stream.consumer_group, &config.stream.consumer_name)
+        .count(config.stream.batch_count)
+        .block(config.stream.block_ms as usize);
 
     let reply: StreamReadReply = conn
         .xread_options(&[&stream], &[">"], &opts)
@@ -117,17 +122,17 @@ async fn read_new_messages(
 async fn reclaim_pending_retries(
     conn: &mut ConnectionManager,
     config: &Config,
-    http: &reqwest::Client,
+    http: Option<&reqwest::Client>,
     handler: &dyn StreamHandler,
 ) -> Result<()> {
     let stream = config.full_stream_key();
     let pending: StreamPendingCountReply = conn
         .xpending_count(
             &stream,
-            &config.consumer_group,
+            &config.stream.consumer_group,
             "-",
             "+",
-            config.batch_count,
+            config.stream.batch_count,
         )
         .await
         .with_context(|| format!("XPENDING on stream {stream}"))?;
@@ -136,7 +141,7 @@ async fn reclaim_pending_retries(
         let times_delivered = u32::try_from(item.times_delivered)
             .context("pending entry times_delivered exceeds u32")?;
 
-        if retry::is_terminal(times_delivered, config.max_attempts) {
+        if retry::is_terminal(times_delivered, config.stream.max_attempts) {
             let err = anyhow::anyhow!("max delivery attempts ({times_delivered}) reached");
             let source_entry = dlq::fetch_stream_entry(conn, &stream, &item.id).await?;
             dlq::publish_exhausted(
@@ -149,18 +154,18 @@ async fn reclaim_pending_retries(
                 &err,
             )
             .await?;
-            ack(conn, &stream, &config.consumer_group, &item.id).await?;
-            metrics::record_job_processed(&config.stream_key, JobOutcome::Dlq);
+            ack(conn, &stream, &config.stream.consumer_group, &item.id).await?;
+            metrics::record_job_processed(&config.stream.stream_key, JobOutcome::Dlq);
             continue;
         }
 
         if !retry::eligible_for_retry(
             item.last_delivered_ms as u64,
             times_delivered,
-            config.max_attempts,
-            config.retry_base_ms,
-            config.retry_max_ms,
-            config.retry_jitter_pct,
+            config.stream.max_attempts,
+            config.stream.retry_base_ms,
+            config.stream.retry_max_ms,
+            config.stream.retry_jitter_pct,
             &item.id,
         ) {
             continue;
@@ -168,17 +173,17 @@ async fn reclaim_pending_retries(
 
         let min_idle = retry::backoff_delay_ms(
             times_delivered,
-            config.retry_base_ms,
-            config.retry_max_ms,
-            config.retry_jitter_pct,
+            config.stream.retry_base_ms,
+            config.stream.retry_max_ms,
+            config.stream.retry_jitter_pct,
             &item.id,
         ) as usize;
 
         let claim_reply: StreamClaimReply = conn
             .xclaim(
                 &stream,
-                &config.consumer_group,
-                &config.consumer_name,
+                &config.stream.consumer_group,
+                &config.stream.consumer_name,
                 min_idle,
                 &[item.id.as_str()],
             )
@@ -204,7 +209,7 @@ async fn reclaim_pending_retries(
 async fn process_entry(
     conn: &mut ConnectionManager,
     config: &Config,
-    http: &reqwest::Client,
+    http: Option<&reqwest::Client>,
     handler: &dyn StreamHandler,
     stream: &str,
     entry: &redis::streams::StreamId,
@@ -214,30 +219,30 @@ async fn process_entry(
 
     match handler.dispatch(config, entry, http).await {
         Ok(()) => {
-            ack(conn, stream, &config.consumer_group, message_id).await?;
-            metrics::record_job_processed(&config.stream_key, JobOutcome::Success);
+            ack(conn, stream, &config.stream.consumer_group, message_id).await?;
+            metrics::record_job_processed(&config.stream.stream_key, JobOutcome::Success);
             info!(
                 stream = %stream,
                 message_id = %message_id,
-                stream_key = %config.stream_key,
+                stream_key = %config.stream.stream_key,
                 times_delivered = times_delivered,
                 "processed and acked message"
             );
         }
         Err(err) => {
-            if message::is_malformed_entry(&err) {
+            if error::is_malformed(&err) {
                 warn!(
                     stream = %stream,
                     message_id = %message_id,
                     error = %err,
                     "skipping malformed message; acking to avoid poison-pill loop"
                 );
-                ack(conn, stream, &config.consumer_group, message_id).await?;
-                metrics::record_job_processed(&config.stream_key, JobOutcome::Malformed);
+                ack(conn, stream, &config.stream.consumer_group, message_id).await?;
+                metrics::record_job_processed(&config.stream.stream_key, JobOutcome::Malformed);
                 return Ok(());
             }
 
-            if retry::is_terminal(times_delivered, config.max_attempts) {
+            if retry::is_terminal(times_delivered, config.stream.max_attempts) {
                 dlq::publish_exhausted(
                     conn,
                     config,
@@ -248,15 +253,15 @@ async fn process_entry(
                     &err,
                 )
                 .await?;
-                ack(conn, stream, &config.consumer_group, message_id).await?;
-                metrics::record_job_processed(&config.stream_key, JobOutcome::Dlq);
+                ack(conn, stream, &config.stream.consumer_group, message_id).await?;
+                metrics::record_job_processed(&config.stream.stream_key, JobOutcome::Dlq);
             } else {
-                metrics::record_job_processed(&config.stream_key, JobOutcome::Failure);
+                metrics::record_job_processed(&config.stream.stream_key, JobOutcome::Failure);
                 let retry_after_ms = retry::backoff_delay_ms(
                     times_delivered,
-                    config.retry_base_ms,
-                    config.retry_max_ms,
-                    config.retry_jitter_pct,
+                    config.stream.retry_base_ms,
+                    config.stream.retry_max_ms,
+                    config.stream.retry_jitter_pct,
                     message_id,
                 );
                 error!(
@@ -300,4 +305,3 @@ async fn ack(
 fn is_busygroup(err: &RedisError) -> bool {
     err.code() == Some("BUSYGROUP")
 }
-

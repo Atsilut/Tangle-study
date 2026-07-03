@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cargo test + release build for worker-media and tangle-worker (chat + location).
+# Cargo test + release build for worker-media, worker-chat, and worker-location.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -45,10 +45,11 @@ docker run --rm \
   -v "${ROOT}/workers/target:/src/workers/target" \
   -w /src/workers \
   "${RUST_IMAGE:?RUST_IMAGE is required}" \
-  cargo build --release -p worker-media -p tangle-worker
+  cargo build --release -p worker-media -p worker-chat -p worker-location
 
 require_release_binary "workers/target/release/worker-media"
-require_release_binary "workers/target/release/tangle-worker"
+require_release_binary "workers/target/release/worker-chat"
+require_release_binary "workers/target/release/worker-location"
 
 ci_fix_cache_ownership
 

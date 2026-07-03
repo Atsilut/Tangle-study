@@ -1,9 +1,9 @@
 use anyhow::Result;
 use tracing::info;
 
-use worker_core::job::ChatMessageCreatedJob;
+use crate::job::ChatMessageCreatedJob;
 
-/// Placeholder handler until async work (e.g. media processing) is defined.
+/// Placeholder handler until async chat work (e.g. push, moderation) is defined.
 pub async fn handle(job: &ChatMessageCreatedJob) -> Result<()> {
     info!(
         message_id = job.message_id,

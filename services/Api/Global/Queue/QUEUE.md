@@ -44,7 +44,7 @@ Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `ta
 
 ## Phase 4 consumer
 
-Rust worker crate: [`workers/rust-worker`](../../../../workers/rust-worker/README.md).
+Rust worker crates: [`workers/README.md`](../../../../workers/README.md).
 
 ```
 API → XADD stream → Rust worker (XREADGROUP) → process → result storage
@@ -56,7 +56,7 @@ Workers should:
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
 
-The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`.
+The Rust workers implement `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish. Replay: `worker-chat replay`, `worker-media replay`, or `worker-location replay`.
 
 ## Metrics (Phase 5)
 

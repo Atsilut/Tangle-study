@@ -41,6 +41,30 @@ x-dotnet-test-env: &dotnet-test-env
   Redis__SignalRChannelPrefix: "tangle:signalr:"
   Redis__WorkQueueStreamPrefix: "tangle:queue:"
 
+# Rust worker env — keep in sync with workers/config/workers.yml
+x-worker-common: &worker-common
+  REDIS_URL: redis://redis:6379
+  WORKER_STREAM_PREFIX: "tangle:queue:"
+  WORKER_CONSUMER_GROUP: tangle-study-workers
+  WORKER_METRICS_PORT: "9090"
+  RUST_LOG: info
+
+x-worker-chat-env: &worker-chat-env
+  <<: *worker-common
+  API_BASE_URL: http://chat:8080
+
+x-worker-media-env: &worker-media-env
+  <<: *worker-common
+  API_BASE_URL: http://media:8080
+  WORKER_CALLBACK_SECRET: dev-media-worker-secret
+  AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+  MEDIA_CONTAINER_NAME: tangle-media
+
+x-worker-location-env: &worker-location-env
+  <<: *worker-common
+  API_BASE_URL: http://api:8080
+  WORKER_CALLBACK_SECRET: dev-media-worker-secret
+
 services:
   redis:
     image: ${REDIS_IMAGE:-redis:alpine}
@@ -279,12 +303,7 @@ services:
       dockerfile: workers/docker/Dockerfile.chat
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://chat:8080
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-chat-env
     expose:
       - "9090"
     depends_on:
@@ -301,16 +320,7 @@ services:
       dockerfile: workers/docker/Dockerfile.media
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: media.uploaded
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://media:8080
-      WORKER_CALLBACK_SECRET: dev-media-worker-secret
-      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
-      MEDIA_CONTAINER_NAME: tangle-media
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-media-env
     expose:
       - "9090"
     depends_on:
@@ -329,13 +339,7 @@ services:
       dockerfile: workers/docker/Dockerfile.location
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://api:8080
-      WORKER_CALLBACK_SECRET: dev-media-worker-secret
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-location-env
     expose:
       - "9090"
     depends_on:

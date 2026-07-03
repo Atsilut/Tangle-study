@@ -7,10 +7,14 @@ use crate::config::Config;
 
 #[async_trait]
 pub trait StreamHandler: Send + Sync {
+    fn needs_http_client(&self) -> bool {
+        true
+    }
+
     async fn dispatch(
         &self,
         config: &Config,
         entry: &StreamId,
-        http: &Client,
+        http: Option<&Client>,
     ) -> Result<()>;
 }

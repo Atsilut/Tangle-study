@@ -86,4 +86,25 @@ mod tests {
     fn empty_pins_returns_empty_clusters() {
         assert!(cluster_pins(&[], 6).is_empty());
     }
+
+    #[test]
+    fn distant_pins_form_separate_clusters() {
+        let pins = vec![
+            PinPoint {
+                id: 1,
+                latitude: 37.5665,
+                longitude: 126.9780,
+            },
+            PinPoint {
+                id: 2,
+                latitude: 35.1796,
+                longitude: 129.0756,
+            },
+        ];
+
+        let clusters = cluster_pins(&pins, 6);
+        assert_eq!(clusters.len(), 2);
+        assert_eq!(clusters[0].pin_count, 1);
+        assert_eq!(clusters[1].pin_count, 1);
+    }
 }
