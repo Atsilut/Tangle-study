@@ -149,6 +149,14 @@ Client → nginx → media-service (presigned URL) → object storage
 
 ---
 
+## Internal service authentication
+
+Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Api, Chat), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Monolith:InternalSecret`, `ChatClient:InternalSecret`).
+
+Worker callbacks use separate secrets: `X-Worker-Callback-Secret` on media and location processed routes — see [MEDIA.md](../services/Media/MEDIA.md).
+
+---
+
 ## Cross-cutting dependencies
 
 ```mermaid

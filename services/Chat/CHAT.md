@@ -22,6 +22,15 @@ REST owns chat persistence and permissions; SignalR pushes new messages to clien
 
 Room kinds: `Direct`, `Multi`, `PlatformGroup`. See Swagger under `api/chat` and `api/groups/{groupId}/chat-rooms`.
 
+### Internal routes (`X-Internal-Secret`)
+
+| Method | Route | Caller | Notes |
+|--------|-------|--------|-------|
+| `POST` | `/internal/chat/users/{userId}/detach-on-deletion` | Monolith | User deletion cleanup |
+| `POST` | `/internal/chat/messages/{chatMessageId}/media-view` | Media-service | Chat attachment ACL check (also requires caller JWT) |
+
+Shared secret: `InternalAccess:Secret` on chat-service; `Monolith:InternalSecret` / `ChatClient:InternalSecret` on callers. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
+
 ---
 
 ## Realtime (SignalR)
