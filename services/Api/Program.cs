@@ -135,6 +135,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleWorkerCallbackAuth(builder.Configuration);
 builder.Services.AddTangleMediaClient(builder.Configuration);
+builder.Services.AddTangleChatClient(builder.Configuration);
 builder.Services.AddTanglePlaces(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>

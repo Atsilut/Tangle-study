@@ -1,5 +1,4 @@
 using Api.Client;
-using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Service;
@@ -88,8 +87,7 @@ internal static class LocationSessionServiceTestFactory
             new Lazy<PostService>(() => null!),
             new Lazy<CommentService>(() => null!),
             new FakeMediaClient(),
-            new Lazy<ChatMessageService>(() => null!),
-            new Lazy<ChatRoomService>(() => null!),
+            new FakeChatClient(),
             new Lazy<GroupMembershipService>(() => null!),
             new Lazy<MapPinService>(() => null!),
             new Lazy<LocationSessionService>(() => null!),

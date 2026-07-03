@@ -29,8 +29,10 @@ public sealed class ApiWebApplicationFactory(
     private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
     private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
     private readonly FakeMediaClient _fakeMediaClient = new();
+    private readonly FakeChatClient _fakeChatClient = new();
 
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
+    public FakeChatClient FakeChatClient => _fakeChatClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -39,6 +41,8 @@ public sealed class ApiWebApplicationFactory(
         builder.UseSetting("WorkerCallback:Secret", TestWorkerCallbackSecret);
         builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
         builder.UseSetting("MediaClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
+        builder.UseSetting("ChatClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -52,6 +56,8 @@ public sealed class ApiWebApplicationFactory(
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["MediaClient:BaseUrl"] = "http://media.test",
                 ["MediaClient:InternalSecret"] = "test-internal-service-secret",
+                ["ChatClient:BaseUrl"] = "http://chat.test",
+                ["ChatClient:InternalSecret"] = "test-internal-service-secret",
                 ["InternalAccess:Secret"] = "test-internal-service-secret",
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
@@ -64,6 +70,9 @@ public sealed class ApiWebApplicationFactory(
         {
             RemoveService<IMediaClient>(services);
             services.AddSingleton<IMediaClient>(_fakeMediaClient);
+
+            RemoveService<IChatClient>(services);
+            services.AddSingleton<IChatClient>(_fakeChatClient);
         });
 
         builder.ConfigureServices(services =>

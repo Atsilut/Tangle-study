@@ -1,5 +1,4 @@
 using Api.Client;
-using Api.Domain.Chat.Service;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
 using Api.Domain.Location.Service;
@@ -22,8 +21,7 @@ namespace Api.Domain.Users.Service
         Lazy<PostService> postService,
         Lazy<CommentService> commentService,
         IMediaClient mediaClient,
-        Lazy<ChatMessageService> chatMessageService,
-        Lazy<ChatRoomService> chatRoomService,
+        IChatClient chatClient,
         Lazy<GroupMembershipService> groupMembershipService,
         Lazy<MapPinService> mapPinService,
         Lazy<LocationSessionService> locationSessionService,
@@ -37,8 +35,7 @@ namespace Api.Domain.Users.Service
         private readonly Lazy<PostService> _postService = postService;
         private readonly Lazy<CommentService> _commentService = commentService;
         private readonly IMediaClient _mediaClient = mediaClient;
-        private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
-        private readonly Lazy<ChatRoomService> _chatRoomService = chatRoomService;
+        private readonly IChatClient _chatClient = chatClient;
         private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
         private readonly Lazy<MapPinService> _mapPinService = mapPinService;
         private readonly Lazy<LocationSessionService> _locationSessionService = locationSessionService;
@@ -171,8 +168,7 @@ namespace Api.Domain.Users.Service
                 await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
                 await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
-                await _chatMessageService.Value.DetachSenderFromDeletedUserAsync(id);
-                await _chatRoomService.Value.DetachUserFromDeletedUserAsync(id);
+                await _chatClient.DetachUserOnDeletionAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
                 await _mapPinService.Value.HandleUserDeletionAsync(id);
                 await _locationSessionService.Value.HandleUserDeletionAsync(id);
