@@ -1,5 +1,7 @@
 using Media.Client;
 using Media.Db;
+using Media.Infrastructure;
+using Media.Queue;
 using Media.Security;
 using Media.Storage;
 using Microsoft.AspNetCore.Hosting;
@@ -10,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using StackExchange.Redis;
 
 namespace Media.Tests.Infrastructure;
 
@@ -51,6 +54,7 @@ public sealed class MediaWebApplicationFactory(
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Redis:ConnectionString"] = _redisConnectionString,
+                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Media:ConnectionString"] = TestBlobConnectionString,
                 ["Media:ContainerName"] = "tangle-media",
                 ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
@@ -86,6 +90,16 @@ public sealed class MediaWebApplicationFactory(
             services.AddDbContext<MediaDbContext>(options =>
                 options.UseNpgsql(_connectionString, npgsql =>
                     npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            RemoveService<IConnectionMultiplexer>(services);
+            RemoveService<IWorkQueue>(services);
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(
+                    RedisServiceCollectionExtensions.ParseRedisConfiguration(_redisConnectionString)));
+            services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
         });
     }
 

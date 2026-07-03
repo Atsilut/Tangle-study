@@ -135,7 +135,7 @@ jobs:
             services/Chat/obj
             services/Chat.Tests/bin
             services/Chat.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -208,7 +208,7 @@ jobs:
             services/Chat/obj
             services/Chat.Tests/bin
             services/Chat.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -281,7 +281,7 @@ jobs:
             services/Chat/obj
             services/Chat.Tests/bin
             services/Chat.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -354,7 +354,7 @@ jobs:
             services/Chat/obj
             services/Chat.Tests/bin
             services/Chat.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -543,7 +543,7 @@ jobs:
             services/Chat/obj
             services/Chat.Tests/bin
             services/Chat.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -628,7 +628,7 @@ jobs:
             .ci-cache/nuget
             services/Api.Tests/bin
             services/Api.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-

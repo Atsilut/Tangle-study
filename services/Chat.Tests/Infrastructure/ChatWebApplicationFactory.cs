@@ -90,7 +90,8 @@ public sealed class ChatWebApplicationFactory(
             RemoveService<IConnectionMultiplexer>(services);
             RemoveService<IWorkQueue>(services);
             services.AddSingleton<IConnectionMultiplexer>(_ =>
-                ConnectionMultiplexer.Connect(_redisConnectionString));
+                ConnectionMultiplexer.Connect(
+                    RedisServiceCollectionExtensions.ParseRedisConfiguration(_redisConnectionString)));
             services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
         });
     }

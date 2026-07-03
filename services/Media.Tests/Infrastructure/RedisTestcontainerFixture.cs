@@ -12,7 +12,7 @@ public sealed class RedisTestcontainerFixture : IAsyncLifetime
             .Build();
     }
 
-    public string ConnectionString => $"{_redis.Hostname}:{_redis.GetMappedPublicPort(6379)}";
+    public string ConnectionString => _redis.GetConnectionString();
 
     public async ValueTask InitializeAsync() => await _redis.StartAsync();
 
