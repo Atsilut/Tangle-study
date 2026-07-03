@@ -25,11 +25,23 @@ internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOpt
             "internal/media/link/post/patch",
             new { postId, uploaderUserId, addMediaAssetIds, removeMediaAssetIds });
 
-    public Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId) =>
-        PostNoContentAsync("internal/media/link/comment", new { commentId, uploaderUserId, mediaAssetId });
+    public Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId)
+    {
+        if (mediaAssetId is null) return Task.CompletedTask;
 
-    public Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId) =>
-        PostNoContentAsync("internal/media/link/chat-message", new { chatMessageId, senderUserId, mediaAssetId });
+        return PostNoContentAsync(
+            "internal/media/link/comment",
+            new { commentId, uploaderUserId, mediaAssetId });
+    }
+
+    public Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId)
+    {
+        if (mediaAssetId is null) return Task.CompletedTask;
+
+        return PostNoContentAsync(
+            "internal/media/link/chat-message",
+            new { chatMessageId, senderUserId, mediaAssetId });
+    }
 
     public async Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(
         IReadOnlyCollection<long> postIds)

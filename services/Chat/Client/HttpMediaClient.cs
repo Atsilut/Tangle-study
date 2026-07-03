@@ -12,8 +12,14 @@ internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOpt
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly MediaClientOptions _options = options.Value;
 
-    public Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId) =>
-        PostNoContentAsync("internal/media/link/chat-message", new { chatMessageId, senderUserId, mediaAssetId });
+    public Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId)
+    {
+        if (mediaAssetId is null) return Task.CompletedTask;
+
+        return PostNoContentAsync(
+            "internal/media/link/chat-message",
+            new { chatMessageId, senderUserId, mediaAssetId });
+    }
 
     public async Task<IReadOnlyDictionary<long, MediaAssetGetResponseDto?>> GetMediaByChatMessageIdsAsync(
         IReadOnlyCollection<long> chatMessageIds) =>
