@@ -53,12 +53,13 @@ Core jobs in [prometheus/prometheus.yml](prometheus/prometheus.yml). Worker jobs
 | Job | Target | Metrics |
 |-----|--------|---------|
 | `api` | `api:8080` | HTTP request rate, latency, status codes; health gauges; work queue enqueue counter |
-| `rust-worker-chat` | `rust-worker:9090` | Job processing, pending queue, DLQ length, callback responses (`workers` profile) |
+| `rust-worker-chat` | `rust-worker-chat:9090` | Job processing, pending queue, DLQ length, callback responses (`workers` profile) |
 | `rust-worker-media` | `rust-worker-media:9090` | Same (`workers` profile) |
+| `rust-worker-location` | `rust-worker-location:9090` | Same (`workers` profile) |
 | `postgres` | `postgres-exporter:9187` | Connection counts, settings, activity |
 | `redis` | `redis-exporter:9121` | Memory, clients, uptime |
 
-Without `--profile workers`, worker jobs are **not scraped** (no targets, no false `WorkerScrapeTargetDown` alert). With `--profile workers`, both worker targets should be **UP** when healthy.
+Without `--profile workers`, worker jobs are **not scraped** (no targets, no false `WorkerScrapeTargetDown` alert). With `--profile workers`, worker targets that are running should be **UP** when healthy.
 
 Optional host debug ports (not mapped by default): exec into a worker container and `wget -qO- http://127.0.0.1:9090/metrics`.
 
@@ -219,5 +220,5 @@ See [infra/azure/README.md](azure/README.md) and [docs/DEPLOYMENT.md](../docs/DE
 
 - [README.md](../README.md#development-phases) — phased roadmap
 - [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — system overview and observability
-- [workers/rust-worker/README.md](../workers/rust-worker/README.md) — worker metrics
+- [workers/README.md](../workers/README.md) — worker metrics
 - [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) — async job contracts
