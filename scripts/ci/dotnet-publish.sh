@@ -50,9 +50,9 @@ tangle_compose --profile tools run --rm \
       -c '${CONFIGURATION}' \
       -o '${CHAT_PUBLISH_DIR}' \
       /p:UseAppHost=false
-    dotnet build services/Api.Tests/Api.Tests.csproj -c '${CONFIGURATION}'
-    dotnet build services/Media.Tests/Media.Tests.csproj -c '${CONFIGURATION}'
-    dotnet build services/Chat.Tests/Chat.Tests.csproj -c '${CONFIGURATION}'
+    dotnet build services/Api.Tests/Api.Tests.csproj -c '${CONFIGURATION}' --no-incremental
+    dotnet build services/Media.Tests/Media.Tests.csproj -c '${CONFIGURATION}' --no-incremental
+    dotnet build services/Chat.Tests/Chat.Tests.csproj -c '${CONFIGURATION}' --no-incremental
   "
 
 require_publish_output "$API_PUBLISH_DIR" "Api.dll"

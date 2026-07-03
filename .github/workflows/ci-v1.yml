@@ -298,7 +298,7 @@ jobs:
       - name: Run Media integration tests
         run: |
           mkdir -p .ci-cache/nuget
-          bash scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+          bash scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release
 
   chat-tests:
     name: Chat integration tests
@@ -371,7 +371,7 @@ jobs:
       - name: Run Chat integration tests
         run: |
           mkdir -p .ci-cache/nuget
-          bash scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
+          bash scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release
 
   rust:
     name: Rust worker build and tests

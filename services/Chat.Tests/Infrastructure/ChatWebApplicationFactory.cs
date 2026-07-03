@@ -1,6 +1,7 @@
 using Chat.Client;
 using Chat.Config;
 using Chat.Db;
+using Chat.Events;
 using Chat.Infrastructure;
 using Chat.Queue;
 using Microsoft.AspNetCore.Hosting;
@@ -89,10 +90,13 @@ public sealed class ChatWebApplicationFactory(
         {
             RemoveService<IConnectionMultiplexer>(services);
             RemoveService<IWorkQueue>(services);
+            RemoveService<IEventPublisher>(services);
+
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(
                     RedisServiceCollectionExtensions.ParseRedisConfiguration(_redisConnectionString)));
             services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
+            services.AddSingleton<IEventPublisher, RedisEventPublisher>();
         });
     }
 
