@@ -72,9 +72,15 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
 
         // Act
-        var first = await (await PostMessageAsync(room.Id, "First")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
-        var second = await (await PostMessageAsync(room.Id, "Second")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
-        var third = await (await PostMessageAsync(room.Id, "Third")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var firstRes = await PostMessageAsync(room.Id, "First");
+        await IntegrationAssertions.AssertStatusAsync(firstRes, HttpStatusCode.Created);
+        var first = await firstRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var secondRes = await PostMessageAsync(room.Id, "Second");
+        await IntegrationAssertions.AssertStatusAsync(secondRes, HttpStatusCode.Created);
+        var second = await secondRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var thirdRes = await PostMessageAsync(room.Id, "Third");
+        await IntegrationAssertions.AssertStatusAsync(thirdRes, HttpStatusCode.Created);
+        var third = await thirdRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(third);
         var pageRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages?before={third.Id}&limit=2", TestContext.Current.CancellationToken);
 
@@ -120,7 +126,8 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var stranger = CreateUserForTest(testMethodName, 3);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        await PostMessageAsync(room.Id, "Secret");
+        var secretRes = await PostMessageAsync(room.Id, "Secret");
+        await IntegrationAssertions.AssertStatusAsync(secretRes, HttpStatusCode.Created);
         LoginAs(stranger);
 
         // Act
@@ -143,7 +150,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         AcceptFriendship(userA, userC);
         var roomB = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         var roomC = await GetOrCreateDirectRoomAsync(userA, userC.Id);
-        var msgInC = await (await PostMessageAsync(roomC.Id, "Other room")).Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var otherRoomRes = await PostMessageAsync(roomC.Id, "Other room");
+        await IntegrationAssertions.AssertStatusAsync(otherRoomRes, HttpStatusCode.Created);
+        var msgInC = await otherRoomRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(msgInC);
 
         // Act
@@ -209,7 +218,11 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         LoginAs(userA);
-        for (var i = 0; i < expectedCount + 5; i++) await PostMessageAsync(room.Id, $"msg {i}");
+        for (var i = 0; i < expectedCount + 5; i++)
+        {
+            var postRes = await PostMessageAsync(room.Id, $"msg {i}");
+            await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        }
 
         var url = requestedLimit.HasValue
             ? $"{ChatRoomsBase}/{room.Id}/messages?limit={requestedLimit}"
@@ -284,8 +297,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Hello");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         var patchRes = await PatchMessageAsync(room.Id, created.Id, "Updated");
@@ -306,8 +320,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Hello");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         LoginAs(userB);
@@ -333,8 +348,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Delete me")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Delete me");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         var deleteRes = await DeleteMessageAsync(room.Id, created.Id);
@@ -356,8 +372,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Hello")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Hello");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         LoginAs(userB);
@@ -378,8 +395,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Unseen")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Unseen");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         LoginAs(userB);
@@ -399,7 +417,8 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        await PostMessageAsync(room.Id, "Editable");
+        var postRes = await PostMessageAsync(room.Id, "Editable");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
 
         var messages = await ListMessagesAsync(room.Id);
         var msg = Assert.Single(messages);
@@ -416,8 +435,9 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-        var created = await (await PostMessageAsync(room.Id, "Version 1")).Content
-            .ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        var postRes = await PostMessageAsync(room.Id, "Version 1");
+        await IntegrationAssertions.AssertStatusAsync(postRes, HttpStatusCode.Created);
+        var created = await postRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(created);
 
         await PatchMessageAsync(room.Id, created.Id, "Version 2");
