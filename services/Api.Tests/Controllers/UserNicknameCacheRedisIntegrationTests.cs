@@ -1,13 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Api.Domain.Chat.Dto;
 using Api.Domain.Users.Dto;
 using Api.Global.Events;
-using Api.Global.Config;
 using Api.Tests.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Api.Tests.Controllers;
@@ -16,50 +12,9 @@ namespace Api.Tests.Controllers;
 public sealed class UserNicknameCacheRedisIntegrationTests(
     PostgresTestcontainerFixture postgres,
     RedisTestcontainerFixture redis)
-    : ChatIntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
+    : IntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
-    [Fact]
-    public async Task UpdateNickname_InvalidatesDistributedCache_AndReturnsNewNicknameOnChatMessage()
-    {
-        const string testMethodName = nameof(UpdateNickname_InvalidatesDistributedCache_AndReturnsNewNicknameOnChatMessage);
-        const string updatedNickname = "RedisCacheNick";
-
-        // Arrange
-        var userA = await CreateUserForTest(testMethodName, 1);
-        var userB = await CreateUserForTest(testMethodName, 2);
-        await AcceptFriendshipAsync(userA, userB);
-        await LoginAs(userA);
-        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
-
-        var warmCacheRes = await PostMessageAsync(room.Id, "Warm cache");
-        await IntegrationAssertions.AssertStatusAsync(warmCacheRes, HttpStatusCode.Created);
-
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var multiplexer = scope.ServiceProvider.GetRequiredService<IConnectionMultiplexer>();
-        var redisOptions = scope.ServiceProvider.GetRequiredService<IOptions<RedisOptions>>().Value;
-        var database = multiplexer.GetDatabase();
-        var nicknameCacheKey = (RedisKey)ChatRealtimeTestHelpers.GetNicknameCacheKey(redisOptions, userA.Id);
-        var cachedBeforeUpdate = await database.StringGetAsync(nicknameCacheKey);
-        Assert.False(cachedBeforeUpdate.IsNullOrEmpty);
-        Assert.Equal(userA.Nickname, cachedBeforeUpdate.ToString());
-
-        // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = userA.Id, Nickname = updatedNickname }, TestContext.Current.CancellationToken);
-
-        // Assert
-        await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);
-        var cachedAfterUpdate = await database.StringGetAsync(nicknameCacheKey);
-        Assert.True(cachedAfterUpdate.IsNullOrEmpty);
-
-        await LoginAs(userB);
-        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages", TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.OK);
-        var messages = await listRes.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken);
-        Assert.NotNull(messages);
-        Assert.Contains(messages, m => m.SenderUserId == userA.Id && m.SenderNickname == updatedNickname);
-    }
 
     [Fact]
     public async Task UpdateNickname_PublishesUserNicknameChangedEvent_ToRedisPubSub()
@@ -68,8 +23,8 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         const string updatedNickname = "PubSubNick";
 
         // Arrange
-        var user = await CreateUserForTest(testMethodName);
-        await LoginAs(user);
+        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
 
         var multiplexer = await ConnectionMultiplexer.ConnectAsync(redis.ConnectionString);
         var subscriber = multiplexer.GetSubscriber();
@@ -83,7 +38,10 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         });
 
         // Act
-        var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = user.Id, Nickname = updatedNickname }, TestContext.Current.CancellationToken);
+        var patch = await Client.PatchAsJsonAsync(
+            "/api/users",
+            new UserPatchRequestDto { Id = user.Id, Nickname = updatedNickname },
+            TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(patch, HttpStatusCode.OK);

@@ -1,3 +1,4 @@
+
 using Api.Client;
 
 namespace Api.Tests.Infrastructure;
