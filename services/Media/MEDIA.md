@@ -2,7 +2,7 @@
 
 Direct-to-storage uploads (Azure Blob / Azurite locally), async processing via Redis Streams + [worker-media](../../../workers/rust-worker/README.md), and attachment by ID on posts, comments, and chat messages.
 
-Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Size limits: [`media-limits.yml`](media-limits.yml).
+Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
 
 ---
 
@@ -51,7 +51,7 @@ Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../../Glob
 
 ## Limits
 
-Per-context caps in [`media-limits.yml`](../../media-limits.yml). Ingress allows `IngressMultiplier` × storage cap so oversized uploads can be rejected or transcoded down. Enforcement is in `MediaLimitPolicy` at upload-init and attach time.
+Per-context caps in [`media-config.yml`](../../media-config.yml). Ingress allows `IngressMultiplier` × storage cap so oversized uploads can be rejected or transcoded down. Enforcement is in `MediaLimitPolicy` at upload-init and attach time.
 
 ---
 
