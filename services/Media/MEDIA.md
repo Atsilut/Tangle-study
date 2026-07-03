@@ -1,6 +1,6 @@
 # Media API
 
-Direct-to-storage uploads (Azure Blob / Azurite locally), async processing via Redis Streams + [worker-media](../../../workers/rust-worker/README.md), and attachment by ID on posts, comments, and chat messages.
+Direct-to-storage uploads (Azure Blob / Azurite locally), async processing via Redis Streams + [worker-media](../../../workers/README.md), and attachment by ID on posts, comments, and chat messages.
 
 Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
 

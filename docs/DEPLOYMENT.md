@@ -271,7 +271,7 @@ Non-secret config can be GitHub **variables** or Bicep parameters:
 
 Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azure (no Azurite proxy). See `[infra/nginx/nginx.production.conf](../infra/nginx/nginx.production.conf)`.
 
-### Rust workers (`workers/rust-worker`)
+### Rust workers ([`workers/`](../workers/README.md))
 
 
 | GitHub secret            | Env var                           | Required                 | Notes                                                    |
