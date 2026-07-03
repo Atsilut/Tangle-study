@@ -1,9 +1,9 @@
-using Media.Global.Config;
-using Media.Global.Db;
-using Media.Global.Exceptions;
-using Media.Global.Infrastructure;
-using Media.Global.Security;
-using Media.Global.Telemetry;
+using Media.Config;
+using Media.Db;
+using Media.Exceptions;
+using Media.Infrastructure;
+using Media.Security;
+using Media.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -39,7 +39,7 @@ builder.Services.AddCustomDependencies();
 
 builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
-    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true)
+    .AddYamlFile("media-config.yml", optional: false, reloadOnChange: true)
     // YAML is loaded after the host's default env vars; re-add so CD-injected Jwt__Secret wins.
     .AddEnvironmentVariables();
 
@@ -73,6 +73,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMedia(builder.Configuration);
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleChatAccess(builder.Configuration);
 
 builder.Services.AddDbContext<MediaDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -83,14 +84,13 @@ var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnec
 var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddNpgSql(defaultConnection, name: "postgres");
 
-var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
-if (redisConfig?.Enabled is true && !string.IsNullOrWhiteSpace(redisConfig.ConnectionString))
-{
-    healthChecksBuilder.AddRedis(
-        redisConfig.ConnectionString,
-        name: "redis",
-        timeout: TimeSpan.FromSeconds(5));
-}
+var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>()
+    ?? throw new InvalidOperationException("Redis configuration section is missing.");
+RedisStartupValidator.Validate(redisConfig);
+healthChecksBuilder.AddRedis(
+    redisConfig.ConnectionString,
+    name: "redis",
+    timeout: TimeSpan.FromSeconds(5));
 
 healthChecksBuilder.ForwardToPrometheus();
 
@@ -102,9 +102,7 @@ JwtStartupValidator.Validate(app.Environment, jwtOptions);
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
-var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
-if (redisOptions.Enabled) logger.LogInformation("Redis enabled (work queue).");
-else logger.LogInformation("Redis disabled; work queue uses no-op implementation.");
+logger.LogInformation("Redis configured (work queue).");
 
 logger.LogInformation("Media blob storage configured.");
 

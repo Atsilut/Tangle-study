@@ -1,8 +1,8 @@
 using Media.Client;
-using Media.Global.Config;
-using Media.Global.Db;
-using Media.Global.Queue;
-using Media.Global.Security;
+using Media.Db;
+using Media.Infrastructure;
+using Media.Queue;
+using Media.Security;
 using Media.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -18,8 +18,7 @@ namespace Media.Tests.Infrastructure;
 
 public sealed class MediaWebApplicationFactory(
     string connectionString,
-    bool redisEnabled = false,
-    string? redisConnectionString = null) : WebApplicationFactory<Program>
+    string redisConnectionString) : WebApplicationFactory<Program>
 {
     public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
     public const string TestJwtIssuer = "Tangle";
@@ -31,8 +30,7 @@ public sealed class MediaWebApplicationFactory(
         "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
 
     private readonly string _connectionString = connectionString;
-    private readonly bool _redisEnabled = redisEnabled;
-    private readonly string? _redisConnectionString = redisConnectionString;
+    private readonly string _redisConnectionString = redisConnectionString;
     private readonly FakeMediaStorage _fakeStorage = new();
 
     public FakeMediaStorage FakeStorage => _fakeStorage;
@@ -46,14 +44,16 @@ public sealed class MediaWebApplicationFactory(
         builder.UseSetting("Media:InternalServiceSecret", TestInternalServiceSecret);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
+        builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
+        builder.UseSetting("ChatClient:InternalSecret", TestInternalServiceSecret);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Redis:Enabled"] = _redisEnabled ? "true" : "false",
-                ["Redis:ConnectionString"] = _redisEnabled ? _redisConnectionString : "",
+                ["Redis:ConnectionString"] = _redisConnectionString,
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Media:ConnectionString"] = TestBlobConnectionString,
                 ["Media:ContainerName"] = "tangle-media",
@@ -61,6 +61,8 @@ public sealed class MediaWebApplicationFactory(
                 ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["ChatClient:BaseUrl"] = "http://chat.test",
+                ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
                 ["Jwt:Secret"] = TestJwtSecret,
                 ["Jwt:Issuer"] = TestJwtIssuer,
                 ["Jwt:Audience"] = TestJwtAudience,
@@ -75,6 +77,9 @@ public sealed class MediaWebApplicationFactory(
 
             RemoveService<IMonolithAccessClient>(services);
             services.AddSingleton<IMonolithAccessClient, AllowAllMonolithAccessClient>();
+
+            RemoveService<IChatAccessClient>(services);
+            services.AddSingleton<IChatAccessClient, AllowAllChatAccessClient>();
         });
 
         builder.ConfigureServices(services =>
@@ -87,17 +92,15 @@ public sealed class MediaWebApplicationFactory(
                     npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
         });
 
-        if (_redisEnabled && !string.IsNullOrWhiteSpace(_redisConnectionString))
+        builder.ConfigureTestServices(services =>
         {
-            builder.ConfigureTestServices(services =>
-            {
-                RemoveService<IConnectionMultiplexer>(services);
-                RemoveService<IWorkQueue>(services);
-                services.AddSingleton<IConnectionMultiplexer>(_ =>
-                    ConnectionMultiplexer.Connect(_redisConnectionString!));
-                services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
-            });
-        }
+            RemoveService<IConnectionMultiplexer>(services);
+            RemoveService<IWorkQueue>(services);
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(
+                    RedisServiceCollectionExtensions.ParseRedisConfiguration(_redisConnectionString)));
+            services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
+        });
     }
 
     protected override void Dispose(bool disposing)

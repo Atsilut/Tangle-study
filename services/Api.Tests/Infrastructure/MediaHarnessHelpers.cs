@@ -32,7 +32,7 @@ internal static class MediaHarnessHelpers
         {
             try
             {
-                var response = await client.GetAsync("swagger/v1/swagger.json", TestContext.Current.CancellationToken);
+                var response = await client.GetAsync("health", TestContext.Current.CancellationToken);
                 if (response.IsSuccessStatusCode) return;
             }
             catch (Exception ex)

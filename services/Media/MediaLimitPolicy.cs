@@ -1,5 +1,5 @@
 using Media;
-using Media.Global.Config;
+using Media.Config;
 using Microsoft.Extensions.Options;
 
 namespace Media;

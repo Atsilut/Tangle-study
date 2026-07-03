@@ -162,7 +162,7 @@ Chat-service **does not** join to groups tables — only stores `platformGroupId
 | Room owner | Creator on create; required for `POST .../participants` on platform-group rooms |
 | Multiple rooms per group | Allowed |
 | Participant add | Owner only; invitee must be group member |
-| SignalR | `/hubs/chat` — see [CHAT.md](../Chat/CHAT.md) |
+| SignalR | `/hubs/chat` — see [CHAT.md](../../../Chat/CHAT.md) |
 
 ---
 

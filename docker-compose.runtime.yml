@@ -15,7 +15,14 @@ services:
       args:
         DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
 
-  rust-worker:
+  chat:
+    build:
+      context: .
+      dockerfile: services/Chat/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  rust-worker-chat:
     image: ${WORKER_CHAT_IMAGE:-tangle-study-worker-chat:local}
     build:
       context: .

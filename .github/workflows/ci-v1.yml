@@ -22,11 +22,11 @@ env:
 jobs:
   changes:
     name: Detect changed paths
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       dotnet-api: ${{ steps.filter.outputs.dotnet-api }}
       dotnet-media: ${{ steps.filter.outputs.dotnet-media }}
+      dotnet-chat: ${{ steps.filter.outputs.dotnet-chat }}
       dotnet-shared: ${{ steps.filter.outputs.dotnet-shared }}
       web: ${{ steps.filter.outputs.web }}
       rust: ${{ steps.filter.outputs.rust }}
@@ -51,6 +51,8 @@ jobs:
               - 'services/Api/**'
             dotnet-media:
               - 'services/Media/**'
+            dotnet-chat:
+              - 'services/Chat/**'
             dotnet-shared:
               - 'docker/Dockerfile.sdk'
               - 'docker-compose.yml'
@@ -64,11 +66,12 @@ jobs:
             rust:
               - 'workers/**'
             harness:
-              - 'services/Api.Tests/Harness/**'
+              - 'services/Api.Tests/**'
+              - 'services/Api/**'
               - 'services/Media/**'
-              - 'services/Api/Client/**'
               - 'infra/nginx/**'
               - 'workers/**'
+              - 'clients/web/Dockerfile'
               - 'docker-compose.harness.yml'
               - 'docker-compose.runtime.yml'
               - 'docker-compose.yml'
@@ -85,6 +88,7 @@ jobs:
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-media == 'true' ||
+        needs.changes.outputs.dotnet-chat == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -127,7 +131,11 @@ jobs:
             services/Media/obj
             services/Media.Tests/bin
             services/Media.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -141,7 +149,7 @@ jobs:
       ############################################
       # 5. DOTNET PUBLISH
       ############################################
-      - name: Publish Api and Media; build test projects
+      - name: Publish Api, Media, and Chat; build test projects
         run: |
           mkdir -p .ci-cache/nuget .ci-cache/publish
           bash scripts/ci/dotnet-publish.sh
@@ -196,7 +204,11 @@ jobs:
             services/Media/obj
             services/Media.Tests/bin
             services/Media.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -265,7 +277,11 @@ jobs:
             services/Media/obj
             services/Media.Tests/bin
             services/Media.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -283,6 +299,79 @@ jobs:
         run: |
           mkdir -p .ci-cache/nuget
           bash scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+
+  chat-tests:
+    name: Chat integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-chat == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v5
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Api/bin
+            services/Api/obj
+            services/Api.Tests/bin
+            services/Api.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. CHAT INTEGRATION TESTS
+      ############################################
+      - name: Run Chat integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
 
   rust:
     name: Rust worker build and tests
@@ -400,16 +489,15 @@ jobs:
 
   compose-build:
     name: Build harness stack images
-    needs: [changes, dotnet-build, rust, api-tests, media-tests]
+    needs: [changes, dotnet-build, rust, api-tests, media-tests, chat-tests]
     if: |
       always() &&
       needs.dotnet-build.result == 'success' &&
       needs.rust.result == 'success' &&
       (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') &&
-      (needs.media-tests.result == 'success' || needs.media-tests.result == 'skipped') && (
-        github.event_name != 'pull_request' ||
-        needs.changes.outputs.harness == 'true'
-      )
+      (needs.media-tests.result == 'success' || needs.media-tests.result == 'skipped') &&
+      (needs.chat-tests.result == 'success' || needs.chat-tests.result == 'skipped') &&
+      needs.changes.outputs.harness == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -449,7 +537,11 @@ jobs:
             services/Media/obj
             services/Media.Tests/bin
             services/Media.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -495,13 +587,12 @@ jobs:
 
   harness-media:
     name: Media harness E2E
-    needs: [changes, compose-build]
+    needs: [changes, dotnet-build, compose-build]
     if: |
       always() &&
-      needs.compose-build.result == 'success' && (
-        github.event_name != 'pull_request' ||
-        needs.changes.outputs.harness == 'true'
-      )
+      needs.dotnet-build.result == 'success' &&
+      needs.compose-build.result == 'success' &&
+      needs.changes.outputs.harness == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -532,9 +623,10 @@ jobs:
         with:
           path: |
             .ci-cache/nuget
+            .ci-cache/publish
             services/Api.Tests/bin
             services/Api.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'docker/Dockerfile.sdk') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -564,7 +656,7 @@ jobs:
 
   ci-gate:
     name: CI
-    needs: [changes, dotnet-build, api-tests, media-tests, rust, web, compose-build, harness-media]
+    needs: [changes, dotnet-build, api-tests, media-tests, chat-tests, rust, web, compose-build, harness-media]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -1,7 +1,7 @@
 using Media.Dto;
-using Media.Global.Config;
-using Media.Global.Db;
-using Media.Global.Queue;
+using Media.Config;
+using Media.Db;
+using Media.Queue;
 using Media.Repository;
 using Media.Service;
 using Media.Storage;
@@ -242,6 +242,7 @@ public sealed class MediaServiceUnitTests
             serviceProvider,
             new MediaLimitPolicy(mediaOptions),
             new AllowAllMonolithAccessClient(),
+            new AllowAllChatAccessClient(),
             workQueue,
             mediaOptions,
             http);

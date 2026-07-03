@@ -12,7 +12,4 @@ internal sealed class AllowAllMonolithAccessClient : IMonolithAccessClient
 
     public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
-
-    public Task EnsureCanAccessChatMessageMediaAsync(long chatMessageId, CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
 }

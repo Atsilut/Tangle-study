@@ -1,8 +1,22 @@
-# Harness runs tests inside Compose; API is reached at http://nginx (strangler edge).
+# Harness runs tests inside Compose; API is reached via nginx (strangler edge).
 services:
   api:
     ports: !reset []
 
   media:
     environment:
-      Media__PublicBlobEndpoint: ""
+      # Set by run-media-harness.sh after nginx is up (SAS URLs proxied via /devstoreaccount1).
+      Media__PublicBlobEndpoint: ${HARNESS_PUBLIC_BLOB_ENDPOINT:-}
+
+  nginx:
+    build:
+      args:
+        NGINX_CONF: infra/nginx/nginx.harness.conf
+    depends_on: !reset
+      api:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      rust-worker-media:
+        condition: service_started
+        required: false

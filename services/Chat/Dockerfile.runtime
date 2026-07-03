@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+# Runtime image — requires scripts/ci/dotnet-publish.sh (output: .ci-cache/publish/chat)
+
+ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:latest
+
+FROM ${DOTNET_ASPNET_IMAGE}
+WORKDIR /app
+EXPOSE 8080
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY .ci-cache/publish/chat/ .
+ENTRYPOINT ["dotnet", "Chat.dll"]

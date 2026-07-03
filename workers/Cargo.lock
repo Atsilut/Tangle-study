@@ -1966,22 +1966,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tangle-worker"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "metrics",
- "redis",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "worker-core",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2675,6 +2659,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
+name = "worker-chat"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "worker-core",
+]
+
+[[package]]
 name = "worker-core"
 version = "1.0.0"
 dependencies = [
@@ -2692,6 +2691,22 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "worker-location"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "metrics",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "worker-core",
 ]
 
 [[package]]

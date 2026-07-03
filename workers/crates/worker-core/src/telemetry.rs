@@ -6,7 +6,7 @@ use crate::config::Config;
 pub fn init(config: &Config) -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    if config.log_json {
+    if config.stream.log_json {
         fmt()
             .json()
             .with_env_filter(filter)

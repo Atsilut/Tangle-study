@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Media;
 using Media.Dto;
-using Media.Global.Config;
-using Media.Global.Queue;
+using Media.Config;
+using Media.Queue;
 using Media.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -15,7 +15,7 @@ namespace Media.Tests.Controllers;
 public sealed class MediaIntegrationTests(
     PostgresTestcontainerFixture postgres,
     RedisTestcontainerFixture redis)
-    : IntegrationTestBase(postgres, redisEnabled: true, redisConnectionString: redis.ConnectionString)
+    : IntegrationTestBase(postgres, redis)
 {
     [Fact]
     public async Task InitUpload_Returns400_WhenDeclaredSizeExceedsIngressLimit()
@@ -194,7 +194,7 @@ public sealed class MediaIntegrationTests(
             Content = JsonContent.Create(new LinkPostMediaRequestDto(99, userId, mediaAssetIds)),
         };
         message.Headers.Add(
-            Media.Global.Security.InternalServiceAuthorizationFilter.HeaderName,
+            Media.Security.InternalServiceAuthorizationFilter.HeaderName,
             MediaWebApplicationFactory.TestInternalServiceSecret);
         var res = await Client.SendAsync(message, TestContext.Current.CancellationToken);
 
@@ -206,8 +206,8 @@ public sealed class MediaIntegrationTests(
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var redisOptions = scope.ServiceProvider.GetRequiredService<IOptions<RedisOptions>>().Value;
-        Assert.True(redisOptions.Enabled);
-        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redis.ConnectionString);
+        Assert.False(string.IsNullOrWhiteSpace(redisOptions.ConnectionString));
+        var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisOptions.ConnectionString);
         var streamKey = (RedisKey)MediaIntegrationTestHelpers.GetMediaUploadedStreamKey(redisOptions);
         var database = multiplexer.GetDatabase();
         var lengthBefore = await database.StreamLengthAsync(streamKey);
@@ -216,8 +216,10 @@ public sealed class MediaIntegrationTests(
 }
 
 [Collection(MediaIntegrationTestCollection.Name)]
-public sealed class MediaIntegrationPostgresTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+public sealed class MediaIntegrationPostgresTests(
+    PostgresTestcontainerFixture postgres,
+    RedisTestcontainerFixture redis)
+    : IntegrationTestBase(postgres, redis)
 {
     [Fact]
     public async Task DeleteUnlinked_Returns204_ForReadyAsset()

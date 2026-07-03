@@ -23,7 +23,7 @@ Compose `api` sets `Redis__Enabled=true` and depends on the `redis` service. The
 | Nickname cache | `IDistributedCache` + `NicknameCacheService` | Faster reads; PG remains source of truth |
 | SignalR scale-out | `AddStackExchangeRedis` backplane | Live chat across multiple API replicas |
 | Domain events | `IEventPublisher` / Redis pub/sub | Server-side; subscriber currently logs — see [Events/EVENTS.md](Events/EVENTS.md) |
-| Async jobs (producer) | `IWorkQueue` / Redis Streams | Consumed by [rust-worker](../../../workers/rust-worker/README.md) — see [Queue/QUEUE.md](Queue/QUEUE.md) |
+| Async jobs (producer) | `IWorkQueue` / Redis Streams | Consumed by [workers](../../../workers/README.md) — see [Queue/QUEUE.md](Queue/QUEUE.md) |
 | Live location positions | `LiveLocationRedisStore` (direct Redis / `IDistributedCache`) | Group-scoped TTL keys; refreshed on position update |
 | Map cluster cache | `LocationClusterService` (direct Redis) | Interim clustering results (5 min TTL) |
 | Safety alert dedupe | `IDistributedCache` | Per-session stale-alert keys |
@@ -88,7 +88,7 @@ Run all tests: `docker compose --profile test run --rm test`
 
 ## Related docs
 
-- [Domain/Chat/CHAT.md](../Domain/Chat/CHAT.md) — hub contract and client flow
+- [Domain/Chat/CHAT.md](../../../services/Chat/CHAT.md) — hub contract and client flow
 - [Domain/Location/LOCATION.md](../Domain/Location/LOCATION.md) — live sharing, Redis keys, SignalR events
 - [Global/Queue/QUEUE.md](Queue/QUEUE.md) — Streams producer and workers
 - [Global/Events/EVENTS.md](Events/EVENTS.md) — pub/sub event contracts

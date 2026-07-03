@@ -26,9 +26,9 @@ Pub/sub events follow the same convention — see [EVENTS.md](../Events/EVENTS.m
 
 `LocationClusterJob` fields: `minLatitude`, `maxLatitude`, `minLongitude`, `maxLongitude`, `zoom` (2–4), `schemaVersion`. Worker fetches pin coordinates via `GET /internal/location/cluster-points`, clusters them, and stores results with `PUT /internal/location/clusters` (Redis cache, 5 min TTL). Public read: `GET /api/location/clusters`.
 
-`MediaUploadedJob` fields: `mediaAssetId`, `intendedContext`, `kind`, `mimeType`, `originalObjectKey`, `originalSizeBytes`, `targetMaxBytes`, `schemaVersion`. `targetMaxBytes` is the per-file **storage** cap from [`media-limits.yml`](../../media-limits.yml) (not the ingress cap).
+`MediaUploadedJob` fields: `mediaAssetId`, `intendedContext`, `kind`, `mimeType`, `originalObjectKey`, `originalSizeBytes`, `targetMaxBytes`, `schemaVersion`. `targetMaxBytes` is the per-file **storage** cap from [`media-config.yml`](../../Media/media-config.yml) (not the ingress cap).
 
-Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `tangle:queue:`).
+Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `tangle:queue:` from each service's `*-config.yml` or `Redis__WorkQueueStreamPrefix` env).
 
 ## Configuration
 
@@ -44,7 +44,7 @@ Full Redis stream name: `{WorkQueueStreamPrefix}{streamKey}` (default prefix `ta
 
 ## Phase 4 consumer
 
-Rust worker crate: [`workers/rust-worker`](../../../../workers/rust-worker/README.md).
+Rust worker crates: [`workers/README.md`](../../../../workers/README.md).
 
 ```
 API → XADD stream → Rust worker (XREADGROUP) → process → result storage
@@ -56,7 +56,7 @@ Workers should:
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
 
-The Rust worker implements `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish for `chat.message.created`. Replay: `tangle-worker replay`.
+The Rust workers implement `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish. Replay: `worker-chat replay`, `worker-media replay`, or `worker-location replay`.
 
 ## Metrics (Phase 5)
 
@@ -95,4 +95,4 @@ Live position sharing uses Redis string keys and SignalR (see [REDIS.md](../REDI
 |--------|----------------|----------|
 | `location.cluster` | `rust-worker-location` | `PUT /internal/location/clusters` |
 
-Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../Domain/Location/LOCATION.md).
+Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../Domain/Location/LOCATION.md). Chat worker: [workers/README.md](../../../../workers/README.md).

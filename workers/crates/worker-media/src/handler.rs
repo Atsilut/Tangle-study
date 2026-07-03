@@ -6,7 +6,7 @@ use tracing::info;
 
 use crate::api_callback;
 use crate::config::MediaConfig;
-use crate::config::MediaUploadedJob;
+use crate::job::MediaUploadedJob;
 use crate::processing;
 use crate::storage::BlobStorage;
 
@@ -77,4 +77,34 @@ fn build_processed_object_key(job: &MediaUploadedJob) -> String {
         .unwrap_or("processed.bin");
 
     format!("processed/{}/{}", job.media_asset_id, file_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::job::MediaUploadedJob;
+
+    fn sample_job(original_object_key: &str) -> MediaUploadedJob {
+        MediaUploadedJob {
+            media_asset_id: 42,
+            intended_context: "Post".to_owned(),
+            kind: "Video".to_owned(),
+            mime_type: "video/mp4".to_owned(),
+            original_object_key: original_object_key.to_owned(),
+            original_size_bytes: 100,
+            target_max_bytes: 1_000,
+        }
+    }
+
+    #[test]
+    fn build_processed_object_key_preserves_file_name() {
+        let key = build_processed_object_key(&sample_job("raw/9/video.mp4"));
+        assert_eq!(key, "processed/42/video.mp4");
+    }
+
+    #[test]
+    fn build_processed_object_key_falls_back_when_path_has_no_file_name() {
+        let key = build_processed_object_key(&sample_job(""));
+        assert_eq!(key, "processed/42/processed.bin");
+    }
 }

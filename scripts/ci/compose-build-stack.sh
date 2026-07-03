@@ -14,6 +14,7 @@ source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
 STACK_ARTIFACT="${STACK_ARTIFACT:-harness-stack.tar}"
+SDK_IMAGE="${SDK_IMAGE:-tangle-study-sdk:local}"
 WORKER_MEDIA_IMAGE="${WORKER_MEDIA_IMAGE:-tangle-study-worker-media:local}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tangle-study}"
 
@@ -43,13 +44,14 @@ log_step "BUILD WORKER RUNTIME IMAGE"
 WORKER_MEDIA_IMAGE="$WORKER_MEDIA_IMAGE" bash "$ROOT/scripts/ci/build-worker-images.sh" --media-only
 
 log_step "BUILD STACK SERVICE IMAGES"
-tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media nginx rust-worker-media
+tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media nginx rust-worker-media harness
 
 STACK_IMAGES=(
   "${COMPOSE_PROJECT_NAME}-api"
   "${COMPOSE_PROJECT_NAME}-media"
   "${COMPOSE_PROJECT_NAME}-nginx"
   "$WORKER_MEDIA_IMAGE"
+  "$SDK_IMAGE"
 )
 
 for image in "${STACK_IMAGES[@]}"; do

@@ -9,13 +9,15 @@ WORKDIR /build
 
 COPY workers/Cargo.toml workers/rust-toolchain.toml ./
 COPY workers/crates/worker-core/Cargo.toml crates/worker-core/
+COPY workers/crates/worker-chat/Cargo.toml crates/worker-chat/
+COPY workers/crates/worker-location/Cargo.toml crates/worker-location/
 COPY workers/crates/worker-media/Cargo.toml crates/worker-media/
-COPY workers/rust-worker/Cargo.toml rust-worker/
 
-RUN mkdir -p crates/worker-core/src crates/worker-media/src rust-worker/src \
+RUN mkdir -p crates/worker-core/src crates/worker-chat/src crates/worker-location/src crates/worker-media/src \
     && printf 'pub fn dummy() {}\n' > crates/worker-core/src/lib.rs \
-    && printf 'fn main() {}\n' > crates/worker-media/src/main.rs \
-    && printf 'fn main() {}\n' > rust-worker/src/main.rs
+    && printf 'fn main() {}\n' > crates/worker-chat/src/main.rs \
+    && printf 'fn main() {}\n' > crates/worker-location/src/main.rs \
+    && printf 'fn main() {}\n' > crates/worker-media/src/main.rs
 
 # Workspace lock is generated on first build when absent from the repo.
 RUN cargo generate-lockfile \

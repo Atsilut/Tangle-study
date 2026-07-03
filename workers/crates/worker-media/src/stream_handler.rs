@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use redis::streams::StreamId;
 use reqwest::Client;
@@ -19,9 +19,10 @@ impl StreamHandler for MediaStreamHandler {
         &self,
         _config: &Config,
         entry: &StreamId,
-        http: &Client,
+        http: Option<&Client>,
     ) -> Result<()> {
         let job = message::decode_media_uploaded(entry)?;
+        let http = http.context("media handler requires HTTP client")?;
         handler::handle(&job, &self.media, http).await
     }
 }

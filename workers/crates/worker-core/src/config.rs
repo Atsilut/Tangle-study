@@ -2,9 +2,9 @@ use std::env;
 
 use anyhow::{bail, Context, Result};
 
-/// Worker configuration loaded from environment variables.
+/// Redis stream consumer configuration.
 #[derive(Debug, Clone)]
-pub struct Config {
+pub struct StreamConfig {
     pub redis_url: String,
     pub stream_prefix: String,
     pub stream_key: String,
@@ -21,21 +21,33 @@ pub struct Config {
     pub replay_dry_run: bool,
     pub replay_delete: bool,
     pub log_json: bool,
-    pub api_base_url: String,
-    pub worker_callback_secret: String,
-    pub callback_timeout_ms: u64,
-    pub callback_connect_timeout_ms: u64,
-    pub callback_max_retries: u32,
-    pub callback_retry_base_ms: u64,
     pub metrics_port: u16,
 }
 
-impl Config {
+/// HTTP callback configuration for workers that notify the API.
+#[derive(Debug, Clone)]
+pub struct CallbackConfig {
+    pub api_base_url: String,
+    pub worker_callback_secret: String,
+    pub timeout_ms: u64,
+    pub connect_timeout_ms: u64,
+    pub max_retries: u32,
+    pub retry_base_ms: u64,
+}
+
+/// Worker configuration loaded from environment variables.
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub stream: StreamConfig,
+    pub callback: CallbackConfig,
+}
+
+impl StreamConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
             redis_url: env_var("REDIS_URL", "redis://127.0.0.1:6379")?,
             stream_prefix: env_var("WORKER_STREAM_PREFIX", "tangle:queue:")?,
-            stream_key: env_var("WORKER_STREAM_KEY", "chat.message.created")?,
+            stream_key: env_var("WORKER_STREAM_KEY", "")?,
             consumer_group: env_var("WORKER_CONSUMER_GROUP", "tangle-study-workers")?,
             consumer_name: env_var(
                 "WORKER_CONSUMER_NAME",
@@ -56,12 +68,6 @@ impl Config {
             replay_dry_run: env_var_parse("WORKER_REPLAY_DRY_RUN", false)?,
             replay_delete: env_var_parse("WORKER_REPLAY_DELETE", true)?,
             log_json: env_var_parse("WORKER_LOG_JSON", false)?,
-            api_base_url: env_var("API_BASE_URL", "http://127.0.0.1:5000")?,
-            worker_callback_secret: env_var("WORKER_CALLBACK_SECRET", "")?,
-            callback_timeout_ms: env_var_parse("WORKER_CALLBACK_TIMEOUT_MS", 30_000)?,
-            callback_connect_timeout_ms: env_var_parse("WORKER_CALLBACK_CONNECT_TIMEOUT_MS", 10_000)?,
-            callback_max_retries: env_var_parse("WORKER_CALLBACK_MAX_RETRIES", 3)?,
-            callback_retry_base_ms: env_var_parse("WORKER_CALLBACK_RETRY_BASE_MS", 500)?,
             metrics_port: env_var_parse("WORKER_METRICS_PORT", 9090_u16)?,
         })
     }
@@ -89,6 +95,42 @@ impl Config {
             bail!("unsupported worker stream key {}", self.stream_key)
         }
     }
+}
+
+impl CallbackConfig {
+    pub fn from_env() -> Result<Self> {
+        Ok(Self {
+            api_base_url: env_var("API_BASE_URL", "http://127.0.0.1:5000")?,
+            worker_callback_secret: env_var("WORKER_CALLBACK_SECRET", "")?,
+            timeout_ms: env_var_parse("WORKER_CALLBACK_TIMEOUT_MS", 30_000)?,
+            connect_timeout_ms: env_var_parse("WORKER_CALLBACK_CONNECT_TIMEOUT_MS", 10_000)?,
+            max_retries: env_var_parse("WORKER_CALLBACK_MAX_RETRIES", 3)?,
+            retry_base_ms: env_var_parse("WORKER_CALLBACK_RETRY_BASE_MS", 500)?,
+        })
+    }
+
+    pub fn validate_env(&self) -> Result<()> {
+        Config::require_non_empty(&self.worker_callback_secret, "WORKER_CALLBACK_SECRET")?;
+        Config::require_non_empty(&self.api_base_url, "API_BASE_URL")?;
+        Ok(())
+    }
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self> {
+        Ok(Self {
+            stream: StreamConfig::from_env()?,
+            callback: CallbackConfig::from_env()?,
+        })
+    }
+
+    pub fn full_stream_key(&self) -> String {
+        self.stream.full_stream_key()
+    }
+
+    pub fn dlq_stream_key(&self) -> String {
+        self.stream.dlq_stream_key()
+    }
 
     pub fn require_non_empty(value: &str, name: &str) -> Result<()> {
         if value.trim().is_empty() {
@@ -96,15 +138,9 @@ impl Config {
         }
         Ok(())
     }
-
-    pub fn validate_callback_env(&self) -> Result<()> {
-        Self::require_non_empty(&self.worker_callback_secret, "WORKER_CALLBACK_SECRET")?;
-        Self::require_non_empty(&self.api_base_url, "API_BASE_URL")?;
-        Ok(())
-    }
 }
 
-fn env_var(key: &str, default: &str) -> Result<String> {
+pub fn env_var(key: &str, default: &str) -> Result<String> {
     match env::var(key) {
         Ok(value) if !value.trim().is_empty() => Ok(value.trim().to_owned()),
         Ok(_) => Ok(default.to_owned()),
@@ -113,7 +149,7 @@ fn env_var(key: &str, default: &str) -> Result<String> {
     }
 }
 
-fn env_var_parse<T>(key: &str, default: T) -> Result<T>
+pub(crate) fn env_var_parse<T>(key: &str, default: T) -> Result<T>
 where
     T: std::str::FromStr,
     T::Err: std::error::Error + Send + Sync + 'static,
@@ -133,8 +169,8 @@ where
 mod tests {
     use super::*;
 
-    fn test_config(stream_key: &str) -> Config {
-        Config {
+    fn test_stream(stream_key: &str) -> StreamConfig {
+        StreamConfig {
             redis_url: String::new(),
             stream_prefix: "tangle:queue:".to_owned(),
             stream_key: stream_key.to_owned(),
@@ -151,28 +187,33 @@ mod tests {
             replay_dry_run: false,
             replay_delete: true,
             log_json: false,
-            api_base_url: "http://127.0.0.1:5000".to_owned(),
-            worker_callback_secret: "secret".to_owned(),
-            callback_timeout_ms: 30_000,
-            callback_connect_timeout_ms: 10_000,
-            callback_max_retries: 3,
-            callback_retry_base_ms: 500,
             metrics_port: 9090,
+        }
+    }
+
+    fn test_callback(secret: &str) -> CallbackConfig {
+        CallbackConfig {
+            api_base_url: "http://127.0.0.1:5000".to_owned(),
+            worker_callback_secret: secret.to_owned(),
+            timeout_ms: 30_000,
+            connect_timeout_ms: 10_000,
+            max_retries: 3,
+            retry_base_ms: 500,
         }
     }
 
     #[test]
     fn validate_stream_key_accepts_allowed_keys() {
-        let config = test_config("chat.message.created");
-        config
+        let stream = test_stream("chat.message.created");
+        stream
             .validate_stream_key(&["chat.message.created", "location.cluster"])
             .unwrap();
     }
 
     #[test]
     fn validate_stream_key_rejects_unknown_key() {
-        let config = test_config("unknown.stream");
-        let err = config
+        let stream = test_stream("unknown.stream");
+        let err = stream
             .validate_stream_key(&["chat.message.created"])
             .unwrap_err();
         assert!(err.to_string().contains("unsupported worker stream key"));
@@ -180,7 +221,55 @@ mod tests {
 
     #[test]
     fn full_stream_key_uses_prefix() {
-        let config = test_config("chat.message.created");
+        let stream = test_stream("chat.message.created");
+
+        assert_eq!(
+            stream.full_stream_key(),
+            "tangle:queue:chat.message.created"
+        );
+        assert_eq!(
+            stream.dlq_stream_key(),
+            "tangle:queue:chat.message.created.dlq"
+        );
+    }
+
+    #[test]
+    fn full_stream_key_without_prefix_returns_stream_key() {
+        let stream = StreamConfig {
+            stream_prefix: String::new(),
+            stream_key: "media.uploaded".to_owned(),
+            ..test_stream("media.uploaded")
+        };
+
+        assert_eq!(stream.full_stream_key(), "media.uploaded");
+    }
+
+    #[test]
+    fn callback_validate_env_requires_secret_and_api_base_url() {
+        let callback = test_callback("");
+        assert!(callback.validate_env().is_err());
+
+        let callback = CallbackConfig {
+            api_base_url: String::new(),
+            ..test_callback("secret")
+        };
+        assert!(callback.validate_env().is_err());
+
+        test_callback("secret").validate_env().unwrap();
+    }
+
+    #[test]
+    fn require_non_empty_rejects_blank_values() {
+        let err = Config::require_non_empty("   ", "TEST_VAR").unwrap_err();
+        assert!(err.to_string().contains("TEST_VAR is not configured"));
+    }
+
+    #[test]
+    fn config_delegates_stream_key_helpers() {
+        let config = Config {
+            stream: test_stream("chat.message.created"),
+            callback: test_callback("secret"),
+        };
 
         assert_eq!(
             config.full_stream_key(),

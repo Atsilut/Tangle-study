@@ -1,0 +1,22 @@
+[package]
+name = "worker-chat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Redis Streams consumer for Tangle chat.message.created jobs"
+publish.workspace = true
+
+[[bin]]
+name = "worker-chat"
+path = "src/main.rs"
+
+[dependencies]
+worker-core = { path = "../worker-core" }
+anyhow = "1.0"
+async-trait = "0.1"
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "streams"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.43", features = ["io-util", "macros", "rt-multi-thread", "signal"] }
+tracing = "0.1"

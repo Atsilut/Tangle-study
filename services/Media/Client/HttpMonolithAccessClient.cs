@@ -1,5 +1,5 @@
-using Media.Global.Config;
-using Media.Global.Exceptions;
+using Media.Config;
+using Media.Exceptions;
 using Microsoft.Extensions.Options;
 
 namespace Media.Client;
@@ -21,9 +21,6 @@ internal sealed class HttpMonolithAccessClient(
 
     public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
         PostAccessCheckAsync($"internal/access/comments/{commentId}/media-view", cancellationToken);
-
-    public Task EnsureCanAccessChatMessageMediaAsync(long chatMessageId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/chat-messages/{chatMessageId}/media-view", cancellationToken);
 
     private async Task PostAccessCheckAsync(string relativePath, CancellationToken cancellationToken)
     {

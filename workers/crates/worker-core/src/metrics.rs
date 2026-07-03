@@ -141,13 +141,13 @@ pub fn record_job_processed(stream_key: &str, outcome: JobOutcome) {
 pub async fn refresh_queue_gauges(conn: &mut ConnectionManager, config: &Config) -> Result<()> {
     let stream = config.full_stream_key();
     let pending: redis::streams::StreamPendingReply = conn
-        .xpending(&stream, &config.consumer_group)
+        .xpending(&stream, &config.stream.consumer_group)
         .await
         .with_context(|| format!("XPENDING summary on stream {stream}"))?;
 
     gauge!(
         "tangle_worker_pending_messages",
-        "stream_key" => config.stream_key.clone()
+        "stream_key" => config.stream.stream_key.clone()
     )
     .set(pending.count() as f64);
 
@@ -159,7 +159,7 @@ pub async fn refresh_queue_gauges(conn: &mut ConnectionManager, config: &Config)
 
     gauge!(
         "tangle_worker_dlq_length",
-        "stream_key" => config.stream_key.clone()
+        "stream_key" => config.stream.stream_key.clone()
     )
     .set(dlq_length as f64);
 

@@ -1,0 +1,30 @@
+# Docker Compose dev values for Rust workers.
+#
+# These anchors are merged into docker-compose.yml (x-worker-* extension fields).
+# Docker Compose include does not share YAML anchors across files, so the live
+# anchors live in the root compose file — keep both files aligned.
+#
+# Canonical reference: workers/config/workers.yml
+
+x-worker-common: &worker-common
+  REDIS_URL: redis://redis:6379
+  WORKER_STREAM_PREFIX: "tangle:queue:"
+  WORKER_CONSUMER_GROUP: tangle-study-workers
+  WORKER_METRICS_PORT: "9090"
+  RUST_LOG: info
+
+x-worker-chat-env: &worker-chat-env
+  <<: *worker-common
+  API_BASE_URL: http://chat:8080
+
+x-worker-media-env: &worker-media-env
+  <<: *worker-common
+  API_BASE_URL: http://media:8080
+  WORKER_CALLBACK_SECRET: dev-media-worker-secret
+  AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+  MEDIA_CONTAINER_NAME: tangle-media
+
+x-worker-location-env: &worker-location-env
+  <<: *worker-common
+  API_BASE_URL: http://api:8080
+  WORKER_CALLBACK_SECRET: dev-media-worker-secret

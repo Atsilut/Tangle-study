@@ -16,7 +16,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **groups** | `Domain/Groups/` | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, `api/groups/{id}/boards/{id}/posts` | Implemented |
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
-| **chat** | `Domain/Chat/` | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | Implemented |
+| **chat** | [`services/Chat/`](../services/Chat/) | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | **Extracted (Compose)** — [CHAT.md](../services/Chat/CHAT.md); Azure CD pending |
 | **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
 | **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
 
@@ -83,17 +83,22 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 ### chat-service
 
-**Owns:** chat rooms, messages, participants, SignalR hub.
+**Extracted in local Compose (MSA step 2).** API reference: [CHAT.md](../services/Chat/CHAT.md).
+
+**Owns:** chat rooms, messages, participants, SignalR hub in Postgres `chat` schema.
 
 **Depends on:**
-- **users** — participants, sender identity
+- **users** — participants, sender identity (via `IMonolithAccessClient`)
 - **groups** — `PlatformGroup` room type ties to a group ID — cross-service contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
+- **media** — chat message attachments (via `IMediaClient`)
 
-**Async:** enqueues `chat.message.created` to Redis Streams after persist ([QUEUE.md](../services/Api/Global/Queue/QUEUE.md)).
+**Async:** enqueues `chat.message.created` to Redis Streams after persist; `rust-worker-chat` callbacks to chat-service.
 
-**Realtime:** SignalR hub stays with this service. Redis backplane for multi-replica scale-out.
+**Realtime:** SignalR `/hubs/chat` — Redis backplane for multi-replica scale-out.
 
-Hub contract: [CHAT.md](../services/Api/Domain/Chat/CHAT.md).
+**Monolith boundary:** user deletion calls `IChatClient.DetachOnDeletionAsync`; media links via `IChatAccessClient`.
+
+Hub contract: [CHAT.md](../services/Chat/CHAT.md).
 
 ### media-service
 
@@ -141,6 +146,14 @@ Client → nginx → media-service (presigned URL) → object storage
 **Async:** `location.cluster` stream → `rust-worker-location` for interim pin clustering (zoom 2–4).
 
 **Web:** React `/map` — MapLibre, pins, clusters, group live overlay, sharing status, SOS.
+
+---
+
+## Internal service authentication
+
+Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Api, Chat), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Monolith:InternalSecret`, `ChatClient:InternalSecret`).
+
+Worker callbacks use separate secrets: `X-Worker-Callback-Secret` on media and location processed routes — see [MEDIA.md](../services/Media/MEDIA.md).
 
 ---
 
@@ -210,36 +223,44 @@ services/Api/
   Global/...
 ```
 
-**Extracted microservice (flat):**
+**Extracted microservice (flat folders, namespaced layers):**
+
+Physical folders sit at the service root — no `Global/` parent directory. **Logical** grouping uses the `{Service}.Global.*` namespace for the copied infra slice (same code that lived under `Api/Global/` during monolith extraction).
 
 ```text
-services/Media/          → root namespace Media.*
-  Api/                   → Media.Api
-  Service/               → Media.Service
-  Repository/            → Media.Repository
-  Dto/                   → Media.Dto
-  Entities/              → Media (MediaAsset, enums)
-  Storage/               → Media.Storage
-  Client/                → Media.Client (outbound HTTP to other services)
-  Global/                → Media.Global.* (Db, Security, Queue, Telemetry — copied infra slice)
+services/Media/          → namespace layer decides domain vs global
+  Api/                   → Media.Api              (domain)
+  Service/               → Media.Service          (domain)
+  Repository/            → Media.Repository       (domain)
+  Dto/                   → Media.Dto              (domain)
+  Entities/              → Media                  (domain)
+  Storage/               → Media.Storage          (domain)
+  Client/                → Media.Client           (domain)
+  Config/                → Media.Config           (domain options, e.g. upload limits)
+                         → Media.Global.Config    (platform: Redis, Metrics, Swagger filter)
+  Db/                    → Media.Global.Db
+  Security/              → Media.Global.Security
+  Queue/                 → Media.Global.Queue
+  Telemetry/             → Media.Global.Telemetry
+  Exceptions/            → Media.Global.Exceptions
+  Infrastructure/        → Media.Global.Infrastructure
   Migrations/
   Program.cs
-  {Service}.csproj
-  Dockerfile
 ```
 
-| Folder | Purpose |
-|--------|---------|
-| `Api/` | Controllers |
-| `Service/` | Application services |
-| `Repository/` | EF/data access |
-| `Dto/` | Request/response records |
-| `Entities/` | Domain entities and enums owned by this service |
-| `Storage/` | Blob/object storage adapters |
-| `Client/` | Typed HTTP clients for other services |
-| `Global/` | Cross-cutting infra shared within the service (not a separate NuGet yet) |
+| Layer | Folders | Namespace | Examples |
+|-------|---------|-----------|----------|
+| **Domain** | `Api/`, `Service/`, `Repository/`, `Dto/`, `Entities/`, `Storage/`, `Client/`, `Config/` (domain-only) | `{Service}.*` | `MediaService`, `MediaAsset`, `MediaOptions` |
+| **Global infra** | `Db/`, `Security/`, `Queue/`, `Telemetry/`, `Exceptions/`, `Infrastructure/`, `Config/` (platform) | `{Service}.Global.*` | `MediaDbContext`, `JwtBearerValidator`, `RedisOptions`, `GlobalExceptionHandler` |
 
-Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*`, `Location.*`, etc.
+**Rules:**
+
+1. **Folder ≠ namespace required** — `Config/RedisOptions.cs` can live beside `Config/MediaOptions.cs`; namespace distinguishes platform (`Media.Global.Config`) from domain (`Media.Config`).
+2. **Dependency direction** — domain may import global; global **must not** reference domain (`Service/`, `Repository/`, `Entities/`, etc.). Keeps the infra slice copy-pasteable across extractions.
+3. **Monolith keeps `Global/` folder** — `Api` has many `Domain/*` siblings, so a physical `Global/` directory still separates cross-cutting code from bounded contexts. Extracted services drop the folder but keep the namespace segment.
+4. **Future consolidation** — when duplication hurts, promote the infra slice to a shared NuGet (e.g. `Tangle.ServiceInfrastructure`) and replace `{Service}.Global.*` with package references. Until then, copy-on-extract + namespace convention keeps intent clear.
+
+Future extractions (`services/Chat/`, `services/Location/`, …) follow the same shape with root namespace `Chat.*` / `Chat.Global.*`, etc.
 
 ---
 

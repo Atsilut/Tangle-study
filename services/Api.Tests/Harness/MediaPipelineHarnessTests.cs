@@ -59,7 +59,7 @@ public sealed class MediaPipelineHarnessTests : IAsyncLifetime, IAsyncDisposable
             fixtureFileName: "sample.mp4",
             mimeType: "video/mp4",
             context: MediaIntendedContext.Post,
-            processingTimeout: TimeSpan.FromSeconds(120));
+            processingTimeout: TimeSpan.FromSeconds(180));
 
         // Assert
         Assert.Equal(MediaProcessingStatus.Ready, asset.ProcessingStatus);

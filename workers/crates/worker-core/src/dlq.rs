@@ -118,9 +118,9 @@ pub async fn fetch_stream_entry(
 pub async fn run_replay(conn: &mut ConnectionManager, config: &Config) -> Result<()> {
     let dlq_stream = config.dlq_stream_key();
     let target_stream = config.full_stream_key();
-    let count = config.replay_count;
-    let dry_run = config.replay_dry_run;
-    let delete_after = config.replay_delete;
+    let count = config.stream.replay_count;
+    let dry_run = config.stream.replay_dry_run;
+    let delete_after = config.stream.replay_delete;
 
     info!(
         dlq_stream = %dlq_stream,
@@ -267,5 +267,26 @@ mod tests {
         };
 
         assert!(parse_dlq_entry(&entry).is_err());
+    }
+
+    #[test]
+    fn parse_dlq_entry_rejects_empty_type() {
+        let mut map = HashMap::new();
+        map.insert(
+            FIELD_TYPE.to_owned(),
+            Value::BulkString(b"   ".to_vec()),
+        );
+        map.insert(
+            FIELD_PAYLOAD.to_owned(),
+            Value::BulkString(br#"{"messageId":1}"#.to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "9-0".to_owned(),
+            map,
+        };
+
+        let err = parse_dlq_entry(&entry).unwrap_err();
+        assert!(err.to_string().contains("empty `type`"));
     }
 }

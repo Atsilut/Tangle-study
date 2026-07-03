@@ -1,5 +1,3 @@
-using Api.Domain.Chat.Config;
-using Api.Domain.Chat.Realtime;
 using Api.Domain.Location.Config;
 using Api.Domain.Location.Realtime;
 using Api.Domain.Location.Service;
@@ -51,8 +49,6 @@ builder.Configuration
     .AddEnvironmentVariables();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
-builder.Services.Configure<ChatMessagePolicyOptions>(
-    builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
 builder.Services.Configure<LocationSafetyOptions>(
     builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
 builder.Services.Configure<LocationClusterOptions>(
@@ -135,6 +131,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleWorkerCallbackAuth(builder.Configuration);
 builder.Services.AddTangleMediaClient(builder.Configuration);
+builder.Services.AddTangleChatClient(builder.Configuration);
 builder.Services.AddTanglePlaces(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -208,7 +205,6 @@ app.UseAuthorization();
 app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 
 app.MapControllers();
-app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<LocationHub>("/hubs/location");
 app.MapHealthChecks("/health");
 app.MapMetrics();

@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using Media.Storage;
 using Media;
 using Media.Dto;
-using Media.Global.Config;
-using Media.Global.Queue;
-using Media.Global.Security;
+using Media.Config;
+using Media.Queue;
+using Media.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 

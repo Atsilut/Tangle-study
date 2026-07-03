@@ -1,27 +1,15 @@
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use redis::streams::StreamId;
-use redis::Value;
-use worker_core::message::extract_envelope_fields;
+use worker_core::error::wrap_malformed;
+use worker_core::message::decode_typed_job;
 
-use crate::config::{MediaUploadedJob, STREAM_KEY};
+use crate::config::STREAM_KEY;
+use crate::job::MediaUploadedJob;
 
 pub fn decode_media_uploaded(entry: &StreamId) -> Result<MediaUploadedJob> {
-    let job: MediaUploadedJob = decode_job(STREAM_KEY, entry)?;
-    job.validate()?;
+    let job: MediaUploadedJob = decode_typed_job(STREAM_KEY, entry)?;
+    job.validate().map_err(wrap_malformed)?;
     Ok(job)
-}
-
-fn decode_job<T: serde::de::DeserializeOwned>(expected_type: &str, entry: &StreamId) -> Result<T> {
-    let (job_type, payload) = extract_envelope_fields(entry)?;
-    if job_type != expected_type {
-        bail!(
-            "unexpected job type {job_type:?}, expected {expected_type:?} (entry id {})",
-            entry.id
-        );
-    }
-
-    serde_json::from_str(&payload)
-        .with_context(|| format!("deserialize payload for entry {}", entry.id))
 }
 
 #[cfg(test)]
@@ -30,7 +18,8 @@ mod tests {
 
     use super::*;
     use redis::streams::StreamId;
-    use worker_core::message::is_malformed_entry;
+    use redis::Value;
+    use worker_core::error::is_malformed;
 
     #[test]
     fn decodes_media_uploaded_payload() {
@@ -83,7 +72,28 @@ mod tests {
             };
 
             let err = decode_media_uploaded(&entry).unwrap_err();
-            assert!(is_malformed_entry(&err), "targetMaxBytes={target_max_bytes}");
+            assert!(is_malformed(&err), "targetMaxBytes={target_max_bytes}");
         }
+    }
+
+    #[test]
+    fn malformed_entry_detects_invalid_json_payload() {
+        let mut map = HashMap::new();
+        map.insert(
+            "type".to_owned(),
+            Value::BulkString(b"media.uploaded".to_vec()),
+        );
+        map.insert(
+            "payload".to_owned(),
+            Value::BulkString(b"not-json".to_vec()),
+        );
+
+        let entry = StreamId {
+            id: "2-0".to_owned(),
+            map,
+        };
+
+        let err = decode_media_uploaded(&entry).unwrap_err();
+        assert!(is_malformed(&err));
     }
 }

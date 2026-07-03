@@ -7,6 +7,4 @@ public interface IMonolithAccessClient
     public Task EnsureCanViewPostMediaAsync(long postId, CancellationToken cancellationToken = default);
 
     public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default);
-
-    public Task EnsureCanAccessChatMessageMediaAsync(long chatMessageId, CancellationToken cancellationToken = default);
 }

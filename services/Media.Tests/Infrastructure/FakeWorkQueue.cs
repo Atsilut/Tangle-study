@@ -1,4 +1,4 @@
-using Media.Global.Queue;
+using Media.Queue;
 
 namespace Media.Tests.Infrastructure;
 
