@@ -136,6 +136,48 @@ public sealed class InternalAccessController(
         return NoContent();
     }
 
+    [HttpPost("posts/{postId:long}/validate-owner")]
+    public async Task<IActionResult> ValidatePostOwner([FromRoute] long postId)
+    {
+        await postService.EnsureCallerOwnsPostAsync(postId);
+        return NoContent();
+    }
+
+    [HttpPost("posts/viewable-ids")]
+    public async Task<ActionResult<InternalAccessViewablePostsResponseDto>> GetViewablePostIds(
+        [FromBody] InternalAccessViewablePostsRequestDto request)
+    {
+        var viewable = await postService.GetViewablePostIdsAsync(request.PostIds, request.ViewerUserId);
+        return Ok(new InternalAccessViewablePostsResponseDto([.. viewable]));
+    }
+
+    [HttpPost("users/blocks/mutual-ids")]
+    public async Task<ActionResult<InternalAccessMutualBlocksResponseDto>> GetMutualBlockIds(
+        [FromBody] InternalAccessMutualBlocksRequestDto request)
+    {
+        var blocked = await userBlockService.GetMutuallyBlockedUserIdsAsync(request.UserId, request.OtherUserIds);
+        return Ok(new InternalAccessMutualBlocksResponseDto([.. blocked]));
+    }
+
+    [HttpGet("groups/{groupId:long}/members/for-member")]
+    public async Task<ActionResult<InternalAccessGroupMembersResponseDto>> GetGroupMembersForMember(
+        [FromRoute] long groupId)
+    {
+        var callerId = GetCallerUserId();
+        var members = await groupMembershipService.GetMembersForMemberAsync(groupId, callerId);
+        return Ok(new InternalAccessGroupMembersResponseDto(
+            [.. members.Select(m => new InternalAccessGroupMemberEntryDto(m.UserId, m.Nickname))]));
+    }
+
+    [HttpGet("groups/{groupId:long}/member-ids")]
+    public async Task<ActionResult<InternalAccessGroupMemberIdsResponseDto>> GetGroupMemberIds(
+        [FromRoute] long groupId)
+    {
+        await groupService.EnsureGroupExistsAsync(groupId);
+        var memberIds = await groupMembershipService.GetMemberUserIdsAsync(groupId);
+        return Ok(new InternalAccessGroupMemberIdsResponseDto([.. memberIds]));
+    }
+
     private long GetCallerUserId() =>
         long.Parse(User.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
