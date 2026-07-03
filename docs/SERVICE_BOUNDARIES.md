@@ -18,7 +18,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
 | **chat** | [`services/Chat/`](../services/Chat/) | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | **Extracted (Compose)** — [CHAT.md](../services/Chat/CHAT.md); Azure CD pending |
 | **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
-| **location** | `Domain/Location/` | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | Implemented — [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) |
+| **location** | [`services/Location/`](../services/Location/) | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | **Extracted (Compose)** — [LOCATION.md](../services/Location/LOCATION.md); Azure CD pending |
 
 ---
 
@@ -129,23 +129,28 @@ Client → nginx → media-service (presigned URL) → object storage
 
 ### location-service
 
-**Implemented in monolith** (`Domain/Location/`). Extraction target at [MSA step 3](MSA_MIGRATION.md#extraction-order) after Phase 7 E2E proof. See [LOCATION.md](../services/Api/Domain/Location/LOCATION.md).
+**Extracted on develop** ([`services/Location/`](../services/Location/)). See [LOCATION.md](../services/Location/LOCATION.md) and [MSA step 3](MSA_MIGRATION.md#step-3--location-service-develop-done).
 
 **Owns:**
-- Geo metadata on content (`MapPin`, optional post location) — Postgres
+- Geo metadata on content (`MapPin`, optional post location) — Postgres `location` schema
 - Live location sessions (`LocationSession` with `groupId`) — Postgres headers + Redis TTL positions
 - Safety alerts (stale position monitor, manual SOS) — SignalR `SafetyAlertRaised`
+- Google Places proxy (`/api/location/places/*`)
 
-**Depends on:**
-- **users** — nicknames, blocks
+**Depends on (via `HttpMonolithAccessClient`):**
+- **users** — existence, nicknames, blocks
 - **groups** — membership for live sharing and alerts
-- **posts** (optional) — location-tagged content for Memory Map
+- **posts** (optional) — ownership and viewability for post-linked pins
+
+**Monolith integration:** `ILocationClient` — post upsert/clear, user detach on deletion, group session end on group delete.
 
 **Realtime:** SignalR `/hubs/location` — `LocationUpdated`, `SafetyAlertRaised`; group-scoped live sharing.
 
-**Async:** `location.cluster` stream → `rust-worker-location` for interim pin clustering (zoom 2–4).
+**Async:** `location.cluster` stream → `rust-worker-location` for interim pin clustering (zoom 2–4). Worker `API_BASE_URL=http://location:8080` in Compose.
 
 **Web:** React `/map` — MapLibre, pins, clusters, group live overlay, sharing status, SOS.
+
+**Remaining:** Azure Container App + `nginx.production.conf` strangler; optional data backfill from legacy `public` → `location` schema for existing dev DBs.
 
 ---
 

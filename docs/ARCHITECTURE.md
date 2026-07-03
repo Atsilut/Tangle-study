@@ -8,9 +8,9 @@ Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../servi
 
 ## Current state (as-built)
 
-The monolith (`services/Api`) still owns most domains and the `public` schema. **Media and chat are extracted deployables:** `services/Media` and `services/Chat` run as separate Compose services; Nginx routes media and chat paths to them. The monolith calls media over HTTP (`IMediaClient`) and chat over HTTP (`IChatClient`) for cross-domain operations. Monolith ownership of `Domain/Media/` and `Domain/Chat/` has been removed — uploads live in the `media` schema; chat rows live in the `chat` schema.
+The monolith (`services/Api`) still owns most domains and the `public` schema. **Media, chat, and location are extracted deployables:** `services/Media`, `services/Chat`, and `services/Location` run as separate Compose services; Nginx routes their paths to them. The monolith calls media over HTTP (`IMediaClient`), chat over HTTP (`IChatClient`), and location over HTTP (`ILocationClient`) for cross-domain operations. Monolith ownership of `Domain/Media/`, `Domain/Chat/`, and `Domain/Location/` has been removed — uploads live in the `media` schema; chat rows in `chat`; pins and sessions in `location`.
 
-PostgreSQL remains one instance (schema-per-service for media). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
+PostgreSQL remains one instance (schema-per-service for media, chat, and location). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
 
 ```mermaid
 flowchart TB
@@ -19,6 +19,7 @@ flowchart TB
   API["Api monolith"]
   Media["media-service (Compose)"]
   Chat["chat-service (Compose)"]
+  Location["location-service (Compose)"]
   PG[(PostgreSQL)]
   Redis[(Redis)]
   WorkerMedia["rust-worker-media"]
@@ -30,26 +31,34 @@ flowchart TB
   Web --> Nginx
   Nginx -->|"/api/media/*"| Media
   Nginx -->|"/api/chat/*, /hubs/chat"| Chat
-  Nginx -->|"/api/* (other), /hubs/location"| API
+  Nginx -->|"/api/location/*, /hubs/location"| Location
+  Nginx -->|"/api/* (other)"| API
   API -->|HTTP internal| Media
   API -->|HTTP internal| Chat
+  API -->|HTTP internal| Location
   Chat -->|HTTP internal| Media
+  Location -->|HTTP internal| API
   Chat --> PG
   Media --> PG
+  Location --> PG
   API --> PG
   API --> Redis
   Media --> Redis
   Chat --> Redis
+  Location --> Redis
   Redis --> WorkerMedia
   Redis --> WorkerChat
   Redis --> WorkerLocation
   WorkerMedia -->|PATCH /internal/media/.../processed| Media
   WorkerChat -->|chat.message.created callback| Chat
+  WorkerLocation -->|cluster GET/PUT| Location
   API --> Prom
   Media --> Prom
   Chat --> Prom
+  Location --> Prom
   WorkerMedia --> Prom
   WorkerChat --> Prom
+  WorkerLocation --> Prom
   Prom --> Graf
 ```
 
@@ -69,13 +78,15 @@ Cross-process work paths:
 media-service (CompleteUpload) → Redis Stream media.uploaded → rust-worker-media → PATCH media-service /internal/media/{id}/processed
 
 chat-service (ChatMessageService) → Redis Stream chat.message.created → rust-worker-chat → callback → chat-service
+
+location-service (MapPinService) → Redis Stream location.cluster → rust-worker-location → GET/PUT location-service /internal/location/cluster-*
 ```
 
 See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [services/Media/MEDIA.md](../services/Media/MEDIA.md), [services/Chat/CHAT.md](../services/Chat/CHAT.md), and [workers/README.md](../workers/README.md).
 
 ### Realtime
 
-Chat uses SignalR (`/hubs/chat`) in the chat-service. With Redis enabled, the SignalR backplane allows multiple chat replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md) and [CHAT.md](../services/Chat/CHAT.md).
+Chat uses SignalR (`/hubs/chat`) in the chat-service. Location uses SignalR (`/hubs/location`) in the location-service. With Redis enabled, the SignalR backplane allows multiple replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md), [CHAT.md](../services/Chat/CHAT.md), and [LOCATION.md](../services/Location/LOCATION.md).
 
 ### Observability
 
@@ -197,8 +208,10 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 
 ```
 /services
-  /Api          ← monolith; media code shrinks during Phase 9
-  /Media        ← first extracted service (Compose)
+  /Api          ← monolith; extracted domains shrink during Phase 9
+  /Media        ← extracted service (Compose)
+  /Chat         ← extracted service (Compose)
+  /Location     ← extracted service (Compose)
 /clients/web    ← React client (Phase 6–7: includes Memory Map at /map); MAUI optional later
 /workers
   /crates/worker-core, worker-media  ← media worker binary
@@ -210,7 +223,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 /docs           ← architecture and migration docs (this folder)
 ```
 
-Solution file (`Tangle.slnx`) includes `Api`, `Api.Tests`, and `Media`. Workers and infra are folders outside the .NET solution.
+Solution file (`Tangle.slnx`) includes `Api`, `Api.Tests`, `Media`, `Media.Tests`, `Chat`, `Chat.Tests`, `Location`, and `Location.Tests`. Workers and infra are folders outside the .NET solution.
 
 ---
 

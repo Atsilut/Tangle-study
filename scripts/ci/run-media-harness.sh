@@ -29,6 +29,21 @@ fi
 SKIP_PUBLISH="${SKIP_PUBLISH:-0}"
 SKIP_WORKERS="${SKIP_WORKERS:-0}"
 SKIP_COMPOSE_BUILD="${SKIP_COMPOSE_BUILD:-0}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tangle-study}"
+STACK_ARTIFACT="${STACK_ARTIFACT:-harness-stack.tar}"
+
+ensure_stack_images_loaded() {
+  local api_image="${COMPOSE_PROJECT_NAME}-api"
+  if docker image inspect "$api_image" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local tar_path="$STACK_ARTIFACT"
+  [[ "$tar_path" == /* ]] || tar_path="${ROOT}/${tar_path}"
+  [[ -f "$tar_path" ]] || fail "missing stack images ($api_image) and no ${STACK_ARTIFACT} — run ./scripts/ci/compose-build-stack.sh first"
+
+  bash "$ROOT/scripts/ci/load-compose-stack.sh" "$tar_path"
+}
 
 api_tests_dll() {
   echo "${ROOT}/services/Api.Tests/bin/Release/net10.0/Api.Tests.dll"
@@ -47,10 +62,11 @@ api_tests_need_rebuild() {
     [[ "${src_dir}/${fixture}" -nt "${out_dir}/${fixture}" ]] && return 0
   done
   [[ "${ROOT}/services/Api.Tests/Api.Tests.csproj" -nt "$dll" ]] && return 0
+  [[ "${ROOT}/services/Api/Api.csproj" -nt "$dll" ]] && return 0
 
   while IFS= read -r -d '' cs_file; do
     [[ "$cs_file" -nt "$dll" ]] && return 0
-  done < <(find "${ROOT}/services/Api.Tests" -name '*.cs' -print0)
+  done < <(find "${ROOT}/services/Api.Tests" "${ROOT}/services/Api" -name '*.cs' -print0)
 
   return 1
 }
@@ -100,11 +116,14 @@ fi
 if [[ "$SKIP_COMPOSE_BUILD" != "1" ]]; then
   log_step "BUILD HARNESS STACK IMAGES"
   COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-}" bash "$ROOT/scripts/ci/compose-build-stack.sh"
-elif docker image inspect "$SDK_IMAGE" >/dev/null 2>&1; then
-  log_info "harness SDK image already available ($SDK_IMAGE)"
 else
-  log_step "BUILD HARNESS SDK IMAGE"
-  docker compose "${COMPOSE_ARGS[@]}" build harness
+  ensure_stack_images_loaded
+  if docker image inspect "$SDK_IMAGE" >/dev/null 2>&1; then
+    log_info "harness SDK image already available ($SDK_IMAGE)"
+  else
+    log_step "BUILD HARNESS SDK IMAGE"
+    docker compose "${COMPOSE_ARGS[@]}" build harness
+  fi
 fi
 
 log_step "START HARNESS STACK"
