@@ -14,6 +14,8 @@ public static partial class DependencyInjection
 
     public static IServiceCollection AddCustomDependencies(this IServiceCollection services)
     {
+        services.AddTransient(typeof(Lazy<>), typeof(LazyService<>));
+
         var assembly = Assembly.GetExecutingAssembly();
 
         var types = assembly.GetTypes()

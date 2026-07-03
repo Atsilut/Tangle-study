@@ -7,4 +7,6 @@ public class RedisOptions
     public string ConnectionString { get; set; } = string.Empty;
 
     public string WorkQueueStreamPrefix { get; set; } = string.Empty;
+
+    public string SignalRChannelPrefix { get; set; } = string.Empty;
 }

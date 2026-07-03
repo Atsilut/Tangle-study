@@ -1,6 +1,7 @@
 # Service config baked into the image. CD may replace this file or override via env (Redis__WorkQueueStreamPrefix).
 Redis:
   WorkQueueStreamPrefix: "tangle:queue:"
+  SignalRChannelPrefix: "tangle:signalr:"
 
 Chat:
   EditWindowMinutes: 15
