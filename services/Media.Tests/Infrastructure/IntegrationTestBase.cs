@@ -7,13 +7,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
-        bool redisEnabled = false,
-        string? redisConnectionString = null)
+        RedisTestcontainerFixture redis)
     {
         Factory = new MediaWebApplicationFactory(
             postgres.ConnectionString,
-            redisEnabled,
-            redisConnectionString);
+            redis.ConnectionString);
         Client = Factory.CreateClient();
     }
 

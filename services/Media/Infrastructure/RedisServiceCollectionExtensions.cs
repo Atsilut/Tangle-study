@@ -13,12 +13,6 @@ public static class RedisServiceCollectionExtensions
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
         var options = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString))
-        {
-            services.AddSingleton<IWorkQueue, NoOpWorkQueue>();
-            return services;
-        }
-
         RedisStartupValidator.Validate(options);
 
         var redisConfiguration = ParseRedisConfiguration(options.ConnectionString);

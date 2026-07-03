@@ -83,14 +83,13 @@ var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnec
 var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddNpgSql(defaultConnection, name: "postgres");
 
-var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
-if (!string.IsNullOrWhiteSpace(redisConfig?.ConnectionString))
-{
-    healthChecksBuilder.AddRedis(
-        redisConfig.ConnectionString,
-        name: "redis",
-        timeout: TimeSpan.FromSeconds(5));
-}
+var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>()
+    ?? throw new InvalidOperationException("Redis configuration section is missing.");
+RedisStartupValidator.Validate(redisConfig);
+healthChecksBuilder.AddRedis(
+    redisConfig.ConnectionString,
+    name: "redis",
+    timeout: TimeSpan.FromSeconds(5));
 
 healthChecksBuilder.ForwardToPrometheus();
 
@@ -102,12 +101,7 @@ JwtStartupValidator.Validate(app.Environment, jwtOptions);
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
-var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
-RedisStartupValidator.Validate(redisOptions);
-if (!string.IsNullOrWhiteSpace(redisOptions.ConnectionString))
-    logger.LogInformation("Redis configured (work queue).");
-else
-    logger.LogInformation("Redis connection string empty; work queue uses no-op implementation.");
+logger.LogInformation("Redis configured (work queue).");
 
 logger.LogInformation("Media blob storage configured.");
 

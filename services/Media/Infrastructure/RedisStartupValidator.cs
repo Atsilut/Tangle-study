@@ -7,7 +7,11 @@ public static class RedisStartupValidator
     public static void Validate(RedisOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
-            return;
+        {
+            throw new InvalidOperationException(
+                "Redis:ConnectionString is not configured. Start Redis (docker compose up redis) "
+                + "or set Redis__ConnectionString.");
+        }
 
         if (string.IsNullOrWhiteSpace(options.WorkQueueStreamPrefix))
         {
