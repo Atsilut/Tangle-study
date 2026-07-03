@@ -242,6 +242,7 @@ public sealed class MediaServiceUnitTests
             serviceProvider,
             new MediaLimitPolicy(mediaOptions),
             new AllowAllMonolithAccessClient(),
+            new AllowAllChatAccessClient(),
             workQueue,
             mediaOptions,
             http);

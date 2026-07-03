@@ -4,27 +4,21 @@ using Microsoft.Extensions.Options;
 
 namespace Media.Client;
 
-internal sealed class HttpMonolithAccessClient(
+internal sealed class HttpChatAccessClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<MonolithOptions> options) : IMonolithAccessClient
+    IOptions<ChatClientOptions> options) : IChatAccessClient
 {
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly MonolithOptions _options = options.Value;
+    private readonly ChatClientOptions _options = options.Value;
 
-    public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/users/{userId}/exists", cancellationToken);
-
-    public Task EnsureCanViewPostMediaAsync(long postId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/posts/{postId}/media-view", cancellationToken);
-
-    public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/comments/{commentId}/media-view", cancellationToken);
+    public Task EnsureCanAccessChatMessageMediaAsync(long chatMessageId, CancellationToken cancellationToken = default) =>
+        PostAccessCheckAsync($"internal/chat/messages/{chatMessageId}/media-view", cancellationToken);
 
     private async Task PostAccessCheckAsync(string relativePath, CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));
+        var client = _httpClientFactory.CreateClient(nameof(HttpChatAccessClient));
         using var request = new HttpRequestMessage(HttpMethod.Post, relativePath);
 
         var authorization = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
@@ -47,7 +41,7 @@ internal sealed class HttpMonolithAccessClient(
             throw new AccessForbiddenException(await ReadBodyAsync(response, cancellationToken));
 
         throw new InvalidOperationException(
-            $"Monolith access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");
+            $"Chat access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");
     }
 
     private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)

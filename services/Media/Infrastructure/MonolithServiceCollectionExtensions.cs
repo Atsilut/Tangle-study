@@ -40,7 +40,4 @@ internal sealed class UnconfiguredMonolithAccessClient : Media.Client.IMonolithA
 
     public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
         throw NotConfigured();
-
-    public Task EnsureCanAccessChatMessageMediaAsync(long chatMessageId, CancellationToken cancellationToken = default) =>
-        throw NotConfigured();
 }

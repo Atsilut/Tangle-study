@@ -73,6 +73,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMedia(builder.Configuration);
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleChatAccess(builder.Configuration);
 
 builder.Services.AddDbContext<MediaDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

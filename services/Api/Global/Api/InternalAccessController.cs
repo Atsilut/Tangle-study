@@ -1,4 +1,4 @@
-using Api.Domain.Chat.Service;
+using Api.Client;
 using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
@@ -18,7 +18,6 @@ public sealed class InternalAccessController(
     UserService userService,
     PostService postService,
     CommentService commentService,
-    ChatMessageService chatMessageService,
     FriendshipService friendshipService,
     UserBlockService userBlockService,
     GroupService groupService,
@@ -134,13 +133,6 @@ public sealed class InternalAccessController(
     public async Task<IActionResult> EnsureCanViewCommentMedia([FromRoute] long commentId)
     {
         await commentService.EnsureCanViewCommentMediaAsync(commentId);
-        return NoContent();
-    }
-
-    [HttpPost("chat-messages/{chatMessageId:long}/media-view")]
-    public async Task<IActionResult> EnsureCanViewChatMessageMedia([FromRoute] long chatMessageId)
-    {
-        await chatMessageService.EnsureCurrentUserCanAccessMessageAsync(chatMessageId);
         return NoContent();
     }
 

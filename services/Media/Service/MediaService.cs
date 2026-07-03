@@ -17,6 +17,7 @@ public sealed class MediaService(
     IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
     IMonolithAccessClient monolithAccess,
+    IChatAccessClient chatAccess,
     IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
     IHttpContextAccessor httpContextAccessor)
@@ -27,6 +28,7 @@ public sealed class MediaService(
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IChatAccessClient _chatAccess = chatAccess;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -408,7 +410,7 @@ public sealed class MediaService(
 
         if (asset.ChatMessageId is long messageId)
         {
-            await _monolithAccess.EnsureCanAccessChatMessageMediaAsync(messageId);
+            await _chatAccess.EnsureCanAccessChatMessageMediaAsync(messageId);
             return;
         }
 

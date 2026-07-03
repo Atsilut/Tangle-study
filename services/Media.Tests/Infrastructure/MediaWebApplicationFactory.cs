@@ -42,6 +42,8 @@ public sealed class MediaWebApplicationFactory(
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
+        builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
+        builder.UseSetting("ChatClient:InternalSecret", TestInternalServiceSecret);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -55,6 +57,8 @@ public sealed class MediaWebApplicationFactory(
                 ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["ChatClient:BaseUrl"] = "http://chat.test",
+                ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
                 ["Jwt:Secret"] = TestJwtSecret,
                 ["Jwt:Issuer"] = TestJwtIssuer,
                 ["Jwt:Audience"] = TestJwtAudience,
@@ -69,6 +73,9 @@ public sealed class MediaWebApplicationFactory(
 
             RemoveService<IMonolithAccessClient>(services);
             services.AddSingleton<IMonolithAccessClient, AllowAllMonolithAccessClient>();
+
+            RemoveService<IChatAccessClient>(services);
+            services.AddSingleton<IChatAccessClient, AllowAllChatAccessClient>();
         });
 
         builder.ConfigureServices(services =>
