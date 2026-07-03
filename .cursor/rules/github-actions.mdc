@@ -1,0 +1,39 @@
+---
+description: Pin GitHub Actions workflows to latest major action versions (Node 24 runtime)
+globs: .github/workflows/**
+alwaysApply: false
+---
+
+# GitHub Actions — use latest majors
+
+When editing `.github/workflows/**`, pin third-party and official actions to the **current latest major** tag (not deprecated Node 20 runtimes).
+
+## Required versions (update this table when majors bump)
+
+| Action | Tag |
+|--------|-----|
+| `actions/checkout` | `@v7` |
+| `actions/cache` | `@v6` |
+| `actions/upload-artifact` | `@v7` |
+| `actions/download-artifact` | `@v8` |
+| `docker/setup-buildx-action` | `@v4` |
+| `docker/login-action` | `@v4` |
+| `azure/login` | `@v3` |
+| `dorny/paths-filter` | `@v4` |
+
+## Rules
+
+- Use `@v<major>` tags (e.g. `@v7`), not bare `@main` or stale minors on old majors.
+- Do **not** use artifact/cache majors that still default to Node 20 (`upload-artifact@v3`, `cache@v4`, etc.).
+- Do **not** put `hashFiles()` in workflow-level `env` — it is only valid in job/step expressions.
+- Prefer `runs-on: ubuntu-latest` (GitHub-managed runner with current Node runtime for actions).
+- For Node.js **application** builds in CI, use the pinned `NODE_IMAGE` from `docker/versions.prod.env` (rendered from `infra/azure/parameters.prod.json`), not `actions/setup-node` with Node 20.
+
+## Example
+
+```yaml
+- uses: actions/checkout@v7
+- uses: actions/cache@v6
+- uses: actions/upload-artifact@v7
+- uses: actions/download-artifact@v8
+```

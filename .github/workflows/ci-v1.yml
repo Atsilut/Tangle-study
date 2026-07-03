@@ -118,7 +118,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -191,7 +191,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -264,7 +264,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -337,7 +337,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -408,7 +408,7 @@ jobs:
       # 3. CACHE CARGO
       ############################################
       - name: Cache Cargo build artifacts
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/cargo/registry
@@ -461,7 +461,7 @@ jobs:
       # 3. CACHE NPM
       ############################################
       - name: Cache npm and web test build
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/npm
@@ -524,7 +524,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -550,7 +550,7 @@ jobs:
       # 4. CACHE CARGO
       ############################################
       - name: Cache Cargo build artifacts
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/cargo/registry
@@ -579,7 +579,7 @@ jobs:
       # 7. UPLOAD STACK ARTIFACT
       ############################################
       - name: Upload harness stack artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-stack
           path: harness-stack.tar
@@ -619,7 +619,7 @@ jobs:
       # 3. CACHE NUGET
       ############################################
       - name: Cache NuGet and .NET build outputs
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             .ci-cache/nuget
@@ -641,7 +641,7 @@ jobs:
       # 5. DOWNLOAD STACK ARTIFACT
       ############################################
       - name: Download harness stack artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: harness-stack
 
