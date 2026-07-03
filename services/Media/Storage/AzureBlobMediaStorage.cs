@@ -1,4 +1,4 @@
-using Media.Global.Config;
+using Media.Config;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;

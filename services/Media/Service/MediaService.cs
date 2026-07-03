@@ -3,7 +3,7 @@ using Media.Client;
 using Media.Dto;
 using Media.Repository;
 using Media.Storage;
-using Media.Global.Config;
+using Media.Config;
 using Media.Global.Exceptions;
 using Media.Global.Infrastructure;
 using Media.Global.Queue;

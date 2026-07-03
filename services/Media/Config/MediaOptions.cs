@@ -1,4 +1,4 @@
-namespace Media.Global.Config;
+namespace Media.Config;
 
 public sealed class MediaOptions
 {

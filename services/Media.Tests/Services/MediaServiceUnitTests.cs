@@ -1,5 +1,5 @@
 using Media.Dto;
-using Media.Global.Config;
+using Media.Config;
 using Media.Global.Db;
 using Media.Global.Queue;
 using Media.Repository;

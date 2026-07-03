@@ -1,4 +1,4 @@
-using Media.Global.Config;
+using Media.Config;
 using Media.Global.Exceptions;
 using Microsoft.Extensions.Options;
 
