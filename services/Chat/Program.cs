@@ -2,6 +2,7 @@ using Chat.Config;
 using Chat.Db;
 using Chat.Exceptions;
 using Chat.Infrastructure;
+using Chat.Realtime;
 using Chat.Security;
 using Chat.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -84,7 +85,9 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleMediaClient(builder.Configuration);
 
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -95,14 +98,13 @@ var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnec
 var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddNpgSql(defaultConnection, name: "postgres");
 
-var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
-if (!string.IsNullOrWhiteSpace(redisConfig?.ConnectionString))
-{
-    healthChecksBuilder.AddRedis(
-        redisConfig.ConnectionString,
-        name: "redis",
-        timeout: TimeSpan.FromSeconds(5));
-}
+var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>()
+    ?? throw new InvalidOperationException("Redis configuration section is missing.");
+RedisStartupValidator.Validate(redisConfig);
+healthChecksBuilder.AddRedis(
+    redisConfig.ConnectionString,
+    name: "redis",
+    timeout: TimeSpan.FromSeconds(5));
 
 healthChecksBuilder.ForwardToPrometheus();
 
@@ -114,12 +116,7 @@ JwtStartupValidator.Validate(app.Environment, jwtOptions);
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
-var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
-RedisStartupValidator.Validate(redisOptions);
-if (!string.IsNullOrWhiteSpace(redisOptions.ConnectionString))
-    logger.LogInformation("Redis configured (SignalR backplane + work queue).");
-else
-    logger.LogInformation("Redis connection string empty; in-process SignalR and no-op work queue.");
+logger.LogInformation("Redis configured (SignalR backplane, work queue, pub/sub).");
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
@@ -149,6 +146,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapHealthChecks("/health");
 app.MapMetrics();
 

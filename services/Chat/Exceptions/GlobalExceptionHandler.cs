@@ -37,6 +37,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     statusCode = notFound.StatusCode;
                     title = TitleForStatus(statusCode);
                     return true;
+                case EntityAlreadyExistsException alreadyExists:
+                    statusCode = alreadyExists.StatusCode;
+                    title = TitleForStatus(statusCode);
+                    return true;
                 case AccessForbiddenException forbidden:
                     statusCode = forbidden.StatusCode;
                     title = TitleForStatus(statusCode);
