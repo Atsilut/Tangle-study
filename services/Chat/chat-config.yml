@@ -1,0 +1,7 @@
+# Service config baked into the image. CD may replace this file or override via env (Redis__WorkQueueStreamPrefix).
+Redis:
+  WorkQueueStreamPrefix: "tangle:queue:"
+
+Chat:
+  EditWindowMinutes: 15
+  DeleteWindowMinutes: 60
