@@ -1,4 +1,3 @@
-using Api.Domain.Chat.Domain;
 using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
 using Api.Domain.Groups.Domain;
@@ -24,11 +23,6 @@ namespace Api.Global.Db
         public DbSet<GroupApplication> GroupApplications => Set<GroupApplication>();
         public DbSet<GroupBlacklist> GroupBlacklists => Set<GroupBlacklist>();
         public DbSet<GroupBoard> GroupBoards => Set<GroupBoard>();
-        public DbSet<ChatRoom> ChatRooms => Set<ChatRoom>();
-        public DbSet<ChatRoomParticipant> ChatRoomParticipants => Set<ChatRoomParticipant>();
-        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-        public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
-        public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
         public DbSet<MapPin> MapPins => Set<MapPin>();
         public DbSet<LocationSession> LocationSessions => Set<LocationSession>();
 
@@ -176,102 +170,6 @@ namespace Api.Global.Db
                 .WithMany()
                 .HasForeignKey(b => b.GroupId)
                 .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatRoom>()
-                .HasOne(r => r.PlatformGroup)
-                .WithMany()
-                .HasForeignKey(r => r.PlatformGroupId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatRoom>()
-                .HasOne(r => r.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(r => r.CreatedByUserId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatRoom>()
-                .HasOne(r => r.UserLow)
-                .WithMany()
-                .HasForeignKey(r => r.UserLowId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatRoom>()
-                .HasOne(r => r.UserHigh)
-                .WithMany()
-                .HasForeignKey(r => r.UserHighId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatRoom>()
-                .ToTable(t => t.HasCheckConstraint(
-                    "CK_ChatRooms_DirectUserLowLtUserHigh",
-                    "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL AND \"UserLowId\" < \"UserHighId\")"));
-
-            modelBuilder.Entity<ChatRoom>()
-                .ToTable(t => t.HasCheckConstraint(
-                    "CK_ChatRooms_PlatformGroupIdByKind",
-                    "(\"Kind\" = 2 AND \"PlatformGroupId\" IS NOT NULL) OR (\"Kind\" <> 2 AND \"PlatformGroupId\" IS NULL)"));
-
-            modelBuilder.Entity<ChatRoom>()
-                .ToTable(t => t.HasCheckConstraint(
-                    "CK_ChatRooms_DirectPairOnlyForDirect",
-                    "\"Kind\" <> 0 OR (\"UserLowId\" IS NOT NULL AND \"UserHighId\" IS NOT NULL)"));
-
-            modelBuilder.Entity<ChatRoom>()
-                .ToTable(t => t.HasCheckConstraint(
-                    "CK_ChatRooms_NoDirectPairForNonDirect",
-                    "\"Kind\" = 0 OR (\"UserLowId\" IS NULL AND \"UserHighId\" IS NULL)"));
-
-            modelBuilder.Entity<ChatRoomParticipant>()
-                .HasOne(p => p.ChatRoom)
-                .WithMany(r => r.Participants)
-                .HasForeignKey(p => p.ChatRoomId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ChatRoomParticipant>()
-                .HasOne(p => p.User)
-                .WithMany()
-                .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatMessage>()
-                .HasOne(m => m.ChatRoom)
-                .WithMany()
-                .HasForeignKey(m => m.ChatRoomId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ChatMessage>()
-                .HasOne(m => m.Sender)
-                .WithMany()
-                .HasForeignKey(m => m.SenderUserId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // Latest-message-per-room list queries: filter by ChatRoomId, order by Id DESC.
-            modelBuilder.Entity<ChatMessage>()
-                .HasIndex(m => new { m.ChatRoomId, m.Id })
-                .IsDescending(false, true);
-
-            modelBuilder.Entity<ChatMessageReceipt>()
-                .HasOne(r => r.ChatMessage)
-                .WithMany()
-                .HasForeignKey(r => r.ChatMessageId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ChatMessageReceipt>()
-                .HasOne(r => r.User)
-                .WithMany()
-                .HasForeignKey(r => r.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatMessageEdit>()
-                .HasOne(e => e.ChatMessage)
-                .WithMany()
-                .HasForeignKey(e => e.ChatMessageId)
-                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<MapPin>()
                 .HasOne(p => p.User)

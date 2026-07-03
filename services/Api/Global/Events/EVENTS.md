@@ -88,4 +88,4 @@ Do not use pub/sub as the client realtime channel or as durable work queue.
 
 - [REDIS.md](../REDIS.md) — Redis configuration and data flows
 - [QUEUE.md](../Queue/QUEUE.md) — Streams job contracts
-- [CHAT.md](../../Domain/Chat/CHAT.md) — chat REST and SignalR hub
+- [CHAT.md](../../../services/Chat/CHAT.md) — chat REST and SignalR hub
