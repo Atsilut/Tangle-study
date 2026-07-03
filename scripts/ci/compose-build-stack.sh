@@ -14,8 +14,8 @@ source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
 STACK_ARTIFACT="${STACK_ARTIFACT:-harness-stack.tar}"
+SDK_IMAGE="${SDK_IMAGE:-tangle-study-sdk:local}"
 WORKER_MEDIA_IMAGE="${WORKER_MEDIA_IMAGE:-tangle-study-worker-media:local}"
-WORKER_CHAT_IMAGE="${WORKER_CHAT_IMAGE:-tangle-study-worker-chat:local}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tangle-study}"
 
 COMPOSE_FILES=(
@@ -38,24 +38,20 @@ require_release_binary() {
 
 require_publish_output ".ci-cache/publish/api" "Api.dll"
 require_publish_output ".ci-cache/publish/media" "Media.dll"
-require_publish_output ".ci-cache/publish/chat" "Chat.dll"
 require_release_binary "workers/target/release/worker-media"
-require_release_binary "workers/target/release/worker-chat"
 
-log_step "BUILD WORKER RUNTIME IMAGES"
+log_step "BUILD WORKER RUNTIME IMAGE"
 WORKER_MEDIA_IMAGE="$WORKER_MEDIA_IMAGE" bash "$ROOT/scripts/ci/build-worker-images.sh" --media-only
-WORKER_CHAT_IMAGE="$WORKER_CHAT_IMAGE" bash "$ROOT/scripts/ci/build-worker-images.sh" --chat-only
 
 log_step "BUILD STACK SERVICE IMAGES"
-tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media chat nginx rust-worker-media rust-worker-chat
+tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media nginx rust-worker-media harness
 
 STACK_IMAGES=(
   "${COMPOSE_PROJECT_NAME}-api"
   "${COMPOSE_PROJECT_NAME}-media"
-  "${COMPOSE_PROJECT_NAME}-chat"
   "${COMPOSE_PROJECT_NAME}-nginx"
   "$WORKER_MEDIA_IMAGE"
-  "$WORKER_CHAT_IMAGE"
+  "$SDK_IMAGE"
 )
 
 for image in "${STACK_IMAGES[@]}"; do

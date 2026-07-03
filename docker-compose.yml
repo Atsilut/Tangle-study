@@ -215,6 +215,12 @@ services:
       rust-worker-chat:
         condition: service_started
         required: false
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
     restart: unless-stopped
 
   prometheus:
