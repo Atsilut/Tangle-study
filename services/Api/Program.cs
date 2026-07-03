@@ -1,6 +1,3 @@
-using Api.Domain.Location.Config;
-using Api.Domain.Location.Realtime;
-using Api.Domain.Location.Service;
 using Api.Global.Config;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -49,11 +46,6 @@ builder.Configuration
     .AddEnvironmentVariables();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
-builder.Services.Configure<LocationSafetyOptions>(
-    builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
-builder.Services.Configure<LocationClusterOptions>(
-    builder.Configuration.GetSection(LocationClusterOptions.SectionName));
-builder.Services.AddHostedService<LocationSafetyMonitorHostedService>();
 builder.Services.AddSingleton<TokenProvider>();
 
 builder.Services
@@ -89,50 +81,15 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("places", context =>
-    {
-        var placesOptions = context.RequestServices.GetRequiredService<IOptions<PlacesOptions>>().Value;
-        if (placesOptions.RateLimitPerMinute <= 0)
-        {
-            return RateLimitPartition.GetNoLimiter("places-disabled");
-        }
-
-        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = placesOptions.RateLimitPerMinute,
-                Window = TimeSpan.FromMinutes(1),
-            });
-    });
-    options.AddPolicy("location-clusters", context =>
-    {
-        var clusterOptions = context.RequestServices.GetRequiredService<IOptions<LocationClusterOptions>>().Value;
-        if (clusterOptions.RateLimitPerMinute <= 0)
-            return RateLimitPartition.GetNoLimiter("location-clusters-disabled");
-
-        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = clusterOptions.RateLimitPerMinute,
-                Window = TimeSpan.FromMinutes(1),
-            });
-    });
 });
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleWorkerCallbackAuth(builder.Configuration);
 builder.Services.AddTangleMediaClient(builder.Configuration);
 builder.Services.AddTangleChatClient(builder.Configuration);
-builder.Services.AddTanglePlaces(builder.Configuration);
+builder.Services.AddTangleLocationClient(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -165,11 +122,6 @@ DependencyInjection.PrintLogs(logger);
 var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
 if (redisOptions.Enabled) logger.LogInformation("Redis enabled (cache + SignalR backplane).");
 else logger.LogInformation("Redis disabled; using in-memory distributed cache and in-process SignalR.");
-
-var placesOptions = app.Services.GetRequiredService<IOptions<PlacesOptions>>().Value;
-if (placesOptions.Enabled && !string.IsNullOrWhiteSpace(placesOptions.ApiKey))
-    logger.LogInformation("Google Places search enabled.");
-else logger.LogInformation("Google Places search disabled (set Places:Enabled and Places:ApiKey).");
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
@@ -205,7 +157,6 @@ app.UseAuthorization();
 app.UseMiddleware<MetricsScrapeAuthMiddleware>();
 
 app.MapControllers();
-app.MapHub<LocationHub>("/hubs/location");
 app.MapHealthChecks("/health");
 app.MapMetrics();
 
