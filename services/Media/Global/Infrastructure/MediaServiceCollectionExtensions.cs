@@ -48,7 +48,7 @@ public static class MediaServiceCollectionExtensions
     {
         if (options.IngressMultiplier <= 0)
             throw new InvalidOperationException(
-                "Media:IngressMultiplier must be greater than zero. Configure it in media-limits.yml.");
+                "Media:IngressMultiplier must be greater than zero. Configure it in media-config.yml.");
 
         EnsureContextLimitsConfigured("Post", options.Post);
         EnsureContextLimitsConfigured("Comment", options.Comment);
@@ -59,10 +59,10 @@ public static class MediaServiceCollectionExtensions
     {
         if (limits.VideoPerFileBytes <= 0)
             throw new InvalidOperationException(
-                $"Media:{contextName}:VideoPerFileBytes must be greater than zero. Configure it in media-limits.yml.");
+                $"Media:{contextName}:VideoPerFileBytes must be greater than zero. Configure it in media-config.yml.");
 
         if (limits.ImagePerFileBytes <= 0)
             throw new InvalidOperationException(
-                $"Media:{contextName}:ImagePerFileBytes must be greater than zero. Configure it in media-limits.yml.");
+                $"Media:{contextName}:ImagePerFileBytes must be greater than zero. Configure it in media-config.yml.");
     }
 }

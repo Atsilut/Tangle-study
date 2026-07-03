@@ -52,9 +52,7 @@ public sealed class MediaWebApplicationFactory(
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Redis:Enabled"] = _redisEnabled ? "true" : "false",
                 ["Redis:ConnectionString"] = _redisEnabled ? _redisConnectionString : "",
-                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Media:ConnectionString"] = TestBlobConnectionString,
                 ["Media:ContainerName"] = "tangle-media",
                 ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,

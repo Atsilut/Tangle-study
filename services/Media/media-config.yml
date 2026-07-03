@@ -1,3 +1,7 @@
+# Service config baked into the image. CD may replace this file or override via env (Redis__WorkQueueStreamPrefix).
+Redis:
+  WorkQueueStreamPrefix: "tangle:queue:"
+
 Media:
   # Upload ingress cap = per-file limit × this multiplier (transcoding headroom).
   IngressMultiplier: 3

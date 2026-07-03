@@ -39,7 +39,7 @@ builder.Services.AddCustomDependencies();
 
 builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
-    .AddYamlFile("media-limits.yml", optional: false, reloadOnChange: true)
+    .AddYamlFile("media-config.yml", optional: false, reloadOnChange: true)
     // YAML is loaded after the host's default env vars; re-add so CD-injected Jwt__Secret wins.
     .AddEnvironmentVariables();
 
@@ -84,7 +84,7 @@ var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddNpgSql(defaultConnection, name: "postgres");
 
 var redisConfig = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
-if (redisConfig?.Enabled is true && !string.IsNullOrWhiteSpace(redisConfig.ConnectionString))
+if (!string.IsNullOrWhiteSpace(redisConfig?.ConnectionString))
 {
     healthChecksBuilder.AddRedis(
         redisConfig.ConnectionString,
@@ -103,8 +103,11 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
 var redisOptions = app.Services.GetRequiredService<IOptions<RedisOptions>>().Value;
-if (redisOptions.Enabled) logger.LogInformation("Redis enabled (work queue).");
-else logger.LogInformation("Redis disabled; work queue uses no-op implementation.");
+RedisStartupValidator.Validate(redisOptions);
+if (!string.IsNullOrWhiteSpace(redisOptions.ConnectionString))
+    logger.LogInformation("Redis configured (work queue).");
+else
+    logger.LogInformation("Redis connection string empty; work queue uses no-op implementation.");
 
 logger.LogInformation("Media blob storage configured.");
 
