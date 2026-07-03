@@ -18,8 +18,10 @@ COPY services/Api/Api.csproj services/Api/
 COPY services/Api.Tests/Api.Tests.csproj services/Api.Tests/
 COPY services/Media/Media.csproj services/Media/
 COPY services/Media.Tests/Media.Tests.csproj services/Media.Tests/
+COPY services/Chat/Chat.csproj services/Chat/
 RUN --mount=type=cache,target=/tmp/nuget-packages \
     dotnet restore services/Api.Tests/Api.Tests.csproj && \
-    dotnet restore services/Media.Tests/Media.Tests.csproj
+    dotnet restore services/Media.Tests/Media.Tests.csproj && \
+    dotnet restore services/Chat/Chat.csproj
 
 ENTRYPOINT ["dotnet"]

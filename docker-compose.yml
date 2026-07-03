@@ -122,9 +122,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
-      Redis__Enabled: "true"
       Redis__ConnectionString: "redis:6379"
-      Redis__WorkQueueStreamPrefix: "tangle:queue:"
       Metrics__RequireScrapeSecret: "true"
       Metrics__ScrapeSecret: "dev-metrics-secret"
     expose:
