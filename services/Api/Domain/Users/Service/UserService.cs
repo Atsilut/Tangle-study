@@ -1,7 +1,6 @@
 using Api.Client;
 using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
-using Api.Domain.Location.Service;
 using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
@@ -22,9 +21,8 @@ namespace Api.Domain.Users.Service
         Lazy<CommentService> commentService,
         IMediaClient mediaClient,
         IChatClient chatClient,
+        ILocationClient locationClient,
         Lazy<GroupMembershipService> groupMembershipService,
-        Lazy<MapPinService> mapPinService,
-        Lazy<LocationSessionService> locationSessionService,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
@@ -36,9 +34,8 @@ namespace Api.Domain.Users.Service
         private readonly Lazy<CommentService> _commentService = commentService;
         private readonly IMediaClient _mediaClient = mediaClient;
         private readonly IChatClient _chatClient = chatClient;
+        private readonly ILocationClient _locationClient = locationClient;
         private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
-        private readonly Lazy<MapPinService> _mapPinService = mapPinService;
-        private readonly Lazy<LocationSessionService> _locationSessionService = locationSessionService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
@@ -170,8 +167,7 @@ namespace Api.Domain.Users.Service
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
                 await _chatClient.DetachUserOnDeletionAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
-                await _mapPinService.Value.HandleUserDeletionAsync(id);
-                await _locationSessionService.Value.HandleUserDeletionAsync(id);
+                await _locationClient.DetachUserOnDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
 
