@@ -142,8 +142,34 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # Nginx edge: reverse-proxies /api/media to media-service and other /api routes
-  # to the monolith; serves the built React SPA (built in clients/web/Dockerfile).
+  chat:
+    build:
+      context: .
+      dockerfile: services/Chat/Dockerfile
+      args: *api-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__ConnectionString: "redis:6379"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  # Nginx edge: reverse-proxies media/chat strangler routes and other /api routes to the monolith;
+  # serves the built React SPA (built in clients/web/Dockerfile).
   # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
   nginx:
     build:
@@ -157,7 +183,12 @@ services:
         condition: service_started
       media:
         condition: service_healthy
+      chat:
+        condition: service_healthy
       rust-worker-media:
+        condition: service_started
+        required: false
+      rust-worker-chat:
         condition: service_started
         required: false
     restart: unless-stopped
@@ -183,7 +214,7 @@ services:
         condition: service_started
       redis-exporter:
         condition: service_started
-      rust-worker:
+      rust-worker-chat:
         condition: service_started
         required: false
       rust-worker-media:
@@ -241,24 +272,25 @@ services:
       db:
         condition: service_healthy
 
-  rust-worker:
-    profiles: ["workers"]
+  rust-worker-chat:
+    profiles: ["workers", "harness"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.chat
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
-      WORKER_TYPE: chat
       WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: chat.message.created
       WORKER_CONSUMER_GROUP: tangle-study-workers
+      API_BASE_URL: http://chat:8080
       WORKER_METRICS_PORT: "9090"
       RUST_LOG: info
     expose:
       - "9090"
     depends_on:
       redis:
+        condition: service_healthy
+      chat:
         condition: service_healthy
     restart: unless-stopped
 
@@ -294,13 +326,11 @@ services:
     profiles: ["workers"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.location
       args: *rust-build-args
     environment:
       REDIS_URL: redis://redis:6379
-      WORKER_TYPE: location
       WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: location.cluster
       WORKER_CONSUMER_GROUP: tangle-study-workers
       API_BASE_URL: http://api:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret
@@ -339,7 +369,11 @@ services:
         condition: service_healthy
       media:
         condition: service_healthy
+      chat:
+        condition: service_healthy
       nginx:
+        condition: service_started
+      rust-worker-chat:
         condition: service_started
       rust-worker-media:
         condition: service_started
