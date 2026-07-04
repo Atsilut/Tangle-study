@@ -477,6 +477,7 @@ services:
         "services/Media.Tests/Media.Tests.csproj",
         "services/Chat.Tests/Chat.Tests.csproj",
         "services/Location.Tests/Location.Tests.csproj",
+        "services/Community.Tests/Community.Tests.csproj",
         "-c",
         "Release",
         "--filter",

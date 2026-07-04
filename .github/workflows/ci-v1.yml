@@ -51,12 +51,16 @@ jobs:
           filters: |
             dotnet-api:
               - 'services/Api/**'
+              - 'services/Api.Tests/**'
             dotnet-media:
               - 'services/Media/**'
+              - 'services/Media.Tests/**'
             dotnet-chat:
               - 'services/Chat/**'
+              - 'services/Chat.Tests/**'
             dotnet-location:
               - 'services/Location/**'
+              - 'services/Location.Tests/**'
             dotnet-community:
               - 'services/Community/**'
               - 'services/Community.Tests/**'
@@ -65,15 +69,20 @@ jobs:
               - 'docker-compose.yml'
               - 'docker-compose.runtime.yml'
               - 'docker-compose.harness.yml'
+              - 'docker/versions.prod.env'
               - 'scripts/ci/**'
               - 'scripts/shared/**'
               - 'Tangle.slnx'
+              - 'Directory.Build.props'
+              - '.github/workflows/**'
+              - 'infra/azure/parameters.prod.json'
             web:
               - 'clients/web/**'
             rust:
               - 'workers/**'
             harness:
-              - 'services/Api.Tests/**'
+              - 'services/Api.Tests/Fixtures/Harness/**'
+              - 'services/Api.Tests/Harness/**'
               - 'services/Api/**'
               - 'services/Media/**'
               - 'services/Chat/**'
@@ -705,7 +714,10 @@ jobs:
       (needs.chat-tests.result == 'success' || needs.chat-tests.result == 'skipped') &&
       (needs.location-tests.result == 'success' || needs.location-tests.result == 'skipped') &&
       (needs.community-tests.result == 'success' || needs.community-tests.result == 'skipped') &&
-      needs.changes.outputs.harness == 'true'
+      (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.harness == 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -808,7 +820,10 @@ jobs:
       always() &&
       needs.dotnet-build.result == 'success' &&
       needs.compose-build.result == 'success' &&
-      needs.changes.outputs.harness == 'true'
+      (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.harness == 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

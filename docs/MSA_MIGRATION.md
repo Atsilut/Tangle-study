@@ -46,7 +46,7 @@ Tier 4 (needs compose-build)
 | `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community}`, test `bin/` | Yes — runtime service Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
 | `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` | Pass/fail | Gate only |
-| `compose-build` | `api`, `media`, `chat`, `nginx`, `rust-worker-media`, `rust-worker-chat` images + tar | Yes — harness loads tar |
+| `compose-build` | `api`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
 **PR path filters:** integration jobs run only when their service paths change; harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).

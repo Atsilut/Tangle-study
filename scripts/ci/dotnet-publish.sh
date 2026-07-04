@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish Api + Media + Chat for runtime Dockerfiles; build test projects for CI --no-build runs.
+# Publish Api, Media, Chat, Location, and Community for runtime Dockerfiles; build test projects for CI --no-build runs.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
