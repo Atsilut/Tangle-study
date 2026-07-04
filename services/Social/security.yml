@@ -1,0 +1,6 @@
+# JWT validation for services/Social (must match monolith issuer/audience/secret).
+# Group does not issue tokens — login remains on the monolith / future users-service.
+Jwt:
+  Issuer: "Tangle"
+  Audience: "TangleClient"
+  Secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_32+_CHARS"
