@@ -15,10 +15,11 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var userId = MonolithAccess.SeedUser("dave");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
-        await Client.PostAsJsonAsync(
+        var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Post", Content = "Body" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
         var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
             .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var postId = Assert.Single(posts!).Id;
@@ -45,18 +46,20 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var userId = MonolithAccess.SeedUser("erin");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
-        await Client.PostAsJsonAsync(
+        var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Post", Content = "Body" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
         var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
             .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var postId = Assert.Single(posts!).Id;
 
-        await Client.PostAsJsonAsync(
+        var createCommentRes = await Client.PostAsJsonAsync(
             "/api/comments",
             new CommentCreateRequestDto { PostId = postId, Content = "To delete" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createCommentRes.StatusCode);
         var comments = await (await Client.GetAsync(
                 $"/api/comments/post/{postId}",
                 TestContext.Current.CancellationToken))
@@ -70,5 +73,42 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
 
         var emptyRes = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, emptyRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task CommentsOnBlockedAuthorPost_AreHiddenAndCreateDenied()
+    {
+        var authorId = MonolithAccess.SeedUser("post-author");
+        var commenterId = MonolithAccess.SeedUser("commenter");
+        var viewerId = MonolithAccess.SeedUser("blocked-viewer");
+
+        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        var createPostRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Post", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        CommunityTestAuthHelpers.LoginAs(Client, commenterId);
+        var createCommentRes = await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Visible to friends" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createCommentRes.StatusCode);
+
+        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        CommunityTestAuthHelpers.LoginAs(Client, viewerId);
+
+        var listRes = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, listRes.StatusCode);
+
+        var createDenied = await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Should fail" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, createDenied.StatusCode);
     }
 }

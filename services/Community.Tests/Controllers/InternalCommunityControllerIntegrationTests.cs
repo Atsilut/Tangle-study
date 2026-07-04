@@ -16,18 +16,25 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         var userId = MonolithAccess.SeedUser("frank");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
-        await Client.PostAsJsonAsync(
+        var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Post", Content = "Body" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
         var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
             .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var postId = Assert.Single(posts!).Id;
 
-        await Client.PostAsJsonAsync(
+        var createCommentRes = await Client.PostAsJsonAsync(
             "/api/comments",
             new CommentCreateRequestDto { PostId = postId, Content = "Comment" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createCommentRes.StatusCode);
+        var comments = await (await Client.GetAsync(
+                $"/api/comments/post/{postId}",
+                TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        var commentId = Assert.Single(comments!).Id;
 
         CommunityTestAuthHelpers.LoginAsInternal(Client);
         var detachRes = await Client.PostAsync(
@@ -36,6 +43,18 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, detachRes.StatusCode);
 
+        var postEntity = await FindPostEntityAsync(postId);
+        Assert.NotNull(postEntity);
+        Assert.Null(postEntity.UserId);
+        Assert.Equal(userId, postEntity.DeletedUserId);
+
+        var commentEntity = await FindCommentEntityAsync(commentId);
+        Assert.NotNull(commentEntity);
+        Assert.Null(commentEntity.UserId);
+        Assert.Equal(userId, commentEntity.DeletedUserId);
+
+        MonolithAccess.SimulateUserDeleted(userId);
+
         Client.DefaultRequestHeaders.Authorization = null;
         Client.DefaultRequestHeaders.Remove("X-Internal-Secret");
         var getRes = await Client.GetAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
@@ -43,15 +62,28 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         var post = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(
             TestContext.Current.CancellationToken);
         Assert.Equal(userId, post!.AuthorId);
+        Assert.Equal("Deleted User", post.AuthorNickname);
+
+        var commentListRes = await Client.GetAsync(
+            $"/api/comments/post/{postId}",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, commentListRes.StatusCode);
+        var detachedComments = await commentListRes.Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(
+            TestContext.Current.CancellationToken);
+        var comment = Assert.Single(detachedComments!);
+        Assert.Equal(userId, comment.AuthorId);
+        Assert.Null(comment.UserId);
+        Assert.Equal(userId, comment.DeletedUserId);
+        Assert.Equal("Deleted User", comment.AuthorNickname);
     }
 
     [Fact]
-    public async Task DeleteAllByGroup_RemovesGroupPosts()
+    public async Task DeleteAllByGroup_RemovesGroupPostsAndLocations()
     {
         var userId = MonolithAccess.SeedUser("grace");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
-        await Client.PostAsJsonAsync(
+        var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto
             {
@@ -59,8 +91,22 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
                 Content = "Body",
                 GroupId = 10,
                 GroupBoardId = 20,
+                Latitude = 12m,
+                Longitude = 34m,
             },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var beforeRes = await Client.GetAsync(
+            "/api/groups/10/boards/20/posts",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, beforeRes.StatusCode);
+        var postId = Assert.Single(
+            (await beforeRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(
+                TestContext.Current.CancellationToken))!).Id;
+        Assert.True(
+            (await FakeLocation.GetLocationsByPostIdsAsync([postId], TestContext.Current.CancellationToken))
+                .ContainsKey(postId));
 
         CommunityTestAuthHelpers.LoginAsInternal(Client);
         var deleteRes = await Client.PostAsync(
@@ -68,6 +114,10 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             content: null,
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, deleteRes.StatusCode);
+
+        Assert.False(
+            (await FakeLocation.GetLocationsByPostIdsAsync([postId], TestContext.Current.CancellationToken))
+                .ContainsKey(postId));
 
         Client.DefaultRequestHeaders.Authorization = null;
         Client.DefaultRequestHeaders.Remove("X-Internal-Secret");
@@ -83,10 +133,11 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     {
         var userId = MonolithAccess.SeedUser("hank");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
-        await Client.PostAsJsonAsync(
+        var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Visible", Content = "Body" },
             TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
         var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
             .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var postId = Assert.Single(posts!).Id;
@@ -100,5 +151,165 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         var payload = await res.Content.ReadFromJsonAsync<InternalCommunityViewableIdsResponseDto>(
             TestContext.Current.CancellationToken);
         Assert.Contains(postId, payload!.ViewablePostIds);
+    }
+
+    [Fact]
+    public async Task ViewableIds_ExcludesBlockedAndInaccessibleGroupPosts()
+    {
+        var authorId = MonolithAccess.SeedUser("author");
+        var viewerId = MonolithAccess.SeedUser("viewer");
+        MonolithAccess.AllowBoard(groupId: 30, boardId: 40);
+
+        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        var publicCreate = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Public", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, publicCreate.StatusCode);
+        var publicPostId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        var groupCreate = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Group",
+                Content = "Body",
+                GroupId = 30,
+                GroupBoardId = 40,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, groupCreate.StatusCode);
+        var groupPostId = Assert.Single(
+            (await (await Client.GetAsync("/api/groups/30/boards/40/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        MonolithAccess.ViewableBoards.Clear();
+        MonolithAccess.WritableBoards.Clear();
+        MonolithAccess.AllowAllBoards = false;
+
+        CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
+        var res = await Client.PostAsJsonAsync(
+            "/internal/community/viewable-ids",
+            new InternalCommunityViewableIdsRequestDto([publicPostId, groupPostId], viewerId),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var payload = await res.Content.ReadFromJsonAsync<InternalCommunityViewableIdsResponseDto>(
+            TestContext.Current.CancellationToken);
+        Assert.Empty(payload!.ViewablePostIds);
+    }
+
+    [Fact]
+    public async Task ValidatePostOwner_AsOwner_Succeeds_AsOther_ReturnsForbidden()
+    {
+        var ownerId = MonolithAccess.SeedUser("owner");
+        var otherId = MonolithAccess.SeedUser("not-owner");
+        CommunityTestAuthHelpers.LoginAs(Client, ownerId);
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Owned", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        CommunityTestAuthHelpers.LoginAsInternal(Client, ownerId);
+        var ownerRes = await Client.PostAsync(
+            $"/internal/community/{postId}/validate-owner",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, ownerRes.StatusCode);
+
+        CommunityTestAuthHelpers.LoginAsInternal(Client, otherId);
+        var otherRes = await Client.PostAsync(
+            $"/internal/community/{postId}/validate-owner",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, otherRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task MediaView_GroupPost_DeniedWhenBoardNotViewable()
+    {
+        const long groupId = 50;
+        const long boardId = 60;
+        var userId = MonolithAccess.SeedUser("media-view");
+        MonolithAccess.AllowBoard(groupId, boardId);
+        CommunityTestAuthHelpers.LoginAs(Client, userId);
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Group media",
+                Content = "Body",
+                GroupId = groupId,
+                GroupBoardId = boardId,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync(
+                    $"/api/groups/{groupId}/boards/{boardId}/posts",
+                    TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        MonolithAccess.ViewableBoards.Clear();
+        MonolithAccess.WritableBoards.Clear();
+        MonolithAccess.AllowAllBoards = false;
+
+        CommunityTestAuthHelpers.LoginAsInternal(Client, userId);
+        var denied = await Client.PostAsync(
+            $"/internal/community/{postId}/media-view",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+
+        MonolithAccess.AllowBoard(groupId, boardId, writable: false);
+        var allowed = await Client.PostAsync(
+            $"/internal/community/{postId}/media-view",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
+    }
+
+    [Fact]
+    public async Task MediaView_MissingPost_ReturnsNotFound()
+    {
+        CommunityTestAuthHelpers.LoginAsInternal(Client, userId: 1);
+        var res = await Client.PostAsync(
+            "/internal/community/999999/media-view",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task MediaView_BlockedAuthor_ReturnsNotFound()
+    {
+        var authorId = MonolithAccess.SeedUser("media-author");
+        var viewerId = MonolithAccess.SeedUser("media-viewer");
+        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Blocked media", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
+        var res = await Client.PostAsync(
+            $"/internal/community/{postId}/media-view",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 }

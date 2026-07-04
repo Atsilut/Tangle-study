@@ -7,6 +7,8 @@ public sealed class FakeLocationClient : ILocationClient
 {
     private readonly Dictionary<long, PostLocationGetResponseDto> _locations = [];
 
+    public void Reset() => _locations.Clear();
+
     public Task UpsertLocationForPostAsync(
         long postId,
         long userId,

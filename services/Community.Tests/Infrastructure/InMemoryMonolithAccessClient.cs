@@ -31,6 +31,25 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
         AllowAllBoards = true;
     }
 
+    /// <summary>
+    /// Simulates monolith user deletion so nickname resolution falls back to "Deleted User".
+    /// </summary>
+    public void SimulateUserDeleted(long userId)
+    {
+        Users.Remove(userId);
+        Nicknames.Remove(userId);
+    }
+
+    public void AddMutualBlock(long userId, long otherUserId) =>
+        MutualBlocks.Add((userId, otherUserId));
+
+    public void AllowBoard(long groupId, long boardId, bool writable = true)
+    {
+        AllowAllBoards = false;
+        ViewableBoards.Add((groupId, boardId));
+        if (writable) WritableBoards.Add((groupId, boardId));
+    }
+
     public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default)
     {
         if (!Users.Contains(userId))
@@ -77,7 +96,7 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
     {
         if (AllowAllBoards || ViewableBoards.Contains((groupId, boardId)))
             return Task.CompletedTask;
-        throw new UnauthorizedAccessException("Unauthorized access");
+        throw new AccessForbiddenException("Unauthorized access");
     }
 
     public async Task<bool> TryCanViewBoardAsync(
@@ -90,7 +109,7 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
             await EnsureCanViewBoardAsync(groupId, boardId, cancellationToken);
             return true;
         }
-        catch (UnauthorizedAccessException)
+        catch (AccessForbiddenException)
         {
             return false;
         }
@@ -100,7 +119,7 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
     {
         if (AllowAllBoards || WritableBoards.Contains((groupId, boardId)))
             return Task.CompletedTask;
-        throw new UnauthorizedAccessException("Unauthorized access");
+        throw new AccessForbiddenException("Unauthorized access");
     }
 
     public Task<HashSet<(long GroupId, long BoardId)>> ResolveViewableBoardKeysAsync(
