@@ -33,12 +33,14 @@ public sealed class ApiWebApplicationFactory(
     private readonly FakeLocationClient _fakeLocationClient = new();
     private readonly FakeCommunityClient _fakeCommunityClient = new();
     private readonly FakeGroupClient _fakeGroupClient = new();
+    private readonly FakeSocialClient _fakeSocialClient = new();
 
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
     public FakeChatClient FakeChatClient => _fakeChatClient;
     public FakeLocationClient FakeLocationClient => _fakeLocationClient;
     public FakeCommunityClient FakeCommunityClient => _fakeCommunityClient;
     public FakeGroupClient FakeGroupClient => _fakeGroupClient;
+    public FakeSocialClient FakeSocialClient => _fakeSocialClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -55,6 +57,8 @@ public sealed class ApiWebApplicationFactory(
         builder.UseSetting("CommunityClient:InternalSecret", "test-internal-service-secret");
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
         builder.UseSetting("GroupClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
+        builder.UseSetting("SocialClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -76,6 +80,8 @@ public sealed class ApiWebApplicationFactory(
                 ["CommunityClient:InternalSecret"] = "test-internal-service-secret",
                 ["GroupClient:BaseUrl"] = "http://group.test",
                 ["GroupClient:InternalSecret"] = "test-internal-service-secret",
+                ["SocialClient:BaseUrl"] = "http://social.test",
+                ["SocialClient:InternalSecret"] = "test-internal-service-secret",
                 ["InternalAccess:Secret"] = "test-internal-service-secret",
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
@@ -100,6 +106,9 @@ public sealed class ApiWebApplicationFactory(
 
             RemoveService<IGroupClient>(services);
             services.AddSingleton<IGroupClient>(_fakeGroupClient);
+
+            RemoveService<ISocialClient>(services);
+            services.AddSingleton<ISocialClient>(_fakeSocialClient);
         });
 
         builder.ConfigureServices(services =>
