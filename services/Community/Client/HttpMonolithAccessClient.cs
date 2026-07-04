@@ -96,6 +96,10 @@ internal sealed class HttpMonolithAccessClient(
         {
             return false;
         }
+        catch (AccessForbiddenException)
+        {
+            return false;
+        }
         catch (EntityNotFoundException)
         {
             return false;
@@ -167,7 +171,7 @@ internal sealed class HttpMonolithAccessClient(
         return await client.SendAsync(request, cancellationToken);
     }
 
-    private static async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var detail = await ReadProblemDetailAsync(response, cancellationToken);
 
@@ -178,7 +182,14 @@ internal sealed class HttpMonolithAccessClient(
             throw new EntityNotFoundException(detail);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            // Monolith maps board/ownership denials to 401; when the caller is already
+            // authenticated, surface those as 403 Forbidden.
+            var isAuthenticated = _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
+            if (isAuthenticated)
+                throw new AccessForbiddenException(detail);
             throw new UnauthorizedAccessException(detail);
+        }
 
         if (response.StatusCode == HttpStatusCode.Forbidden)
             throw new AccessForbiddenException(detail);

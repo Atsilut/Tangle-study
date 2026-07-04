@@ -61,13 +61,6 @@ public class CommentService(
         int statusCode = StatusCodes.Status404NotFound) =>
         await _repo.GetCommentByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage, statusCode);
 
-    private async Task EnsureGroupBoardViewAccessForPostAsync(long postId)
-    {
-        var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
-        if (groupBoard is not null)
-            await _monolithAccess.EnsureCanViewBoardAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
-    }
-
     private async Task EnsureGroupBoardWriteAccessForPostAsync(long postId)
     {
         var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
@@ -79,9 +72,7 @@ public class CommentService(
     {
         var userId = GetUserIdFromLogin();
         await _monolithAccess.EnsureUserExistsAsync(userId);
-        await _postService.EnsurePostExistsAsync(request.PostId, statusCode: StatusCodes.Status400BadRequest);
-
-        await EnsureGroupBoardWriteAccessForPostAsync(request.PostId);
+        await _postService.EnsureCanCommentOnPostAsync(request.PostId);
 
         if (request.ParentId.HasValue)
         {
@@ -102,11 +93,33 @@ public class CommentService(
             userId: userId,
             postId: request.PostId,
             parentId: request.ParentId);
-        await _db.ExecuteInTransactionAsync(async () =>
+        await _repo.CreateCommentAsync(comment);
+        try
         {
-            await _repo.CreateCommentAsync(comment);
             await _mediaClient.LinkToCommentAsync(comment.Id, userId, request.MediaAssetId);
-        });
+        }
+        catch
+        {
+            try
+            {
+                await _mediaClient.DeleteBlobStorageForCommentAsync(comment.Id);
+            }
+            catch
+            {
+                // Best-effort compensation.
+            }
+
+            try
+            {
+                await _repo.DeleteCommentAsync(comment);
+            }
+            catch
+            {
+                // Best-effort compensation.
+            }
+
+            throw;
+        }
     }
 
     public async Task<CommentGetResponseDto?> GetCommentByIdAsync(long id)
@@ -114,7 +127,8 @@ public class CommentService(
         var comment = await _repo.GetCommentByIdAsync(id);
         if (comment == null) return null;
         if (await IsAuthorBlockedByViewerAsync(comment.AuthorUserId)) return null;
-        if (comment.PostId is not null) await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+        if (comment.PostId is not null)
+            await _postService.EnsureCanViewPostAsync(comment.PostId.Value);
         var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
         var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([comment.Id]);
         return MapToDto(
@@ -125,8 +139,7 @@ public class CommentService(
 
     public async Task<List<CommentGetResponseDto>?> GetCommentsByPostIdAsync(long postId)
     {
-        await _postService.EnsurePostExistsAsync(postId);
-        await EnsureGroupBoardViewAccessForPostAsync(postId);
+        await _postService.EnsureCanViewPostAsync(postId);
         var comments = await _repo.GetCommentsByPostIdAsync(postId);
         if (comments.Count == 0) return null;
         comments = await FilterCommentsByBlockAsync(comments);
@@ -138,8 +151,10 @@ public class CommentService(
     {
         var comment = await _repo.GetCommentByIdAsync(commentId)
             ?? throw new EntityNotFoundException("Comment not found");
+        if (await IsAuthorBlockedByViewerAsync(comment.AuthorUserId))
+            throw new EntityNotFoundException("Comment not found");
         if (comment.PostId is not null)
-            await EnsureGroupBoardViewAccessForPostAsync(comment.PostId.Value);
+            await _postService.EnsureCanViewPostAsync(comment.PostId.Value);
     }
 
     public async Task<List<CommentGetResponseDto>?> GetCommentsByUserIdAsync(long userId)
@@ -154,18 +169,11 @@ public class CommentService(
         }
 
         var postIds = comments.Where(c => c.PostId is not null).Select(c => c.PostId!.Value).Distinct().ToList();
-        var postBoardContext = await _postService.GetGroupBoardContextsByPostIdsAsync(postIds);
-        var boardKeys = postBoardContext.Values.Distinct().ToList();
-        var viewableBoards = boardKeys.Count == 0
+        var viewablePostIds = postIds.Count == 0
             ? []
-            : await _monolithAccess.ResolveViewableBoardKeysAsync(boardKeys);
+            : await _postService.GetViewablePostIdsAsync(postIds, TryGetViewerUserId());
 
-        comments = [.. comments.Where(c =>
-        {
-            if (c.PostId is null) return true;
-            if (!postBoardContext.TryGetValue(c.PostId.Value, out var ctx)) return true;
-            return viewableBoards.Contains(ctx);
-        })];
+        comments = [.. comments.Where(c => c.PostId is null || viewablePostIds.Contains(c.PostId.Value))];
         if (comments.Count == 0) return null;
 
         var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
@@ -231,7 +239,8 @@ public class CommentService(
         if (comment.PostId is null && comment.DeletedPostId is not null)
             throw new ArgumentException("Post is not reachable. Comments are readonly.");
         if (comment.PostId is not null) await EnsureGroupBoardWriteAccessForPostAsync(comment.PostId.Value);
-        if (comment.AuthorUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (comment.AuthorUserId != userId)
+            throw new AccessForbiddenException("Unauthorized access");
         comment.UpdateContent(request.Content);
         await _repo.UpdateCommentAsync(comment);
         return new CommentPatchResponseDto
@@ -266,12 +275,14 @@ public class CommentService(
         await _monolithAccess.EnsureUserExistsAsync(userId);
         var comment = await GetCommentOrThrowAsync(id);
         if (comment.PostId is not null) await EnsureGroupBoardWriteAccessForPostAsync(comment.PostId.Value);
-        if (comment.AuthorUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (comment.AuthorUserId != userId)
+            throw new AccessForbiddenException("Unauthorized access");
+
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _repo.DetachParentFromRepliesAsync(id);
-            await _mediaClient.DeleteBlobStorageForCommentAsync(id);
             await _repo.DeleteCommentAsync(comment);
         });
+        await _mediaClient.DeleteBlobStorageForCommentAsync(id);
     }
 }

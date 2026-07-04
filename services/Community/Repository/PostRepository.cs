@@ -17,7 +17,10 @@ public class PostRepository(CommunityDbContext context) : IPostRepository
     }
 
     public Task<List<Post>> GetAllPostsAsync() =>
-        _context.Posts.Where(p => p.GroupId == null).ToListAsync();
+        _context.Posts
+            .Where(p => p.GroupId == null)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
 
     public Task<List<Post>> GetPostsByGroupBoardAsync(long groupId, long boardId) =>
         _context.Posts
@@ -50,6 +53,7 @@ public class PostRepository(CommunityDbContext context) : IPostRepository
 
     public Task<List<Post>> GetPostsByUserIdAsync(long userId) => _context.Posts
             .Where(post => post.UserId == userId)
+            .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
     public Task UpdatePostAsync(Post post) => _context.SaveChangesAsync();

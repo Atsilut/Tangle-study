@@ -60,8 +60,43 @@ public class PostService(
         if (!await _repo.ExistsPostByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
     }
 
-    private async Task<Post> GetPostOrThrowAsync(long id, string notFoundMessage = "Post not found") =>
-        await _repo.GetPostByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
+    private async Task<Post> GetPostOrThrowAsync(
+        long id,
+        string notFoundMessage = "Post not found",
+        int statusCode = StatusCodes.Status404NotFound) =>
+        await _repo.GetPostByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage, statusCode);
+
+    /// <summary>
+    /// Ensures the viewer may see the post (exists, not blocked, board access).
+    /// Missing or blocked posts surface as not-found for privacy.
+    /// </summary>
+    public async Task EnsureCanViewPostAsync(
+        long postId,
+        string notFoundMessage = "Post not found",
+        int notFoundStatusCode = StatusCodes.Status404NotFound)
+    {
+        var post = await GetPostOrThrowAsync(postId, notFoundMessage, notFoundStatusCode);
+
+        if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId))
+            throw new EntityNotFoundException(notFoundMessage, notFoundStatusCode);
+
+        if (post.GroupId is not null && post.GroupBoardId is not null)
+            await _monolithAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+    }
+
+    /// <summary>
+    /// Ensures the caller may comment on the post (exists, not blocked, board write access).
+    /// </summary>
+    public async Task EnsureCanCommentOnPostAsync(long postId)
+    {
+        var post = await GetPostOrThrowAsync(postId, "Post not found", StatusCodes.Status400BadRequest);
+
+        if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId))
+            throw new EntityNotFoundException("Post not found", StatusCodes.Status400BadRequest);
+
+        if (post.GroupId is not null && post.GroupBoardId is not null)
+            await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
+    }
 
     public async Task CreatePostAsync(PostCreateRequestDto request)
     {
@@ -83,9 +118,10 @@ public class PostService(
             content: request.Content,
             groupId: request.GroupId,
             groupBoardId: request.GroupBoardId);
-        await _db.ExecuteInTransactionAsync(async () =>
+
+        await _repo.CreatePostAsync(post);
+        try
         {
-            await _repo.CreatePostAsync(post);
             await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
             if (request.Latitude.HasValue)
             {
@@ -95,7 +131,12 @@ public class PostService(
                     request.Latitude.Value,
                     request.Longitude!.Value);
             }
-        });
+        }
+        catch
+        {
+            await CompensateFailedPostSideEffectsAsync(post);
+            throw;
+        }
     }
 
     public async Task<List<PostGetResponseDto>?> GetAllPostsAsync()
@@ -148,15 +189,24 @@ public class PostService(
                 viewerUserId.Value,
                 posts.Select(p => p.AuthorUserId).Distinct().ToList());
 
+        var boardKeys = posts
+            .Where(p => p.GroupId is not null && p.GroupBoardId is not null)
+            .Select(p => (p.GroupId!.Value, p.GroupBoardId!.Value))
+            .Distinct()
+            .ToList();
+        var viewableBoards = boardKeys.Count == 0
+            ? []
+            : await _monolithAccess.ResolveViewableBoardKeysAsync(boardKeys);
+
         HashSet<long> viewable = [];
         foreach (var post in posts)
         {
             if (viewerUserId is not null && blockedAuthorIds.Contains(post.AuthorUserId)) continue;
 
-            if (post.GroupId is not null && post.GroupBoardId is not null)
+            if (post.GroupId is not null && post.GroupBoardId is not null
+                && !viewableBoards.Contains((post.GroupId.Value, post.GroupBoardId.Value)))
             {
-                if (!await _monolithAccess.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value))
-                    continue;
+                continue;
             }
 
             viewable.Add(post.Id);
@@ -174,9 +224,9 @@ public class PostService(
         ValidateOptionalLocation(request.Latitude, request.Longitude);
 
         var post = new Post(userId, request.Title, request.Content, groupId, boardId);
-        await _db.ExecuteInTransactionAsync(async () =>
+        await _repo.CreatePostAsync(post);
+        try
         {
-            await _repo.CreatePostAsync(post);
             await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
             if (request.Latitude.HasValue)
             {
@@ -186,7 +236,12 @@ public class PostService(
                     request.Latitude.Value,
                     request.Longitude!.Value);
             }
-        });
+        }
+        catch
+        {
+            await CompensateFailedPostSideEffectsAsync(post);
+            throw;
+        }
     }
 
     public async Task<List<PostGetResponseDto>?> GetGroupBoardPostsAsync(long groupId, long boardId)
@@ -294,28 +349,28 @@ public class PostService(
         var post = await GetPostOrThrowAsync(request.Id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
             await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
-        if (post.AuthorUserId != userId) throw new UnauthorizedAccessException();
+        if (post.AuthorUserId != userId)
+            throw new AccessForbiddenException("Unauthorized access");
         ValidateLocationPatch(request);
-        await _db.ExecuteInTransactionAsync(async () =>
+
+        post.Update(request.Title, request.Content);
+        await _repo.UpdatePostAsync(post);
+        await _mediaClient.PatchPostMediaAsync(
+            post.Id,
+            userId,
+            request.AddMediaAssetIds,
+            request.RemoveMediaAssetIds);
+        if (request.ClearLocation)
+            await _locationClient.ClearLocationForPostAsync(post.Id, userId);
+        else if (request.Latitude.HasValue)
         {
-            post.Update(request.Title, request.Content);
-            await _repo.UpdatePostAsync(post);
-            await _mediaClient.PatchPostMediaAsync(
+            await _locationClient.UpsertLocationForPostAsync(
                 post.Id,
                 userId,
-                request.AddMediaAssetIds,
-                request.RemoveMediaAssetIds);
-            if (request.ClearLocation)
-                await _locationClient.ClearLocationForPostAsync(post.Id, userId);
-            else if (request.Latitude.HasValue)
-            {
-                await _locationClient.UpsertLocationForPostAsync(
-                    post.Id,
-                    userId,
-                    request.Latitude.Value,
-                    request.Longitude!.Value);
-            }
-        });
+                request.Latitude.Value,
+                request.Longitude!.Value);
+        }
+
         return new PostPatchResponseDto(
             Title: post.Title,
             Content: post.Content,
@@ -333,19 +388,16 @@ public class PostService(
         return (post.GroupId.Value, post.GroupBoardId.Value);
     }
 
-    public async Task EnsureCanViewPostMediaAsync(long postId)
-    {
-        var ctx = await TryGetGroupBoardContextAsync(postId);
-        if (ctx is not null)
-            await _monolithAccess.EnsureCanViewBoardAsync(ctx.Value.GroupId, ctx.Value.GroupBoardId);
-    }
+    public Task EnsureCanViewPostMediaAsync(long postId) =>
+        EnsureCanViewPostAsync(postId);
 
     public async Task EnsureCallerOwnsPostAsync(long postId)
     {
         var callerId = GetUserIdFromLogin();
         var post = await _repo.GetPostByIdAsync(postId)
             ?? throw new EntityNotFoundException("Post not found", StatusCodes.Status400BadRequest);
-        if (post.AuthorUserId != callerId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (post.AuthorUserId != callerId)
+            throw new AccessForbiddenException("Unauthorized access");
     }
 
     public async Task DeleteAllByGroupAsync(long groupId)
@@ -355,6 +407,8 @@ public class PostService(
         {
             await _commentService.Value.DeleteAllForPostIdsAsync(postIds);
             await _mediaClient.DeleteBlobStorageForPostsAsync(postIds);
+            foreach (var postId in postIds)
+                await _locationClient.ClearLocationForPostOnDeleteAsync(postId);
         }
 
         await _repo.DeleteAllByGroupAsync(groupId);
@@ -367,15 +421,47 @@ public class PostService(
         var post = await GetPostOrThrowAsync(id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
             await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
-        if (post.AuthorUserId != userId) throw new UnauthorizedAccessException("Unauthorized access");
+        if (post.AuthorUserId != userId)
+            throw new AccessForbiddenException("Unauthorized access");
 
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
-            await _mediaClient.DeleteBlobStorageForPostAsync(id);
-            await _locationClient.ClearLocationForPostOnDeleteAsync(id);
             await _repo.DeletePostAsync(post);
         });
+
+        await _mediaClient.DeleteBlobStorageForPostAsync(id);
+        await _locationClient.ClearLocationForPostOnDeleteAsync(id);
+    }
+
+    private async Task CompensateFailedPostSideEffectsAsync(Post post)
+    {
+        try
+        {
+            await _mediaClient.DeleteBlobStorageForPostAsync(post.Id);
+        }
+        catch
+        {
+            // Best-effort compensation.
+        }
+
+        try
+        {
+            await _locationClient.ClearLocationForPostOnDeleteAsync(post.Id);
+        }
+        catch
+        {
+            // Best-effort compensation.
+        }
+
+        try
+        {
+            await _repo.DeletePostAsync(post);
+        }
+        catch
+        {
+            // Best-effort compensation.
+        }
     }
 
     private static void ValidateOptionalLocation(decimal? latitude, decimal? longitude)
