@@ -450,6 +450,8 @@ services:
         "test",
         "services/Api.Tests/Api.Tests.csproj",
         "services/Media.Tests/Media.Tests.csproj",
+        "services/Chat.Tests/Chat.Tests.csproj",
+        "services/Location.Tests/Location.Tests.csproj",
         "-c",
         "Release",
         "--filter",

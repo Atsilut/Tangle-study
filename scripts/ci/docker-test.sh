@@ -33,10 +33,14 @@ if [[ " $* " == *" --no-build "* ]]; then
     *Chat.Tests*)
       require_test_build_output "Chat.Tests" "Chat.Tests.dll"
       ;;
+    *Location.Tests*)
+      require_test_build_output "Location.Tests" "Location.Tests.dll"
+      ;;
     *)
       require_test_build_output "Api.Tests" "Api.Tests.dll"
       require_test_build_output "Media.Tests" "Media.Tests.dll"
       require_test_build_output "Chat.Tests" "Chat.Tests.dll"
+      require_test_build_output "Location.Tests" "Location.Tests.dll"
       ;;
   esac
 fi
