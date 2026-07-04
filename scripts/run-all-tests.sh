@@ -40,7 +40,7 @@ run_rust() {
 }
 
 run_api() {
-  log_step "INTEGRATION TESTS (Api, Media, Chat, Location, Community)"
+  log_step "INTEGRATION TESTS (Api, Media, Chat, Location, Community, Group)"
   bash "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
