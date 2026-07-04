@@ -11,9 +11,8 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | Service | Source folder | Owned aggregates | API routes (today) | Status |
 |---------|---------------|------------------|-------------------|--------|
 | **users** | `Domain/Users/` | `User`, JWT auth | `api/users`, `api` (login) | Implemented |
-| **posts** | `Domain/Posts/` | `Post` | `api/posts` | Implemented |
-| **comments** | `Domain/Comments/` | `Comment` | `api/comments` | Implemented |
-| **groups** | `Domain/Groups/` | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, `api/groups/{id}/boards/{id}/posts` | Implemented |
+| **posts** / **comments** | [`services/Community/`](../services/Community/) | Post, Comment | `api/posts`, `api/comments`, group-board posts | **Extracted (Compose)** — [COMMUNITY.md](../services/Community/COMMUNITY.md); Azure CD pending |
+| **group** | [`services/Group/`](../services/Group/) | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, invitations, applications | **Extracted (Compose)** — [GROUP.md](../services/Group/GROUP.md); Azure CD pending |
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
 | **chat** | [`services/Chat/`](../services/Chat/) | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | **Extracted (Compose)** — [CHAT.md](../services/Chat/CHAT.md); Azure CD pending |
@@ -42,21 +41,25 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Depends on:**
 - **users** — author nickname enrichment, user existence (via `IMonolithAccessClient`)
-- **groups** — board view/write access (via monolith internal board endpoints until groups extract)
+- **group** — board view/write access (via `IGroupClient` → `/internal/group/*`)
 - **media** / **location** — attachments and post geo (HTTP clients)
 
 **Public routes:** `/api/posts`, `/api/comments`, `/api/groups/{id}/boards/{id}/posts`. **Internal:** `/internal/community/*` (media-view, owner, viewable-ids, user/group detach).
 
-### groups-service
+### group-service
 
-**Owns:** groups, boards, memberships, invitations, applications, blacklist.
+**Extracted in local Compose (MSA step 5).** API reference: [GROUP.md](../services/Group/GROUP.md).
+
+**Owns:** groups, boards, memberships, invitations, applications, blacklist in Postgres `group` schema.
 
 **Depends on:**
-- **users** — member identity, inviter/invitee
-- **posts** — board posts (see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md))
-- **chat** — `PlatformGroup` chat rooms link a `ChatRoom` to a `Group` (see [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md))
+- **users** — member identity, inviter/invitee, blocks (via `IMonolithAccessClient`)
+- **community** — delete-all posts on group delete (`ICommunityClient`)
+- **location** — end sessions on group delete (`ILocationClient`)
 
-**Orchestrators:** `GroupJoinResolutionService`, `GroupJoinService` — keep workflow logic inside this service at extraction; do not scatter across posts/chat.
+**Orchestrators:** `GroupJoinResolutionService`, `GroupJoinService` — workflow logic stays in this service.
+
+**Public routes:** `/api/groups/*`, `/api/invitations/*`, `/api/applications/*`. **Internal:** `/internal/group/*` (membership, board access, user detach).
 
 ### friendships-service
 
@@ -82,7 +85,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Depends on:**
 - **users** — participants, sender identity (via `IMonolithAccessClient`)
-- **groups** — `PlatformGroup` room type ties to a group ID — cross-service contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md)
+- **group** — `PlatformGroup` room type ties to a group ID (via `IGroupClient`)
 - **media** — chat message attachments (via `IMediaClient`)
 
 **Async:** enqueues `chat.message.created` to Redis Streams after persist; `rust-worker-chat` callbacks to chat-service.
@@ -130,10 +133,10 @@ Client → nginx → media-service (presigned URL) → object storage
 - Safety alerts (stale position monitor, manual SOS) — SignalR `SafetyAlertRaised`
 - Google Places proxy (`/api/location/places/*`)
 
-**Depends on (via `HttpMonolithAccessClient`):**
-- **users** — existence, nicknames, blocks
-- **groups** — membership for live sharing and alerts
-- **posts** (optional) — ownership and viewability for post-linked pins
+**Depends on:**
+- **users** (via `IMonolithAccessClient`) — existence, nicknames, blocks
+- **group** (via `IGroupClient`) — membership for live sharing and alerts
+- **community** (via `ICommunityAccessClient`) — post ownership and viewability for post-linked pins
 
 **Monolith integration:** `ILocationClient` — post upsert/clear, user detach on deletion, group session end on group delete.
 
@@ -191,7 +194,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these for remaining extractions (posts, groups, users, …). Media, chat, and location already follow these patterns.
+Apply these for remaining extractions (users, friendships, user-blocks, …). Media, chat, location, community, and group already follow these patterns.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 
@@ -201,7 +204,7 @@ Apply these for remaining extractions (posts, groups, users, …). Media, chat, 
 
 4. **No shared mutable tables for async work** — workers read jobs from Streams and write results back through the owning service's API or a well-defined storage contract, not ad-hoc shared tables.
 
-5. **Explicit contracts before extraction** — Groups ↔ Posts and Groups ↔ Chat documented in [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) (BFF compose for board posts).
+5. **Explicit contracts before extraction** — Group ↔ Community and Group ↔ Chat interim contracts live in [GROUP.md](../services/Group/GROUP.md) (gateway compose deferred to step 7).
 
 6. **Gateway owns auth context** — JWT validation at the edge; services receive user identity claims, not raw credentials.
 

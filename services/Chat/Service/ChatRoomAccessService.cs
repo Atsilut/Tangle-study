@@ -6,9 +6,10 @@ using Chat.Infrastructure;
 namespace Chat.Service;
 
 [Service]
-public class ChatRoomAccessService(IMonolithAccessClient monolithAccess)
+public class ChatRoomAccessService(IMonolithAccessClient monolithAccess, IGroupClient groupClient)
 {
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IGroupClient _groupClient = groupClient;
 
     public Task EnsureNoBlockBetweenUsersAsync(long userId, long otherUserId) =>
         _monolithAccess.EnsureNoBlockBetweenUsersAsync(otherUserId);
@@ -54,7 +55,7 @@ public class ChatRoomAccessService(IMonolithAccessClient monolithAccess)
         {
             var platformGroupId = room.PlatformGroupId
                 ?? throw new InvalidOperationException("Platform group room is missing PlatformGroupId.");
-            await _monolithAccess.EnsureGroupMemberAsync(
+            await _groupClient.EnsureGroupMemberAsync(
                 platformGroupId,
                 inviteeUserId,
                 "User is not a member of this group");
@@ -63,8 +64,8 @@ public class ChatRoomAccessService(IMonolithAccessClient monolithAccess)
 
     public async Task EnsureGroupMemberCanListRoomsAsync(long platformGroupId, long userId)
     {
-        await _monolithAccess.EnsureGroupExistsAsync(platformGroupId);
-        await _monolithAccess.EnsureGroupMemberAsync(platformGroupId, userId, "Group not found");
+        await _groupClient.EnsureGroupExistsAsync(platformGroupId);
+        await _groupClient.EnsureGroupMemberAsync(platformGroupId, userId, "Group not found");
     }
 
     public async Task EnsureCanCreatePlatformGroupRoomAsync(
@@ -72,15 +73,15 @@ public class ChatRoomAccessService(IMonolithAccessClient monolithAccess)
         long creatorUserId,
         IReadOnlyCollection<long> participantUserIds)
     {
-        await _monolithAccess.EnsureGroupExistsAsync(platformGroupId);
-        await _monolithAccess.EnsureGroupMemberAsync(platformGroupId, creatorUserId, "Group not found");
+        await _groupClient.EnsureGroupExistsAsync(platformGroupId);
+        await _groupClient.EnsureGroupMemberAsync(platformGroupId, creatorUserId, "Group not found");
 
         var otherParticipantIds = OtherParticipantIds(creatorUserId, participantUserIds);
         if (otherParticipantIds.Count == 0) return;
 
         await _monolithAccess.EnsureUsersExistAsync(otherParticipantIds);
         await _monolithAccess.EnsureNoBlockBetweenUserAndOthersAsync(otherParticipantIds);
-        await _monolithAccess.EnsureGroupMembersAsync(
+        await _groupClient.EnsureGroupMembersAsync(
             platformGroupId,
             otherParticipantIds,
             "All participants must be members of this group");

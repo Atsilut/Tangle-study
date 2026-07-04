@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish Api, Media, Chat, Location, and Community for runtime Dockerfiles; build test projects for CI --no-build runs.
+# Publish Api, Media, Chat, Location, Community, and Group for runtime Dockerfiles; build test projects for CI --no-build runs.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -21,8 +21,9 @@ MEDIA_PUBLISH_DIR=".ci-cache/publish/media"
 CHAT_PUBLISH_DIR=".ci-cache/publish/chat"
 LOCATION_PUBLISH_DIR=".ci-cache/publish/location"
 COMMUNITY_PUBLISH_DIR=".ci-cache/publish/community"
+GROUP_PUBLISH_DIR=".ci-cache/publish/group"
 
-mkdir -p "${ROOT}/${API_PUBLISH_DIR}" "${ROOT}/${MEDIA_PUBLISH_DIR}" "${ROOT}/${CHAT_PUBLISH_DIR}" "${ROOT}/${LOCATION_PUBLISH_DIR}" "${ROOT}/${COMMUNITY_PUBLISH_DIR}"
+mkdir -p "${ROOT}/${API_PUBLISH_DIR}" "${ROOT}/${MEDIA_PUBLISH_DIR}" "${ROOT}/${CHAT_PUBLISH_DIR}" "${ROOT}/${LOCATION_PUBLISH_DIR}" "${ROOT}/${COMMUNITY_PUBLISH_DIR}" "${ROOT}/${GROUP_PUBLISH_DIR}"
 
 require_publish_output() {
   local dir="$1"
@@ -33,7 +34,7 @@ require_publish_output() {
 log_step "BUILD SDK IMAGE"
 build_sdk_image tangle-study-sdk:local
 
-log_step "PUBLISH API, MEDIA, CHAT, LOCATION, AND COMMUNITY (${CONFIGURATION})"
+log_step "PUBLISH API, MEDIA, CHAT, LOCATION, COMMUNITY, AND GROUP (${CONFIGURATION})"
 nuget_mount="$(ci_nuget_mount)"
 tangle_compose --profile tools run --rm \
   -v "$nuget_mount" \
@@ -60,11 +61,16 @@ tangle_compose --profile tools run --rm \
       -c '${CONFIGURATION}' \
       -o '${COMMUNITY_PUBLISH_DIR}' \
       /p:UseAppHost=false
+    dotnet publish services/Group/Group.csproj \
+      -c '${CONFIGURATION}' \
+      -o '${GROUP_PUBLISH_DIR}' \
+      /p:UseAppHost=false
     dotnet build services/Api.Tests/Api.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Media.Tests/Media.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Chat.Tests/Chat.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Location.Tests/Location.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Community.Tests/Community.Tests.csproj -c '${CONFIGURATION}' --no-incremental
+    dotnet build services/Group.Tests/Group.Tests.csproj -c '${CONFIGURATION}' --no-incremental
   "
 
 require_publish_output "$API_PUBLISH_DIR" "Api.dll"
@@ -72,6 +78,7 @@ require_publish_output "$MEDIA_PUBLISH_DIR" "Media.dll"
 require_publish_output "$CHAT_PUBLISH_DIR" "Chat.dll"
 require_publish_output "$LOCATION_PUBLISH_DIR" "Location.dll"
 require_publish_output "$COMMUNITY_PUBLISH_DIR" "Community.dll"
+require_publish_output "$GROUP_PUBLISH_DIR" "Group.dll"
 
 ci_fix_cache_ownership
 

@@ -1,5 +1,4 @@
 using Api.Domain.Friendships.Service;
-using Api.Domain.Groups.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Dto;
@@ -14,10 +13,7 @@ namespace Api.Global.Api;
 public sealed class InternalAccessController(
     UserService userService,
     FriendshipService friendshipService,
-    UserBlockService userBlockService,
-    GroupService groupService,
-    GroupMembershipService groupMembershipService,
-    GroupBoardAccessService groupBoardAccessService) : ControllerBase
+    UserBlockService userBlockService) : ControllerBase
 {
     [HttpPost("users/{userId:long}/exists")]
     public async Task<IActionResult> EnsureUserExists([FromRoute] long userId)
@@ -90,67 +86,6 @@ public sealed class InternalAccessController(
         return NoContent();
     }
 
-    [HttpPost("groups/{groupId:long}/exists")]
-    public async Task<IActionResult> EnsureGroupExists([FromRoute] long groupId)
-    {
-        await groupService.EnsureGroupExistsAsync(groupId);
-        return NoContent();
-    }
-
-    [HttpPost("groups/{groupId:long}/members/validate")]
-    public async Task<IActionResult> ValidateGroupMembers(
-        [FromRoute] long groupId,
-        [FromBody] InternalAccessGroupMembersRequestDto request)
-    {
-        await groupMembershipService.EnsureMembersAsync(
-            groupId,
-            request.UserIds,
-            "All participants must be members of this group");
-        return NoContent();
-    }
-
-    [HttpPost("groups/{groupId:long}/members/{userId:long}/validate")]
-    public async Task<IActionResult> ValidateGroupMember([FromRoute] long groupId, [FromRoute] long userId)
-    {
-        await groupMembershipService.EnsureMemberAsync(
-            groupId,
-            userId,
-            "User is not a member of this group");
-        return NoContent();
-    }
-
-    [HttpGet("groups/{groupId:long}/membership/me")]
-    public async Task<IActionResult> EnsureCallerIsGroupMember([FromRoute] long groupId)
-    {
-        var callerId = GetCallerUserId();
-        await groupMembershipService.EnsureMemberAsync(groupId, callerId);
-        return NoContent();
-    }
-
-    [HttpPost("groups/{groupId:long}/boards/{boardId:long}/validate-view")]
-    public async Task<IActionResult> ValidateBoardView([FromRoute] long groupId, [FromRoute] long boardId)
-    {
-        await groupBoardAccessService.EnsureCanViewBoardAsync(groupId, boardId);
-        return NoContent();
-    }
-
-    [HttpPost("groups/{groupId:long}/boards/{boardId:long}/validate-write")]
-    public async Task<IActionResult> ValidateBoardWrite([FromRoute] long groupId, [FromRoute] long boardId)
-    {
-        await groupBoardAccessService.EnsureCanWritePostAsync(groupId, boardId);
-        return NoContent();
-    }
-
-    [HttpPost("groups/boards/viewable-keys")]
-    public async Task<ActionResult<InternalAccessViewableBoardsResponseDto>> GetViewableBoardKeys(
-        [FromBody] InternalAccessViewableBoardsRequestDto request)
-    {
-        var keys = request.Boards.Select(b => (b.GroupId, b.BoardId)).ToList();
-        var viewable = await groupBoardAccessService.ResolveViewableBoardKeysAsync(keys);
-        return Ok(new InternalAccessViewableBoardsResponseDto(
-            [.. viewable.Select(k => new InternalAccessBoardKeyDto(k.GroupId, k.BoardId))]));
-    }
-
     [HttpPost("users/blocks/mutual-ids")]
     public async Task<ActionResult<InternalAccessMutualBlocksResponseDto>> GetMutualBlockIds(
         [FromBody] InternalAccessMutualBlocksRequestDto request)
@@ -159,23 +94,12 @@ public sealed class InternalAccessController(
         return Ok(new InternalAccessMutualBlocksResponseDto([.. blocked]));
     }
 
-    [HttpGet("groups/{groupId:long}/members/for-member")]
-    public async Task<ActionResult<InternalAccessGroupMembersResponseDto>> GetGroupMembersForMember(
-        [FromRoute] long groupId)
+    [HttpPost("users/blocks/is-blocked-by")]
+    public async Task<ActionResult<InternalAccessIsBlockedResponseDto>> IsBlockedBy(
+        [FromBody] InternalAccessIsBlockedRequestDto request)
     {
-        var callerId = GetCallerUserId();
-        var members = await groupMembershipService.GetMembersForMemberAsync(groupId, callerId);
-        return Ok(new InternalAccessGroupMembersResponseDto(
-            [.. members.Select(m => new InternalAccessGroupMemberEntryDto(m.UserId, m.Nickname))]));
-    }
-
-    [HttpGet("groups/{groupId:long}/member-ids")]
-    public async Task<ActionResult<InternalAccessGroupMemberIdsResponseDto>> GetGroupMemberIds(
-        [FromRoute] long groupId)
-    {
-        await groupService.EnsureGroupExistsAsync(groupId);
-        var memberIds = await groupMembershipService.GetMemberUserIdsAsync(groupId);
-        return Ok(new InternalAccessGroupMemberIdsResponseDto([.. memberIds]));
+        var blocked = await userBlockService.IsBlockedByAsync(request.BlockerUserId, request.BlockedUserId);
+        return Ok(new InternalAccessIsBlockedResponseDto(blocked));
     }
 
     private long GetCallerUserId() =>

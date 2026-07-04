@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
-using Api.Domain.Groups.Domain;
-using Api.Domain.Groups.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
@@ -17,22 +15,6 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
     public static TheoryData<HttpMethod, string, object?> UnauthorizedEndpointData =>
         new()
         {
-            {
-                HttpMethod.Post,
-                GroupIntegrationTestHelpers.GroupsBase,
-                new GroupCreateRequestDto
-                {
-                    Name = "x",
-                    Description = "y",
-                    Visibility = GroupVisibility.Private,
-                }
-            },
-            { HttpMethod.Get, $"{GroupIntegrationTestHelpers.GroupsBase}/1/boards", null },
-            {
-                HttpMethod.Post,
-                $"{GroupIntegrationTestHelpers.GroupsBase}/1/blacklist",
-                new GroupBlacklistCreateRequestDto { UserId = 2 }
-            },
             {
                 HttpMethod.Post,
                 "/api/friendships/requests",
@@ -60,13 +42,10 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
         string url,
         object? body)
     {
-        // Arrange
         Client.DefaultRequestHeaders.Authorization = null;
 
-        // Act
         var res = await SendAsync(method, url, body);
 
-        // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
     }
 
@@ -79,6 +58,6 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
             "PATCH" when body is not null => Client.PatchAsJsonAsync(url, body, TestContext.Current.CancellationToken),
             "PATCH" => Client.PatchAsync(url, null),
             "DELETE" => Client.DeleteAsync(url, TestContext.Current.CancellationToken),
-            _ => throw new ArgumentOutOfRangeException(nameof(method), method, "Unsupported HTTP method."),
+            _ => throw new ArgumentOutOfRangeException(nameof(method), method, null),
         };
 }

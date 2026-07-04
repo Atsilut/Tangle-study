@@ -13,6 +13,7 @@ namespace Location.Service;
 public class LocationSessionService(
     ILocationSessionRepository repo,
     IMonolithAccessClient monolithAccess,
+    IGroupClient groupClient,
     LiveLocationRedisStore liveStore,
     ILocationRealtimeNotifier realtime,
     LocationSafetyAlertService safetyAlerts,
@@ -20,6 +21,7 @@ public class LocationSessionService(
 {
     private readonly ILocationSessionRepository _repo = repo;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IGroupClient _groupClient = groupClient;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly LocationSafetyAlertService _safetyAlerts = safetyAlerts;
@@ -30,7 +32,7 @@ public class LocationSessionService(
         var userId = GetUserIdFromLogin();
         await _monolithAccess.EnsureUserExistsAsync(userId);
         ValidateCoordinates(request.Latitude, request.Longitude);
-        await _monolithAccess.EnsureGroupMemberAsync(request.GroupId, userId, "Group not found");
+        await _groupClient.EnsureGroupMemberAsync(request.GroupId, userId, "Group not found");
 
         await EndActiveSessionForUserInGroupAsync(userId, request.GroupId);
 
@@ -44,7 +46,7 @@ public class LocationSessionService(
     public async Task<LocationSessionGetResponseDto?> GetMyActiveSessionAsync(long groupId)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureGroupMemberAsync(groupId, userId, "Group not found");
+        await _groupClient.EnsureGroupMemberAsync(groupId, userId, "Group not found");
 
         var session = await _repo.GetActiveSessionForUserInGroupAsync(userId, groupId);
         if (session is null) return null;
@@ -62,7 +64,7 @@ public class LocationSessionService(
     public async Task<List<LiveLocationGetResponseDto>?> GetActiveGroupLocationsAsync(long groupId)
     {
         var viewerId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureGroupMemberAsync(groupId, viewerId, "Group not found");
+        await _groupClient.EnsureGroupMemberAsync(groupId, viewerId, "Group not found");
 
         var sessions = await _repo.GetActiveSessionsForGroupAsync(groupId);
         if (sessions.Count == 0) return null;
@@ -105,7 +107,7 @@ public class LocationSessionService(
     public async Task<List<GroupMemberLocationStatusDto>> GetGroupMemberSharingStatusAsync(long groupId)
     {
         var viewerId = GetUserIdFromLogin();
-        var members = await _monolithAccess.GetGroupMembersForMemberAsync(groupId);
+        var members = await _groupClient.GetGroupMembersForMemberAsync(groupId);
         var otherMembers = members.Where(m => m.UserId != viewerId).ToList();
         if (otherMembers.Count == 0) return [];
 
@@ -195,7 +197,7 @@ public class LocationSessionService(
         if (await _monolithAccess.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId, [session.OwnerUserId]))
             throw new UnauthorizedAccessException("Unauthorized access");
 
-        if (!await _monolithAccess.IsGroupMemberAsync(session.GroupId, viewerUserId))
+        if (!await _groupClient.IsGroupMemberAsync(session.GroupId, viewerUserId))
             throw new UnauthorizedAccessException("You must be a group member to view this location session.");
     }
 

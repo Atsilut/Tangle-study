@@ -11,6 +11,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected CommunityWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
     protected InMemoryMonolithAccessClient MonolithAccess => Factory.MonolithAccess;
+    protected InMemoryGroupClient GroupAccess => Factory.GroupAccess;
     protected FakeMediaClient FakeMedia => Factory.FakeMediaClient;
     protected FakeLocationClient FakeLocation => Factory.FakeLocationClient;
 
@@ -25,6 +26,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         await Factory.ClearAllCommunityDataAsync();
         MonolithAccess.Reset();
+        GroupAccess.Reset();
         FakeMedia.Reset();
         FakeLocation.Reset();
     }

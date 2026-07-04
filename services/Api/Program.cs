@@ -91,6 +91,7 @@ builder.Services.AddTangleMediaClient(builder.Configuration);
 builder.Services.AddTangleChatClient(builder.Configuration);
 builder.Services.AddTangleLocationClient(builder.Configuration);
 builder.Services.AddTangleCommunityClient(builder.Configuration);
+builder.Services.AddTangleGroupClient(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

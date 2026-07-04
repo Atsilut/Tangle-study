@@ -25,6 +25,9 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
     public InMemoryMonolithAccessClient MonolithAccess =>
         Services.GetRequiredService<InMemoryMonolithAccessClient>();
 
+    public InMemoryGroupClient GroupAccess =>
+        Services.GetRequiredService<InMemoryGroupClient>();
+
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
     public FakeLocationClient FakeLocationClient => _fakeLocationClient;
 
@@ -34,6 +37,8 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
+        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
         builder.UseSetting("MediaClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("LocationClient:BaseUrl", "http://location.test");
@@ -50,6 +55,8 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["GroupClient:BaseUrl"] = "http://group.test",
+                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
                 ["MediaClient:BaseUrl"] = "http://media.test",
                 ["MediaClient:InternalSecret"] = TestInternalServiceSecret,
                 ["LocationClient:BaseUrl"] = "http://location.test",
@@ -68,6 +75,11 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
             services.AddSingleton<InMemoryMonolithAccessClient>();
             services.AddSingleton<IMonolithAccessClient>(sp =>
                 sp.GetRequiredService<InMemoryMonolithAccessClient>());
+
+            RemoveService<IGroupClient>(services);
+            services.AddSingleton<InMemoryGroupClient>();
+            services.AddSingleton<IGroupClient>(sp =>
+                sp.GetRequiredService<InMemoryGroupClient>());
 
             RemoveService<IMediaClient>(services);
             services.AddSingleton<IMediaClient>(_fakeMediaClient);

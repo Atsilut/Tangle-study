@@ -221,4 +221,4 @@ Baked into the image; override via env (`Places__ApiKey`, `Redis__*`, etc.) when
 
 ## Monolith integration
 
-The monolith calls location-service over HTTP (`ILocationClient`) for post pin upsert/clear, user detach on deletion, and group session end. Location-service calls the monolith via `IMonolithAccessClient` for users, groups, blocks, and post visibility. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#location-service).
+The monolith and community call location-service over HTTP (`ILocationClient`) for post pin upsert/clear, user detach on deletion, and group session end. Location-service calls the monolith via `IMonolithAccessClient` for users and blocks, group-service via `IGroupClient` for membership, and community via `ICommunityAccessClient` for post visibility. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#location-service).

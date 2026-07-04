@@ -1,0 +1,23 @@
+namespace Group.Dto
+{
+    public record GroupInvitationCreateResponseDto(
+        long Id,
+        long GroupId,
+        string GroupName,
+        long InviterId,
+        long InviteeId,
+        long OtherUserId,
+        string OtherUserNickname,
+        bool IsPending,
+        bool IsIncoming,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    public record GroupInvitationGroupListItemDto(
+        long Id,
+        long InviterId,
+        string InviterNickname,
+        long InviteeId,
+        string InviteeNickname,
+        DateTime CreatedAt);
+}

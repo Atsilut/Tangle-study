@@ -14,12 +14,6 @@ public static class AppDbContextTestExtensions
         await db.FriendRequests.ExecuteDeleteAsync(ct);
         await db.UserBlocks.ExecuteDeleteAsync(ct);
         await db.Friendships.ExecuteDeleteAsync(ct);
-        await db.GroupMembers.ExecuteDeleteAsync(ct);
-        await db.GroupApplications.ExecuteDeleteAsync(ct);
-        await db.GroupInvitations.ExecuteDeleteAsync(ct);
-        await db.GroupBlacklists.ExecuteDeleteAsync(ct);
-        await db.GroupBoards.ExecuteDeleteAsync(ct);
-        await db.Groups.ExecuteDeleteAsync(ct);
         await db.Users.ExecuteDeleteAsync(ct);
         db.ChangeTracker.Clear();
     }

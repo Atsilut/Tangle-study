@@ -17,6 +17,7 @@ public class LocationSafetyAlertService(
     ILocationSessionRepository repo,
     LiveLocationRedisStore liveStore,
     IMonolithAccessClient monolithAccess,
+    IGroupClient groupClient,
     ILocationRealtimeNotifier realtime,
     IDistributedCache cache,
     IOptions<LocationSafetyOptions> options,
@@ -28,13 +29,14 @@ public class LocationSafetyAlertService(
     private readonly ILocationSessionRepository _repo = repo;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IGroupClient _groupClient = groupClient;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly IDistributedCache _cache = cache;
     private readonly LocationSafetyOptions _options = options.Value;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public Task EnsureCanJoinGroupAlertsAsync(long groupId, long userId) =>
-        _monolithAccess.EnsureGroupMemberAsync(groupId, userId, "Group not found");
+        _groupClient.EnsureGroupMemberAsync(groupId, userId, "Group not found");
 
     public async Task<LocationSafetyAlertDto> TriggerSosAsync(long sessionId)
     {
@@ -150,7 +152,7 @@ public class LocationSafetyAlertService(
 
     private async Task<List<long>> GetAlertRecipientUserIdsAsync(long groupId, long subjectUserId)
     {
-        var memberIds = await _monolithAccess.GetGroupMemberUserIdsAsync(groupId);
+        var memberIds = await _groupClient.GetGroupMemberUserIdsAsync(groupId);
         var candidateIds = memberIds.Where(id => id != subjectUserId).ToList();
         if (candidateIds.Count == 0) return [];
 

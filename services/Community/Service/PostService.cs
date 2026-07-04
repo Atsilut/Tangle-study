@@ -16,7 +16,8 @@ public class PostService(
     IMediaClient mediaClient,
     ILocationClient locationClient,
     IHttpContextAccessor httpContextAccessor,
-    IMonolithAccessClient monolithAccess)
+    IMonolithAccessClient monolithAccess,
+    IGroupClient groupClient)
 {
     private readonly IPostRepository _repo = repo;
     private readonly CommunityDbContext _db = db;
@@ -25,6 +26,7 @@ public class PostService(
     private readonly ILocationClient _locationClient = locationClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IGroupClient _groupClient = groupClient;
 
     private long? TryGetViewerUserId()
     {
@@ -81,7 +83,7 @@ public class PostService(
             throw new EntityNotFoundException(notFoundMessage, notFoundStatusCode);
 
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            await _monolithAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            await _groupClient.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
     }
 
     /// <summary>
@@ -95,7 +97,7 @@ public class PostService(
             throw new EntityNotFoundException("Post not found", StatusCodes.Status400BadRequest);
 
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            await _groupClient.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
     }
 
     public async Task CreatePostAsync(PostCreateRequestDto request)
@@ -107,7 +109,7 @@ public class PostService(
         {
             if (!request.GroupId.HasValue || !request.GroupBoardId.HasValue)
                 throw new ArgumentException("GroupId and GroupBoardId must be provided together for group posts.");
-            await _monolithAccess.EnsureCanWritePostAsync(request.GroupId.Value, request.GroupBoardId.Value);
+            await _groupClient.EnsureCanWritePostAsync(request.GroupId.Value, request.GroupBoardId.Value);
         }
 
         ValidateOptionalLocation(request.Latitude, request.Longitude);
@@ -159,7 +161,7 @@ public class PostService(
         if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return null;
 
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            await _monolithAccess.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            await _groupClient.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
         var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([post.AuthorUserId]);
         return await MapToDtoAsync(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User"));
@@ -173,7 +175,7 @@ public class PostService(
         if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return false;
 
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            return await _monolithAccess.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            return await _groupClient.TryCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
         return true;
     }
@@ -196,7 +198,7 @@ public class PostService(
             .ToList();
         var viewableBoards = boardKeys.Count == 0
             ? []
-            : await _monolithAccess.ResolveViewableBoardKeysAsync(boardKeys);
+            : await _groupClient.ResolveViewableBoardKeysAsync(boardKeys);
 
         HashSet<long> viewable = [];
         foreach (var post in posts)
@@ -219,7 +221,7 @@ public class PostService(
     {
         var userId = GetUserIdFromLogin();
         await _monolithAccess.EnsureUserExistsAsync(userId);
-        await _monolithAccess.EnsureCanWritePostAsync(groupId, boardId);
+        await _groupClient.EnsureCanWritePostAsync(groupId, boardId);
 
         ValidateOptionalLocation(request.Latitude, request.Longitude);
 
@@ -246,7 +248,7 @@ public class PostService(
 
     public async Task<List<PostGetResponseDto>?> GetGroupBoardPostsAsync(long groupId, long boardId)
     {
-        await _monolithAccess.EnsureCanViewBoardAsync(groupId, boardId);
+        await _groupClient.EnsureCanViewBoardAsync(groupId, boardId);
         var posts = await _repo.GetPostsByGroupBoardAsync(groupId, boardId);
         if (posts.Count == 0) return null;
 
@@ -259,7 +261,7 @@ public class PostService(
 
     public async Task<PostGetResponseDto?> GetGroupBoardPostByIdAsync(long groupId, long boardId, long postId)
     {
-        await _monolithAccess.EnsureCanViewBoardAsync(groupId, boardId);
+        await _groupClient.EnsureCanViewBoardAsync(groupId, boardId);
         var post = await _repo.GetGroupBoardPostAsync(groupId, boardId, postId);
         if (post == null) return null;
 
@@ -294,7 +296,7 @@ public class PostService(
             .ToList();
         var viewableBoards = boardKeys.Count == 0
             ? []
-            : await _monolithAccess.ResolveViewableBoardKeysAsync(boardKeys);
+            : await _groupClient.ResolveViewableBoardKeysAsync(boardKeys);
 
         posts = [.. posts.Where(p =>
             p.GroupId is null ||
@@ -348,7 +350,7 @@ public class PostService(
         await _monolithAccess.EnsureUserExistsAsync(userId);
         var post = await GetPostOrThrowAsync(request.Id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            await _groupClient.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
         if (post.AuthorUserId != userId)
             throw new AccessForbiddenException("Unauthorized access");
         ValidateLocationPatch(request);
@@ -420,7 +422,7 @@ public class PostService(
         await _monolithAccess.EnsureUserExistsAsync(userId);
         var post = await GetPostOrThrowAsync(id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
-            await _monolithAccess.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
+            await _groupClient.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
         if (post.AuthorUserId != userId)
             throw new AccessForbiddenException("Unauthorized access");
 

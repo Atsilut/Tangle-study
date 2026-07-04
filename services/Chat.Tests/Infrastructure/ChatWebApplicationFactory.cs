@@ -39,6 +39,8 @@ public sealed class ChatWebApplicationFactory(
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
+        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
         builder.UseSetting("MediaClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
@@ -57,6 +59,8 @@ public sealed class ChatWebApplicationFactory(
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["GroupClient:BaseUrl"] = "http://group.test",
+                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
                 ["MediaClient:BaseUrl"] = "http://media.test",
                 ["MediaClient:InternalSecret"] = TestInternalServiceSecret,
                 ["InternalAccess:Secret"] = TestInternalServiceSecret,
@@ -70,7 +74,9 @@ public sealed class ChatWebApplicationFactory(
         builder.ConfigureTestServices(services =>
         {
             RemoveService<IMonolithAccessClient>(services);
+            RemoveService<IGroupClient>(services);
             services.AddSingleton<IMonolithAccessClient>(_monolithAccess);
+            services.AddSingleton<IGroupClient>(_monolithAccess);
 
             RemoveService<IMediaClient>(services);
             services.AddSingleton<IMediaClient>(_fakeMediaClient);

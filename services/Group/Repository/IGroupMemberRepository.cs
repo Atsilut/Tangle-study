@@ -1,0 +1,20 @@
+using Group.Entities;
+
+namespace Group.Repository
+{
+    public interface IGroupMemberRepository
+    {
+        public Task AddMemberAsync(GroupMember member);
+        public Task<GroupMember?> GetMemberAsync(long groupId, long userId);
+        public Task<List<GroupMember>> GetMembersByUserIdsAsync(long groupId, IReadOnlyCollection<long> userIds);
+        public Task<List<GroupMember>> GetMembersByGroupAsync(long groupId);
+        public Task<IReadOnlyDictionary<long, List<GroupMember>>> GetMembersByGroupIdsAsync(IReadOnlyCollection<long> groupIds);
+        public Task<List<GroupMember>> GetMembershipsByUserAsync(long userId);
+        public Task<int> CountMembersAsync(long groupId);
+        public Task<IReadOnlyDictionary<long, int>> GetMemberCountsByGroupIdsAsync(IReadOnlyCollection<long> groupIds);
+        public Task UpdateMemberAsync(GroupMember member);
+        public Task RemoveMemberAsync(GroupMember member);
+        public Task RemoveAllByGroupAsync(long groupId);
+        public Task RemoveAllByUserAsync(long userId);
+    }
+}

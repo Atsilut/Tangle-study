@@ -6,6 +6,7 @@
     <Project Path="services/Location/Location.csproj" />
     <Project Path="services/Media/Media.csproj" />
     <Project Path="services/Community/Community.csproj" />
+    <Project Path="services/Group/Group.csproj" />
   </Folder>
   <Folder Name="/workers/" />
   <Project Path="services/Api.Tests/Api.Tests.csproj" Id="c16e227b-3f87-4248-bdb2-091b9d47f7e0" />
@@ -13,4 +14,5 @@
   <Project Path="services/Chat.Tests/Chat.Tests.csproj" />
   <Project Path="services/Location.Tests/Location.Tests.csproj" />
   <Project Path="services/Community.Tests/Community.Tests.csproj" />
+  <Project Path="services/Group.Tests/Group.Tests.csproj" />
 </Solution>

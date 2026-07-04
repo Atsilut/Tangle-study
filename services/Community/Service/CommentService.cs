@@ -15,6 +15,7 @@ public class CommentService(
     IHttpContextAccessor httpContextAccessor,
     PostService postService,
     IMonolithAccessClient monolithAccess,
+    IGroupClient groupClient,
     IMediaClient mediaClient)
 {
     private readonly ICommentRepository _repo = repo;
@@ -23,6 +24,7 @@ public class CommentService(
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly PostService _postService = postService;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IGroupClient _groupClient = groupClient;
 
     private long? TryGetViewerUserId()
     {
@@ -65,7 +67,7 @@ public class CommentService(
     {
         var groupBoard = await _postService.TryGetGroupBoardContextAsync(postId);
         if (groupBoard is not null)
-            await _monolithAccess.EnsureCanWritePostAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
+            await _groupClient.EnsureCanWritePostAsync(groupBoard.Value.GroupId, groupBoard.Value.GroupBoardId);
     }
 
     public async Task CreateCommentAsync(CommentCreateRequestDto request)

@@ -32,11 +32,13 @@ public sealed class ApiWebApplicationFactory(
     private readonly FakeChatClient _fakeChatClient = new();
     private readonly FakeLocationClient _fakeLocationClient = new();
     private readonly FakeCommunityClient _fakeCommunityClient = new();
+    private readonly FakeGroupClient _fakeGroupClient = new();
 
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
     public FakeChatClient FakeChatClient => _fakeChatClient;
     public FakeLocationClient FakeLocationClient => _fakeLocationClient;
     public FakeCommunityClient FakeCommunityClient => _fakeCommunityClient;
+    public FakeGroupClient FakeGroupClient => _fakeGroupClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -51,6 +53,8 @@ public sealed class ApiWebApplicationFactory(
         builder.UseSetting("LocationClient:InternalSecret", "test-internal-service-secret");
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
         builder.UseSetting("CommunityClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
+        builder.UseSetting("GroupClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -70,6 +74,8 @@ public sealed class ApiWebApplicationFactory(
                 ["LocationClient:InternalSecret"] = "test-internal-service-secret",
                 ["CommunityClient:BaseUrl"] = "http://community.test",
                 ["CommunityClient:InternalSecret"] = "test-internal-service-secret",
+                ["GroupClient:BaseUrl"] = "http://group.test",
+                ["GroupClient:InternalSecret"] = "test-internal-service-secret",
                 ["InternalAccess:Secret"] = "test-internal-service-secret",
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
@@ -91,6 +97,9 @@ public sealed class ApiWebApplicationFactory(
 
             RemoveService<ICommunityClient>(services);
             services.AddSingleton<ICommunityClient>(_fakeCommunityClient);
+
+            RemoveService<IGroupClient>(services);
+            services.AddSingleton<IGroupClient>(_fakeGroupClient);
         });
 
         builder.ConfigureServices(services =>

@@ -22,7 +22,6 @@ namespace Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-
             modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
                 {
                     b.Property<long>("Id")
@@ -91,215 +90,6 @@ namespace Api.Migrations
                             t.HasCheckConstraint("CK_Friendships_UserLowLtUserHigh", "\"UserLowId\" < \"UserHighId\"");
                         });
                 });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.Group", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("InvitePolicy")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("JoinPolicy")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Visibility")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Groups");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupApplication", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("ApplicantId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsPending")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicantId");
-
-                    b.HasIndex("GroupId", "ApplicantId")
-                        .IsUnique();
-
-                    b.ToTable("GroupApplications");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupBlacklist", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("GroupId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("GroupBlacklists");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupBoard", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Visibility")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Writeability")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupId", "Name")
-                        .IsUnique();
-
-                    b.ToTable("GroupBoards");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupInvitation", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("InviteeId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("InviterId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsPending")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InviteeId");
-
-                    b.HasIndex("InviterId");
-
-                    b.HasIndex("GroupId", "InviteeId")
-                        .IsUnique();
-
-                    b.ToTable("GroupInvitations");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupMember", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("GroupId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("GroupMembers");
-                });
-
 
             modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
                 {
@@ -371,7 +161,6 @@ namespace Api.Migrations
                     b.ToTable("Users");
                 });
 
-
             modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
                 {
                     b.HasOne("Api.Domain.Users.Domain.User", "Addressee")
@@ -410,102 +199,6 @@ namespace Api.Migrations
                     b.Navigation("UserLow");
                 });
 
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupApplication", b =>
-                {
-                    b.HasOne("Api.Domain.Users.Domain.User", "Applicant")
-                        .WithMany()
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Applicant");
-
-                    b.Navigation("Group");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupBlacklist", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupBoard", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupInvitation", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "Invitee")
-                        .WithMany()
-                        .HasForeignKey("InviteeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "Inviter")
-                        .WithMany()
-                        .HasForeignKey("InviterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-
-                    b.Navigation("Invitee");
-
-                    b.Navigation("Inviter");
-                });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.GroupMember", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany("Members")
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-
-                    b.Navigation("User");
-                });
-
-
             modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
                 {
                     b.HasOne("Api.Domain.Users.Domain.User", "BlockedUser")
@@ -524,13 +217,6 @@ namespace Api.Migrations
 
                     b.Navigation("Blocker");
                 });
-
-            modelBuilder.Entity("Api.Domain.Groups.Domain.Group", b =>
-                {
-                    b.Navigation("Members");
-                });
-
-
 #pragma warning restore 612, 618
         }
     }

@@ -9,7 +9,7 @@ namespace Location.Tests.Infrastructure;
 /// Configurable in-memory monolith access checks for Location integration and unit tests.
 /// </summary>
 public sealed class InMemoryMonolithAccessClient(IHttpContextAccessor httpContextAccessor)
-    : IMonolithAccessClient, ICommunityAccessClient
+    : IMonolithAccessClient, ICommunityAccessClient, IGroupClient
 {
     private long _nextUserId = 1;
     private long _nextGroupId = 1;

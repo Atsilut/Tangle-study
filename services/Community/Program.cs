@@ -70,6 +70,7 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleGroupClient(builder.Configuration);
 builder.Services.AddTangleMediaClient(builder.Configuration);
 builder.Services.AddTangleLocationClient(builder.Configuration);
 
