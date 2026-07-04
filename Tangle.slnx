@@ -12,4 +12,5 @@
   <Project Path="services/Media.Tests/Media.Tests.csproj" />
   <Project Path="services/Chat.Tests/Chat.Tests.csproj" />
   <Project Path="services/Location.Tests/Location.Tests.csproj" />
+  <Project Path="services/Community.Tests/Community.Tests.csproj" />
 </Solution>

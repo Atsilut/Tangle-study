@@ -15,7 +15,7 @@ namespace Api.Domain.Users.Service
     public class UserService(
         IUserRepository repo,
         AppDbContext db,
-        ICommunityClient postsClient,
+        ICommunityClient communityClient,
         IMediaClient mediaClient,
         IChatClient chatClient,
         ILocationClient locationClient,
@@ -27,7 +27,7 @@ namespace Api.Domain.Users.Service
     {
         private readonly IUserRepository _repo = repo;
         private readonly AppDbContext _db = db;
-        private readonly ICommunityClient _postsClient = postsClient;
+        private readonly ICommunityClient _communityClient = communityClient;
         private readonly IMediaClient _mediaClient = mediaClient;
         private readonly IChatClient _chatClient = chatClient;
         private readonly ILocationClient _locationClient = locationClient;
@@ -158,7 +158,7 @@ namespace Api.Domain.Users.Service
 
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                await _postsClient.DetachUserOnDeletionAsync(id);
+                await _communityClient.DetachUserOnDeletionAsync(id);
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
                 await _chatClient.DetachUserOnDeletionAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);

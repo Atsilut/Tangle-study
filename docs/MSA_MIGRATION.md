@@ -23,7 +23,7 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location + Community publish, test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
@@ -32,8 +32,9 @@ Tier 2 (needs dotnet-build)
   media-tests    → Media.Tests --no-build
   chat-tests     → Chat.Tests --no-build
   location-tests → Location.Tests --no-build
+  community-tests → Community.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests)
+Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
@@ -42,9 +43,9 @@ Tier 4 (needs compose-build)
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location}`, test `bin/` | Yes — runtime Api/Media/Chat/Location Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community}`, test `bin/` | Yes — runtime service Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` / `chat-tests` / `location-tests` | Pass/fail | Gate only |
+| `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` | Pass/fail | Gate only |
 | `compose-build` | `api`, `media`, `chat`, `nginx`, `rust-worker-media`, `rust-worker-chat` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
@@ -304,7 +305,6 @@ Postgres: `community` schema (`Posts`, `Comments`). Legacy `public."Posts"` / `p
 |------|-------|
 | Azure community Container App | CD + Bicep/parameters |
 | `nginx.production.conf` community upstream | Strangler for prod |
-| Community.Tests project | Service-level tests (Api.Tests post/comment suites removed) |
 
 ## Steps 5–7
 

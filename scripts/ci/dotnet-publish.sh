@@ -64,6 +64,7 @@ tangle_compose --profile tools run --rm \
     dotnet build services/Media.Tests/Media.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Chat.Tests/Chat.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Location.Tests/Location.Tests.csproj -c '${CONFIGURATION}' --no-incremental
+    dotnet build services/Community.Tests/Community.Tests.csproj -c '${CONFIGURATION}' --no-incremental
   "
 
 require_publish_output "$API_PUBLISH_DIR" "Api.dll"
