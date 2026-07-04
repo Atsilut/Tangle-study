@@ -16,7 +16,7 @@ import { getErrorMessage } from '@/lib/apiError'
 import { maplibregl } from '@/lib/maplibreSetup'
 import { useAuthStore } from '@/stores/authStore'
 import type { MapBounds, MapCluster, MapPin } from '../api'
-import { MIN_PIN_FETCH_ZOOM, sanitizeBoundsForQuery } from '../api'
+import { CLUSTERS_PENDING, MIN_PIN_FETCH_ZOOM, sanitizeBoundsForQuery } from '../api'
 import { useCreateMapPin, useMapClusters, useMapPins, usePlaceReverse } from '../hooks'
 import { useLiveGroupLocations } from '../useLiveGroupLocations'
 import { useMyGeolocation } from '../useMyGeolocation'
@@ -114,12 +114,15 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: pins = [], isFetching, isError, error, refetch } = useMapPins(bounds)
   const {
-    data: clusters = [],
-    isFetching: isFetchingClusters,
+    data: clustersResult,
+    isFetching: isFetchingClustersQuery,
     isError: isClusterError,
     error: clusterError,
     refetch: refetchClusters,
   } = useMapClusters(clusterBounds, mapZoom)
+  const clustersPending = clustersResult === CLUSTERS_PENDING
+  const clusters = clustersPending || clustersResult == null ? [] : clustersResult
+  const isFetchingClusters = isFetchingClustersQuery || clustersPending
   const visiblePins = useMemo(() => (bounds == null ? [] : pins), [bounds, pins])
   const visibleClusters = useMemo(
     () => (clusterBounds == null ? [] : clusters),
