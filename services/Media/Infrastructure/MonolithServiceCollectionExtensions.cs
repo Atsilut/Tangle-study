@@ -34,10 +34,4 @@ internal sealed class UnconfiguredMonolithAccessClient : Media.Client.IMonolithA
 
     public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
         throw NotConfigured();
-
-    public Task EnsureCanViewPostMediaAsync(long postId, CancellationToken cancellationToken = default) =>
-        throw NotConfigured();
-
-    public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
-        throw NotConfigured();
 }

@@ -4,21 +4,24 @@ using Microsoft.Extensions.Options;
 
 namespace Media.Client;
 
-internal sealed class HttpMonolithAccessClient(
+internal sealed class HttpCommunityAccessClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<MonolithOptions> options) : IMonolithAccessClient
+    IOptions<CommunityClientOptions> options) : ICommunityAccessClient
 {
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly MonolithOptions _options = options.Value;
+    private readonly CommunityClientOptions _options = options.Value;
 
-    public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/users/{userId}/exists", cancellationToken);
+    public Task EnsureCanViewPostMediaAsync(long postId, CancellationToken cancellationToken = default) =>
+        PostAccessCheckAsync($"internal/community/{postId}/media-view", cancellationToken);
+
+    public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
+        PostAccessCheckAsync($"internal/community/comments/{commentId}/media-view", cancellationToken);
 
     private async Task PostAccessCheckAsync(string relativePath, CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));
+        var client = _httpClientFactory.CreateClient(nameof(HttpCommunityAccessClient));
         using var request = new HttpRequestMessage(HttpMethod.Post, relativePath);
 
         var authorization = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
@@ -41,7 +44,7 @@ internal sealed class HttpMonolithAccessClient(
             throw new AccessForbiddenException(await ReadBodyAsync(response, cancellationToken));
 
         throw new InvalidOperationException(
-            $"Monolith access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");
+            $"Community access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");
     }
 
     private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)

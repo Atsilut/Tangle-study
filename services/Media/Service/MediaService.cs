@@ -17,6 +17,7 @@ public sealed class MediaService(
     IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
     IMonolithAccessClient monolithAccess,
+    ICommunityAccessClient communityAccess,
     IChatAccessClient chatAccess,
     IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
@@ -28,6 +29,7 @@ public sealed class MediaService(
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IChatAccessClient _chatAccess = chatAccess;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
@@ -398,13 +400,13 @@ public sealed class MediaService(
 
         if (asset.PostId is long postId)
         {
-            await _monolithAccess.EnsureCanViewPostMediaAsync(postId);
+            await _communityAccess.EnsureCanViewPostMediaAsync(postId);
             return;
         }
 
         if (asset.CommentId is long commentId)
         {
-            await _monolithAccess.EnsureCanViewCommentMediaAsync(commentId);
+            await _communityAccess.EnsureCanViewCommentMediaAsync(commentId);
             return;
         }
 

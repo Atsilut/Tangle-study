@@ -30,7 +30,7 @@ public sealed class LocationWebApplicationFactory(
     private readonly string _redisConnectionString = redisConnectionString;
 
     public InMemoryMonolithAccessClient MonolithAccess =>
-        (InMemoryMonolithAccessClient)Services.GetRequiredService<IMonolithAccessClient>();
+        Services.GetRequiredService<InMemoryMonolithAccessClient>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -38,6 +38,8 @@ public sealed class LocationWebApplicationFactory(
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
+        builder.UseSetting("CommunityClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
         builder.UseSetting("WorkerCallback:Secret", TestWorkerCallbackSecret);
         builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
@@ -56,6 +58,8 @@ public sealed class LocationWebApplicationFactory(
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["CommunityClient:BaseUrl"] = "http://community.test",
+                ["CommunityClient:InternalSecret"] = TestInternalServiceSecret,
                 ["InternalAccess:Secret"] = TestInternalServiceSecret,
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Jwt:Secret"] = TestJwtSecret,
@@ -69,8 +73,13 @@ public sealed class LocationWebApplicationFactory(
         builder.ConfigureTestServices(services =>
         {
             RemoveService<IMonolithAccessClient>(services);
-            services.AddSingleton<IMonolithAccessClient>(sp =>
+            RemoveService<ICommunityAccessClient>(services);
+            services.AddSingleton<InMemoryMonolithAccessClient>(sp =>
                 new InMemoryMonolithAccessClient(sp.GetRequiredService<IHttpContextAccessor>()));
+            services.AddSingleton<IMonolithAccessClient>(sp =>
+                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<ICommunityAccessClient>(sp =>
+                sp.GetRequiredService<InMemoryMonolithAccessClient>());
         });
 
         builder.ConfigureServices(services =>

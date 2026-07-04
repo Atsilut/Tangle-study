@@ -8,9 +8,11 @@ namespace Location.Service;
 [Service]
 public class LocationAccessService(
     IMonolithAccessClient monolithAccess,
+    ICommunityAccessClient communityAccess,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public long? TryGetViewerUserId()
@@ -25,7 +27,7 @@ public class LocationAccessService(
 
         try
         {
-            await _monolithAccess.EnsurePostOwnerAsync(postId.Value);
+            await _communityAccess.EnsurePostOwnerAsync(postId.Value);
         }
         catch (EntityNotFoundException)
         {
@@ -52,7 +54,7 @@ public class LocationAccessService(
 
         if (pin.PostId is null) return false;
 
-        var viewable = await _monolithAccess.GetViewablePostIdsAsync([pin.PostId.Value], viewerUserId);
+        var viewable = await _communityAccess.GetViewablePostIdsAsync([pin.PostId.Value], viewerUserId);
         return viewable.Contains(pin.PostId.Value);
     }
 
@@ -68,7 +70,7 @@ public class LocationAccessService(
         var postIds = pins.Where(p => p.PostId is not null).Select(p => p.PostId!.Value).Distinct().ToList();
         var viewablePostIds = postIds.Count == 0
             ? []
-            : await _monolithAccess.GetViewablePostIdsAsync(postIds, viewerUserId);
+            : await _communityAccess.GetViewablePostIdsAsync(postIds, viewerUserId);
 
         List<MapPin> visible = [];
         foreach (var pin in pins)
