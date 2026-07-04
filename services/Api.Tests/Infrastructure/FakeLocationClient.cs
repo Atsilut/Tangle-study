@@ -1,5 +1,4 @@
 using Api.Client;
-using Api.Domain.Posts.Dto;
 
 namespace Api.Tests.Infrastructure;
 

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Api.Domain.Friendships.Dto;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
-using Api.Domain.Posts.Dto;
 using Api.Domain.UserBlocks.Dto;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
@@ -33,12 +32,6 @@ public sealed class AuthorizedEndpointsIntegrationTests(PostgresTestcontainerFix
                 HttpMethod.Post,
                 $"{GroupIntegrationTestHelpers.GroupsBase}/1/blacklist",
                 new GroupBlacklistCreateRequestDto { UserId = 2 }
-            },
-            { HttpMethod.Get, $"{GroupIntegrationTestHelpers.GroupsBase}/1/boards/1/posts", null },
-            {
-                HttpMethod.Post,
-                "/api/posts",
-                new PostCreateRequestDto { Title = "t", Content = "c" }
             },
             {
                 HttpMethod.Post,
