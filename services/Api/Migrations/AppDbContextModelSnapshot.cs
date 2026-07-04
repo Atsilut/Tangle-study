@@ -22,52 +22,6 @@ namespace Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Api.Domain.Comments.Domain.Comment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("DeletedParentId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("DeletedPostId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("DeletedUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("ParentId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("PostId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Comments");
-                });
 
             modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
                 {
@@ -346,50 +300,6 @@ namespace Api.Migrations
                     b.ToTable("GroupMembers");
                 });
 
-            modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("DeletedUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("GroupBoardId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupBoardId");
-
-                    b.HasIndex("GroupId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Posts");
-                });
 
             modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
                 {
@@ -461,29 +371,6 @@ namespace Api.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Api.Domain.Comments.Domain.Comment", b =>
-                {
-                    b.HasOne("Api.Domain.Comments.Domain.Comment", "Parent")
-                        .WithMany()
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("Api.Domain.Posts.Domain.Post", "Post")
-                        .WithMany("Comments")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany("Comments")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Parent");
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
 
             modelBuilder.Entity("Api.Domain.Friendships.Domain.FriendRequest", b =>
                 {
@@ -618,29 +505,6 @@ namespace Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.GroupBoard", "GroupBoard")
-                        .WithMany()
-                        .HasForeignKey("GroupBoardId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany("Posts")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Group");
-
-                    b.Navigation("GroupBoard");
-
-                    b.Navigation("User");
-                });
 
             modelBuilder.Entity("Api.Domain.UserBlocks.Domain.UserBlock", b =>
                 {
@@ -666,17 +530,7 @@ namespace Api.Migrations
                     b.Navigation("Members");
                 });
 
-            modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
-                {
-                    b.Navigation("Comments");
-                });
 
-            modelBuilder.Entity("Api.Domain.Users.Domain.User", b =>
-                {
-                    b.Navigation("Comments");
-
-                    b.Navigation("Posts");
-                });
 #pragma warning restore 612, 618
         }
     }
