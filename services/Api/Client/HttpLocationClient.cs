@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Api.Domain.Posts.Dto;
 using Api.Global.Config;
 using Microsoft.Extensions.Options;
 

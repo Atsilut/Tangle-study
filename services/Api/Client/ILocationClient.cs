@@ -1,5 +1,3 @@
-using Api.Domain.Posts.Dto;
-
 namespace Api.Client;
 
 public interface ILocationClient

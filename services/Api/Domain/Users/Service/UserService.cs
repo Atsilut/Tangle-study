@@ -1,7 +1,5 @@
 using Api.Client;
-using Api.Domain.Comments.Service;
 using Api.Domain.Groups.Service;
-using Api.Domain.Posts.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
@@ -17,8 +15,7 @@ namespace Api.Domain.Users.Service
     public class UserService(
         IUserRepository repo,
         AppDbContext db,
-        Lazy<PostService> postService,
-        Lazy<CommentService> commentService,
+        ICommunityClient postsClient,
         IMediaClient mediaClient,
         IChatClient chatClient,
         ILocationClient locationClient,
@@ -30,8 +27,7 @@ namespace Api.Domain.Users.Service
     {
         private readonly IUserRepository _repo = repo;
         private readonly AppDbContext _db = db;
-        private readonly Lazy<PostService> _postService = postService;
-        private readonly Lazy<CommentService> _commentService = commentService;
+        private readonly ICommunityClient _postsClient = postsClient;
         private readonly IMediaClient _mediaClient = mediaClient;
         private readonly IChatClient _chatClient = chatClient;
         private readonly ILocationClient _locationClient = locationClient;
@@ -162,8 +158,7 @@ namespace Api.Domain.Users.Service
 
             await _db.ExecuteInTransactionAsync(async () =>
             {
-                await _postService.Value.DetachAuthorFromDeletedUserAsync(id);
-                await _commentService.Value.DetachAuthorFromDeletedUserAsync(id);
+                await _postsClient.DetachUserOnDeletionAsync(id);
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
                 await _chatClient.DetachUserOnDeletionAsync(id);
                 await _groupMembershipService.Value.HandleUserDeletionAsync(id);
