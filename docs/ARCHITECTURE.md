@@ -142,8 +142,7 @@ flowchart TB
   Clients["Clients"]
   GW["Gateway / BFF"]
   Users["users-service"]
-  Posts["posts-service"]
-  Comments["comments-service"]
+  Community["community-service"]
   Groups["groups-service"]
   Friendships["friendships-service"]
   UserBlocks["user-blocks-service"]
@@ -156,8 +155,7 @@ flowchart TB
 
   Clients --> GW
   GW --> Users
-  GW --> Posts
-  GW --> Comments
+  GW --> Community
   GW --> Groups
   GW --> Friendships
   GW --> UserBlocks
@@ -165,8 +163,7 @@ flowchart TB
   GW --> Media
   GW --> Location
   Users --> PG
-  Posts --> PG
-  Comments --> PG
+  Community --> PG
   Groups --> PG
   Friendships --> PG
   UserBlocks --> PG
