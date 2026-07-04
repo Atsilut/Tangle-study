@@ -149,7 +149,8 @@ Until cluster tiles land, the map uses a simplified path:
 
 - Zoom 2–4: `GET /api/location/clusters` (pin count + centroid only).
 - Zoom 5+: individual pins via `GET /api/location/pins`.
-- On cache miss: `location.cluster` job → `rust-worker-location` → Redis (5 min TTL).
+- On cache miss: `204` + `location.cluster` job → `rust-worker-location` → Redis (5 min TTL); empty results are cached as `200 []` so clients stop polling.
+- Worker clusters **all pins in bounds** (shared cache is not per-viewer). Pin list endpoints still apply owner/post visibility.
 
 This interim path lacks content metadata, density resolution, and precomputed tiles. **Do not extend it** — replace with cluster tiles above.
 

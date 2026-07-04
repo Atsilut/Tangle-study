@@ -11,7 +11,6 @@ namespace Location.Service;
 [Service]
 public class LocationClusterService(
     IMapPinRepository repo,
-    LocationAccessService access,
     IDistributedCache cache,
     IWorkQueue workQueue)
 {
@@ -20,7 +19,6 @@ public class LocationClusterService(
     private static readonly TimeSpan EnqueueDebounceTtl = TimeSpan.FromSeconds(30);
 
     private readonly IMapPinRepository _repo = repo;
-    private readonly LocationAccessService _access = access;
     private readonly IDistributedCache _cache = cache;
     private readonly IWorkQueue _workQueue = workQueue;
 
@@ -39,6 +37,10 @@ public class LocationClusterService(
         return null;
     }
 
+    /// <summary>
+    /// Worker path: return all pins in bounds for interim global cluster cache.
+    /// Per-viewer visibility applies to pin list endpoints, not shared cluster tiles.
+    /// </summary>
     public async Task<List<MapPinClusterPointDto>?> GetClusterPointsInBoundsAsync(MapPinBoundsQueryDto query)
     {
         ValidatePinBoundsQuery(query);
@@ -50,21 +52,19 @@ public class LocationClusterService(
             query.MaxLongitude);
         if (pins.Count == 0) return null;
 
-        var visible = await _access.FilterViewableMapPinsAsync(pins, viewerUserId: null);
-        if (visible.Count == 0) return null;
-
-        return [.. visible.Select(pin => new MapPinClusterPointDto(pin.Id, pin.Latitude, pin.Longitude))];
+        return [.. pins.Select(pin => new MapPinClusterPointDto(pin.Id, pin.Latitude, pin.Longitude))];
     }
 
-    public Task StoreClustersAsync(LocationClusterStoreRequestDto request)
+    public async Task StoreClustersAsync(LocationClusterStoreRequestDto request)
     {
         ValidateClusterStoreRequest(request);
         var cacheKey = BuildCacheKey(request);
         var payload = JsonSerializer.Serialize(request.Clusters, SerializerOptions);
-        return _cache.SetStringAsync(
+        await _cache.SetStringAsync(
             cacheKey,
             payload,
             new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ClusterCacheTtl });
+        await _cache.RemoveAsync(PendingKey(cacheKey));
     }
 
     public Task RefreshClustersNearPinAsync(decimal latitude, decimal longitude) =>
@@ -88,7 +88,7 @@ public class LocationClusterService(
 
     private async Task TryEnqueueClusterJobAsync(MapClusterBoundsQueryDto query)
     {
-        var debounceKey = $"{BuildCacheKey(query)}:pending";
+        var debounceKey = PendingKey(BuildCacheKey(query));
         if (await _cache.GetStringAsync(debounceKey) is not null) return;
 
         await _cache.SetStringAsync(
@@ -105,6 +105,8 @@ public class LocationClusterService(
                 query.MaxLongitude,
                 query.Zoom));
     }
+
+    private static string PendingKey(string cacheKey) => $"{cacheKey}:pending";
 
     internal static string BuildCacheKey(MapClusterBoundsQueryDto query) =>
         BuildCacheKey(

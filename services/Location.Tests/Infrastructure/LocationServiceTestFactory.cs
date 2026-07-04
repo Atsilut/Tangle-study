@@ -28,7 +28,6 @@ internal static class LocationServiceTestFactory
         var locationAccessService = new LocationAccessService(monolith, http);
         var locationClusterService = new LocationClusterService(
             mapPinRepository,
-            locationAccessService,
             distributedCache,
             workQueue);
         var mapPinService = new MapPinService(
