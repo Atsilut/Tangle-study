@@ -1,3 +1,5 @@
+using Api.Domain.Users.Domain;
+
 namespace Api.Global.Dto;
 
 public sealed record InternalAccessUserIdsRequestDto(long[] UserIds);
@@ -19,3 +21,6 @@ public sealed record InternalAccessMutualBlocksResponseDto(long[] BlockedUserIds
 public sealed record InternalAccessIsBlockedRequestDto(long BlockerUserId, long BlockedUserId);
 
 public sealed record InternalAccessIsBlockedResponseDto(bool IsBlocked);
+
+public sealed record InternalAccessFriendsListVisibilityResponseDto(
+    FriendsListVisibility FriendsListVisibility);

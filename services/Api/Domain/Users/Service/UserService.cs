@@ -19,6 +19,7 @@ namespace Api.Domain.Users.Service
         IChatClient chatClient,
         ILocationClient locationClient,
         IGroupClient groupClient,
+        ISocialClient socialClient,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
@@ -31,6 +32,7 @@ namespace Api.Domain.Users.Service
         private readonly IChatClient _chatClient = chatClient;
         private readonly ILocationClient _locationClient = locationClient;
         private readonly IGroupClient _groupClient = groupClient;
+        private readonly ISocialClient _socialClient = socialClient;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
@@ -161,6 +163,7 @@ namespace Api.Domain.Users.Service
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
                 await _chatClient.DetachUserOnDeletionAsync(id);
                 await _groupClient.DetachUserOnDeletionAsync(id);
+                await _socialClient.DetachUserOnDeletionAsync(id);
                 await _locationClient.DetachUserOnDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });
