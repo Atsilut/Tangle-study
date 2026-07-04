@@ -74,11 +74,11 @@ Services throw typed exceptions; `GlobalExceptionHandler` maps them to HTTP stat
 
 ## Multi-aggregate folders
 
-**Groups** (`Domain/Groups/`): one bounded context — multiple entities, repositories, services, and controllers. Documented orchestrators (`GroupJoinResolutionService`, `GroupJoinService`) and `GroupJoinPolicyRules` (internal static) are intentional.
+**Groups** live in [`services/Group/`](../Group/GROUP.md) (MSA step 5). The monolith calls group-service via `IGroupClient` for user-delete detach only.
 
 **Friendships**: two aggregates (`Friendship`, `FriendRequest`) in one folder; friend-request acceptance is resolved inside `FriendRequestService` (parallel to group join resolution, without a separate resolver type).
 
-**Second service on one repository:** `GroupBoardAccessService` and `GroupBoardService` both use `IGroupBoardRepository` — access checks vs CRUD. `MapPinService` and `LocationClusterService` both use `IMapPinRepository` — pin CRUD vs clustering reads. `LocationSessionService` and `LocationSafetyAlertService` both use `ILocationSessionRepository` — session CRUD vs stale monitor. Do not add further services on the same repo without the same clear split.
+**Second service on one repository:** historical examples include access-check vs CRUD splits (now in extracted services). Do not add further services on the same repo without the same clear split.
 
 ## Mapping
 

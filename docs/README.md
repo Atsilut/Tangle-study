@@ -29,8 +29,8 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
 | 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
 | 7 | Location / Memory Map (extracted to location-service) | [LOCATION.md](../services/Location/LOCATION.md) — **Done** |
-| 8 | MSA prep (contracts, QUEUE rows) | [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](../services/Api/Global/Events/EVENTS.md), [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **Done** |
-| 9 | MSA migration — media + chat + location extracted in Compose; Azure + remaining services pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
+| 8 | MSA prep (contracts, QUEUE rows) | [GROUP.md](../services/Group/GROUP.md), [EVENTS.md](../services/Api/Global/Events/EVENTS.md), [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **Done** |
+| 9 | MSA migration — media + chat + location + community + group extracted in Compose; Azure + remaining services pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
 
 ## Subsystem deep-dives
 
@@ -40,7 +40,8 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Redis | [services/Api/Global/REDIS.md](../services/Api/Global/REDIS.md) | Cache, SignalR backplane, pub/sub, Streams producer |
 | Work queue | [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) | Redis Streams contracts, API → worker flow |
 | Domain events | [services/Api/Global/Events/EVENTS.md](../services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
-| Groups | [services/Api/Domain/Groups/GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) | Cross-service contracts (board posts, platform chat) |
+| Group | [services/Group/GROUP.md](../services/Group/GROUP.md) | Groups, boards, membership, internal access contracts |
+| Community | [services/Community/COMMUNITY.md](../services/Community/COMMUNITY.md) | Posts, comments, group-board posts |
 | Chat | [services/Chat/CHAT.md](../services/Chat/CHAT.md) | REST routes, SignalR hub contract |
 | Media | [services/Media/MEDIA.md](../services/Media/MEDIA.md) | Upload flow, limits, worker callback |
 | Location | [services/Location/LOCATION.md](../services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |

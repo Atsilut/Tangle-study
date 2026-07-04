@@ -169,6 +169,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -183,7 +187,7 @@ jobs:
       ############################################
       # 5. DOTNET PUBLISH
       ############################################
-      - name: Publish Api, Media, Chat, Location, and Community; build test projects
+      - name: Publish Api, Media, Chat, Location, Community, and Group; build test projects
         run: |
           mkdir -p .ci-cache/nuget .ci-cache/publish
           bash scripts/ci/dotnet-publish.sh
@@ -250,6 +254,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -331,6 +339,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -412,6 +424,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -493,6 +509,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
@@ -864,6 +884,10 @@ jobs:
             services/Community/obj
             services/Community.Tests/bin
             services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-

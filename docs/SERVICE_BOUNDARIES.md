@@ -11,8 +11,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | Service | Source folder | Owned aggregates | API routes (today) | Status |
 |---------|---------------|------------------|-------------------|--------|
 | **users** | `Domain/Users/` | `User`, JWT auth | `api/users`, `api` (login) | Implemented |
-| **posts** | `Domain/Posts/` | `Post` | `api/posts` | Implemented |
-| **comments** | `Domain/Comments/` | `Comment` | `api/comments` | Implemented |
+| **posts** / **comments** | [`services/Community/`](../services/Community/) | Post, Comment | `api/posts`, `api/comments`, group-board posts | **Extracted (Compose)** — [COMMUNITY.md](../services/Community/COMMUNITY.md); Azure CD pending |
 | **group** | [`services/Group/`](../services/Group/) | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, invitations, applications | **Extracted (Compose)** — [GROUP.md](../services/Group/GROUP.md); Azure CD pending |
 | **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
 | **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
@@ -134,10 +133,10 @@ Client → nginx → media-service (presigned URL) → object storage
 - Safety alerts (stale position monitor, manual SOS) — SignalR `SafetyAlertRaised`
 - Google Places proxy (`/api/location/places/*`)
 
-**Depends on (via `HttpMonolithAccessClient`):**
-- **users** — existence, nicknames, blocks
-- **groups** — membership for live sharing and alerts
-- **posts** (optional) — ownership and viewability for post-linked pins
+**Depends on:**
+- **users** (via `IMonolithAccessClient`) — existence, nicknames, blocks
+- **group** (via `IGroupClient`) — membership for live sharing and alerts
+- **community** (via `ICommunityAccessClient`) — post ownership and viewability for post-linked pins
 
 **Monolith integration:** `ILocationClient` — post upsert/clear, user detach on deletion, group session end on group delete.
 
@@ -195,7 +194,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these for remaining extractions (posts, groups, users, …). Media, chat, and location already follow these patterns.
+Apply these for remaining extractions (users, friendships, user-blocks, …). Media, chat, location, community, and group already follow these patterns.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 

@@ -333,7 +333,7 @@ group ──ICommunityClient──► community (delete-all)
 group ──ILocationClient──► location (end-sessions)
 ```
 
-Postgres: `group` schema. Legacy `public` group tables dropped by `RemoveMonolithGroupTables`.
+Postgres: `group` schema. Legacy `public` group tables dropped by `RemoveMonolithGroupTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [GROUP.md](../services/Group/GROUP.md).
 
 ### Still open (before `main` cutover)
 

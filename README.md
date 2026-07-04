@@ -32,7 +32,7 @@ This project combines multiple technologies and languages to simulate a modern s
 
 ## Architecture
 
-**Today:** Nginx strangler edge routes media, chat, and location to extracted services; the monolith (`services/Api`) still owns users, posts, comments, groups, friendships, and user-blocks. Optional Rust workers and monitoring. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Today:** Nginx strangler edge routes media, chat, location, community, and group to extracted services; the monolith (`services/Api`) still owns users, friendships, and user-blocks. Optional Rust workers and monitoring. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### High-Level Structure
 
@@ -46,6 +46,8 @@ Nginx edge (strangler)
  ├─ /api/media/*              → media-service
  ├─ /api/chat/*, /hubs/chat   → chat-service
  ├─ /api/location/*, /hubs/location → location-service
+ ├─ /api/posts/*, /api/comments/*, group-board posts → community-service
+ ├─ /api/groups/*, invitations, applications → group-service
  └─ /api/* (other)            → Api monolith
         │
  ┌──────┼──────────────┐
@@ -153,6 +155,8 @@ services/
   Chat/             ← Chat microservice (+ Chat.Tests)
   Media/            ← Media microservice (+ Media.Tests)
   Location/         ← Location microservice (+ Location.Tests)
+  Community/        ← Posts/comments microservice (+ Community.Tests)
+  Group/            ← Groups microservice (+ Group.Tests)
 clients/
   web/              ← React SPA (Phase 6)
 workers/
@@ -220,7 +224,8 @@ Central index: [docs/README.md](docs/README.md)
 | [services/Media/MEDIA.md](services/Media/MEDIA.md) | Media upload and processing |
 | [services/Chat/CHAT.md](services/Chat/CHAT.md) | Chat REST routes and SignalR hub |
 | [services/Location/LOCATION.md](services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
-| [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
+| [services/Group/GROUP.md](services/Group/GROUP.md) | Group service routes and internal contracts |
+| [services/Community/COMMUNITY.md](services/Community/COMMUNITY.md) | Posts/comments service |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 
 ---
@@ -236,10 +241,10 @@ Central index: [docs/README.md](docs/README.md)
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map — [LOCATION.md](services/Location/LOCATION.md) | Done (extracted to location-service) |
-| 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 9 | MSA migration — media, chat, and location extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (steps 1–3 done locally) |
+| 8 | MSA prep — cross-service contracts — [GROUP.md](services/Group/GROUP.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
+| 9 | MSA migration — media, chat, location, community, and group extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (steps 1–5 done locally) |
 
-Phase 9 steps 1–3 (media-service, chat-service, location-service) are **complete in local Compose**. Azure strangler routing and remaining service extractions (steps 4–7) are the next milestones. MAUI remains optional after the React path works.
+Phase 9 steps 1–5 (media, chat, location, community, group) are **complete in local Compose**. Azure strangler routing and remaining extractions (steps 6–7) are the next milestones. MAUI remains optional after the React path works.
 
 ---
 
@@ -278,10 +283,12 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 | Service | Profile | Always on? | Role |
 |---------|---------|------------|------|
-| `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media, non-chat domains) |
+| `api` | — | yes (default `up`) | ASP.NET Core monolith (users, friendships, user-blocks) |
 | `media` | — | yes | Media microservice (`/api/media/*`) |
 | `chat` | — | yes | Chat microservice (`/api/chat/*`, `/hubs/chat`) |
 | `location` | — | yes | Location microservice (`/api/location/*`, `/hubs/location`) |
+| `community` | — | yes | Posts/comments microservice (`/api/posts/*`, `/api/comments/*`) |
+| `group` | — | yes | Groups microservice (`/api/groups/*`, invitations, applications) |
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
