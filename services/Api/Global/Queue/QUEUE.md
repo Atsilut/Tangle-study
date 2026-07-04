@@ -93,6 +93,6 @@ Live position sharing uses Redis string keys and SignalR (see [REDIS.md](../REDI
 
 | Stream | Worker service | Callback |
 |--------|----------------|----------|
-| `location.cluster` | `rust-worker-location` | `PUT /internal/location/clusters` |
+| `location.cluster` | `rust-worker-location` | `GET /internal/location/cluster-points`, `PUT /internal/location/clusters` |
 
-Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../Domain/Location/LOCATION.md). Chat worker: [workers/README.md](../../../../workers/README.md).
+Start: `docker compose --profile workers up -d rust-worker-location`. Details: [LOCATION.md](../../../Location/LOCATION.md). Chat worker: [workers/README.md](../../../../workers/README.md).

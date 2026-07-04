@@ -2,29 +2,30 @@
 
 Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via `[.github/workflows/cd-v1.yml](../.github/workflows/cd-v1.yml)`.
 
-Local development uses Docker Compose with **media-service extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-1--media-service-develop-done). **Azure production** still deploys only the monolith for `/api/*` until media ACA + `nginx.production.conf` cutover lands.
+Local development uses Docker Compose with **media, chat, and location extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-3--location-service-develop-done). **Azure production** still deploys only the monolith for `/api/*` until ACA + `nginx.production.conf` cutover lands.
 
 ---
 
-## Local Compose (media extracted)
+## Local Compose (media, chat, location extracted)
 
-Default `docker compose up` runs `api`, `media`, `nginx`, `db`, `redis`, and `azurite`.
+Default `docker compose up` runs `api`, `media`, `chat`, `location`, `nginx`, `db`, `redis`, and `azurite`.
 
 | Path | Routed to | Config |
 |------|-----------|--------|
-| `/api/media/*` | `media:8080` | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
-| `/internal/media/*` | `media:8080` | Same (worker callbacks; monolith `HttpMediaClient`) |
-| Other `/api/*`, `/hubs/*` | `api:8080` | Monolith |
+| `/api/media/*`, `/internal/media/*` | `media:8080` | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/api/chat/*`, `/internal/chat/*`, `/hubs/chat` | `chat:8080` | Same |
+| `/api/location/*`, `/internal/location/*`, `/hubs/location` | `location:8080` | Same |
+| Other `/api/*` | `api:8080` | Monolith |
 
-**Api (Docker):** `MediaClient__BaseUrl=http://media:8080` in [`appsettings.Docker.json`](../services/Api/appsettings.Docker.json) — uses `HttpMediaClient` for link/batch/delete.
+**Api (Docker):** `MediaClient`, `ChatClient`, and `LocationClient` base URLs in [`appsettings.Docker.json`](../services/Api/appsettings.Docker.json) point at the extracted services.
 
-**Media (Docker):** [`appsettings.Docker.json`](../services/Media/appsettings.Docker.json) — Redis work queue on, `Monolith__BaseUrl=http://api:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`.
+**Media / Chat / Location (Docker):** each service's `appsettings.Docker.json` — Redis on where needed, `Monolith__BaseUrl=http://api:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`.
 
-**Worker:** `API_BASE_URL=http://media:8080` on `rust-worker-media`.
+**Workers:** `API_BASE_URL=http://media:8080` on `rust-worker-media`, `http://chat:8080` on `rust-worker-chat`, `http://location:8080` on `rust-worker-location`.
 
 **Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-media-harness.sh`.
 
-**Integration tests** (Testcontainers) still use in-process media on the monolith test host (`MediaClient:BaseUrl` empty) — no running `media` container required.
+**Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Api/Media/Chat/Location unit and integration suites.
 
 ---
 
@@ -281,7 +282,7 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 | `METRICS_SCRAPE_SECRET`  | `METRICS_SCRAPE_SECRET`           | Yes                      | Protects `/metrics`; Prometheus sends `X-Metrics-Secret` |
 
 
-Redis URL and API base URL are set at CD deploy time. **Today:** `API_BASE_URL=http://tangle-study-api` for both media and location workers (monolith still owns media callbacks on Azure). **After media ACA:** media worker uses `http://tangle-study-media`; location worker keeps `http://tangle-study-api`.
+Redis URL and API base URL are set at CD deploy time. **Today (Azure):** `API_BASE_URL=http://tangle-study-api` for media and location workers (monolith still owns those callbacks on Azure). **After ACA cutover:** media worker uses `http://tangle-study-media`; location worker uses `http://tangle-study-location`; chat worker uses `http://tangle-study-chat`.
 
 Per-worker settings in `[parameters.prod.json](../infra/azure/parameters.prod.json)`:
 

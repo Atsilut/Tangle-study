@@ -30,9 +30,11 @@ public sealed class ApiWebApplicationFactory(
     private readonly string? _metricsScrapeSecret = metricsScrapeSecret;
     private readonly FakeMediaClient _fakeMediaClient = new();
     private readonly FakeChatClient _fakeChatClient = new();
+    private readonly FakeLocationClient _fakeLocationClient = new();
 
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
     public FakeChatClient FakeChatClient => _fakeChatClient;
+    public FakeLocationClient FakeLocationClient => _fakeLocationClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -43,6 +45,8 @@ public sealed class ApiWebApplicationFactory(
         builder.UseSetting("MediaClient:InternalSecret", "test-internal-service-secret");
         builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
         builder.UseSetting("ChatClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("LocationClient:BaseUrl", "http://location.test");
+        builder.UseSetting("LocationClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -58,6 +62,8 @@ public sealed class ApiWebApplicationFactory(
                 ["MediaClient:InternalSecret"] = "test-internal-service-secret",
                 ["ChatClient:BaseUrl"] = "http://chat.test",
                 ["ChatClient:InternalSecret"] = "test-internal-service-secret",
+                ["LocationClient:BaseUrl"] = "http://location.test",
+                ["LocationClient:InternalSecret"] = "test-internal-service-secret",
                 ["InternalAccess:Secret"] = "test-internal-service-secret",
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
@@ -73,6 +79,9 @@ public sealed class ApiWebApplicationFactory(
 
             RemoveService<IChatClient>(services);
             services.AddSingleton<IChatClient>(_fakeChatClient);
+
+            RemoveService<ILocationClient>(services);
+            services.AddSingleton<ILocationClient>(_fakeLocationClient);
         });
 
         builder.ConfigureServices(services =>

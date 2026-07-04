@@ -32,7 +32,7 @@ This project combines multiple technologies and languages to simulate a modern s
 
 ## Architecture
 
-**Today:** one ASP.NET Core monolith (`services/Api`) plus an optional Rust worker. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Today:** Nginx strangler edge routes media, chat, and location to extracted services; the monolith (`services/Api`) still owns users, posts, comments, groups, friendships, and user-blocks. Optional Rust workers and monitoring. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### High-Level Structure
 
@@ -42,7 +42,11 @@ Clients
  └─ Mobile (MAUI)
         │
         ▼
-ASP.NET Core API (monolith today → gateway at Phase 9)
+Nginx edge (strangler)
+ ├─ /api/media/*              → media-service
+ ├─ /api/chat/*, /hubs/chat   → chat-service
+ ├─ /api/location/*, /hubs/location → location-service
+ └─ /api/* (other)            → Api monolith
         │
  ┌──────┼──────────────┐
  ▼      ▼              ▼
@@ -113,9 +117,9 @@ Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SER
 
 * **GitHub Actions**
 
-  * CI on pull requests and pushes to `main` / `develop` — [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-  * Jobs: .NET build, Rust tests, web lint/test/build, API integration tests (Testcontainers), media harness E2E (Compose + Azurite)
-  * Local parity: `./scripts/run-all-tests.sh` (add `--skip-harness` for faster runs)
+  * CI on pull requests and pushes to `main` / `develop` — [`.github/workflows/ci-v1.yml`](.github/workflows/ci-v1.yml)
+  * Jobs: .NET build, Rust tests, web lint/test/build, service integration tests (Testcontainers), media harness E2E (Compose + Azurite)
+  * Local parity: `./scripts/run-all-tests.sh` (integration + harness + Rust + web; add `--skip-harness` for faster runs)
 
 * **Go**
 
@@ -148,6 +152,7 @@ services/
   Api/              ← ASP.NET Core monolith (+ Api.Tests)
   Chat/             ← Chat microservice (+ Chat.Tests)
   Media/            ← Media microservice (+ Media.Tests)
+  Location/         ← Location microservice (+ Location.Tests)
 clients/
   web/              ← React SPA (Phase 6)
 workers/
@@ -214,7 +219,7 @@ Central index: [docs/README.md](docs/README.md)
 | [infra/README.md](infra/README.md) | Prometheus / Grafana monitoring |
 | [services/Media/MEDIA.md](services/Media/MEDIA.md) | Media upload and processing |
 | [services/Chat/CHAT.md](services/Chat/CHAT.md) | Chat REST routes and SignalR hub |
-| [services/Api/Domain/Location/LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
+| [services/Location/LOCATION.md](services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 | [services/Api/Domain/Groups/GROUPS.md](services/Api/Domain/Groups/GROUPS.md) | Groups cross-service contracts (board posts, platform chat) |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 
@@ -230,11 +235,11 @@ Central index: [docs/README.md](docs/README.md)
 | 4 | Rust workers + media on post/comment/chat — [workers README](workers/README.md) | Done |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
-| 7 | Location / Memory Map in monolith — [LOCATION.md](services/Api/Domain/Location/LOCATION.md) | Done |
+| 7 | Location / Memory Map — [LOCATION.md](services/Location/LOCATION.md) | Done (extracted to location-service) |
 | 8 | MSA prep — cross-service contracts — [GROUPS.md](services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
-| 9 | MSA migration — media and chat extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (steps 1–2 done locally) |
+| 9 | MSA migration — media, chat, and location extracted in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (steps 1–3 done locally) |
 
-Phase 9 steps 1–2 (media-service, chat-service) are **complete in local Compose**. Azure strangler routing and remaining service extractions are the next milestones. MAUI remains optional after the React path works.
+Phase 9 steps 1–3 (media-service, chat-service, location-service) are **complete in local Compose**. Azure strangler routing and remaining service extractions (steps 4–7) are the next milestones. MAUI remains optional after the React path works.
 
 ---
 
@@ -276,6 +281,7 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 | `api` | — | yes (default `up`) | ASP.NET Core monolith (non-media, non-chat domains) |
 | `media` | — | yes | Media microservice (`/api/media/*`) |
 | `chat` | — | yes | Chat microservice (`/api/chat/*`, `/hubs/chat`) |
+| `location` | — | yes | Location microservice (`/api/location/*`, `/hubs/location`) |
 | `db` | — | yes | Postgres |
 | `redis` | — | yes | Cache, SignalR backplane, Streams |
 | `azurite` | — | yes | Local Azure Blob storage (media uploads) |
@@ -309,7 +315,50 @@ docker compose --env-file docker/versions.prod.env up --build
 
 Migrations run automatically on API startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Docker`.
 
-Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Chat/CHAT.md). Location: [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Chat/CHAT.md). Location: [LOCATION.md](services/Location/LOCATION.md).
+
+### Manual testing (run the stack, use the UI)
+
+Use this when you want to click through the app in a browser — **not** when running `docker-test.sh` or `run-all-tests.sh` (those start their own containers and do not need `compose up`).
+
+**1. Start containers** (from repo root):
+
+```bash
+# App stack: api, media, chat, location, db, redis, azurite, nginx (React SPA)
+docker compose up --build
+```
+
+```bash
+# Everything above + Rust workers (media processing, chat, map clustering) + Grafana/Prometheus
+docker compose --profile workers --profile monitoring up --build
+```
+
+Workers are required for media uploads to finish processing and for Memory Map clustering at low zoom. Chat and location realtime need Redis (already in the default stack).
+
+**2. Open the app**
+
+| URL | Use |
+|-----|-----|
+| http://localhost:8080 | **Primary entry** — Nginx serves the SPA and routes `/api/*` and `/hubs/*` to the right service (same as production strangler) |
+| http://localhost:5000/api | Swagger on the monolith only (bypasses nginx; media/chat/location routes are not all visible here) |
+| http://localhost:3000 | Grafana (`admin` / `admin`) — only with `--profile monitoring` |
+| http://localhost:9090 | Prometheus — only with `--profile monitoring` |
+
+Sign up / sign in via the web UI at **:8080**. Postgres is on `localhost:5433` if you need direct DB access.
+
+**3. Smoke-check**
+
+```bash
+curl -s http://localhost:8080/health
+```
+
+Should return `Healthy` once api, media, chat, location, and nginx are up.
+
+**4. Feature walkthrough** — see [Phase 7 E2E gate](#phase-7-e2e-gate-memory-map) below for Memory Map; for chat/media, use the main feed and chat screens at :8080.
+
+**5. Reset data** (optional) — [Reset local dev data](#reset-local-dev-data).
+
+**Hot-reload UI dev** (Vite on :5173, same nginx backend): [Web client](#web-client) and [clients/web/README.md](clients/web/README.md).
 
 ### Phase 7 E2E gate (Memory Map)
 
@@ -320,7 +369,7 @@ With the default stack running (`docker compose up --build`), verify:
 3. **Pins** — signed-in user double-clicks the map to drop a pin; pin appears after refresh/pan.
 4. **Workers** (optional clustering at zoom 2–4): `docker compose --profile workers up -d rust-worker-location`.
 5. **Live sharing** — two users in the same group: one starts sharing; the other sees a green marker and sharing status in the member list.
-6. **Tests** — `./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~Location"`.
+6. **Tests** — `./scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release`.
 
 Full UI dev uses Vite at http://localhost:5173 with the same API via Nginx proxy (see [clients/web/README.md](clients/web/README.md)).
 
@@ -383,58 +432,93 @@ docker compose --profile tools run --rm sdk build Tangle.slnx
 docker compose --profile tools run --rm sdk ef migrations add MyMigration --project services/Api
 ```
 
-### Tests (Testcontainers needs Docker socket)
+### Tests (Docker Compose)
 
-**CI:** GitHub Actions runs the same Docker-first suites on every PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+**Prerequisite:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) running.
 
-**All suites** (API, Rust, harness, web — Docker only; no host Node/Rust required):
+Integration tests and harness E2E both use Docker Compose, but they work differently:
+
+| Suite | Needs `docker compose up`? | What it does |
+|-------|------------------------------|--------------|
+| **Integration** (Api, Media, Chat, Location) | **No** | `test` service runs `dotnet test` in a container with the host Docker socket; Testcontainers starts its own Postgres/Redis |
+| **Harness E2E** (`Category=Harness`) | **No** (script starts stack) | `run-media-harness.sh` builds stack images, runs `compose up`, then runs harness tests against nginx |
+| **Dev stack** (`docker compose up`) | N/A | Manual API/web testing — not a substitute for the test suites above |
+
+Use `scripts/ci/docker-test.sh` or `--profile test` for integration tests. Do **not** use `docker-dotnet.sh` / `sdk` — the `test` service mounts `/var/run/docker.sock` for Testcontainers.
+
+**CI parity:** [`.github/workflows/ci-v1.yml`](.github/workflows/ci-v1.yml).
+
+#### Quick start — integration tests only
+
+Fastest local run (builds test projects inside the `test` container; Api + Media + Chat + Location):
+
+```bash
+chmod +x scripts/ci/docker-test.sh
+
+./scripts/ci/docker-test.sh
+```
+
+Equivalent:
+
+```bash
+docker compose --profile test run --rm test
+```
+
+Run **all** service integration projects (matches CI after publish):
+
+```bash
+chmod +x scripts/ci/dotnet-publish.sh scripts/ci/docker-test.sh
+
+./scripts/ci/dotnet-publish.sh
+
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
+./scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release --no-build
+```
+
+Single project or filter:
+
+```bash
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+./scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release --filter "FullyQualifiedName~MapPin"
+```
+
+#### Full local test run (integration + harness + Rust + web)
 
 ```bash
 chmod +x scripts/run-all-tests.sh
 
 ./scripts/run-all-tests.sh
 
-# Rust + web in parallel, then API + harness
-./scripts/run-all-tests.sh --parallel-frontend
-
 # Skip slow harness during day-to-day runs
 ./scripts/run-all-tests.sh --skip-harness
+
+# Rust + web in parallel, then API + harness
+./scripts/run-all-tests.sh --parallel-frontend
 ```
 
-**API + Media integration** (Testcontainers; matches CI after `dotnet-publish.sh`):
+`run-all-tests.sh` calls `docker-test.sh` with no args (Api + Media + Chat + Location integration tests). Pass extra args after `--` to filter:
 
 ```bash
-chmod +x scripts/ci/docker-test.sh
-
-# Full suite (builds inside test container)
-./scripts/ci/docker-test.sh
-
-# CI-like (--no-build after ./scripts/ci/dotnet-publish.sh)
-./scripts/ci/dotnet-publish.sh
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
-./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
-
-# Filtered run
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+./scripts/run-all-tests.sh -- --filter "FullyQualifiedName~MetricsIntegrationTests"
 ```
 
-**Media harness E2E** (full stack, runtime images):
+#### Media harness E2E
+
+Starts its own Compose stack (api, media, nginx, workers, Azurite) — you do **not** need `docker compose up` running first:
 
 ```bash
+chmod +x scripts/ci/run-media-harness.sh
+
 ./scripts/ci/run-media-harness.sh
 ```
 
-Equivalent without the script:
+#### Notes
 
-```bash
-docker compose --profile test run --rm test
-```
-
-Use `scripts/ci/docker-test.sh` (or `--profile test`), not `docker-dotnet.sh` / `sdk` — integration tests need the host Docker socket mounted by the `test` service.
-
-Integration tests start their own Postgres containers via Testcontainers (using the host Docker engine through the mounted socket). The compose `db` service is not required for tests. Docker Desktop must be running.
-
-Most integration tests run with **Redis disabled** (`ApiWebApplicationFactory` forces `Redis:Enabled=false`). Realtime hub tests use a separate collection with a Testcontainers Redis instance — see `RedisRealtimeIntegrationTestCollection` in [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md).
+- The compose `db`, `api`, and `nginx` services are **not** required for integration tests.
+- Api.Tests excludes harness cases via `Category!=Harness`; harness tests run only through `run-media-harness.sh`.
+- Most Api integration tests disable Redis in-process; realtime tests use a Testcontainers Redis — see [REDIS.md](services/Api/Global/REDIS.md).
 
 ### Rust workers (optional, `workers` profile)
 
@@ -448,7 +532,7 @@ Three dedicated worker binaries (chat, media, location):
 
 Local `docker compose --profile workers up` uses multi-stage builds. CI/CD compile once via `./scripts/ci/build-workers-release.sh` and build slim runtime images with `./scripts/ci/build-worker-images.sh`. See [workers/README.md](workers/README.md).
 
-Requires Redis, the API, media-service, chat-service, and Azurite for media jobs. See [workers/README.md](workers/README.md) and [LOCATION.md](services/Api/Domain/Location/LOCATION.md).
+Requires Redis, the API, media-service, chat-service, location-service, and Azurite for media jobs. See [workers/README.md](workers/README.md) and [LOCATION.md](services/Location/LOCATION.md).
 
 ```bash
 # Chat worker only (with core stack)
@@ -476,9 +560,11 @@ docker compose --profile monitoring --profile workers up --build
 
 ### Harness tests (optional, `harness` profile)
 
-End-to-end tests that run inside Compose against `http://nginx` (nginx strangler: auth via monolith, uploads via media-service). Uses [docker-compose.harness.yml](docker-compose.harness.yml).
+End-to-end tests that run inside Compose against nginx (auth via monolith, uploads via media-service). Prefer `./scripts/ci/run-media-harness.sh` — it builds images, starts the stack, and sets harness env vars. Manual equivalent:
 
 ```bash
+./scripts/ci/dotnet-publish.sh
+docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml up -d --wait db redis azurite api media rust-worker-media nginx
 docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml run --rm harness
 ```
 

@@ -34,7 +34,7 @@ prod:  browser -> Nginx (:8080, serves dist/ + proxies /api,/hubs) -> api (:8080
 - Nginx config lives in [../../infra/nginx/nginx.conf](../../infra/nginx/nginx.conf) (infra, not here).
 - Vite proxies `/api`, `/hubs` (WebSocket), `/health`, and `/devstoreaccount1` (local Azurite blob uploads) to the backend edge / storage.
 - REST calls go through `/api`; SignalR connects to `/hubs/chat?access_token=<JWT>`.
-- Memory Map uses OpenStreetMap tiles (MapLibre) and Google Places search via `/api/location/places` (API key configured on the backend — see [LOCATION.md](../../services/Api/Domain/Location/LOCATION.md)).
+- Memory Map uses OpenStreetMap tiles (MapLibre) and Google Places search via `/api/location/places` (API key configured on **location-service** — see [LOCATION.md](../../services/Location/LOCATION.md)).
 
 ---
 
@@ -121,7 +121,7 @@ src/
 5. **List endpoints** that return HTTP 204 are normalized to `[]` by `getList()` in [src/lib/apiClient.ts](src/lib/apiClient.ts).
 6. **Auth**: the axios request interceptor attaches `Authorization: Bearer`; a 401 clears the session and redirects to `/login`. There is no `/api/users/me` and no refresh token — `userId` is decoded from the JWT `sub` claim, and an expired token (~15 min) sends the user back to login.
 7. **Accessibility**: semantic elements, `<label>`/`aria-*` wiring (see `FormField`), visible focus states, `role="dialog"` modals.
-8. **Memory Map** (`/map`): OpenStreetMap raster tiles via MapLibre; place search and reverse geocoding via `/api/location/places` (enable `Places:Enabled` + `Places:ApiKey` on the API — see [LOCATION.md](../../services/Api/Domain/Location/LOCATION.md)). MapLibre worker: `lib/maplibreSetup.ts`.
+8. **Memory Map** (`/map`): OpenStreetMap raster tiles via MapLibre; place search and reverse geocoding via `/api/location/places` (enable `Places:Enabled` + `Places:ApiKey` on **location-service** — see [LOCATION.md](../../services/Location/LOCATION.md)). MapLibre worker: `lib/maplibreSetup.ts`.
    - **Pins** — double-click to drop; bbox fetch at zoom 5+.
    - **Clusters** — zoom 2–4 (needs `rust-worker-location` with `--profile workers`).
    - **Live sharing** — select a group, start/stop sharing; green markers for other members; member list shows sharing vs not sharing.

@@ -23,7 +23,7 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media + Chat publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location publish, test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
@@ -31,8 +31,9 @@ Tier 2 (needs dotnet-build)
   api-tests      → Api.Tests --no-build (Category!=Harness)
   media-tests    → Media.Tests --no-build
   chat-tests     → Chat.Tests --no-build
+  location-tests → Location.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests)
+Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
@@ -41,9 +42,9 @@ Tier 4 (needs compose-build)
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media,chat}`, test `bin/` | Yes — runtime Api/Media/Chat Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location}`, test `bin/` | Yes — runtime Api/Media/Chat/Location Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` / `chat-tests` | Pass/fail | Gate only |
+| `api-tests` / `media-tests` / `chat-tests` / `location-tests` | Pass/fail | Gate only |
 | `compose-build` | `api`, `media`, `chat`, `nginx`, `rust-worker-media`, `rust-worker-chat` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
@@ -77,7 +78,7 @@ Tier 4 (needs compose-build)
 ```text
 1. media      ← done on develop (Compose)
 2. chat       ← done on develop (Compose)
-3. location
+3. location   ← done on develop (Compose)
 4. posts + comments
 5. groups
 6. friendships + user-blocks
@@ -216,7 +217,63 @@ docker compose --profile workers --profile monitoring up --build
 
 ---
 
-## Steps 3–7
+## Step 3 — location-service (`develop`: done)
+
+### Runtime (local Compose)
+
+```text
+Browser → nginx:8080
+  ├─ /api/media/*, /internal/media/*                         → media:8080
+  ├─ /api/chat/*, /internal/chat/*, /hubs/chat              → chat:8080
+  ├─ /api/location/*, /internal/location/*, /hubs/location  → location:8080
+  └─ /api/* (other)                                          → api:8080
+
+api ──HttpLocationClient──► location (/internal/location/*)
+location ──HttpMonolithAccessClient──► api (/internal/access/*)
+rust-worker-location ──GET/PUT──► location (/internal/location/cluster-*)
+```
+
+Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `location` schemas. Redis: `location.cluster` stream → `rust-worker-location`.
+
+### Completed on develop
+
+| Item | Status |
+|------|--------|
+| `services/Location/` | Done |
+| `location` schema + `LocationDbContext` migrations | Done |
+| Nginx strangler + compose `location` service | Done |
+| `ILocationClient` / extended `IMonolithAccessClient` | Done |
+| `rust-worker-location` → location callbacks (`API_BASE_URL=http://location:8080`) | Done |
+| Monolith cleanup (`Domain/Location`, public location tables) | Done |
+| `Location.Tests` + `Api.Tests` boundary tests (`FakeLocationClient`) | Done |
+
+### Still open (before `main` cutover)
+
+| Item | Notes |
+|------|-------|
+| Azure location Container App | CD + Bicep/parameters |
+| `nginx.production.conf` location upstream | Strangler for prod |
+| Worker `API_BASE_URL` on Azure | Point at location-service, not monolith |
+
+**Dev data:** pins and sessions live in `location` schema. Legacy `public."MapPins"` / `public."LocationSessions"` are dropped by `RemoveMonolithLocationTables` — reset the Compose DB volume if you need a clean slate.
+
+### Local commands
+
+```bash
+# Stack (media + chat + location + monolith + nginx) — multi-stage dev build
+docker compose up --build
+
+# CI-like: publish + integration tests (--no-build matches CI after dotnet-publish)
+./scripts/ci/dotnet-publish.sh
+./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
+./scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release --no-build
+```
+
+---
+
+## Steps 4–7
 
 Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-route notes live in [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
 
@@ -226,7 +283,7 @@ Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-rou
 
 | Environment | Edge | Extracted routes |
 |-------------|------|------------------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080` |
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080` |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
 
 Target end state: gateway validates JWT once; services receive identity claims. Until step 7, each service validates bearer tokens with the shared `Jwt:Secret`.

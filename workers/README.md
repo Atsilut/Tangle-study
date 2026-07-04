@@ -9,7 +9,7 @@ Redis Streams consumers for async jobs from .NET services (`IWorkQueue`). See [s
 | `crates/worker-core` | — | Shared consumer loop, DLQ, retry, metrics |
 | `crates/worker-media` (`worker-media`) | `media.uploaded` | `http://media:8080` |
 | `crates/worker-chat` (`worker-chat`) | `chat.message.created` | `http://chat:8080` (stub today) |
-| `crates/worker-location` (`worker-location`) | `location.cluster` | `http://api:8080` |
+| `crates/worker-location` (`worker-location`) | `location.cluster` | `http://location:8080` |
 
 Each domain worker is a **separate binary and Docker image**, matching MSA service boundaries.
 
@@ -55,7 +55,7 @@ docker compose --profile workers up --build rust-worker-chat rust-worker-media r
 |-----------------|--------|----------------|
 | `rust-worker-chat` | `worker-chat` | `http://chat:8080` |
 | `rust-worker-media` | `worker-media` | `http://media:8080` |
-| `rust-worker-location` | `worker-location` | `http://api:8080` |
+| `rust-worker-location` | `worker-location` | `http://location:8080` |
 
 Stream keys are fixed per crate (`config.rs`); Compose env comes from `config/compose-workers.yml`.
 

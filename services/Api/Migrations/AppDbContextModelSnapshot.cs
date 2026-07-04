@@ -346,88 +346,6 @@ namespace Api.Migrations
                     b.ToTable("GroupMembers");
                 });
 
-            modelBuilder.Entity("Api.Domain.Location.Domain.LocationSession", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("DeletedUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("GroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupId", "EndedAt");
-
-                    b.HasIndex("UserId", "GroupId")
-                        .IsUnique()
-                        .HasFilter("\"EndedAt\" IS NULL");
-
-                    b.HasIndex("UserId", "GroupId", "EndedAt");
-
-                    b.ToTable("LocationSessions");
-                });
-
-            modelBuilder.Entity("Api.Domain.Location.Domain.MapPin", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("DeletedUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("Latitude")
-                        .HasColumnType("decimal(9,6)");
-
-                    b.Property<decimal>("Longitude")
-                        .HasColumnType("decimal(9,6)");
-
-                    b.Property<long?>("PostId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("Latitude", "Longitude");
-
-                    b.ToTable("MapPins");
-                });
-
             modelBuilder.Entity("Api.Domain.Posts.Domain.Post", b =>
                 {
                     b.Property<long>("Id")
@@ -696,41 +614,6 @@ namespace Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Group");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Api.Domain.Location.Domain.LocationSession", b =>
-                {
-                    b.HasOne("Api.Domain.Groups.Domain.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Group");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Api.Domain.Location.Domain.MapPin", b =>
-                {
-                    b.HasOne("Api.Domain.Posts.Domain.Post", "Post")
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("Api.Domain.Users.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Post");
 
                     b.Navigation("User");
                 });

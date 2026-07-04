@@ -1,3 +1,4 @@
+using Api.Client;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Repository;
@@ -20,7 +21,8 @@ namespace Api.Domain.Groups.Service
         Lazy<GroupApplicationService> applicationService,
         Lazy<GroupBlacklistService> blacklistService,
         Lazy<GroupBoardService> boardService,
-        Lazy<PostService> postService)
+        Lazy<PostService> postService,
+        ILocationClient locationClient)
     {
         private readonly IGroupRepository _repo = repo;
         private readonly GroupMembershipService _membership = membership;
@@ -32,6 +34,7 @@ namespace Api.Domain.Groups.Service
         private readonly Lazy<GroupBlacklistService> _blacklistService = blacklistService;
         private readonly Lazy<GroupBoardService> _boardService = boardService;
         private readonly Lazy<PostService> _postService = postService;
+        private readonly ILocationClient _locationClient = locationClient;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
@@ -147,6 +150,7 @@ namespace Api.Domain.Groups.Service
             await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
             await _postService.Value.DeleteAllByGroupAsync(groupId);
             await _boardService.Value.DeleteAllByGroupAsync(groupId);
+            await _locationClient.EndSessionsForGroupAsync(groupId);
             await _membership.RemoveAllByGroupAsync(groupId);
             var group = await GetGroupOrThrowAsync(groupId);
             await _repo.DeleteGroupAsync(group);

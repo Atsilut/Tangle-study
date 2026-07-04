@@ -12,7 +12,7 @@ services:
     build:
       args:
         NGINX_CONF: infra/nginx/nginx.harness.conf
-    depends_on: !reset
+    depends_on: !override
       api:
         condition: service_healthy
       media:
