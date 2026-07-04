@@ -22,17 +22,17 @@ internal sealed class HttpGroupClient(
         long groupId,
         long userId,
         string notFoundMessage,
-        CancellationToken cancellationToken = default)
-    {
-        _ = notFoundMessage;
-        return PostNoContentAsync($"internal/group/{groupId}/members/{userId}/validate", cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        PostNoContentAsync(
+            $"internal/group/{groupId}/members/{userId}/validate",
+            new InternalGroupMemberValidateRequestDto(notFoundMessage),
+            cancellationToken);
 
     public async Task<bool> IsGroupMemberAsync(long groupId, long userId, CancellationToken cancellationToken = default)
     {
         try
         {
-            await PostNoContentAsync($"internal/group/{groupId}/members/{userId}/validate", cancellationToken);
+            await EnsureGroupMemberAsync(groupId, userId, "Group not found", cancellationToken);
             return true;
         }
         catch (UnauthorizedAccessException)
@@ -85,9 +85,12 @@ internal sealed class HttpGroupClient(
         return payload.MemberUserIds;
     }
 
-    private async Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken)
+    private async Task PostNoContentAsync(
+        string relativePath,
+        object? content,
+        CancellationToken cancellationToken)
     {
-        using var response = await SendAsync(HttpMethod.Post, relativePath, content: null, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Post, relativePath, content, cancellationToken);
         if (response.IsSuccessStatusCode) return;
         await ThrowForFailureAsync(response, cancellationToken);
     }
@@ -155,6 +158,8 @@ internal sealed class HttpGroupClient(
 
         return body;
     }
+
+    private sealed record InternalGroupMemberValidateRequestDto(string? NotFoundMessage = null);
 
     private sealed record InternalGroupMemberEntryDto(long UserId, string Nickname);
 

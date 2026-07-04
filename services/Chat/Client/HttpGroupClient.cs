@@ -28,24 +28,21 @@ internal sealed class HttpGroupClient(
         long groupId,
         IReadOnlyCollection<long> userIds,
         string membersErrorMessage,
-        CancellationToken cancellationToken = default)
-    {
-        _ = membersErrorMessage;
-        return PostNoContentAsync(
+        CancellationToken cancellationToken = default) =>
+        PostNoContentAsync(
             $"internal/group/{groupId}/members/validate",
-            new InternalGroupMembersRequestDto([.. userIds]),
+            new InternalGroupMembersRequestDto([.. userIds], membersErrorMessage),
             cancellationToken);
-    }
 
     public Task EnsureGroupMemberAsync(
         long groupId,
         long userId,
         string notFoundMessage,
-        CancellationToken cancellationToken = default)
-    {
-        _ = notFoundMessage;
-        return PostNoContentAsync($"internal/group/{groupId}/members/{userId}/validate", cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        PostNoContentAsync(
+            $"internal/group/{groupId}/members/{userId}/validate",
+            new InternalGroupMemberValidateRequestDto(notFoundMessage),
+            cancellationToken);
 
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
         PostNoContentAsync(relativePath, content: null, cancellationToken);
@@ -136,5 +133,7 @@ internal sealed class HttpGroupClient(
         return body;
     }
 
-    private sealed record InternalGroupMembersRequestDto(long[] UserIds);
+    private sealed record InternalGroupMembersRequestDto(long[] UserIds, string? ErrorMessage = null);
+
+    private sealed record InternalGroupMemberValidateRequestDto(string? NotFoundMessage = null);
 }

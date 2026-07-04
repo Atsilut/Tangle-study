@@ -38,13 +38,13 @@ namespace Group.Service
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
-        public async Task<GroupEntity> GetGroupOrThrowAsync(long id, string notFoundMessage = "GroupEntity not found") =>
+        public async Task<GroupEntity> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found") =>
             await _repo.GetGroupByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
 
         public Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids) =>
             _repo.GetGroupNamesByIdsAsync(ids);
 
-        public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "GroupEntity not found", int statusCode = StatusCodes.Status404NotFound)
+        public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "Group not found", int statusCode = StatusCodes.Status404NotFound)
         {
             if (!await _repo.ExistsGroupByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
         }
@@ -139,20 +139,26 @@ namespace Group.Service
             var callerId = GetUserIdFromLogin();
             await _membership.EnsureOwnerAsync(id, callerId);
 
-            await _db.ExecuteInTransactionAsync(() => DeleteGroupInternalAsync(id));
+            await DeleteGroupInternalAsync(id);
         }
 
         public async Task DeleteGroupInternalAsync(long groupId)
         {
-            await _invitationService.Value.DeleteAllByGroupAsync(groupId);
-            await _applicationService.Value.DeleteAllByGroupAsync(groupId);
-            await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
+            // Outbound HTTP cannot participate in the group DB transaction — run first so a
+            // failed remote cleanup does not leave group rows deleted while posts/sessions remain.
             await _communityClient.DeleteAllByGroupAsync(groupId);
-            await _boardService.Value.DeleteAllByGroupAsync(groupId);
             await _locationClient.EndSessionsForGroupAsync(groupId);
-            await _membership.RemoveAllByGroupAsync(groupId);
-            var group = await GetGroupOrThrowAsync(groupId);
-            await _repo.DeleteGroupAsync(group);
+
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _invitationService.Value.DeleteAllByGroupAsync(groupId);
+                await _applicationService.Value.DeleteAllByGroupAsync(groupId);
+                await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
+                await _boardService.Value.DeleteAllByGroupAsync(groupId);
+                await _membership.RemoveAllByGroupAsync(groupId);
+                var group = await GetGroupOrThrowAsync(groupId);
+                await _repo.DeleteGroupAsync(group);
+            });
         }
 
         private async Task<List<GroupGetResponseDto>> MapManyToDtosAsync(IReadOnlyList<GroupEntity> groups)

@@ -43,4 +43,21 @@ Cross-routes owned by other services (nginx routes them first):
 - **Community** (`CommunityClient:BaseUrl`): delete-all posts on group delete
 - **Location** (`LocationClient:BaseUrl`): end sessions on group delete
 
-Gateway compose for board posts / chat rooms (see historical GROUPS.md contracts) is deferred to MSA step 7.
+## Schema migration (local Compose)
+
+Group tables live in Postgres schema `group`. The monolith migration `RemoveMonolithGroupTables` drops legacy `public` group tables **without copying data**.
+
+**Local upgrade:** wipe the Postgres volume before first boot of group-service on an existing stack:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Fresh volumes start empty in `group` schema. Azure cutover (when added) needs an explicit data-move plan; Compose study stacks are expected to reset.
+
+## Internal membership error messages
+
+Single-member validate (`POST .../members/{userId}/validate`) accepts an optional JSON body `{ "notFoundMessage": "..." }` (default `"Group not found"`) so Chat/Location can hide membership. Batch validate accepts `{ "userIds": [...], "errorMessage": "..." }`.
+
+Gateway compose for board posts / chat rooms is deferred to MSA step 7.

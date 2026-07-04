@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Group.Security;
 using Group.Service;
 
@@ -24,20 +25,23 @@ public sealed class InternalGroupController(
         [FromRoute] long groupId,
         [FromBody] InternalGroupMembersRequestDto request)
     {
-        await groupMembershipService.EnsureMembersAsync(
-            groupId,
-            request.UserIds,
-            "All participants must be members of this group");
+        var errorMessage = string.IsNullOrWhiteSpace(request.ErrorMessage)
+            ? "All participants must be members of this group"
+            : request.ErrorMessage;
+        await groupMembershipService.EnsureMembersAsync(groupId, request.UserIds, errorMessage);
         return NoContent();
     }
 
     [HttpPost("{groupId:long}/members/{userId:long}/validate")]
-    public async Task<IActionResult> ValidateGroupMember([FromRoute] long groupId, [FromRoute] long userId)
+    public async Task<IActionResult> ValidateGroupMember(
+        [FromRoute] long groupId,
+        [FromRoute] long userId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] InternalGroupMemberValidateRequestDto? request)
     {
-        await groupMembershipService.EnsureMemberAsync(
-            groupId,
-            userId,
-            "User is not a member of this group");
+        var notFoundMessage = string.IsNullOrWhiteSpace(request?.NotFoundMessage)
+            ? "Group not found"
+            : request.NotFoundMessage;
+        await groupMembershipService.EnsureMemberAsync(groupId, userId, notFoundMessage);
         return NoContent();
     }
 
@@ -45,7 +49,7 @@ public sealed class InternalGroupController(
     public async Task<IActionResult> EnsureCallerIsGroupMember([FromRoute] long groupId)
     {
         var callerId = GetCallerUserId();
-        await groupMembershipService.EnsureMemberAsync(groupId, callerId);
+        await groupMembershipService.EnsureMemberAsync(groupId, callerId, "Group not found");
         return NoContent();
     }
 
@@ -104,7 +108,9 @@ public sealed class InternalGroupController(
             ?? throw new UnauthorizedAccessException("Unauthorized access"));
 }
 
-public sealed record InternalGroupMembersRequestDto(long[] UserIds);
+public sealed record InternalGroupMembersRequestDto(long[] UserIds, string? ErrorMessage = null);
+
+public sealed record InternalGroupMemberValidateRequestDto(string? NotFoundMessage = null);
 
 public sealed record InternalGroupBoardKeyDto(long GroupId, long BoardId);
 

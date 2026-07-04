@@ -128,7 +128,7 @@ namespace Group.Service
             if (await _repo.GetForUserAsync(groupId, inviteeId) is null) await CreateInvitationInTransactionAsync(groupId, inviterId, inviteeId);
 
             var invitation = await _repo.GetForUserAsync(groupId, inviteeId)
-                ?? throw new InvalidOperationException("GroupEntity invitation was not created.");
+                ?? throw new InvalidOperationException("Group invitation was not created.");
             return new GroupInvitationResult(
                 GroupInvitationOutcome.GroupInvitationCreated,
                 await MapToDtoAsync(invitation, inviterId));
@@ -140,7 +140,7 @@ namespace Group.Service
             if (pendingApplication is not null) return await ResolveReciprocalApplicationOnInviteAsync(groupId, inviterId, inviteeId);
 
             var invitation = await _repo.GetForUserAsync(groupId, inviteeId)
-                ?? throw new InvalidOperationException("GroupEntity invitation was not created.");
+                ?? throw new InvalidOperationException("Group invitation was not created.");
             return new GroupInvitationResult(
                 GroupInvitationOutcome.GroupInvitationCreated,
                 await MapToDtoAsync(invitation, inviterId));
