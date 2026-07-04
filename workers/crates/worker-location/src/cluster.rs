@@ -1,5 +1,10 @@
 use std::collections::HashMap;
 
+/// Cluster radius in screen pixels (supercluster-style). Cell size is this many
+/// pixels of longitude at the given zoom, so nearby pins merge into one marker.
+const CLUSTER_RADIUS_PX: f64 = 50.0;
+const TILE_SIZE_PX: f64 = 256.0;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PinPoint {
     pub id: i64,
@@ -20,7 +25,10 @@ pub fn cluster_pins(pins: &[PinPoint], zoom: u32) -> Vec<ClusterPoint> {
         return Vec::new();
     }
 
-    let cell_size = (360.0 / (256.0 * 2f64.powi(zoom as i32))).max(0.000_001);
+    // Degrees per pixel at the equator for a 256px tile, times cluster radius.
+    // Without the radius multiplier, cell size is ~1px and every pin is its own cluster.
+    let cell_size =
+        (CLUSTER_RADIUS_PX * 360.0 / (TILE_SIZE_PX * 2f64.powi(zoom as i32))).max(0.000_001);
     let mut cells: HashMap<(i32, i32), Vec<&PinPoint>> = HashMap::new();
 
     for pin in pins {
@@ -62,7 +70,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn clusters_nearby_pins_together() {
+    fn clusters_nearby_pins_together_at_cluster_zoom() {
+        // ~11m apart — must merge at zoom 2–4.
         let pins = vec![
             PinPoint {
                 id: 1,
@@ -76,19 +85,15 @@ mod tests {
             },
         ];
 
-        let clusters = cluster_pins(&pins, 12);
+        let clusters = cluster_pins(&pins, 4);
         assert_eq!(clusters.len(), 1);
         assert_eq!(clusters[0].pin_count, 2);
         assert_eq!(clusters[0].sample_pin_id, Some(1));
     }
 
     #[test]
-    fn empty_pins_returns_empty_clusters() {
-        assert!(cluster_pins(&[], 6).is_empty());
-    }
-
-    #[test]
-    fn distant_pins_form_separate_clusters() {
+    fn clusters_city_scale_pins_at_low_zoom() {
+        // Seoul pins ~5km apart should be one blob at continent zoom.
         let pins = vec![
             PinPoint {
                 id: 1,
@@ -97,12 +102,43 @@ mod tests {
             },
             PinPoint {
                 id: 2,
-                latitude: 35.1796,
-                longitude: 129.0756,
+                latitude: 37.5500,
+                longitude: 126.9900,
+            },
+            PinPoint {
+                id: 3,
+                latitude: 37.5800,
+                longitude: 126.9600,
             },
         ];
 
-        let clusters = cluster_pins(&pins, 6);
+        let clusters = cluster_pins(&pins, 2);
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0].pin_count, 3);
+    }
+
+    #[test]
+    fn empty_pins_returns_empty_clusters() {
+        assert!(cluster_pins(&[], 3).is_empty());
+    }
+
+    #[test]
+    fn distant_pins_form_separate_clusters() {
+        // Seoul vs Tokyo — far enough to stay separate at zoom 4.
+        let pins = vec![
+            PinPoint {
+                id: 1,
+                latitude: 37.5665,
+                longitude: 126.9780,
+            },
+            PinPoint {
+                id: 2,
+                latitude: 35.6762,
+                longitude: 139.6503,
+            },
+        ];
+
+        let clusters = cluster_pins(&pins, 4);
         assert_eq!(clusters.len(), 2);
         assert_eq!(clusters[0].pin_count, 1);
         assert_eq!(clusters[1].pin_count, 1);
