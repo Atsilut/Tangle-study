@@ -14,6 +14,20 @@ public sealed class GroupJoinPolicyRulesUnitTests
     }
 
     [Fact]
+    public void EnsureCanApply_Throws_WhenInvitationOnly()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            GroupJoinPolicyRules.EnsureCanApply(GroupJoinPolicy.InvitationOnly));
+        Assert.Contains("invitation", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EnsureCanApply_AllowsRequestable()
+    {
+        GroupJoinPolicyRules.EnsureCanApply(GroupJoinPolicy.Requestable);
+    }
+
+    [Fact]
     public void EnsureCanOpenJoin_Throws_WhenRequestable()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -22,8 +36,16 @@ public sealed class GroupJoinPolicyRulesUnitTests
     }
 
     [Fact]
-    public void EnsureCanApply_AllowsRequestable()
+    public void EnsureCanOpenJoin_Throws_WhenInvitationOnly()
     {
-        GroupJoinPolicyRules.EnsureCanApply(GroupJoinPolicy.Requestable);
+        var ex = Assert.Throws<ArgumentException>(() =>
+            GroupJoinPolicyRules.EnsureCanOpenJoin(GroupJoinPolicy.InvitationOnly));
+        Assert.Contains("invitation", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EnsureCanOpenJoin_AllowsOpen()
+    {
+        GroupJoinPolicyRules.EnsureCanOpenJoin(GroupJoinPolicy.Open);
     }
 }
