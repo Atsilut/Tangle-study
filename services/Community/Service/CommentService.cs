@@ -220,7 +220,7 @@ public class CommentService(
                 mediaByCommentId.GetValueOrDefault(c.Id)));
         List<CommentGetResponseDto> roots = [];
 
-        foreach (var comment in comments.OrderBy(c => c.CreatedAt))
+        foreach (var comment in comments.OrderBy(c => c.CreatedAt).ThenBy(c => c.Id))
         {
             var dto = byId[comment.Id];
             if (comment.ParentId is null)

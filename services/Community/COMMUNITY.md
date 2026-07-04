@@ -2,6 +2,14 @@
 
 Owns `Post` and `Comment` in Postgres schema `community`.
 
+## List ordering
+
+| List | Order |
+|------|--------|
+| Posts (platform, group board, by author) | `CreatedAt` desc, then `Id` desc (newest first) |
+| Comments on a post (tree roots and replies) | `CreatedAt` asc, then `Id` asc (chronological) |
+| Comments by user | `CreatedAt` desc, then `Id` desc (newest first) |
+
 ## Public routes
 
 | Prefix | Notes |
