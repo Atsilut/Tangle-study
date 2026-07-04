@@ -1,5 +1,5 @@
 /** Radius grows with pin count (sqrt so large clusters do not dominate). */
-export function clusterMarkerSizePx(pinCount: number): number {
+function clusterMarkerSizePx(pinCount: number): number {
   const count = Math.max(1, pinCount)
   return Math.round(Math.min(64, 22 + Math.sqrt(count) * 6))
 }

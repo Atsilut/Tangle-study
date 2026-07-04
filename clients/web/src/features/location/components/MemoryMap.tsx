@@ -102,13 +102,13 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
     refetch: refetchClusters,
   } = useMapClusters(clusterBounds, mapZoom)
   const clustersPending = clustersResult === CLUSTERS_PENDING
-  const clusters = clustersPending || clustersResult == null ? [] : clustersResult
   const isFetchingClusters = isFetchingClustersQuery || clustersPending
   const visiblePins = useMemo(() => (bounds == null ? [] : pins), [bounds, pins])
-  const visibleClusters = useMemo(
-    () => (clusterBounds == null ? [] : clusters),
-    [clusterBounds, clusters],
-  )
+  const visibleClusters = useMemo(() => {
+    if (clusterBounds == null) return []
+    if (clustersResult === CLUSTERS_PENDING || clustersResult == null) return []
+    return clustersResult
+  }, [clusterBounds, clustersResult])
   const pinsGeoJson = useMemo(() => pinsToGeoJson(visiblePins), [visiblePins])
   const showPinLayer = bounds != null
   const createPin = useCreateMapPin()
