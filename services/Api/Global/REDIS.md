@@ -25,7 +25,7 @@ Compose `api` sets `Redis__Enabled=true` and depends on the `redis` service. The
 | Domain events | `IEventPublisher` / Redis pub/sub | Server-side; subscriber currently logs — see [Events/EVENTS.md](Events/EVENTS.md) |
 | Async jobs (producer) | `IWorkQueue` / Redis Streams | Consumed by [workers](../../../workers/README.md) — see [Queue/QUEUE.md](Queue/QUEUE.md) |
 | Live location positions | `LiveLocationRedisStore` (direct Redis / `IDistributedCache`) | Group-scoped TTL keys; refreshed on position update |
-| Map cluster cache | `LocationClusterService` (direct Redis) | Interim clustering results (5 min TTL) |
+| Map cluster cache | location-service `LocationClusterService` (direct Redis) | Interim clustering results (5 min TTL) |
 | Safety alert dedupe | `IDistributedCache` | Per-session stale-alert keys |
 
 Chat message delivery to clients is **SignalR**, not pub/sub or Streams.
@@ -37,7 +37,7 @@ Chat message delivery to clients is **SignalR**, not pub/sub or Streams.
 | `{InstanceName}location:live:{groupId}:{userId}` | 5 min (reset on update) | Live position snapshot JSON |
 | `location:safety:stale:{sessionId}` | 12 h | Dedupe stale-position alerts until next position push |
 
-Cluster cache keys are written by the API after `rust-worker-location` callbacks — see [LOCATION.md](../Domain/Location/LOCATION.md).
+Cluster cache keys are written by **location-service** after `rust-worker-location` callbacks — see [LOCATION.md](../../../services/Location/LOCATION.md).
 
 ## Location data flow
 
@@ -88,7 +88,7 @@ Run all tests: `docker compose --profile test run --rm test`
 
 ## Related docs
 
-- [Domain/Chat/CHAT.md](../../../services/Chat/CHAT.md) — hub contract and client flow
-- [Domain/Location/LOCATION.md](../Domain/Location/LOCATION.md) — live sharing, Redis keys, SignalR events
+- [services/Chat/CHAT.md](../../../services/Chat/CHAT.md) — hub contract and client flow
+- [services/Location/LOCATION.md](../../../services/Location/LOCATION.md) — live sharing, Redis keys, SignalR events
 - [Global/Queue/QUEUE.md](Queue/QUEUE.md) — Streams producer and workers
 - [Global/Events/EVENTS.md](Events/EVENTS.md) — pub/sub event contracts

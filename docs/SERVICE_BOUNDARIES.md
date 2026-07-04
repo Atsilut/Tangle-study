@@ -156,7 +156,7 @@ Client → nginx → media-service (presigned URL) → object storage
 
 ## Internal service authentication
 
-Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Api, Chat), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Monolith:InternalSecret`, `ChatClient:InternalSecret`).
+Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Api, Chat, Location), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Monolith:InternalSecret`, `ChatClient:InternalSecret`, `LocationClient:InternalSecret`).
 
 Worker callbacks use separate secrets: `X-Worker-Callback-Secret` on media and location processed routes — see [MEDIA.md](../services/Media/MEDIA.md).
 
@@ -198,7 +198,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these during Phase 7 (location in monolith) so later extraction does not require rewrites. Phase 4 (media) already follows these patterns.
+Apply these for remaining extractions (posts, groups, users, …). Media, chat, and location already follow these patterns.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 

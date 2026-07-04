@@ -155,7 +155,7 @@ This interim path lacks content metadata, density resolution, and precomputed ti
 
 Worker: `docker compose --profile workers up -d rust-worker-location`.
 
-Internal worker routes (`GET /internal/location/cluster-points`, `PUT /internal/location/clusters`) use the same `X-Worker-Callback-Secret` header as media workers — configured via `WorkerCallback:Secret` on the Api (see [MEDIA.md](../../../Media/MEDIA.md) for media worker callbacks).
+Internal worker routes (`GET /internal/location/cluster-points`, `PUT /internal/location/clusters`) use the same `X-Worker-Callback-Secret` header as media workers — configured via `WorkerCallback:Secret` on location-service (see [MEDIA.md](../Media/MEDIA.md) for media worker callbacks).
 
 ---
 
@@ -186,7 +186,7 @@ SignalR hub: `/hubs/location`
 | `LocationSessionEnded` | `LocationSessionEndedDto` | Session stopped, ghost reconciled, or user leaves group |
 | `SafetyAlertRaised` | `LocationSafetyAlertDto` | Stale position or SOS |
 
-Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with a five-minute TTL, refreshed on each position update. Session headers live in Postgres (`LocationSession` with `groupId`).
+Live positions are cached in Redis (`location:live:{groupId}:{userId}`) with TTL from `LocationSafety:LivePositionTtlMinutes` in [`location-config.yml`](location-config.yml), refreshed on each position update. Session headers live in Postgres (`LocationSession` with `groupId`).
 
 ---
 
@@ -201,12 +201,23 @@ Group members subscribed via `JoinGroupAlerts` receive `SafetyAlertRaised` event
 
 Stale alerts dedupe per session until the next position update. Monitor interval: `LocationSafety:MonitorIntervalSeconds` (see `location-config.yml`).
 
-Async job contract for map clustering: [Global/Queue/QUEUE.md](../../Global/Queue/QUEUE.md) (`location.cluster`).
+Async job contract for map clustering: [QUEUE.md](../Api/Global/Queue/QUEUE.md) (`location.cluster`).
 
 ---
 
-## MSA-prep
+## Configuration (`location-config.yml`)
 
-- Reference `userId` and `postId` by ID only across services.
-- No cross-domain repository access — `MapPinService` uses `PostService` and `UserService`, not their repositories.
-- Extraction target: `location-service` (Phase 9); do not greenfield a separate deployable before monolith E2E proof.
+Baked into the image; override via env (`Places__ApiKey`, `Redis__*`, etc.) when needed. Startup fails if required keys are missing.
+
+| Section | Keys | Notes |
+|---------|------|-------|
+| `LocationSafety` | `StalePositionMinutes`, `LivePositionTtlMinutes`, `MonitorIntervalSeconds`, `SosCooldownSeconds` | `LivePositionTtlMinutes` must be greater than `StalePositionMinutes` |
+| `LocationCluster` | `RateLimitPerMinute` | Public cluster read rate limit |
+| `Places` | `Enabled`, `RateLimitPerMinute` | `ApiKey` via env / secrets, not committed |
+| `Redis` | `InstanceName`, `WorkQueueStreamPrefix`, `SignalRChannelPrefix` | Prefixes shared with other services |
+
+---
+
+## Monolith integration
+
+The monolith calls location-service over HTTP (`ILocationClient`) for post pin upsert/clear, user detach on deletion, and group session end. Location-service calls the monolith via `IMonolithAccessClient` for users, groups, blocks, and post visibility. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#location-service).

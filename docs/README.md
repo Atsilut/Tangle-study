@@ -16,7 +16,7 @@ Central index for architecture and migration docs. Deep-dive guides for specific
 |-----|---------|--------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Current modular monolith vs target MSA | Implemented (describes as-built + target) |
 | [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md) | `Domain/` folder → future microservice mapping | Implemented |
-| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Branch workflow, extraction order, media + chat status | In progress (media + chat done on `develop`) |
+| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Branch workflow, extraction order, media + chat + location status | In progress (media + chat + location done on `develop`) |
 
 ## Development phases
 
@@ -28,9 +28,9 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | 4 | Rust worker + media | [MEDIA.md](../services/Media/MEDIA.md), [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [workers README](../workers/README.md) — **Done** |
 | 5 | Monitoring (thin Prometheus / Grafana) | [ARCHITECTURE.md](ARCHITECTURE.md), [infra/](../infra/) — **Done** |
 | 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
-| 7 | Location / Memory Map (monolith) | [LOCATION.md](../services/Api/Domain/Location/LOCATION.md) — **Done** |
+| 7 | Location / Memory Map (extracted to location-service) | [LOCATION.md](../services/Location/LOCATION.md) — **Done** |
 | 8 | MSA prep (contracts, QUEUE rows) | [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md), [EVENTS.md](../services/Api/Global/Events/EVENTS.md), [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **Done** |
-| 9 | MSA migration — media + chat extracted in Compose; Azure + remaining services pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
+| 9 | MSA migration — media + chat + location extracted in Compose; Azure + remaining services pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
 
 ## Subsystem deep-dives
 
@@ -43,7 +43,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Groups | [services/Api/Domain/Groups/GROUPS.md](../services/Api/Domain/Groups/GROUPS.md) | Cross-service contracts (board posts, platform chat) |
 | Chat | [services/Chat/CHAT.md](../services/Chat/CHAT.md) | REST routes, SignalR hub contract |
 | Media | [services/Media/MEDIA.md](../services/Media/MEDIA.md) | Upload flow, limits, worker callback |
-| Location | [services/Api/Domain/Location/LOCATION.md](../services/Api/Domain/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |
+| Location | [services/Location/LOCATION.md](../services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |
 | Rust workers | [workers/README.md](../workers/README.md) | Consumer, retry, DLQ, replay |
 | Web client | [clients/web/README.md](../clients/web/README.md) | React SPA, Nginx proxy, feature slices |
 | Monitoring | [infra/README.md](../infra/README.md) | Prometheus, Grafana, alerts, scrape auth |

@@ -1,6 +1,6 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** plus an extracted **media-service** in local Compose (Phase 9 step 1), an optional Rust worker fleet, an optional **React web client** behind an Nginx edge, and an optional **Prometheus / Grafana** monitoring profile. Azure production still runs the monolith for all domains until media is deployed there. The target is **domain-aligned microservices** (Phase 9) behind a gateway or BFF.
+Tangle is a learning project that simulates a distributed system. Today it runs as a **modular monolith** plus extracted **media-service**, **chat-service**, and **location-service** in local Compose (Phase 9 steps 1–3), an optional Rust worker fleet, an optional **React web client** behind an Nginx edge, and an optional **Prometheus / Grafana** monitoring profile. Azure production still runs the monolith for all domains until those services are deployed there. The target is **domain-aligned microservices** (Phase 9) behind a gateway or BFF.
 
 Service-layer conventions inside the monolith: [services/Api/AGENTS.md](../services/Api/AGENTS.md).
 
@@ -115,14 +115,17 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 
 | Service | Role |
 |---------|------|
-| `api` | Monolith (non-media domains; `HttpMediaClient` to media in Docker) |
+| `api` | Monolith (non-media/chat/location domains; HTTP clients to extracted services) |
 | `media` | Media microservice (`/api/media/*`, `media` schema) |
+| `chat` | Chat microservice (`/api/chat/*`, `/hubs/chat`, `chat` schema) |
+| `location` | Location microservice (`/api/location/*`, `/hubs/location`, `location` schema) |
 | `db` | PostgreSQL |
 | `redis` | Cache, backplane, pub/sub, Streams |
-| `nginx` | Edge proxy + SPA; strangler routes media to `media` |
+| `nginx` | Edge proxy + SPA; strangler routes media, chat, and location |
 | `azurite` | Default — local Azure Blob storage (media uploads) |
 | `rust-worker-media` | Optional (`--profile workers`, `harness`) — `media.uploaded` |
-| `rust-worker` | Optional (`--profile workers`) — chat/location |
+| `rust-worker-chat` | Optional (`--profile workers`, `harness`) — `chat.message.created` |
+| `rust-worker-location` | Optional (`--profile workers`) — `location.cluster` |
 | `prometheus` | Optional (`--profile monitoring`) |
 | `grafana` | Optional (`--profile monitoring`) |
 | `postgres-exporter` | Optional (`--profile monitoring`) |
@@ -214,12 +217,11 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
   /Location     ← extracted service (Compose)
 /clients/web    ← React client (Phase 6–7: includes Memory Map at /map); MAUI optional later
 /workers
-  /crates/worker-core, worker-media  ← media worker binary
-  /rust-worker  ← chat + location worker
+  /crates/worker-core, worker-media, worker-chat, worker-location
 /libs           ← planned shared contracts
 /tools          ← planned Go CLI / load testing
 /infra          ← Prometheus / Grafana, Nginx edge ([infra/README.md](../infra/README.md))
-  /nginx        ← edge reverse proxy (local: media strangler; prod: monolith-only until Azure cutover)
+  /nginx        ← edge reverse proxy (local: media/chat/location strangler; prod: monolith-only until Azure cutover)
 /docs           ← architecture and migration docs (this folder)
 ```
 
@@ -230,9 +232,9 @@ Solution file (`Tangle.slnx`) includes `Api`, `Api.Tests`, `Media`, `Media.Tests
 ## What is not MSA today
 
 - README diagram label "Gateway" is **aspirational** — Nginx is the Compose edge; there is no dedicated gateway service yet.
-- **Azure production** still serves all `/api/*` from the monolith (`nginx.production.conf` has no media upstream yet).
-- Monolith media code and `public."MediaAssets"` have been removed; media data lives in the `media` schema.
+- **Azure production** still serves all `/api/*` from the monolith (`nginx.production.conf` has no media, chat, or location upstream yet).
+- Monolith media, chat, and location code and their `public` tables have been removed; data lives in the `media`, `chat`, and `location` schemas.
 - No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.
 
-Phase 9 step 1 (media) is **done in local Compose**; remaining extractions and Azure CD for media follow [MSA_MIGRATION.md](MSA_MIGRATION.md). See [README.md](../README.md#development-phases).
+Phase 9 steps 1–3 (media, chat, location) are **done in local Compose**; Azure CD and remaining extractions follow [MSA_MIGRATION.md](MSA_MIGRATION.md). See [README.md](../README.md#development-phases).
