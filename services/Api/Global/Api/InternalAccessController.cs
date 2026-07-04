@@ -1,8 +1,5 @@
-using Api.Client;
-using Api.Domain.Comments.Service;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
-using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Dto;
@@ -16,12 +13,11 @@ namespace Api.Global.Api;
 [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
 public sealed class InternalAccessController(
     UserService userService,
-    PostService postService,
-    CommentService commentService,
     FriendshipService friendshipService,
     UserBlockService userBlockService,
     GroupService groupService,
-    GroupMembershipService groupMembershipService) : ControllerBase
+    GroupMembershipService groupMembershipService,
+    GroupBoardAccessService groupBoardAccessService) : ControllerBase
 {
     [HttpPost("users/{userId:long}/exists")]
     public async Task<IActionResult> EnsureUserExists([FromRoute] long userId)
@@ -56,6 +52,15 @@ public sealed class InternalAccessController(
             [.. request.UserIds
                 .Distinct()
                 .Select(id => new InternalAccessNicknameEntryDto(id, nicknames.GetValueOrDefault(id, "Deleted User")))]));
+    }
+
+    [HttpPost("users/by-nickname")]
+    public async Task<ActionResult<InternalAccessNicknameLookupResponseDto>> GetUserIdByNickname(
+        [FromBody] InternalAccessNicknameLookupRequestDto request)
+    {
+        var user = await userService.GetUserByNicknameAsync(request.Nickname);
+        if (user is null) return NotFound();
+        return Ok(new InternalAccessNicknameLookupResponseDto(user.Id));
     }
 
     [HttpPost("friendships/validate-pair")]
@@ -122,33 +127,28 @@ public sealed class InternalAccessController(
         return NoContent();
     }
 
-    [HttpPost("posts/{postId:long}/media-view")]
-    public async Task<IActionResult> EnsureCanViewPostMedia([FromRoute] long postId)
+    [HttpPost("groups/{groupId:long}/boards/{boardId:long}/validate-view")]
+    public async Task<IActionResult> ValidateBoardView([FromRoute] long groupId, [FromRoute] long boardId)
     {
-        await postService.EnsureCanViewPostMediaAsync(postId);
+        await groupBoardAccessService.EnsureCanViewBoardAsync(groupId, boardId);
         return NoContent();
     }
 
-    [HttpPost("comments/{commentId:long}/media-view")]
-    public async Task<IActionResult> EnsureCanViewCommentMedia([FromRoute] long commentId)
+    [HttpPost("groups/{groupId:long}/boards/{boardId:long}/validate-write")]
+    public async Task<IActionResult> ValidateBoardWrite([FromRoute] long groupId, [FromRoute] long boardId)
     {
-        await commentService.EnsureCanViewCommentMediaAsync(commentId);
+        await groupBoardAccessService.EnsureCanWritePostAsync(groupId, boardId);
         return NoContent();
     }
 
-    [HttpPost("posts/{postId:long}/validate-owner")]
-    public async Task<IActionResult> ValidatePostOwner([FromRoute] long postId)
+    [HttpPost("groups/boards/viewable-keys")]
+    public async Task<ActionResult<InternalAccessViewableBoardsResponseDto>> GetViewableBoardKeys(
+        [FromBody] InternalAccessViewableBoardsRequestDto request)
     {
-        await postService.EnsureCallerOwnsPostAsync(postId);
-        return NoContent();
-    }
-
-    [HttpPost("posts/viewable-ids")]
-    public async Task<ActionResult<InternalAccessViewablePostsResponseDto>> GetViewablePostIds(
-        [FromBody] InternalAccessViewablePostsRequestDto request)
-    {
-        var viewable = await postService.GetViewablePostIdsAsync(request.PostIds, request.ViewerUserId);
-        return Ok(new InternalAccessViewablePostsResponseDto([.. viewable]));
+        var keys = request.Boards.Select(b => (b.GroupId, b.BoardId)).ToList();
+        var viewable = await groupBoardAccessService.ResolveViewableBoardKeysAsync(keys);
+        return Ok(new InternalAccessViewableBoardsResponseDto(
+            [.. viewable.Select(k => new InternalAccessBoardKeyDto(k.GroupId, k.BoardId))]));
     }
 
     [HttpPost("users/blocks/mutual-ids")]
