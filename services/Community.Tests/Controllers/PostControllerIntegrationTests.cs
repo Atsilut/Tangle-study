@@ -327,7 +327,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long groupId = 10;
         const long boardId = 20;
         var userId = MonolithAccess.SeedUser("board-writer");
-        MonolithAccess.AllowBoard(groupId, boardId);
+        GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -362,7 +362,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long groupId = 11;
         const long boardId = 21;
         var userId = MonolithAccess.SeedUser("no-write");
-        MonolithAccess.AllowAllBoards = false;
+        GroupAccess.AllowAllBoards = false;
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -378,7 +378,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long groupId = 12;
         const long boardId = 22;
         var writerId = MonolithAccess.SeedUser("writer");
-        MonolithAccess.AllowBoard(groupId, boardId);
+        GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, writerId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -387,9 +387,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
 
-        MonolithAccess.ViewableBoards.Clear();
-        MonolithAccess.WritableBoards.Clear();
-        MonolithAccess.AllowAllBoards = false;
+        GroupAccess.ViewableBoards.Clear();
+        GroupAccess.WritableBoards.Clear();
+        GroupAccess.AllowAllBoards = false;
 
         var listRes = await Client.GetAsync(
             $"/api/groups/{groupId}/boards/{boardId}/posts",
@@ -403,7 +403,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long groupId = 13;
         const long boardId = 23;
         var writerId = MonolithAccess.SeedUser("group-author");
-        MonolithAccess.AllowBoard(groupId, boardId);
+        GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, writerId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -425,9 +425,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             (await listRes.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(
                 TestContext.Current.CancellationToken))!).Id;
 
-        MonolithAccess.ViewableBoards.Clear();
-        MonolithAccess.WritableBoards.Clear();
-        MonolithAccess.AllowAllBoards = false;
+        GroupAccess.ViewableBoards.Clear();
+        GroupAccess.WritableBoards.Clear();
+        GroupAccess.AllowAllBoards = false;
 
         var getRes = await Client.GetAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, getRes.StatusCode);

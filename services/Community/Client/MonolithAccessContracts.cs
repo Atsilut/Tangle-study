@@ -13,9 +13,3 @@ internal sealed record InternalAccessNicknameLookupResponseDto(long UserId);
 internal sealed record InternalAccessMutualBlocksRequestDto(long UserId, long[] OtherUserIds);
 
 internal sealed record InternalAccessMutualBlocksResponseDto(long[] BlockedUserIds);
-
-internal sealed record InternalAccessBoardKeyDto(long GroupId, long BoardId);
-
-internal sealed record InternalAccessViewableBoardsRequestDto(InternalAccessBoardKeyDto[] Boards);
-
-internal sealed record InternalAccessViewableBoardsResponseDto(InternalAccessBoardKeyDto[] Viewable);

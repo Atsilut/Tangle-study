@@ -77,59 +77,6 @@ internal sealed class HttpMonolithAccessClient(
         return [.. payload.BlockedUserIds];
     }
 
-    public Task EnsureCanViewBoardAsync(long groupId, long boardId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync(
-            $"internal/access/groups/{groupId}/boards/{boardId}/validate-view",
-            cancellationToken);
-
-    public async Task<bool> TryCanViewBoardAsync(
-        long groupId,
-        long boardId,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await EnsureCanViewBoardAsync(groupId, boardId, cancellationToken);
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (AccessForbiddenException)
-        {
-            return false;
-        }
-        catch (EntityNotFoundException)
-        {
-            return false;
-        }
-    }
-
-    public Task EnsureCanWritePostAsync(long groupId, long boardId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync(
-            $"internal/access/groups/{groupId}/boards/{boardId}/validate-write",
-            cancellationToken);
-
-    public async Task<HashSet<(long GroupId, long BoardId)>> ResolveViewableBoardKeysAsync(
-        IReadOnlyCollection<(long GroupId, long BoardId)> boardKeys,
-        CancellationToken cancellationToken = default)
-    {
-        if (boardKeys.Count == 0) return [];
-
-        var response = await PostAsync(
-            "internal/access/groups/boards/viewable-keys",
-            new InternalAccessViewableBoardsRequestDto(
-                [.. boardKeys.Select(k => new InternalAccessBoardKeyDto(k.GroupId, k.BoardId))]),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessViewableBoardsResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith viewable boards response was empty.");
-
-        return [.. payload.Viewable.Select(b => (b.GroupId, b.BoardId))];
-    }
-
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
         PostNoContentAsync(relativePath, content: null, cancellationToken);
 

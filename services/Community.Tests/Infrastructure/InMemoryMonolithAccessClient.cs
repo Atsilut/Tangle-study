@@ -8,10 +8,6 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
     public HashSet<long> Users { get; } = [];
     public Dictionary<long, string> Nicknames { get; } = [];
     public HashSet<(long UserId, long OtherUserId)> MutualBlocks { get; } = [];
-    public HashSet<(long GroupId, long BoardId)> ViewableBoards { get; } = [];
-    public HashSet<(long GroupId, long BoardId)> WritableBoards { get; } = [];
-
-    public bool AllowAllBoards { get; set; } = true;
 
     public long SeedUser(string nickname, long? userId = null)
     {
@@ -26,9 +22,6 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
         Users.Clear();
         Nicknames.Clear();
         MutualBlocks.Clear();
-        ViewableBoards.Clear();
-        WritableBoards.Clear();
-        AllowAllBoards = true;
     }
 
     /// <summary>
@@ -42,13 +35,6 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
 
     public void AddMutualBlock(long userId, long otherUserId) =>
         MutualBlocks.Add((userId, otherUserId));
-
-    public void AllowBoard(long groupId, long boardId, bool writable = true)
-    {
-        AllowAllBoards = false;
-        ViewableBoards.Add((groupId, boardId));
-        if (writable) WritableBoards.Add((groupId, boardId));
-    }
 
     public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default)
     {
@@ -90,43 +76,5 @@ public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
         }
 
         return Task.FromResult(blocked);
-    }
-
-    public Task EnsureCanViewBoardAsync(long groupId, long boardId, CancellationToken cancellationToken = default)
-    {
-        if (AllowAllBoards || ViewableBoards.Contains((groupId, boardId)))
-            return Task.CompletedTask;
-        throw new AccessForbiddenException("Unauthorized access");
-    }
-
-    public async Task<bool> TryCanViewBoardAsync(
-        long groupId,
-        long boardId,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await EnsureCanViewBoardAsync(groupId, boardId, cancellationToken);
-            return true;
-        }
-        catch (AccessForbiddenException)
-        {
-            return false;
-        }
-    }
-
-    public Task EnsureCanWritePostAsync(long groupId, long boardId, CancellationToken cancellationToken = default)
-    {
-        if (AllowAllBoards || WritableBoards.Contains((groupId, boardId)))
-            return Task.CompletedTask;
-        throw new AccessForbiddenException("Unauthorized access");
-    }
-
-    public Task<HashSet<(long GroupId, long BoardId)>> ResolveViewableBoardKeysAsync(
-        IReadOnlyCollection<(long GroupId, long BoardId)> boardKeys,
-        CancellationToken cancellationToken = default)
-    {
-        if (AllowAllBoards) return Task.FromResult(boardKeys.ToHashSet());
-        return Task.FromResult(boardKeys.Where(ViewableBoards.Contains).ToHashSet());
     }
 }

@@ -38,6 +38,8 @@ public sealed class LocationWebApplicationFactory(
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
+        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
         builder.UseSetting("CommunityClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
@@ -58,6 +60,8 @@ public sealed class LocationWebApplicationFactory(
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["GroupClient:BaseUrl"] = "http://group.test",
+                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
                 ["CommunityClient:BaseUrl"] = "http://community.test",
                 ["CommunityClient:InternalSecret"] = TestInternalServiceSecret,
                 ["InternalAccess:Secret"] = TestInternalServiceSecret,
@@ -74,11 +78,14 @@ public sealed class LocationWebApplicationFactory(
         {
             RemoveService<IMonolithAccessClient>(services);
             RemoveService<ICommunityAccessClient>(services);
+            RemoveService<IGroupClient>(services);
             services.AddSingleton<InMemoryMonolithAccessClient>(sp =>
                 new InMemoryMonolithAccessClient(sp.GetRequiredService<IHttpContextAccessor>()));
             services.AddSingleton<IMonolithAccessClient>(sp =>
                 sp.GetRequiredService<InMemoryMonolithAccessClient>());
             services.AddSingleton<ICommunityAccessClient>(sp =>
+                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<IGroupClient>(sp =>
                 sp.GetRequiredService<InMemoryMonolithAccessClient>());
         });
 

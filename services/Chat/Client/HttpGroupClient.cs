@@ -1,72 +1,50 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Location.Config;
-using Location.Exceptions;
+using Chat.Config;
+using Chat.Exceptions;
 using Microsoft.Extensions.Options;
 
-namespace Location.Client;
+namespace Chat.Client;
 
-internal sealed class HttpMonolithAccessClient(
+internal sealed class HttpGroupClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<MonolithOptions> options) : IMonolithAccessClient
+    IOptions<GroupClientOptions> options) : IGroupClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly MonolithOptions _options = options.Value;
+    private readonly GroupClientOptions _options = options.Value;
 
-    public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync($"internal/access/users/{userId}/validate", cancellationToken);
+    public Task EnsureGroupExistsAsync(long groupId, CancellationToken cancellationToken = default) =>
+        PostNoContentAsync($"internal/group/{groupId}/exists", cancellationToken);
 
-    public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
-        IEnumerable<long> userIds,
+    public Task EnsureCallerIsGroupMemberAsync(long groupId, CancellationToken cancellationToken = default) =>
+        GetNoContentAsync($"internal/group/{groupId}/membership/me", cancellationToken);
+
+    public Task EnsureGroupMembersAsync(
+        long groupId,
+        IReadOnlyCollection<long> userIds,
+        string membersErrorMessage,
         CancellationToken cancellationToken = default)
     {
-        var ids = userIds.Distinct().ToArray();
-        if (ids.Length == 0) return new Dictionary<long, string>();
-
-        var response = await PostAsync(
-            "internal/access/users/nicknames",
-            new InternalAccessUserIdsRequestDto(ids),
+        _ = membersErrorMessage;
+        return PostNoContentAsync(
+            $"internal/group/{groupId}/members/validate",
+            new InternalGroupMembersRequestDto([.. userIds]),
             cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessNicknamesResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith nicknames response was empty.");
-
-        return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
     }
 
-    public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
+    public Task EnsureGroupMemberAsync(
+        long groupId,
         long userId,
-        IReadOnlyCollection<long> otherUserIds,
+        string notFoundMessage,
         CancellationToken cancellationToken = default)
     {
-        var ids = otherUserIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
-
-        var response = await PostAsync(
-            "internal/access/users/blocks/mutual-ids",
-            new InternalAccessMutualBlocksRequestDto(userId, ids),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessMutualBlocksResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith mutual blocks response was empty.");
-
-        return [.. payload.BlockedUserIds];
-    }
-
-    public async Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default)
-    {
-        var blocked = await GetMutuallyBlockedUserIdsAsync(userId, otherUserIds, cancellationToken);
-        return blocked.Count > 0;
+        _ = notFoundMessage;
+        return PostNoContentAsync($"internal/group/{groupId}/members/{userId}/validate", cancellationToken);
     }
 
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
@@ -77,16 +55,17 @@ internal sealed class HttpMonolithAccessClient(
         object? content,
         CancellationToken cancellationToken)
     {
-        using var response = await PostAsync(relativePath, content, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Post, relativePath, content, cancellationToken);
         if (response.IsSuccessStatusCode) return;
         await ThrowForFailureAsync(response, cancellationToken);
     }
 
-    private Task<HttpResponseMessage> PostAsync(
-        string relativePath,
-        object? content,
-        CancellationToken cancellationToken) =>
-        SendAsync(HttpMethod.Post, relativePath, content, cancellationToken);
+    private async Task GetNoContentAsync(string relativePath, CancellationToken cancellationToken)
+    {
+        using var response = await SendAsync(HttpMethod.Get, relativePath, content: null, cancellationToken);
+        if (response.IsSuccessStatusCode) return;
+        await ThrowForFailureAsync(response, cancellationToken);
+    }
 
     private async Task<HttpResponseMessage> SendAsync(
         HttpMethod method,
@@ -94,7 +73,7 @@ internal sealed class HttpMonolithAccessClient(
         object? content,
         CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));
+        var client = _httpClientFactory.CreateClient(nameof(HttpGroupClient));
         using var request = new HttpRequestMessage(method, relativePath);
 
         if (content is not null)
@@ -110,7 +89,7 @@ internal sealed class HttpMonolithAccessClient(
         return await client.SendAsync(request, cancellationToken);
     }
 
-    private static async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var detail = await ReadProblemDetailAsync(response, cancellationToken);
 
@@ -121,13 +100,18 @@ internal sealed class HttpMonolithAccessClient(
             throw new EntityNotFoundException(detail);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            var isAuthenticated = _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
+            if (isAuthenticated)
+                throw new AccessForbiddenException(detail);
             throw new UnauthorizedAccessException(detail);
+        }
 
         if (response.StatusCode == HttpStatusCode.Forbidden)
             throw new AccessForbiddenException(detail);
 
         throw new InvalidOperationException(
-            $"Monolith access check failed ({(int)response.StatusCode}): {detail}");
+            $"Group access check failed ({(int)response.StatusCode}): {detail}");
     }
 
     private static async Task<string> ReadProblemDetailAsync(
@@ -151,4 +135,6 @@ internal sealed class HttpMonolithAccessClient(
 
         return body;
     }
+
+    private sealed record InternalGroupMembersRequestDto(long[] UserIds);
 }

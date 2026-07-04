@@ -66,35 +66,6 @@ internal sealed class HttpMonolithAccessClient(
             new InternalAccessUserIdsRequestDto([.. otherUserIds]),
             cancellationToken);
 
-    public Task EnsureGroupExistsAsync(long groupId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync($"internal/access/groups/{groupId}/exists", cancellationToken);
-
-    public Task EnsureCallerIsGroupMemberAsync(long groupId, CancellationToken cancellationToken = default) =>
-        GetNoContentAsync($"internal/access/groups/{groupId}/membership/me", cancellationToken);
-
-    public Task EnsureGroupMembersAsync(
-        long groupId,
-        IReadOnlyCollection<long> userIds,
-        string membersErrorMessage,
-        CancellationToken cancellationToken = default)
-    {
-        _ = membersErrorMessage;
-        return PostNoContentAsync(
-            $"internal/access/groups/{groupId}/members/validate",
-            new InternalAccessGroupMembersRequestDto([.. userIds]),
-            cancellationToken);
-    }
-
-    public Task EnsureGroupMemberAsync(
-        long groupId,
-        long userId,
-        string notFoundMessage,
-        CancellationToken cancellationToken = default)
-    {
-        _ = notFoundMessage;
-        return PostNoContentAsync($"internal/access/groups/{groupId}/members/{userId}/validate", cancellationToken);
-    }
-
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
         PostNoContentAsync(relativePath, content: null, cancellationToken);
 

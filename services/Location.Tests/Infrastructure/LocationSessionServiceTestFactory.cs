@@ -70,6 +70,7 @@ internal static class LocationSessionServiceTestFactory
             sessionRepository,
             liveStore,
             monolith,
+            monolith,
             realtimeNotifier,
             distributedCache,
             Options.Create(LocationTestOptions.Safety),
@@ -77,6 +78,7 @@ internal static class LocationSessionServiceTestFactory
 
         var locationSessionService = new LocationSessionService(
             sessionRepository,
+            monolith,
             monolith,
             liveStore,
             realtimeNotifier,

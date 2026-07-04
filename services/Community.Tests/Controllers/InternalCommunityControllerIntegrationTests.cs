@@ -158,7 +158,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     {
         var authorId = MonolithAccess.SeedUser("author");
         var viewerId = MonolithAccess.SeedUser("viewer");
-        MonolithAccess.AllowBoard(groupId: 30, boardId: 40);
+        GroupAccess.AllowBoard(groupId: 30, boardId: 40);
 
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
         var publicCreate = await Client.PostAsJsonAsync(
@@ -186,9 +186,9 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
         MonolithAccess.AddMutualBlock(authorId, viewerId);
-        MonolithAccess.ViewableBoards.Clear();
-        MonolithAccess.WritableBoards.Clear();
-        MonolithAccess.AllowAllBoards = false;
+        GroupAccess.ViewableBoards.Clear();
+        GroupAccess.WritableBoards.Clear();
+        GroupAccess.AllowAllBoards = false;
 
         CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
         var res = await Client.PostAsJsonAsync(
@@ -238,7 +238,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         const long groupId = 50;
         const long boardId = 60;
         var userId = MonolithAccess.SeedUser("media-view");
-        MonolithAccess.AllowBoard(groupId, boardId);
+        GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -258,9 +258,9 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
                     TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        MonolithAccess.ViewableBoards.Clear();
-        MonolithAccess.WritableBoards.Clear();
-        MonolithAccess.AllowAllBoards = false;
+        GroupAccess.ViewableBoards.Clear();
+        GroupAccess.WritableBoards.Clear();
+        GroupAccess.AllowAllBoards = false;
 
         CommunityTestAuthHelpers.LoginAsInternal(Client, userId);
         var denied = await Client.PostAsync(
@@ -269,7 +269,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
 
-        MonolithAccess.AllowBoard(groupId, boardId, writable: false);
+        GroupAccess.AllowBoard(groupId, boardId, writable: false);
         var allowed = await Client.PostAsync(
             $"/internal/community/{postId}/media-view",
             content: null,

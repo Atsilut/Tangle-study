@@ -1,72 +1,74 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Location.Config;
-using Location.Exceptions;
 using Microsoft.Extensions.Options;
+using Community.Config;
+using Community.Exceptions;
 
-namespace Location.Client;
+namespace Community.Client;
 
-internal sealed class HttpMonolithAccessClient(
+internal sealed class HttpGroupClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<MonolithOptions> options) : IMonolithAccessClient
+    IOptions<GroupClientOptions> options) : IGroupClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly MonolithOptions _options = options.Value;
+    private readonly GroupClientOptions _options = options.Value;
 
-    public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync($"internal/access/users/{userId}/validate", cancellationToken);
+    public Task EnsureCanViewBoardAsync(long groupId, long boardId, CancellationToken cancellationToken = default) =>
+        PostNoContentAsync(
+            $"internal/group/{groupId}/boards/{boardId}/validate-view",
+            cancellationToken);
 
-    public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
-        IEnumerable<long> userIds,
+    public async Task<bool> TryCanViewBoardAsync(
+        long groupId,
+        long boardId,
         CancellationToken cancellationToken = default)
     {
-        var ids = userIds.Distinct().ToArray();
-        if (ids.Length == 0) return new Dictionary<long, string>();
-
-        var response = await PostAsync(
-            "internal/access/users/nicknames",
-            new InternalAccessUserIdsRequestDto(ids),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessNicknamesResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith nicknames response was empty.");
-
-        return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
+        try
+        {
+            await EnsureCanViewBoardAsync(groupId, boardId, cancellationToken);
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (AccessForbiddenException)
+        {
+            return false;
+        }
+        catch (EntityNotFoundException)
+        {
+            return false;
+        }
     }
 
-    public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
+    public Task EnsureCanWritePostAsync(long groupId, long boardId, CancellationToken cancellationToken = default) =>
+        PostNoContentAsync(
+            $"internal/group/{groupId}/boards/{boardId}/validate-write",
+            cancellationToken);
+
+    public async Task<HashSet<(long GroupId, long BoardId)>> ResolveViewableBoardKeysAsync(
+        IReadOnlyCollection<(long GroupId, long BoardId)> boardKeys,
         CancellationToken cancellationToken = default)
     {
-        var ids = otherUserIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
+        if (boardKeys.Count == 0) return [];
 
         var response = await PostAsync(
-            "internal/access/users/blocks/mutual-ids",
-            new InternalAccessMutualBlocksRequestDto(userId, ids),
+            "internal/group/boards/viewable-keys",
+            new InternalGroupViewableBoardsRequestDto(
+                [.. boardKeys.Select(k => new InternalGroupBoardKeyDto(k.GroupId, k.BoardId))]),
             cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessMutualBlocksResponseDto>(
+        var payload = await response.Content.ReadFromJsonAsync<InternalGroupViewableBoardsResponseDto>(
             SerializerOptions,
             cancellationToken)
-            ?? throw new InvalidOperationException("Monolith mutual blocks response was empty.");
+            ?? throw new InvalidOperationException("Group viewable boards response was empty.");
 
-        return [.. payload.BlockedUserIds];
-    }
-
-    public async Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default)
-    {
-        var blocked = await GetMutuallyBlockedUserIdsAsync(userId, otherUserIds, cancellationToken);
-        return blocked.Count > 0;
+        return [.. payload.Viewable.Select(b => (b.GroupId, b.BoardId))];
     }
 
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
@@ -94,7 +96,7 @@ internal sealed class HttpMonolithAccessClient(
         object? content,
         CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));
+        var client = _httpClientFactory.CreateClient(nameof(HttpGroupClient));
         using var request = new HttpRequestMessage(method, relativePath);
 
         if (content is not null)
@@ -110,7 +112,7 @@ internal sealed class HttpMonolithAccessClient(
         return await client.SendAsync(request, cancellationToken);
     }
 
-    private static async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var detail = await ReadProblemDetailAsync(response, cancellationToken);
 
@@ -121,13 +123,18 @@ internal sealed class HttpMonolithAccessClient(
             throw new EntityNotFoundException(detail);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            var isAuthenticated = _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
+            if (isAuthenticated)
+                throw new AccessForbiddenException(detail);
             throw new UnauthorizedAccessException(detail);
+        }
 
         if (response.StatusCode == HttpStatusCode.Forbidden)
             throw new AccessForbiddenException(detail);
 
         throw new InvalidOperationException(
-            $"Monolith access check failed ({(int)response.StatusCode}): {detail}");
+            $"Group access check failed ({(int)response.StatusCode}): {detail}");
     }
 
     private static async Task<string> ReadProblemDetailAsync(
@@ -151,4 +158,10 @@ internal sealed class HttpMonolithAccessClient(
 
         return body;
     }
+
+    private sealed record InternalGroupBoardKeyDto(long GroupId, long BoardId);
+
+    private sealed record InternalGroupViewableBoardsRequestDto(InternalGroupBoardKeyDto[] Boards);
+
+    private sealed record InternalGroupViewableBoardsResponseDto(InternalGroupBoardKeyDto[] Viewable);
 }

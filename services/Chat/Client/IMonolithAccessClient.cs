@@ -17,20 +17,4 @@ public interface IMonolithAccessClient
     public Task EnsureNoBlockBetweenUserAndOthersAsync(
         IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default);
-
-    public Task EnsureGroupExistsAsync(long groupId, CancellationToken cancellationToken = default);
-
-    public Task EnsureCallerIsGroupMemberAsync(long groupId, CancellationToken cancellationToken = default);
-
-    public Task EnsureGroupMembersAsync(
-        long groupId,
-        IReadOnlyCollection<long> userIds,
-        string membersErrorMessage,
-        CancellationToken cancellationToken = default);
-
-    public Task EnsureGroupMemberAsync(
-        long groupId,
-        long userId,
-        string notFoundMessage,
-        CancellationToken cancellationToken = default);
 }

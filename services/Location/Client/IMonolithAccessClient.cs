@@ -17,20 +17,4 @@ public interface IMonolithAccessClient
         long userId,
         IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default);
-
-    public Task EnsureGroupMemberAsync(
-        long groupId,
-        long userId,
-        string notFoundMessage,
-        CancellationToken cancellationToken = default);
-
-    public Task<bool> IsGroupMemberAsync(long groupId, long userId, CancellationToken cancellationToken = default);
-
-    public Task<IReadOnlyList<GroupMemberSummaryDto>> GetGroupMembersForMemberAsync(
-        long groupId,
-        CancellationToken cancellationToken = default);
-
-    public Task<IReadOnlyList<long>> GetGroupMemberUserIdsAsync(
-        long groupId,
-        CancellationToken cancellationToken = default);
 }
