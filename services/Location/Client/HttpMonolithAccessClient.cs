@@ -40,29 +40,6 @@ internal sealed class HttpMonolithAccessClient(
         return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
     }
 
-    public Task EnsurePostOwnerAsync(long postId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync($"internal/access/posts/{postId}/validate-owner", cancellationToken);
-
-    public async Task<HashSet<long>> GetViewablePostIdsAsync(
-        IReadOnlyCollection<long> postIds,
-        long? viewerUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = postIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
-
-        var response = await PostAsync(
-            "internal/access/posts/viewable-ids",
-            new InternalAccessViewablePostsRequestDto(ids, viewerUserId),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessViewablePostsResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith viewable posts response was empty.");
-
-        return [.. payload.ViewablePostIds];
-    }
-
     public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
         long userId,
         IReadOnlyCollection<long> otherUserIds,

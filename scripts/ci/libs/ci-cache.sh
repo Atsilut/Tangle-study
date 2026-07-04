@@ -35,7 +35,13 @@ ci_fix_cache_ownership() {
   p="${ROOT}/workers/target"
   [[ -d "$p" ]] && paths+=("$p")
 
-  for proj in Api Api.Tests Media Media.Tests; do
+  for proj in \
+    Api Api.Tests \
+    Media Media.Tests \
+    Chat Chat.Tests \
+    Location Location.Tests \
+    Community Community.Tests
+  do
     for kind in bin obj; do
       p="${ROOT}/services/${proj}/${kind}"
       [[ -d "$p" ]] && paths+=("$p")

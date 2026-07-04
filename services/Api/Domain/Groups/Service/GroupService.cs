@@ -2,7 +2,6 @@ using Api.Client;
 using Api.Domain.Groups.Domain;
 using Api.Domain.Groups.Dto;
 using Api.Domain.Groups.Repository;
-using Api.Domain.Posts.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Db;
 using Api.Global.Exceptions;
@@ -21,7 +20,7 @@ namespace Api.Domain.Groups.Service
         Lazy<GroupApplicationService> applicationService,
         Lazy<GroupBlacklistService> blacklistService,
         Lazy<GroupBoardService> boardService,
-        Lazy<PostService> postService,
+        ICommunityClient communityClient,
         ILocationClient locationClient)
     {
         private readonly IGroupRepository _repo = repo;
@@ -33,7 +32,7 @@ namespace Api.Domain.Groups.Service
         private readonly Lazy<GroupApplicationService> _applicationService = applicationService;
         private readonly Lazy<GroupBlacklistService> _blacklistService = blacklistService;
         private readonly Lazy<GroupBoardService> _boardService = boardService;
-        private readonly Lazy<PostService> _postService = postService;
+        private readonly ICommunityClient _communityClient = communityClient;
         private readonly ILocationClient _locationClient = locationClient;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -148,7 +147,7 @@ namespace Api.Domain.Groups.Service
             await _invitationService.Value.DeleteAllByGroupAsync(groupId);
             await _applicationService.Value.DeleteAllByGroupAsync(groupId);
             await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
-            await _postService.Value.DeleteAllByGroupAsync(groupId);
+            await _communityClient.DeleteAllByGroupAsync(groupId);
             await _boardService.Value.DeleteAllByGroupAsync(groupId);
             await _locationClient.EndSessionsForGroupAsync(groupId);
             await _membership.RemoveAllByGroupAsync(groupId);

@@ -34,25 +34,18 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 - `LoginService` stays with this service.
 - `NicknameCacheService` may remain a local cache fed by user events or sync GET.
 
-### posts-service
+### community-service
 
-**Owns:** `Post` (title, content, author reference, optional group/board IDs).
+**Extracted in local Compose (MSA step 4).** API reference: [COMMUNITY.md](../services/Community/COMMUNITY.md).
 
-**Depends on:**
-- **users** — author nickname enrichment, user existence
-- **groups** — board context for group-board posts (`GroupId`, `GroupBoardId` on Post)
-
-**Cross-route today:** group-board posts are created via `GroupBoardPostController` under Groups routes but the aggregate is `Post` ([AGENTS.md](../services/Api/AGENTS.md)). **Phase 9 default:** BFF / gateway compose — gateway calls groups for access check, then posts for CRUD. Full contract: [GROUPS.md](../services/Api/Domain/Groups/GROUPS.md).
-
-### comments-service
-
-**Owns:** `Comment` (content, `PostId`, nested `ParentId`, detach fields).
+**Owns:** `Post` and `Comment` in Postgres `community` schema (tight delete/detach and board-visibility coupling).
 
 **Depends on:**
-- **posts** — post existence, group-board visibility context (`PostService.TryGetGroupBoardContextAsync`)
-- **users** — author identity
+- **users** — author nickname enrichment, user existence (via `IMonolithAccessClient`)
+- **groups** — board view/write access (via monolith internal board endpoints until groups extract)
+- **media** / **location** — attachments and post geo (HTTP clients)
 
-**Coupling today:** `CommentService` → `PostService`; `PostService` → `Lazy<CommentService>` for delete/detach. At split, replace with HTTP calls or `post.deleted` events plus local comment cleanup jobs.
+**Public routes:** `/api/posts`, `/api/comments`, `/api/groups/{id}/boards/{id}/posts`. **Internal:** `/internal/community/*` (media-view, owner, viewable-ids, user/group detach).
 
 ### groups-service
 
@@ -277,6 +270,5 @@ Not planned for v1 MSA, but documented for later simplification:
 |-----------------|-----------|
 | friendships + user-blocks → social-graph | Small CRUD surfaces, shared user references |
 | friendships + user-blocks → users | Fewer deployables; users service grows |
-| posts + comments → community | Tight coupling; single "content" service |
 
-Default remains **domain-aligned** split per folder unless operational cost motivates merge.
+Posts + comments already ship as **community-service** (MSA step 4). Default remains **domain-aligned** split per folder unless operational cost motivates merge.

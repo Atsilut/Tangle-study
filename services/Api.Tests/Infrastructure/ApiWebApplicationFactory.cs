@@ -31,10 +31,12 @@ public sealed class ApiWebApplicationFactory(
     private readonly FakeMediaClient _fakeMediaClient = new();
     private readonly FakeChatClient _fakeChatClient = new();
     private readonly FakeLocationClient _fakeLocationClient = new();
+    private readonly FakeCommunityClient _fakeCommunityClient = new();
 
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
     public FakeChatClient FakeChatClient => _fakeChatClient;
     public FakeLocationClient FakeLocationClient => _fakeLocationClient;
+    public FakeCommunityClient FakeCommunityClient => _fakeCommunityClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -47,6 +49,8 @@ public sealed class ApiWebApplicationFactory(
         builder.UseSetting("ChatClient:InternalSecret", "test-internal-service-secret");
         builder.UseSetting("LocationClient:BaseUrl", "http://location.test");
         builder.UseSetting("LocationClient:InternalSecret", "test-internal-service-secret");
+        builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
+        builder.UseSetting("CommunityClient:InternalSecret", "test-internal-service-secret");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -64,6 +68,8 @@ public sealed class ApiWebApplicationFactory(
                 ["ChatClient:InternalSecret"] = "test-internal-service-secret",
                 ["LocationClient:BaseUrl"] = "http://location.test",
                 ["LocationClient:InternalSecret"] = "test-internal-service-secret",
+                ["CommunityClient:BaseUrl"] = "http://community.test",
+                ["CommunityClient:InternalSecret"] = "test-internal-service-secret",
                 ["InternalAccess:Secret"] = "test-internal-service-secret",
                 ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
@@ -82,6 +88,9 @@ public sealed class ApiWebApplicationFactory(
 
             RemoveService<ILocationClient>(services);
             services.AddSingleton<ILocationClient>(_fakeLocationClient);
+
+            RemoveService<ICommunityClient>(services);
+            services.AddSingleton<ICommunityClient>(_fakeCommunityClient);
         });
 
         builder.ConfigureServices(services =>

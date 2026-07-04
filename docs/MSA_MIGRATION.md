@@ -23,7 +23,7 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location + Community publish, test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
@@ -32,8 +32,9 @@ Tier 2 (needs dotnet-build)
   media-tests    → Media.Tests --no-build
   chat-tests     → Chat.Tests --no-build
   location-tests → Location.Tests --no-build
+  community-tests → Community.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests)
+Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
@@ -42,10 +43,10 @@ Tier 4 (needs compose-build)
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location}`, test `bin/` | Yes — runtime Api/Media/Chat/Location Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community}`, test `bin/` | Yes — runtime service Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` / `chat-tests` / `location-tests` | Pass/fail | Gate only |
-| `compose-build` | `api`, `media`, `chat`, `nginx`, `rust-worker-media`, `rust-worker-chat` images + tar | Yes — harness loads tar |
+| `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` | Pass/fail | Gate only |
+| `compose-build` | `api`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
 **PR path filters:** integration jobs run only when their service paths change; harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).
@@ -79,7 +80,7 @@ Tier 4 (needs compose-build)
 1. media      ← done on develop (Compose)
 2. chat       ← done on develop (Compose)
 3. location   ← done on develop (Compose)
-4. posts + comments
+4. community (posts + comments)  ← done on develop (Compose)
 5. groups
 6. friendships + user-blocks
 7. users + gateway
@@ -273,7 +274,39 @@ docker compose up --build
 
 ---
 
-## Steps 4–7
+## Step 4 — community-service (posts + comments) (`develop`: done)
+
+One service owns both aggregates (tight delete/detach and board-visibility coupling). API reference: [COMMUNITY.md](../services/Community/COMMUNITY.md).
+
+### Runtime (local Compose)
+
+```text
+Browser → nginx:8080
+  ├─ /api/media/*, /internal/media/*                         → media
+  ├─ /api/chat/*, /internal/chat/*, /hubs/chat              → chat
+  ├─ /api/location/*, /internal/location/*, /hubs/location  → location
+  ├─ /api/posts/*, /api/comments/*,
+  │  /api/groups/*/boards/*/posts, /internal/community/*     → community
+  └─ /api/* (other)                                          → api
+
+api ──ICommunityClient──► community (detach, delete-by-group)
+media ──ICommunityAccessClient──► community (post/comment media-view)
+location ──ICommunityAccessClient──► community (owner, viewable-ids)
+community ──IMonolithAccessClient──► api (users, blocks, board access)
+community ──IMediaClient──► media
+community ──ILocationClient──► location
+```
+
+Postgres: `community` schema (`Posts`, `Comments`). Legacy `public."Posts"` / `public."Comments"` dropped by `RemoveMonolithCommunityTables`.
+
+### Still open (before `main` cutover)
+
+| Item | Notes |
+|------|-------|
+| Azure community Container App | CD + Bicep/parameters |
+| `nginx.production.conf` community upstream | Strangler for prod |
+
+## Steps 5–7
 
 Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-route notes live in [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
 
@@ -283,7 +316,7 @@ Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-rou
 
 | Environment | Edge | Extracted routes |
 |-------------|------|------------------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080` |
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080`; `/api/posts/*`, `/api/comments/*`, group-board posts, `/internal/community/*` → `community:8080` |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
 
 Target end state: gateway validates JWT once; services receive identity claims. Until step 7, each service validates bearer tokens with the shared `Jwt:Secret`.

@@ -16,12 +16,6 @@ internal sealed class HttpMonolithAccessClient(
     public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
         PostAccessCheckAsync($"internal/access/users/{userId}/exists", cancellationToken);
 
-    public Task EnsureCanViewPostMediaAsync(long postId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/posts/{postId}/media-view", cancellationToken);
-
-    public Task EnsureCanViewCommentMediaAsync(long commentId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/access/comments/{commentId}/media-view", cancellationToken);
-
     private async Task PostAccessCheckAsync(string relativePath, CancellationToken cancellationToken)
     {
         var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));

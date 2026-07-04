@@ -10,9 +10,15 @@ public sealed record InternalAccessNicknameEntryDto(long UserId, string Nickname
 
 public sealed record InternalAccessNicknamesResponseDto(IReadOnlyList<InternalAccessNicknameEntryDto> Nicknames);
 
-public sealed record InternalAccessViewablePostsRequestDto(long[] PostIds, long? ViewerUserId);
+public sealed record InternalAccessNicknameLookupRequestDto(string Nickname);
 
-public sealed record InternalAccessViewablePostsResponseDto(long[] ViewablePostIds);
+public sealed record InternalAccessNicknameLookupResponseDto(long UserId);
+
+public sealed record InternalAccessBoardKeyDto(long GroupId, long BoardId);
+
+public sealed record InternalAccessViewableBoardsRequestDto(InternalAccessBoardKeyDto[] Boards);
+
+public sealed record InternalAccessViewableBoardsResponseDto(InternalAccessBoardKeyDto[] Viewable);
 
 public sealed record InternalAccessMutualBlocksRequestDto(long UserId, long[] OtherUserIds);
 

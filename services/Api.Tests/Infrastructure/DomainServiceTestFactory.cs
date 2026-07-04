@@ -1,8 +1,6 @@
-using Api.Domain.Comments.Service;
+using Api.Client;
 using Api.Domain.Friendships.Service;
 using Api.Domain.Groups.Service;
-using Api.Client;
-using Api.Domain.Posts.Service;
 using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Config;
@@ -20,8 +18,6 @@ internal static class DomainServiceTestFactory
 {
     internal sealed record Graph(
         UserService UserService,
-        PostService PostService,
-        CommentService CommentService,
         FriendshipService FriendshipService,
         FriendRequestService FriendRequestService,
         UserBlockService UserBlockService,
@@ -33,8 +29,6 @@ internal static class DomainServiceTestFactory
         GroupJoinService GroupJoinService,
         GroupBlacklistService GroupBlacklistService,
         FakeUserRepository UserRepository,
-        FakePostRepository PostRepository,
-        FakeCommentRepository CommentRepository,
         FakeFriendshipRepository FriendshipRepository,
         FakeFriendRequestRepository FriendRequestRepository,
         FakeUserBlockRepository UserBlockRepository,
@@ -46,13 +40,12 @@ internal static class DomainServiceTestFactory
         FakeGroupBoardRepository GroupBoardRepository,
         GroupBoardAccessService GroupBoardAccessService,
         GroupBoardService GroupBoardService,
+        FakeCommunityClient CommunityClient,
         FakeLocationClient LocationClient);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var userRepository = new FakeUserRepository();
-        var postRepository = new FakePostRepository();
-        var commentRepository = new FakeCommentRepository();
         var friendshipRepository = new FakeFriendshipRepository();
         var friendRequestRepository = new FakeFriendRequestRepository();
         var userBlockRepository = new FakeUserBlockRepository();
@@ -67,12 +60,11 @@ internal static class DomainServiceTestFactory
         var nicknameCacheService = CreateNicknameCacheService(userRepository, distributedCache);
         var eventPublisher = new NoOpEventPublisher();
         var locationClient = new FakeLocationClient();
+        var communityClient = new FakeCommunityClient();
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
 
-        PostService postService = null!;
-        CommentService commentService = null!;
         var mediaClient = new FakeMediaClient();
         FriendshipService friendshipService = null!;
         FriendRequestService friendRequestService = null!;
@@ -88,8 +80,7 @@ internal static class DomainServiceTestFactory
         var userService = new UserService(
             userRepository,
             db,
-            new Lazy<PostService>(() => postService),
-            new Lazy<CommentService>(() => commentService),
+            communityClient,
             mediaClient,
             new FakeChatClient(),
             locationClient,
@@ -115,27 +106,6 @@ internal static class DomainServiceTestFactory
             new Lazy<FriendRequestService>(() => friendRequestService),
             userService,
             http);
-
-        postService = new PostService(
-            postRepository,
-            db,
-            new Lazy<CommentService>(() => commentService),
-            mediaClient,
-            locationClient,
-            http,
-            userService,
-            userBlockService,
-            groupBoardAccessService);
-
-        commentService = new CommentService(
-            commentRepository,
-            db,
-            http,
-            postService,
-            groupBoardAccessService,
-            userService,
-            userBlockService,
-            mediaClient);
 
         friendshipService = new FriendshipService(
             friendshipRepository,
@@ -215,13 +185,11 @@ internal static class DomainServiceTestFactory
             new Lazy<GroupApplicationService>(() => groupApplicationService),
             new Lazy<GroupBlacklistService>(() => groupBlacklistService),
             new Lazy<GroupBoardService>(() => groupBoardService),
-            new Lazy<PostService>(() => postService),
+            communityClient,
             locationClient);
 
         return new Graph(
             userService,
-            postService,
-            commentService,
             friendshipService,
             friendRequestService,
             userBlockService,
@@ -233,8 +201,6 @@ internal static class DomainServiceTestFactory
             groupJoinService,
             groupBlacklistService,
             userRepository,
-            postRepository,
-            commentRepository,
             friendshipRepository,
             friendRequestRepository,
             userBlockRepository,
@@ -246,6 +212,7 @@ internal static class DomainServiceTestFactory
             groupBoardRepository,
             groupBoardAccessService,
             groupBoardService,
+            communityClient,
             locationClient);
     }
 

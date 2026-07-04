@@ -1,7 +1,5 @@
-using Api.Domain.Comments.Domain;
 using Api.Domain.Friendships.Domain;
 using Api.Domain.Groups.Domain;
-using Api.Domain.Posts.Domain;
 using Api.Domain.UserBlocks.Domain;
 using Api.Domain.Users.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +9,6 @@ namespace Api.Global.Db
     public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
         public DbSet<User> Users => Set<User>();
-        public DbSet<Post> Posts => Set<Post>();
-        public DbSet<Comment> Comments => Set<Comment>();
         public DbSet<Friendship> Friendships => Set<Friendship>();
         public DbSet<FriendRequest> FriendRequests => Set<FriendRequest>();
         public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
@@ -25,48 +21,6 @@ namespace Api.Global.Db
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Post>()
-                .HasOne(p => p.User)
-                .WithMany(u => u.Posts)
-                .HasForeignKey(p => p.UserId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<Post>()
-                .HasOne(p => p.Group)
-                .WithMany()
-                .HasForeignKey(p => p.GroupId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<Post>()
-                .HasOne(p => p.GroupBoard)
-                .WithMany()
-                .HasForeignKey(p => p.GroupBoardId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.User)
-                .WithMany(u => u.Comments)
-                .HasForeignKey(c => c.UserId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.Post)
-                .WithMany(p => p.Comments)
-                .HasForeignKey(c => c.PostId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.Parent)
-                .WithMany()
-                .HasForeignKey(c => c.ParentId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
             modelBuilder.Entity<Friendship>()
                 .HasOne(f => f.UserLow)
                 .WithMany()
