@@ -44,6 +44,30 @@ public sealed class ChatRoomAccessServiceUnitTests
     }
 
     [Fact]
+    public async Task EnsureInviteeCanBeAddedAsync_ThrowsWhenBlockExistsBetweenInviteeAndParticipant()
+    {
+        // Arrange — adder has no block with participants; invitee is blocked with an existing member.
+        var (service, monolith, http) = CreateGraph();
+        var adder = monolith.CreateUser("adder");
+        var participant = monolith.CreateUser("participant");
+        var invitee = monolith.CreateUser("invitee");
+        SetCaller(http, adder.Id);
+        monolith.AddBlock(invitee.Id, participant.Id);
+
+        var room = ChatRoom.CreateMulti(title: null, createdByUserId: adder.Id);
+        var participants = new List<ChatRoomParticipant>
+        {
+            new(chatRoomId: 1, userId: adder.Id, role: ChatRoomParticipantRole.Member),
+            new(chatRoomId: 1, userId: participant.Id, role: ChatRoomParticipantRole.Member),
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.EnsureInviteeCanBeAddedAsync(room, invitee.Id, participants));
+        Assert.Contains("block exists", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task EnsureCanCreatePlatformGroupRoomAsync_ThrowsWhenParticipantIsNotGroupMember()
     {
         // Arrange

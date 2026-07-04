@@ -18,24 +18,31 @@ internal sealed class HttpSocialClient(
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly SocialClientOptions _options = options.Value;
 
-    public Task EnsureFriendshipExistsForUserPairAsync(long otherUserId, CancellationToken cancellationToken = default) =>
+    public Task EnsureFriendshipExistsForUserPairAsync(
+        long userId,
+        long otherUserId,
+        CancellationToken cancellationToken = default) =>
         PostNoContentAsync(
             "internal/social/friendships/validate-pair",
-            new SocialOtherUserRequestDto(otherUserId),
+            new SocialUserPairRequestDto(userId, otherUserId),
             cancellationToken);
 
-    public Task EnsureNoBlockBetweenUsersAsync(long otherUserId, CancellationToken cancellationToken = default) =>
+    public Task EnsureNoBlockBetweenUsersAsync(
+        long userId,
+        long otherUserId,
+        CancellationToken cancellationToken = default) =>
         PostNoContentAsync(
             "internal/social/blocks/validate-between",
-            new SocialOtherUserRequestDto(otherUserId),
+            new SocialUserPairRequestDto(userId, otherUserId),
             cancellationToken);
 
     public Task EnsureNoBlockBetweenUserAndOthersAsync(
+        long userId,
         IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default) =>
         PostNoContentAsync(
             "internal/social/blocks/validate-against-others",
-            new SocialUserIdsRequestDto([.. otherUserIds]),
+            new SocialMutualBlocksRequestDto(userId, [.. otherUserIds]),
             cancellationToken);
 
     private async Task PostNoContentAsync(

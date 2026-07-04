@@ -16,14 +16,14 @@ public class ChatRoomAccessService(
     private readonly IGroupClient _groupClient = groupClient;
 
     public Task EnsureNoBlockBetweenUsersAsync(long userId, long otherUserId) =>
-        _socialClient.EnsureNoBlockBetweenUsersAsync(otherUserId);
+        _socialClient.EnsureNoBlockBetweenUsersAsync(userId, otherUserId);
 
     public async Task EnsureCanCreateDirectRoomAsync(long userId, long otherUserId)
     {
         if (userId == otherUserId) throw new ArgumentException("Cannot create a direct chat room with yourself.");
 
         await _monolithAccess.EnsureUserExistsAsync(otherUserId);
-        await _socialClient.EnsureFriendshipExistsForUserPairAsync(otherUserId);
+        await _socialClient.EnsureFriendshipExistsForUserPairAsync(userId, otherUserId);
         await EnsureNoBlockBetweenUsersAsync(userId, otherUserId);
     }
 
@@ -53,6 +53,7 @@ public class ChatRoomAccessService(
         await _monolithAccess.EnsureUserExistsAsync(inviteeUserId);
 
         await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(
+            inviteeUserId,
             [.. participants.Select(p => p.UserId)]);
 
         if (room.Kind == ChatRoomKind.PlatformGroup)
@@ -84,7 +85,7 @@ public class ChatRoomAccessService(
         if (otherParticipantIds.Count == 0) return;
 
         await _monolithAccess.EnsureUsersExistAsync(otherParticipantIds);
-        await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(otherParticipantIds);
+        await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
         await _groupClient.EnsureGroupMembersAsync(
             platformGroupId,
             otherParticipantIds,
@@ -97,7 +98,7 @@ public class ChatRoomAccessService(
         if (otherParticipantIds.Count == 0) return;
 
         await _monolithAccess.EnsureUsersExistAsync(otherParticipantIds);
-        await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(otherParticipantIds);
+        await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
     }
 
     private static List<long> OtherParticipantIds(long creatorUserId, IReadOnlyCollection<long> participantUserIds) =>

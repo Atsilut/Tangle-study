@@ -80,31 +80,35 @@ public sealed class InMemoryMonolithAccessClient(IHttpContextAccessor httpContex
         return Task.FromResult<IReadOnlyDictionary<long, string>>(result);
     }
 
-    public Task EnsureFriendshipExistsForUserPairAsync(long otherUserId, CancellationToken cancellationToken = default)
+    public Task EnsureFriendshipExistsForUserPairAsync(
+        long userId,
+        long otherUserId,
+        CancellationToken cancellationToken = default)
     {
-        var callerId = GetCallerUserId();
-        var (low, high) = CanonicalPair(callerId, otherUserId);
+        var (low, high) = CanonicalPair(userId, otherUserId);
         if (!Friendships.Contains((low, high)))
             throw new ArgumentException("Users are not friends");
         return Task.CompletedTask;
     }
 
-    public Task EnsureNoBlockBetweenUsersAsync(long otherUserId, CancellationToken cancellationToken = default)
+    public Task EnsureNoBlockBetweenUsersAsync(
+        long userId,
+        long otherUserId,
+        CancellationToken cancellationToken = default)
     {
-        var callerId = GetCallerUserId();
-        if (Blocks.Contains((callerId, otherUserId)) || Blocks.Contains((otherUserId, callerId)))
+        if (Blocks.Contains((userId, otherUserId)) || Blocks.Contains((otherUserId, userId)))
             throw new ArgumentException("Cannot chat while a block exists between you and this user.");
         return Task.CompletedTask;
     }
 
     public Task EnsureNoBlockBetweenUserAndOthersAsync(
+        long userId,
         IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default)
     {
-        var callerId = GetCallerUserId();
         foreach (var otherUserId in otherUserIds)
         {
-            if (Blocks.Contains((callerId, otherUserId)) || Blocks.Contains((otherUserId, callerId)))
+            if (Blocks.Contains((userId, otherUserId)) || Blocks.Contains((otherUserId, userId)))
                 throw new ArgumentException("Cannot chat while a block exists between you and this user.");
         }
 

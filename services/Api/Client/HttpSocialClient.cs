@@ -1,4 +1,7 @@
+using System.Net;
+using System.Text.Json;
 using Api.Global.Config;
+using Api.Global.Exceptions;
 using Microsoft.Extensions.Options;
 
 namespace Api.Client;
@@ -24,6 +27,49 @@ internal sealed class HttpSocialClient(
             request.Headers.TryAddWithoutValidation(InternalSecretHeaderName, _options.InternalSecret);
 
         using var response = await client.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (response.IsSuccessStatusCode) return;
+        await ThrowForFailureAsync(response, cancellationToken);
+    }
+
+    private static async Task ThrowForFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var detail = await ReadProblemDetailAsync(response, cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+            throw new ArgumentException(detail);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            throw new EntityNotFoundException(detail);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+            throw new UnauthorizedAccessException(detail);
+
+        if (response.StatusCode == HttpStatusCode.Conflict)
+            throw new EntityAlreadyExistsException(detail);
+
+        throw new InvalidOperationException(
+            $"Social detach failed ({(int)response.StatusCode}): {detail}");
+    }
+
+    private static async Task<string> ReadProblemDetailAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(body))
+            return response.ReasonPhrase ?? "Social request failed";
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("detail", out var detailElement)
+                && detailElement.ValueKind == JsonValueKind.String)
+                return detailElement.GetString() ?? body;
+        }
+        catch (JsonException)
+        {
+        }
+
+        return body;
     }
 }

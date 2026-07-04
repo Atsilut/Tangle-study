@@ -1,5 +1,5 @@
 namespace Chat.Client;
 
-internal sealed record SocialOtherUserRequestDto(long OtherUserId);
+internal sealed record SocialUserPairRequestDto(long UserId, long OtherUserId);
 
-internal sealed record SocialUserIdsRequestDto(long[] UserIds);
+internal sealed record SocialMutualBlocksRequestDto(long UserId, long[] OtherUserIds);

@@ -14,14 +14,16 @@ Block and friend-request flows are coupled (`IgnoredByBlock`, block deletes outg
 
 ## Internal routes (`X-Internal-Secret`)
 
-| Route | Callers |
-|-------|---------|
-| `POST /internal/social/friendships/validate-pair` | Chat (DM requires friendship) |
-| `POST /internal/social/blocks/validate-between` | Chat |
-| `POST /internal/social/blocks/validate-against-others` | Chat |
-| `POST /internal/social/blocks/mutual-ids` | Community, Location |
-| `POST /internal/social/blocks/is-blocked-by` | Group |
-| `POST /internal/social/users/{id}/detach-on-deletion` | Api (user delete) |
+Subject user ids are always explicit in the request body (not taken from JWT). Callers pass the user being checked so invitee / background paths work without impersonating the HTTP caller.
+
+| Route | Body | Callers |
+|-------|------|---------|
+| `POST /internal/social/friendships/validate-pair` | `{ userId, otherUserId }` | Chat (DM requires friendship) |
+| `POST /internal/social/blocks/validate-between` | `{ userId, otherUserId }` | Chat |
+| `POST /internal/social/blocks/validate-against-others` | `{ userId, otherUserIds }` | Chat |
+| `POST /internal/social/blocks/mutual-ids` | `{ userId, otherUserIds }` | Community, Location |
+| `POST /internal/social/blocks/is-blocked-by` | `{ blockerUserId, blockedUserId }` | Group |
+| `POST /internal/social/users/{id}/detach-on-deletion` | — | Api (user delete; transactional) |
 
 ## Outbound
 
