@@ -1,5 +1,4 @@
 using Api.Client;
-using Api.Domain.Groups.Service;
 using Api.Domain.Users.Domain;
 using Api.Domain.Users.Dto;
 using Api.Domain.Users.Repository;
@@ -19,7 +18,7 @@ namespace Api.Domain.Users.Service
         IMediaClient mediaClient,
         IChatClient chatClient,
         ILocationClient locationClient,
-        Lazy<GroupMembershipService> groupMembershipService,
+        IGroupClient groupClient,
         IHttpContextAccessor httpContextAccessor,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
@@ -31,7 +30,7 @@ namespace Api.Domain.Users.Service
         private readonly IMediaClient _mediaClient = mediaClient;
         private readonly IChatClient _chatClient = chatClient;
         private readonly ILocationClient _locationClient = locationClient;
-        private readonly Lazy<GroupMembershipService> _groupMembershipService = groupMembershipService;
+        private readonly IGroupClient _groupClient = groupClient;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
@@ -161,7 +160,7 @@ namespace Api.Domain.Users.Service
                 await _communityClient.DetachUserOnDeletionAsync(id);
                 await _mediaClient.DetachUploaderFromDeletedUserAsync(id);
                 await _chatClient.DetachUserOnDeletionAsync(id);
-                await _groupMembershipService.Value.HandleUserDeletionAsync(id);
+                await _groupClient.DetachUserOnDeletionAsync(id);
                 await _locationClient.DetachUserOnDeletionAsync(id);
                 await _repo.DeleteUserAsync(userFromLogin);
             });

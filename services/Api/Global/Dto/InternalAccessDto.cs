@@ -29,3 +29,7 @@ public sealed record InternalAccessGroupMemberEntryDto(long UserId, string Nickn
 public sealed record InternalAccessGroupMembersResponseDto(IReadOnlyList<InternalAccessGroupMemberEntryDto> Members);
 
 public sealed record InternalAccessGroupMemberIdsResponseDto(long[] MemberUserIds);
+
+public sealed record InternalAccessIsBlockedRequestDto(long BlockerUserId, long BlockedUserId);
+
+public sealed record InternalAccessIsBlockedResponseDto(bool IsBlocked);
