@@ -265,6 +265,29 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  social:
+    build:
+      context: .
+      dockerfile: services/Social/Dockerfile
+      args: *api-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
   # Nginx edge:
   # serves the built React SPA (built in clients/web/Dockerfile).
   # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
@@ -287,6 +310,8 @@ services:
       community:
         condition: service_healthy
       group:
+        condition: service_healthy
+      social:
         condition: service_healthy
       rust-worker-media:
         condition: service_started
@@ -504,6 +529,7 @@ services:
         "services/Location.Tests/Location.Tests.csproj",
         "services/Community.Tests/Community.Tests.csproj",
         "services/Group.Tests/Group.Tests.csproj",
+        "services/Social.Tests/Social.Tests.csproj",
         "-c",
         "Release",
         "--filter",

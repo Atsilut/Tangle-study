@@ -41,7 +41,8 @@ ci_fix_cache_ownership() {
     Chat Chat.Tests \
     Location Location.Tests \
     Community Community.Tests \
-    Group Group.Tests
+    Group Group.Tests \
+    Social Social.Tests
   do
     for kind in bin obj; do
       p="${ROOT}/services/${proj}/${kind}"

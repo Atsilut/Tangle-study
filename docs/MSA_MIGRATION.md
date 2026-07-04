@@ -34,8 +34,9 @@ Tier 2 (needs dotnet-build)
   location-tests → Location.Tests --no-build
   community-tests → Community.Tests --no-build
   group-tests    → Group.Tests --no-build
+  social-tests   → Social.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests, group-tests)
+Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
@@ -44,9 +45,9 @@ Tier 4 (needs compose-build)
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community,group}`, test `bin/` | Yes — runtime service Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community,group,social}`, test `bin/` | Yes — runtime service Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` / `group-tests` | Pass/fail | Gate only |
+| `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` / `group-tests` / `social-tests` | Pass/fail | Gate only |
 | `compose-build` | `api`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
@@ -83,7 +84,7 @@ Tier 4 (needs compose-build)
 3. location   ← done on develop (Compose)
 4. community (posts + comments)  ← done on develop (Compose)
 5. group                         ← done on develop (Compose)
-6. friendships + user-blocks
+6. social (friendships + user-blocks)
 7. users + gateway
 ```
 
@@ -342,7 +343,34 @@ Postgres: `group` schema. Legacy `public` group tables dropped by `RemoveMonolit
 | Azure group Container App | CD + Bicep/parameters |
 | `nginx.production.conf` group upstream | Strangler for prod |
 
-## Steps 6–7
+## Step 6 — social-service (friendships + user-blocks) (`develop`: done)
+
+One service owns friendships, friend requests, and user-blocks (tight block ↔ request coupling via `IgnoredByBlock`). API reference: [SOCIAL.md](../services/Social/SOCIAL.md).
+
+### Runtime (local Compose)
+
+```text
+Browser → nginx:8080
+  ├─ … (media, chat, location, community, group)
+  ├─ /api/friendships/*, /api/users/blocks,
+  │  /internal/social/*                                  → social
+  └─ /api/* (other)                                      → api
+
+api ──ISocialClient──► social (user detach)
+chat / group / community / location ──ISocialClient──► social (friendship + block checks)
+social ──IMonolithAccessClient──► api (users, nicknames, friends-list visibility)
+```
+
+Postgres: `social` schema (`Friendships`, `FriendRequests`, `UserBlocks`). Legacy `public` social tables dropped by `RemoveMonolithSocialTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [SOCIAL.md](../services/Social/SOCIAL.md).
+
+### Still open (before `main` cutover)
+
+| Item | Notes |
+|------|-------|
+| Azure social Container App | CD + Bicep/parameters |
+| `nginx.production.conf` social upstream | Strangler for prod |
+
+## Step 7
 
 Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-route notes live in [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
 
@@ -352,7 +380,7 @@ Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-rou
 
 | Environment | Edge | Extracted routes |
 |-------------|------|------------------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080`; `/api/posts/*`, `/api/comments/*`, group-board posts, `/internal/community/*` → `community:8080`; `/api/groups/*`, `/api/invitations/*`, `/api/applications/*`, `/internal/group/*` → `group:8080` |
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080`; `/api/posts/*`, `/api/comments/*`, group-board posts, `/internal/community/*` → `community:8080`; `/api/groups/*`, `/api/invitations/*`, `/api/applications/*`, `/internal/group/*` → `group:8080`; `/api/friendships/*`, `/api/users/blocks`, `/internal/social/*` → `social:8080` |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
 
 Target end state: gateway validates JWT once; services receive identity claims. Until step 7, each service validates bearer tokens with the shared `Jwt:Secret`.

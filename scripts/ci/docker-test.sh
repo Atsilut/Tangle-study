@@ -42,6 +42,9 @@ if [[ " $* " == *" --no-build "* ]]; then
     *Group.Tests*)
       require_test_build_output "Group.Tests" "Group.Tests.dll"
       ;;
+    *Social.Tests*)
+      require_test_build_output "Social.Tests" "Social.Tests.dll"
+      ;;
     *)
       require_test_build_output "Api.Tests" "Api.Tests.dll"
       require_test_build_output "Media.Tests" "Media.Tests.dll"
@@ -49,6 +52,7 @@ if [[ " $* " == *" --no-build "* ]]; then
       require_test_build_output "Location.Tests" "Location.Tests.dll"
       require_test_build_output "Community.Tests" "Community.Tests.dll"
       require_test_build_output "Group.Tests" "Group.Tests.dll"
+      require_test_build_output "Social.Tests" "Social.Tests.dll"
       ;;
   esac
 fi

@@ -144,8 +144,7 @@ flowchart TB
   Users["users-service"]
   Community["community-service"]
   Groups["groups-service"]
-  Friendships["friendships-service"]
-  UserBlocks["user-blocks-service"]
+  Social["social-service"]
   Chat["chat-service"]
   Media["media-service"]
   Location["location-service"]
@@ -157,16 +156,14 @@ flowchart TB
   GW --> Users
   GW --> Community
   GW --> Groups
-  GW --> Friendships
-  GW --> UserBlocks
+  GW --> Social
   GW --> Chat
   GW --> Media
   GW --> Location
   Users --> PG
   Community --> PG
   Groups --> PG
-  Friendships --> PG
-  UserBlocks --> PG
+  Social --> PG
   Chat --> PG
   Media --> PG
   Location --> PG
