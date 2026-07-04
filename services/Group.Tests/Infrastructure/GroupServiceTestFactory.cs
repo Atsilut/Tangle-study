@@ -93,6 +93,7 @@ internal static class GroupServiceTestFactory
             new Lazy<GroupJoinResolutionService>(() => groupJoinResolutionService),
             groupBlacklistService,
             monolith,
+            monolith,
             db,
             http);
 

@@ -15,6 +15,7 @@ public class CommentService(
     IHttpContextAccessor httpContextAccessor,
     PostService postService,
     IMonolithAccessClient monolithAccess,
+    ISocialClient socialClient,
     IGroupClient groupClient,
     IMediaClient mediaClient)
 {
@@ -24,6 +25,7 @@ public class CommentService(
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly PostService _postService = postService;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
     private long? TryGetViewerUserId()
@@ -37,7 +39,7 @@ public class CommentService(
         var viewerUserId = TryGetViewerUserId();
         if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
 
-        var blockedIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
+        var blockedIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
         return blockedIds.Contains(authorUserId);
     }
 
@@ -46,7 +48,7 @@ public class CommentService(
         var viewerUserId = TryGetViewerUserId();
         if (viewerUserId is null || comments.Count == 0) return [.. comments];
 
-        var blockedAuthorIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(
+        var blockedAuthorIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
             viewerUserId.Value,
             comments.Select(c => c.AuthorUserId).Distinct().ToList());
         if (blockedAuthorIds.Count == 0) return [.. comments];

@@ -40,35 +40,6 @@ internal sealed class HttpMonolithAccessClient(
         return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
     }
 
-    public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = otherUserIds.Distinct().ToArray();
-        if (ids.Length == 0) return [];
-
-        var response = await PostAsync(
-            "internal/access/users/blocks/mutual-ids",
-            new InternalAccessMutualBlocksRequestDto(userId, ids),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessMutualBlocksResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith mutual blocks response was empty.");
-
-        return [.. payload.BlockedUserIds];
-    }
-
-    public async Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default)
-    {
-        var blocked = await GetMutuallyBlockedUserIdsAsync(userId, otherUserIds, cancellationToken);
-        return blocked.Count > 0;
-    }
-
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
         PostNoContentAsync(relativePath, content: null, cancellationToken);
 

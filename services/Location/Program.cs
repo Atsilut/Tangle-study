@@ -95,6 +95,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleSocialClient(builder.Configuration);
 builder.Services.AddTangleGroupClient(builder.Configuration);
 builder.Services.AddTangleCommunityAccess(builder.Configuration);
 builder.Services.AddTanglePlaces(builder.Configuration);

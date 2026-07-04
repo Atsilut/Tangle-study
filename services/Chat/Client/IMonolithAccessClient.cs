@@ -9,12 +9,4 @@ public interface IMonolithAccessClient
     public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
         IEnumerable<long> userIds,
         CancellationToken cancellationToken = default);
-
-    public Task EnsureFriendshipExistsForUserPairAsync(long otherUserId, CancellationToken cancellationToken = default);
-
-    public Task EnsureNoBlockBetweenUsersAsync(long otherUserId, CancellationToken cancellationToken = default);
-
-    public Task EnsureNoBlockBetweenUserAndOthersAsync(
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default);
 }

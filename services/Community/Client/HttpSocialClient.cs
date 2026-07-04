@@ -1,77 +1,46 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Community.Config;
+using Community.Exceptions;
 using Microsoft.Extensions.Options;
-using Group.Config;
-using Group.Exceptions;
 
-namespace Group.Client;
+namespace Community.Client;
 
-internal sealed class HttpMonolithAccessClient(
+internal sealed class HttpSocialClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<MonolithOptions> options) : IMonolithAccessClient
+    IOptions<SocialClientOptions> options) : ISocialClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly MonolithOptions _options = options.Value;
+    private readonly SocialClientOptions _options = options.Value;
 
-    public async Task EnsureUserExistsAsync(
+    public async Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
         long userId,
-        string notFoundMessage = "User not found",
-        int statusCode = StatusCodes.Status400BadRequest,
+        IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var path = notFoundMessage == "Authentication failed"
-                ? $"internal/access/users/{userId}/exists"
-                : $"internal/access/users/{userId}/validate";
-            await PostNoContentAsync(path, cancellationToken);
-        }
-        catch (EntityNotFoundException)
-        {
-            throw new EntityNotFoundException(notFoundMessage, statusCode);
-        }
-        catch (ArgumentException)
-        {
-            throw new EntityNotFoundException(notFoundMessage, statusCode);
-        }
-    }
+        var ids = otherUserIds.Distinct().ToArray();
+        if (ids.Length == 0) return [];
 
-    public async Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
-        IEnumerable<long> userIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = userIds.Distinct().ToArray();
-        if (ids.Length == 0) return new Dictionary<long, string>();
-
-        var response = await PostAsync(
-            "internal/access/users/nicknames",
-            new InternalAccessUserIdsRequestDto(ids),
+        using var response = await SendAsync(
+            HttpMethod.Post,
+            "internal/social/blocks/mutual-ids",
+            new SocialMutualBlocksRequestDto(userId, ids),
             cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessNicknamesResponseDto>(
+        if (!response.IsSuccessStatusCode)
+            await ThrowForFailureAsync(response, cancellationToken);
+
+        var payload = await response.Content.ReadFromJsonAsync<SocialMutualBlocksResponseDto>(
             SerializerOptions,
             cancellationToken)
-            ?? throw new InvalidOperationException("Monolith nicknames response was empty.");
+            ?? throw new InvalidOperationException("Social mutual blocks response was empty.");
 
-        return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
+        return [.. payload.BlockedUserIds];
     }
-
-    private async Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken)
-    {
-        using var response = await PostAsync(relativePath, content: null, cancellationToken);
-        if (response.IsSuccessStatusCode) return;
-        await ThrowForFailureAsync(response, cancellationToken);
-    }
-
-    private Task<HttpResponseMessage> PostAsync(
-        string relativePath,
-        object? content,
-        CancellationToken cancellationToken) =>
-        SendAsync(HttpMethod.Post, relativePath, content, cancellationToken);
 
     private async Task<HttpResponseMessage> SendAsync(
         HttpMethod method,
@@ -79,7 +48,7 @@ internal sealed class HttpMonolithAccessClient(
         object? content,
         CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMonolithAccessClient));
+        var client = _httpClientFactory.CreateClient(nameof(HttpSocialClient));
         using var request = new HttpRequestMessage(method, relativePath);
 
         if (content is not null)
@@ -117,7 +86,7 @@ internal sealed class HttpMonolithAccessClient(
             throw new AccessForbiddenException(detail);
 
         throw new InvalidOperationException(
-            $"Monolith access check failed ({(int)response.StatusCode}): {detail}");
+            $"Social access check failed ({(int)response.StatusCode}): {detail}");
     }
 
     private static async Task<string> ReadProblemDetailAsync(

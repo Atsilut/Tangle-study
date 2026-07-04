@@ -12,7 +12,7 @@ public sealed class ChatRoomAccessServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var monolith = new InMemoryMonolithAccessClient(http);
-        var service = new ChatRoomAccessService(monolith, monolith);
+        var service = new ChatRoomAccessService(monolith, monolith, monolith);
         return (service, monolith, http);
     }
 

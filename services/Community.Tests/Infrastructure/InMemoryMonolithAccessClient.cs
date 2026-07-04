@@ -3,7 +3,7 @@ using Community.Exceptions;
 
 namespace Community.Tests.Infrastructure;
 
-public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
+public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient, ISocialClient
 {
     public HashSet<long> Users { get; } = [];
     public Dictionary<long, string> Nicknames { get; } = [];

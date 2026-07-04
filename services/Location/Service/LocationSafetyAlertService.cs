@@ -17,6 +17,7 @@ public class LocationSafetyAlertService(
     ILocationSessionRepository repo,
     LiveLocationRedisStore liveStore,
     IMonolithAccessClient monolithAccess,
+    ISocialClient socialClient,
     IGroupClient groupClient,
     ILocationRealtimeNotifier realtime,
     IDistributedCache cache,
@@ -29,6 +30,7 @@ public class LocationSafetyAlertService(
     private readonly ILocationSessionRepository _repo = repo;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly IDistributedCache _cache = cache;
@@ -156,7 +158,7 @@ public class LocationSafetyAlertService(
         var candidateIds = memberIds.Where(id => id != subjectUserId).ToList();
         if (candidateIds.Count == 0) return [];
 
-        var blockedWithSubject = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(subjectUserId, candidateIds);
+        var blockedWithSubject = await _socialClient.GetMutuallyBlockedUserIdsAsync(subjectUserId, candidateIds);
         return candidateIds.Where(id => !blockedWithSubject.Contains(id)).ToList();
     }
 

@@ -9,7 +9,7 @@ namespace Chat.Tests.Infrastructure;
 /// Configurable in-memory monolith access checks for Chat integration and unit tests.
 /// </summary>
 public sealed class InMemoryMonolithAccessClient(IHttpContextAccessor httpContextAccessor)
-    : IMonolithAccessClient, IGroupClient
+    : IMonolithAccessClient, ISocialClient, IGroupClient
 {
     private long _nextUserId = 1;
     private long _nextGroupId = 1;

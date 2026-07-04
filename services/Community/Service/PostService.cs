@@ -17,6 +17,7 @@ public class PostService(
     ILocationClient locationClient,
     IHttpContextAccessor httpContextAccessor,
     IMonolithAccessClient monolithAccess,
+    ISocialClient socialClient,
     IGroupClient groupClient)
 {
     private readonly IPostRepository _repo = repo;
@@ -26,6 +27,7 @@ public class PostService(
     private readonly ILocationClient _locationClient = locationClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
     private long? TryGetViewerUserId()
@@ -38,7 +40,7 @@ public class PostService(
     {
         if (viewerUserId is null || posts.Count == 0) return posts;
 
-        var blockedAuthorIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(
+        var blockedAuthorIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
             viewerUserId.Value,
             posts.Select(p => p.AuthorUserId).Distinct().ToList());
         if (blockedAuthorIds.Count == 0) return posts;
@@ -50,7 +52,7 @@ public class PostService(
     {
         if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
 
-        var blockedIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
+        var blockedIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
         return blockedIds.Contains(authorUserId);
     }
 
@@ -187,7 +189,7 @@ public class PostService(
 
         var blockedAuthorIds = viewerUserId is null
             ? []
-            : await _monolithAccess.GetMutuallyBlockedUserIdsAsync(
+            : await _socialClient.GetMutuallyBlockedUserIdsAsync(
                 viewerUserId.Value,
                 posts.Select(p => p.AuthorUserId).Distinct().ToList());
 

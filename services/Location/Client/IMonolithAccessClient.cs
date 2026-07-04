@@ -7,14 +7,4 @@ public interface IMonolithAccessClient
     public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
         IEnumerable<long> userIds,
         CancellationToken cancellationToken = default);
-
-    public Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default);
-
-    public Task<bool> AnyBlockExistsBetweenUserAndOthersAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default);
 }

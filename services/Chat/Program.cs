@@ -89,6 +89,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleSocialClient(builder.Configuration);
 builder.Services.AddTangleGroupClient(builder.Configuration);
 builder.Services.AddTangleMediaClient(builder.Configuration);
 

@@ -9,7 +9,3 @@ internal sealed record InternalAccessNicknamesResponseDto(IReadOnlyList<Internal
 internal sealed record InternalAccessNicknameLookupRequestDto(string Nickname);
 
 internal sealed record InternalAccessNicknameLookupResponseDto(long UserId);
-
-internal sealed record InternalAccessMutualBlocksRequestDto(long UserId, long[] OtherUserIds);
-
-internal sealed record InternalAccessMutualBlocksResponseDto(long[] BlockedUserIds);

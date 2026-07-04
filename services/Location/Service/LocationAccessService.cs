@@ -8,10 +8,12 @@ namespace Location.Service;
 [Service]
 public class LocationAccessService(
     IMonolithAccessClient monolithAccess,
+    ISocialClient socialClient,
     ICommunityAccessClient communityAccess,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ISocialClient _socialClient = socialClient;
     private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
@@ -49,7 +51,7 @@ public class LocationAccessService(
         if (viewerUserId == pin.OwnerUserId) return true;
 
         if (viewerUserId is not null &&
-            await _monolithAccess.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [pin.OwnerUserId]))
+            await _socialClient.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId.Value, [pin.OwnerUserId]))
             return false;
 
         if (pin.PostId is null) return false;
@@ -65,7 +67,7 @@ public class LocationAccessService(
         var ownerIds = pins.Select(p => p.OwnerUserId).Distinct().ToList();
         var blockedOwnerIds = viewerUserId is null
             ? []
-            : await _monolithAccess.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, ownerIds);
+            : await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, ownerIds);
 
         var postIds = pins.Where(p => p.PostId is not null).Select(p => p.PostId!.Value).Distinct().ToList();
         var viewablePostIds = postIds.Count == 0
