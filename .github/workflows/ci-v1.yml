@@ -196,7 +196,7 @@ jobs:
       ############################################
       # 5. DOTNET PUBLISH
       ############################################
-      - name: Publish Api, Media, Chat, Location, Community, and Group; build test projects
+      - name: Publish Api, Media, Chat, Location, Community, Group, and Social; build test projects
         run: |
           mkdir -p .ci-cache/nuget .ci-cache/publish
           bash scripts/ci/dotnet-publish.sh
@@ -209,6 +209,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -387,6 +388,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-chat == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -476,6 +478,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-location == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -565,6 +568,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-community == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -654,6 +658,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-group == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -743,6 +748,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )

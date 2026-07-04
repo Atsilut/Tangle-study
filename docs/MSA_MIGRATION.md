@@ -23,7 +23,7 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location + Community + Group publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location + Community + Group + Social publish, test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
