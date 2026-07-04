@@ -10,6 +10,7 @@ internal static class SocialTestAuthHelpers
 {
     public static void LoginAs(HttpClient client, long userId, string? secret = null)
     {
+        client.DefaultRequestHeaders.Remove("X-Internal-Secret");
         secret ??= SocialWebApplicationFactory.TestJwtSecret;
         var token = CreateToken(userId, secret);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

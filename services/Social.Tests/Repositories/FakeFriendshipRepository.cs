@@ -26,8 +26,8 @@ public sealed class FakeFriendshipRepository : IFriendshipRepository
         return Task.FromResult(Items.FirstOrDefault(f => f.UserLowId == low && f.UserHighId == high));
     }
 
-    public Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId) =>
-        GetForUserPairAsync(userId, otherUserId).ContinueWith(t => t.Result is not null);
+    public async Task<bool> ExistsFriendshipForUserPairAsync(long userId, long otherUserId) =>
+        await GetForUserPairAsync(userId, otherUserId) is not null;
 
     public Task<List<Friendship>> GetAllForUserAsync(long userId) =>
         Task.FromResult(Items.Where(f => f.UserLowId == userId || f.UserHighId == userId).ToList());

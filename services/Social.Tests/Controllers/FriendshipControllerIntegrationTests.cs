@@ -1,169 +1,164 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc;
 using Social.Client;
 using Social.Friendships.Dto;
 using Social.Tests.Infrastructure;
-using Social.UserBlocks.Dto;
 
 namespace Social.Tests.Controllers;
 
 [Collection(SocialIntegrationTestCollection.Name)]
 public sealed class FriendshipControllerIntegrationTests(PostgresTestcontainerFixture postgres)
-    : IntegrationTestBase(postgres)
+    : FriendshipDomainIntegrationTestBase(postgres)
 {
-    private const string FriendshipsBase = "/api/friendships";
-    private const string RequestsBase = "/api/friendships/requests";
-    private const string BlocksBase = "/api/users/blocks";
-
     [Fact]
-    public async Task SendRequest_AndAccept_CreatesFriendship()
+    public async Task GetMyFriends_ReturnsAccepted()
     {
-        var requester = MonolithAccess.SeedUser("requester");
-        var addressee = MonolithAccess.SeedUser("addressee");
+        const string testMethodName = "FriendList";
+        var me = CreateUserForTest(testMethodName, 1);
+        var friend = CreateUserForTest(testMethodName, 2);
+        var pending = CreateUserForTest(testMethodName, 3);
 
-        SocialTestAuthHelpers.LoginAs(Client, requester);
-        var send = await Client.PostAsJsonAsync(
-            RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = addressee },
-            TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.Created, send.StatusCode);
+        var requestId = await SendFriendRequestAndGetOutgoingIdAsync(me, friend);
+        LoginAs(me);
+        await SendFriendRequestAsync(pending);
 
-        SocialTestAuthHelpers.LoginAs(Client, addressee);
-        var pending = await Client.GetFromJsonAsync<List<FriendRequestGetResponseDto>>(
-            $"{RequestsBase}/pending",
-            TestContext.Current.CancellationToken);
-        Assert.NotNull(pending);
-        var requestId = pending.Single(r => r.IsIncoming).Id;
-
-        var accept = await Client.PostAsync(
+        LoginAs(friend);
+        await Client.PostAsync(
             $"{RequestsBase}/{requestId}/accept",
-            null,
-            TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
+            content: null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        SocialTestAuthHelpers.LoginAs(Client, requester);
-        var friends = await Client.GetFromJsonAsync<List<FriendshipGetResponseDto>>(
-            $"{FriendshipsBase}/me",
-            TestContext.Current.CancellationToken);
-        Assert.NotNull(friends);
-        Assert.Contains(friends, f => f.OtherUserId == addressee);
+        LoginAs(me);
+
+        var res = await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(list);
+        var only = Assert.Single(list);
+        Assert.Equal(friend, only.OtherUserId);
     }
 
     [Fact]
-    public async Task Block_IgnoresIncomingPendingRequest()
+    public async Task GetUserFriends_Returns200_WhenVisibilityIsPublic()
     {
-        var requester = MonolithAccess.SeedUser("requester");
-        var addressee = MonolithAccess.SeedUser("addressee");
+        const string testMethodName = "FriendUserListPublic";
+        var owner = CreateUserForTest(testMethodName, 1);
+        var friend = CreateUserForTest(testMethodName, 2);
+        var stranger = CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        SetFriendsListVisibility(owner, FriendsListVisibility.Public);
 
-        SocialTestAuthHelpers.LoginAs(Client, requester);
-        await Client.PostAsJsonAsync(
-            RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = addressee },
-            TestContext.Current.CancellationToken);
+        LoginAs(stranger);
 
-        SocialTestAuthHelpers.LoginAs(Client, addressee);
-        var block = await Client.PostAsJsonAsync(
-            BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = requester },
-            TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, block.StatusCode);
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner}", TestContext.Current.CancellationToken);
 
-        var pending = await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.NoContent, pending.StatusCode);
-
-        var ignored = await Client.GetFromJsonAsync<List<FriendRequestGetResponseDto>>(
-            $"{RequestsBase}/ignored",
-            TestContext.Current.CancellationToken);
-        Assert.NotNull(ignored);
-        Assert.Single(ignored);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(list);
+        Assert.Equal(friend, Assert.Single(list).OtherUserId);
     }
 
     [Fact]
-    public async Task Internal_ValidateFriendshipPair_Returns204_WhenFriends()
+    public async Task GetUserFriends_Returns401_WhenVisibilityIsFriendsOnlyAndViewerIsStranger()
     {
-        var a = MonolithAccess.SeedUser("a");
-        var b = MonolithAccess.SeedUser("b");
+        const string testMethodName = "FriendUserListFriendsOnly";
+        var owner = CreateUserForTest(testMethodName, 1);
+        var friend = CreateUserForTest(testMethodName, 2);
+        var stranger = CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        SetFriendsListVisibility(owner, FriendsListVisibility.FriendsOnly);
 
-        SocialTestAuthHelpers.LoginAs(Client, a);
-        await Client.PostAsJsonAsync(
-            RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = b },
-            TestContext.Current.CancellationToken);
-        SocialTestAuthHelpers.LoginAs(Client, b);
-        var pending = await Client.GetFromJsonAsync<List<FriendRequestGetResponseDto>>(
-            $"{RequestsBase}/pending",
-            TestContext.Current.CancellationToken);
-        await Client.PostAsync(
-            $"{RequestsBase}/{pending!.Single().Id}/accept",
-            null,
-            TestContext.Current.CancellationToken);
+        LoginAs(stranger);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client, a);
-        var res = await Client.PostAsJsonAsync(
-            "/internal/social/friendships/validate-pair",
-            new { OtherUserId = b },
-            TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner}", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+        Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
+        Assert.Equal("You must be friends to view this user's friends list.", problem.Detail);
     }
 
     [Fact]
-    public async Task Internal_DetachOnDeletion_RemovesSocialRows()
+    public async Task GetUserFriends_Returns200_WhenVisibilityIsFriendsOnlyAndViewerIsFriend()
     {
-        var a = MonolithAccess.SeedUser("a");
-        var b = MonolithAccess.SeedUser("b");
+        const string testMethodName = "FriendUserListFriendViewer";
+        var owner = CreateUserForTest(testMethodName, 1);
+        var friend = CreateUserForTest(testMethodName, 2);
+        var other = CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(owner, friend);
+        await AcceptFriendshipAsync(owner, other);
+        SetFriendsListVisibility(owner, FriendsListVisibility.FriendsOnly);
 
-        SocialTestAuthHelpers.LoginAs(Client, a);
-        await Client.PostAsJsonAsync(
-            RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = b },
-            TestContext.Current.CancellationToken);
-        await Client.PostAsJsonAsync(
-            BlocksBase,
-            new UserBlockCreateRequestDto { BlockedUserId = b },
-            TestContext.Current.CancellationToken);
+        LoginAs(friend);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
-        var detach = await Client.PostAsync(
-            $"/internal/social/users/{a}/detach-on-deletion",
-            null,
-            TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.NoContent, detach.StatusCode);
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner}", TestContext.Current.CancellationToken);
 
-        SocialTestAuthHelpers.LoginAs(Client, a);
-        Assert.Equal(
-            HttpStatusCode.NoContent,
-            (await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken)).StatusCode);
-        Assert.Equal(
-            HttpStatusCode.NoContent,
-            (await Client.GetAsync($"{BlocksBase}/me", TestContext.Current.CancellationToken)).StatusCode);
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
+        var list = await res.Content.ReadFromJsonAsync<List<FriendshipGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.NotNull(list);
+        Assert.Equal(2, list.Count);
     }
 
     [Fact]
-    public async Task GetUserFriends_RespectsPublicVisibility()
+    public async Task GetUserFriends_Returns401_WhenVisibilityIsPrivate()
     {
-        var owner = MonolithAccess.SeedUser("owner", visibility: FriendsListVisibility.Public);
-        var friend = MonolithAccess.SeedUser("friend");
-        var viewer = MonolithAccess.SeedUser("viewer");
+        const string testMethodName = "FriendUserListPrivate";
+        var owner = CreateUserForTest(testMethodName, 1);
+        var friend = CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(owner, friend);
+        SetFriendsListVisibility(owner, FriendsListVisibility.Private);
 
-        SocialTestAuthHelpers.LoginAs(Client, owner);
-        await Client.PostAsJsonAsync(
-            RequestsBase,
-            new FriendRequestCreateRequestDto { AddresseeId = friend },
-            TestContext.Current.CancellationToken);
-        SocialTestAuthHelpers.LoginAs(Client, friend);
-        var pending = await Client.GetFromJsonAsync<List<FriendRequestGetResponseDto>>(
-            $"{RequestsBase}/pending",
-            TestContext.Current.CancellationToken);
-        await Client.PostAsync(
-            $"{RequestsBase}/{pending!.Single().Id}/accept",
-            null,
-            TestContext.Current.CancellationToken);
+        LoginAs(friend);
 
-        SocialTestAuthHelpers.LoginAs(Client, viewer);
-        var friends = await Client.GetFromJsonAsync<List<FriendshipGetResponseDto>>(
-            $"{FriendshipsBase}/users/{owner}",
-            TestContext.Current.CancellationToken);
-        Assert.NotNull(friends);
-        Assert.Contains(friends, f => f.OtherUserId == friend);
+        var res = await Client.GetAsync($"{FriendshipsBase}/users/{owner}", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+        Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
+        Assert.Equal("This user's friends list is private.", problem.Detail);
+    }
+
+    [Fact]
+    public async Task Remove_Returns204_AndDeletesFriendship()
+    {
+        const string testMethodName = "FriendRemove";
+        var a = CreateUserForTest(testMethodName, 1);
+        var b = CreateUserForTest(testMethodName, 2);
+        await AcceptFriendshipAsync(a, b);
+        LoginAs(a);
+        var friendshipId = (await GetAcceptedFriendAsync(b)).Id;
+
+        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+
+        var friends = await Client.GetAsync($"{FriendshipsBase}/me", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(friends, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task Remove_Returns401_WhenStranger()
+    {
+        const string testMethodName = "FriendRemoveStranger";
+        var a = CreateUserForTest(testMethodName, 1);
+        var b = CreateUserForTest(testMethodName, 2);
+        var stranger = CreateUserForTest(testMethodName, 3);
+        await AcceptFriendshipAsync(a, b);
+        LoginAs(a);
+        var friendshipId = (await GetAcceptedFriendAsync(b)).Id;
+
+        LoginAs(stranger);
+
+        var res = await Client.DeleteAsync($"{FriendshipsBase}/{friendshipId}", TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Unauthorized);
+        var problem = await res.Content.ReadFromJsonAsync<ProblemDetails>(TestContext.Current.CancellationToken);
+        Assert.NotNull(problem);
+        Assert.NotNull(problem.Detail);
+        Assert.Equal("Unauthorized access", problem.Detail);
     }
 }
