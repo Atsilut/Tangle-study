@@ -11,9 +11,4 @@ public interface IMonolithAccessClient
     public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(
         IEnumerable<long> userIds,
         CancellationToken cancellationToken = default);
-
-    public Task<bool> IsBlockedByAsync(
-        long blockerUserId,
-        long blockedUserId,
-        CancellationToken cancellationToken = default);
 }

@@ -32,7 +32,7 @@ This project combines multiple technologies and languages to simulate a modern s
 
 ## Architecture
 
-**Today:** Nginx strangler edge routes media, chat, location, community, and group to extracted services; the monolith (`services/Api`) still owns users, friendships, and user-blocks. Optional Rust workers and monitoring. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Today:** Nginx strangler edge routes media, chat, location, community, group, and social to extracted services; the monolith (`services/Api`) still owns users. Optional Rust workers and monitoring. **Target:** domain-aligned microservices behind a gateway (Phase 9). Full current vs target diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### High-Level Structure
 
@@ -157,6 +157,7 @@ services/
   Location/         ← Location microservice (+ Location.Tests)
   Community/        ← Posts/comments microservice (+ Community.Tests)
   Group/            ← Groups microservice (+ Group.Tests)
+  Social/           ← Friendships + user-blocks microservice (+ Social.Tests)
 clients/
   web/              ← React SPA (Phase 6)
 workers/
@@ -225,6 +226,7 @@ Central index: [docs/README.md](docs/README.md)
 | [services/Chat/CHAT.md](services/Chat/CHAT.md) | Chat REST routes and SignalR hub |
 | [services/Location/LOCATION.md](services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts |
 | [services/Group/GROUP.md](services/Group/GROUP.md) | Group service routes and internal contracts |
+| [services/Social/SOCIAL.md](services/Social/SOCIAL.md) | Social service (friendships + user-blocks) routes and internal contracts |
 | [services/Community/COMMUNITY.md](services/Community/COMMUNITY.md) | Posts/comments service |
 | [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 
@@ -283,7 +285,7 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 
 | Service | Profile | Always on? | Role |
 |---------|---------|------------|------|
-| `api` | — | yes (default `up`) | ASP.NET Core monolith (users, friendships, user-blocks) |
+| `api` | — | yes (default `up`) | ASP.NET Core monolith (users) |
 | `media` | — | yes | Media microservice (`/api/media/*`) |
 | `chat` | — | yes | Chat microservice (`/api/chat/*`, `/hubs/chat`) |
 | `location` | — | yes | Location microservice (`/api/location/*`, `/hubs/location`) |

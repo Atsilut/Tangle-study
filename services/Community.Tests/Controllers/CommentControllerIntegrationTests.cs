@@ -111,4 +111,86 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, createDenied.StatusCode);
     }
+
+    [Fact]
+    public async Task GetCommentsByPostId_OrdersRootsAndRepliesChronologically()
+    {
+        var userId = MonolithAccess.SeedUser("order-commenter");
+        CommunityTestAuthHelpers.LoginAs(Client, userId);
+
+        var createPostRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Post", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Root first" },
+            TestContext.Current.CancellationToken);
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Root second" },
+            TestContext.Current.CancellationToken);
+
+        var roots = await (await Client.GetAsync(
+                $"/api/comments/post/{postId}",
+                TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.Equal(2, roots!.Count);
+        Assert.Equal("Root first", roots[0].Content);
+        Assert.Equal("Root second", roots[1].Content);
+
+        var parentId = roots[0].Id;
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, ParentId = parentId, Content = "Reply first" },
+            TestContext.Current.CancellationToken);
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, ParentId = parentId, Content = "Reply second" },
+            TestContext.Current.CancellationToken);
+
+        var withReplies = await (await Client.GetAsync(
+                $"/api/comments/post/{postId}",
+                TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.Equal(["Reply first", "Reply second"], withReplies![0].Replies.Select(r => r.Content));
+    }
+
+    [Fact]
+    public async Task GetCommentsByUserId_OrdersByCreatedAtDescending()
+    {
+        var userId = MonolithAccess.SeedUser("user-comments-order");
+        CommunityTestAuthHelpers.LoginAs(Client, userId);
+
+        var createPostRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Post", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Older" },
+            TestContext.Current.CancellationToken);
+        await Client.PostAsJsonAsync(
+            "/api/comments",
+            new CommentCreateRequestDto { PostId = postId, Content = "Newer" },
+            TestContext.Current.CancellationToken);
+
+        var comments = await (await Client.GetAsync(
+                $"/api/comments/user/{userId}",
+                TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
+        Assert.Equal(2, comments!.Count);
+        Assert.Equal("Newer", comments[0].Content);
+        Assert.Equal("Older", comments[1].Content);
+    }
 }

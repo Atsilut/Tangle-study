@@ -19,11 +19,17 @@ public class CommentRepository(CommunityDbContext context) : ICommentRepository
     public Task<Comment?> GetCommentByIdAsync(long id) => _context.Comments.FindAsync(id).AsTask();
 
     public Task<List<Comment>> GetCommentsByPostIdAsync(long postId) =>
-        _context.Comments.Where(c => c.PostId == postId).ToListAsync();
+        _context.Comments
+            .Where(c => c.PostId == postId)
+            .OrderBy(c => c.CreatedAt)
+            .ThenBy(c => c.Id)
+            .ToListAsync();
 
     public Task<List<Comment>> GetCommentsByUserIdAsync(long userId) =>
         _context.Comments
             .Where(c => c.UserId == userId || c.DeletedUserId == userId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ThenByDescending(c => c.Id)
             .ToListAsync();
 
     public Task UpdateCommentAsync(Comment comment) => _context.SaveChangesAsync();

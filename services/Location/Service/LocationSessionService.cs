@@ -13,6 +13,7 @@ namespace Location.Service;
 public class LocationSessionService(
     ILocationSessionRepository repo,
     IMonolithAccessClient monolithAccess,
+    ISocialClient socialClient,
     IGroupClient groupClient,
     LiveLocationRedisStore liveStore,
     ILocationRealtimeNotifier realtime,
@@ -21,6 +22,7 @@ public class LocationSessionService(
 {
     private readonly ILocationSessionRepository _repo = repo;
     private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
@@ -76,7 +78,7 @@ public class LocationSessionService(
             .ToList();
         if (memberIds.Count == 0) return null;
 
-        var blockedMemberIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(viewerId, memberIds);
+        var blockedMemberIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerId, memberIds);
         var visibleMemberIds = memberIds.Where(id => !blockedMemberIds.Contains(id)).ToList();
         if (visibleMemberIds.Count == 0) return null;
 
@@ -111,7 +113,7 @@ public class LocationSessionService(
         var otherMembers = members.Where(m => m.UserId != viewerId).ToList();
         if (otherMembers.Count == 0) return [];
 
-        var blockedMemberIds = await _monolithAccess.GetMutuallyBlockedUserIdsAsync(
+        var blockedMemberIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
             viewerId,
             otherMembers.Select(m => m.UserId).ToList());
         var visibleMembers = otherMembers.Where(m => !blockedMemberIds.Contains(m.UserId)).ToList();
@@ -194,7 +196,7 @@ public class LocationSessionService(
 
         if (session.OwnerUserId == viewerUserId) return;
 
-        if (await _monolithAccess.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId, [session.OwnerUserId]))
+        if (await _socialClient.AnyBlockExistsBetweenUserAndOthersAsync(viewerUserId, [session.OwnerUserId]))
             throw new UnauthorizedAccessException("Unauthorized access");
 
         if (!await _groupClient.IsGroupMemberAsync(session.GroupId, viewerUserId))

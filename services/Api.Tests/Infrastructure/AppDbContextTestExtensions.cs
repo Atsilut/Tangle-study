@@ -11,9 +11,6 @@ public static class AppDbContextTestExtensions
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var ct = TestContext.Current.CancellationToken;
-        await db.FriendRequests.ExecuteDeleteAsync(ct);
-        await db.UserBlocks.ExecuteDeleteAsync(ct);
-        await db.Friendships.ExecuteDeleteAsync(ct);
         await db.Users.ExecuteDeleteAsync(ct);
         db.ChangeTracker.Clear();
     }

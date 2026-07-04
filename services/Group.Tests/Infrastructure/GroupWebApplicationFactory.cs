@@ -33,6 +33,8 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
+        builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
         builder.UseSetting("CommunityClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("LocationClient:BaseUrl", "http://location.test");
@@ -49,6 +51,8 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["SocialClient:BaseUrl"] = "http://social.test",
+                ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["CommunityClient:BaseUrl"] = "http://community.test",
                 ["CommunityClient:InternalSecret"] = TestInternalServiceSecret,
                 ["LocationClient:BaseUrl"] = "http://location.test",
@@ -65,8 +69,11 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
         builder.ConfigureTestServices(services =>
         {
             RemoveService<IMonolithAccessClient>(services);
+            RemoveService<ISocialClient>(services);
             services.AddSingleton<InMemoryMonolithAccessClient>();
             services.AddSingleton<IMonolithAccessClient>(sp =>
+                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<ISocialClient>(sp =>
                 sp.GetRequiredService<InMemoryMonolithAccessClient>());
 
             RemoveService<ICommunityClient>(services);

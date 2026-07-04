@@ -13,8 +13,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 | **users** | `Domain/Users/` | `User`, JWT auth | `api/users`, `api` (login) | Implemented |
 | **posts** / **comments** | [`services/Community/`](../services/Community/) | Post, Comment | `api/posts`, `api/comments`, group-board posts | **Extracted (Compose)** — [COMMUNITY.md](../services/Community/COMMUNITY.md); Azure CD pending |
 | **group** | [`services/Group/`](../services/Group/) | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, invitations, applications | **Extracted (Compose)** — [GROUP.md](../services/Group/GROUP.md); Azure CD pending |
-| **friendships** | `Domain/Friendships/` | Friendship, FriendRequest | `api/friendships`, `api/friend-requests` | Implemented |
-| **user-blocks** | `Domain/UserBlocks/` | UserBlock | `api/users/blocks` | Implemented |
+| **social** | [`services/Social/`](../services/Social/) | Friendship, FriendRequest, UserBlock | `api/friendships/*`, `api/users/blocks` | **Extracted (Compose)** — [SOCIAL.md](../services/Social/SOCIAL.md); Azure CD pending |
 | **chat** | [`services/Chat/`](../services/Chat/) | ChatRoom, ChatMessage, Participant | `api/chat/*`, `api/groups/{id}/chat-rooms/*`, SignalR `/hubs/chat` | **Extracted (Compose)** — [CHAT.md](../services/Chat/CHAT.md); Azure CD pending |
 | **media** | [`services/Media/`](../services/Media/) | MediaAsset, processing state | `api/media`, internal processed callback | **Extracted (Compose)** — [MEDIA.md](../services/Media/MEDIA.md); Azure CD pending |
 | **location** | [`services/Location/`](../services/Location/) | `MapPin`, `LocationSession` | `api/location/*`, SignalR `/hubs/location` | **Extracted (Compose)** — [LOCATION.md](../services/Location/LOCATION.md); Azure CD pending |
@@ -41,6 +40,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Depends on:**
 - **users** — author nickname enrichment, user existence (via `IMonolithAccessClient`)
+- **social** — mutual block filtering (via `ISocialClient`)
 - **group** — board view/write access (via `IGroupClient` → `/internal/group/*`)
 - **media** / **location** — attachments and post geo (HTTP clients)
 
@@ -53,7 +53,8 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 **Owns:** groups, boards, memberships, invitations, applications, blacklist in Postgres `group` schema.
 
 **Depends on:**
-- **users** — member identity, inviter/invitee, blocks (via `IMonolithAccessClient`)
+- **users** — member identity, inviter/invitee (via `IMonolithAccessClient`)
+- **social** — block checks (via `ISocialClient`)
 - **community** — delete-all posts on group delete (`ICommunityClient`)
 - **location** — end sessions on group delete (`ILocationClient`)
 
@@ -61,21 +62,17 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Public routes:** `/api/groups/*`, `/api/invitations/*`, `/api/applications/*`. **Internal:** `/internal/group/*` (membership, board access, user detach).
 
-### friendships-service
+### social-service
 
-**Owns:** `Friendship`, `FriendRequest`.
+**Extracted in local Compose (MSA step 6).** API reference: [SOCIAL.md](../services/Social/SOCIAL.md).
 
-**Depends on:** **users** — both parties must exist.
+**Owns:** `Friendship`, `FriendRequest`, and `UserBlock` in Postgres `social` schema (tight block ↔ pending-request coupling via `IgnoredByBlock`).
 
-**Optional merge:** small surface area; could merge into **users** or a future **social-graph** service. Default plan: **domain-aligned** separate service.
+**Depends on:** **users** — party existence, nicknames, friends-list visibility (via `IMonolithAccessClient`).
 
-### user-blocks-service
+**Public routes:** `/api/friendships/*`, `/api/users/blocks`. **Internal:** `/internal/social/*` (friendship/block checks, user detach).
 
-**Owns:** `UserBlock`.
-
-**Depends on:** **users**.
-
-**Optional merge:** same as friendships — separate by default, merge later if operational overhead outweighs boundary clarity.
+**Read by:** Chat (DM friendship + blocks), Group (is-blocked-by), Community and Location (mutual blocks), Api (user delete detach).
 
 ### chat-service
 
@@ -166,8 +163,7 @@ flowchart TB
   Posts[posts]
   Comments[comments]
   Groups[groups]
-  Friendships[friendships]
-  UserBlocks[user-blocks]
+  Social[social]
   Chat[chat]
   Media[media]
   Location[location]
@@ -177,16 +173,18 @@ flowchart TB
   Comments --> Posts
   Comments --> Users
   Groups --> Users
+  Groups --> Social
   Groups --> Posts
   Groups --> Chat
-  Friendships --> Users
-  UserBlocks --> Users
+  Social --> Users
   Chat --> Users
+  Chat --> Social
   Chat --> Groups
   Media --> Posts
   Media --> Comments
   Media --> Chat
   Location --> Users
+  Location --> Social
   Location --> Posts
 ```
 
@@ -194,7 +192,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these for remaining extractions (users, friendships, user-blocks, …). Media, chat, location, community, and group already follow these patterns.
+Apply these for remaining extractions (users, …). Media, chat, location, community, group, and social already follow these patterns.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 
@@ -271,7 +269,6 @@ Not planned for v1 MSA, but documented for later simplification:
 
 | Merge candidate | Rationale |
 |-----------------|-----------|
-| friendships + user-blocks → social-graph | Small CRUD surfaces, shared user references |
-| friendships + user-blocks → users | Fewer deployables; users service grows |
+| social → users | Fewer deployables; users service grows |
 
-Posts + comments already ship as **community-service** (MSA step 4). Default remains **domain-aligned** split per folder unless operational cost motivates merge.
+Posts + comments already ship as **community-service** (MSA step 4). Friendships + user-blocks ship as **social-service** (MSA step 6). Default remains **domain-aligned** split per folder unless operational cost motivates merge.

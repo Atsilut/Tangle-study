@@ -1,5 +1,3 @@
-using Api.Domain.Friendships.Service;
-using Api.Domain.UserBlocks.Service;
 using Api.Domain.Users.Service;
 using Api.Global.Dto;
 using Api.Global.Security;
@@ -10,10 +8,7 @@ namespace Api.Global.Api;
 [ApiController]
 [Route("internal/access")]
 [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
-public sealed class InternalAccessController(
-    UserService userService,
-    FriendshipService friendshipService,
-    UserBlockService userBlockService) : ControllerBase
+public sealed class InternalAccessController(UserService userService) : ControllerBase
 {
     [HttpPost("users/{userId:long}/exists")]
     public async Task<IActionResult> EnsureUserExists([FromRoute] long userId)
@@ -59,50 +54,11 @@ public sealed class InternalAccessController(
         return Ok(new InternalAccessNicknameLookupResponseDto(user.Id));
     }
 
-    [HttpPost("friendships/validate-pair")]
-    public async Task<IActionResult> ValidateFriendshipPair([FromBody] InternalAccessOtherUserRequestDto request)
+    [HttpPost("users/{userId:long}/friends-list-visibility")]
+    public async Task<ActionResult<InternalAccessFriendsListVisibilityResponseDto>> GetFriendsListVisibility(
+        [FromRoute] long userId)
     {
-        var callerId = GetCallerUserId();
-        await friendshipService.EnsureFriendshipExistsForUserPairAsync(callerId, request.OtherUserId);
-        return NoContent();
+        var visibility = await userService.GetFriendsListVisibilityAsync(userId);
+        return Ok(new InternalAccessFriendsListVisibilityResponseDto(visibility));
     }
-
-    [HttpPost("users/blocks/validate-between")]
-    public async Task<IActionResult> ValidateNoBlockBetweenUsers([FromBody] InternalAccessOtherUserRequestDto request)
-    {
-        var callerId = GetCallerUserId();
-        if (await userBlockService.IsBlockedByAsync(callerId, request.OtherUserId)
-            || await userBlockService.IsBlockedByAsync(request.OtherUserId, callerId))
-            throw new ArgumentException("Cannot chat while a block exists between you and this user.");
-
-        return NoContent();
-    }
-
-    [HttpPost("users/blocks/validate-against-others")]
-    public async Task<IActionResult> ValidateNoBlockAgainstOthers([FromBody] InternalAccessUserIdsRequestDto request)
-    {
-        var callerId = GetCallerUserId();
-        await userBlockService.EnsureNoBlockBetweenUserAndOthersAsync(callerId, request.UserIds);
-        return NoContent();
-    }
-
-    [HttpPost("users/blocks/mutual-ids")]
-    public async Task<ActionResult<InternalAccessMutualBlocksResponseDto>> GetMutualBlockIds(
-        [FromBody] InternalAccessMutualBlocksRequestDto request)
-    {
-        var blocked = await userBlockService.GetMutuallyBlockedUserIdsAsync(request.UserId, request.OtherUserIds);
-        return Ok(new InternalAccessMutualBlocksResponseDto([.. blocked]));
-    }
-
-    [HttpPost("users/blocks/is-blocked-by")]
-    public async Task<ActionResult<InternalAccessIsBlockedResponseDto>> IsBlockedBy(
-        [FromBody] InternalAccessIsBlockedRequestDto request)
-    {
-        var blocked = await userBlockService.IsBlockedByAsync(request.BlockerUserId, request.BlockedUserId);
-        return Ok(new InternalAccessIsBlockedResponseDto(blocked));
-    }
-
-    private long GetCallerUserId() =>
-        long.Parse(User.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
 }

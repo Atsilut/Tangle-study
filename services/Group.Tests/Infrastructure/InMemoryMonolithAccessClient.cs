@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Group.Tests.Infrastructure;
 
-public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient
+public sealed class InMemoryMonolithAccessClient : IMonolithAccessClient, ISocialClient
 {
     private long _nextUserId = 1;
 

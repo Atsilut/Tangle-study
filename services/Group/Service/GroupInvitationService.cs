@@ -21,6 +21,7 @@ namespace Group.Service
         Lazy<GroupJoinResolutionService> joinResolution,
         GroupBlacklistService blacklistService,
         IMonolithAccessClient monolithAccess,
+        ISocialClient socialClient,
         GroupDbContext db,
         IHttpContextAccessor httpContextAccessor)
 
@@ -32,12 +33,13 @@ namespace Group.Service
         private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
         private readonly GroupBlacklistService _blacklistService = blacklistService;
         private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly ISocialClient _socialClient = socialClient;
         private readonly GroupDbContext _db = db;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private async Task<bool> BlockExistsBetweenUsersAsync(long userId, long otherUserId) =>
-            await _monolithAccess.IsBlockedByAsync(userId, otherUserId)
-            || await _monolithAccess.IsBlockedByAsync(otherUserId, userId);
+            await _socialClient.IsBlockedByAsync(userId, otherUserId)
+            || await _socialClient.IsBlockedByAsync(otherUserId, userId);
 
         private async Task EnsureNoBlockExistsBetweenUsersAsync(long userId, long otherUserId)
         {
@@ -77,7 +79,7 @@ namespace Group.Service
 
             await _blacklistService.EnsureNotBlacklistedAsync(groupId, request.InviteeId);
 
-            if (await _monolithAccess.IsBlockedByAsync(inviterId, request.InviteeId)) throw new ArgumentException("Cannot invite a user you have blocked.");
+            if (await _socialClient.IsBlockedByAsync(inviterId, request.InviteeId)) throw new ArgumentException("Cannot invite a user you have blocked.");
 
             var existingInvitation = await _repo.GetForUserAsync(groupId, request.InviteeId);
             if (existingInvitation is not null && existingInvitation.InviterId == inviterId)
@@ -107,7 +109,7 @@ namespace Group.Service
                 if (await _repo.GetForUserAsync(groupId, inviteeId) is not null) return;
 
                 var invitation = new GroupInvitation(groupId, inviterId, inviteeId);
-                if (await _monolithAccess.IsBlockedByAsync(inviteeId, inviterId)) invitation.Ignore();
+                if (await _socialClient.IsBlockedByAsync(inviteeId, inviterId)) invitation.Ignore();
                 await _repo.CreateInvitationAsync(invitation);
             });
         }

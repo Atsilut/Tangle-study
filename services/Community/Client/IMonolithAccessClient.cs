@@ -9,9 +9,4 @@ public interface IMonolithAccessClient
         CancellationToken cancellationToken = default);
 
     public Task<long?> GetUserIdByNicknameAsync(string nickname, CancellationToken cancellationToken = default);
-
-    public Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
-        long userId,
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default);
 }

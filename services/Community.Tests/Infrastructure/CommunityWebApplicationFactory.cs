@@ -37,6 +37,8 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
         builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
+        builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
         builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
@@ -55,6 +57,8 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Monolith:BaseUrl"] = "http://monolith.test",
                 ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["SocialClient:BaseUrl"] = "http://social.test",
+                ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["GroupClient:BaseUrl"] = "http://group.test",
                 ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
                 ["MediaClient:BaseUrl"] = "http://media.test",
@@ -72,8 +76,11 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
         builder.ConfigureTestServices(services =>
         {
             RemoveService<IMonolithAccessClient>(services);
+            RemoveService<ISocialClient>(services);
             services.AddSingleton<InMemoryMonolithAccessClient>();
             services.AddSingleton<IMonolithAccessClient>(sp =>
+                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<ISocialClient>(sp =>
                 sp.GetRequiredService<InMemoryMonolithAccessClient>());
 
             RemoveService<IGroupClient>(services);

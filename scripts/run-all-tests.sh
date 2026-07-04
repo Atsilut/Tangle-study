@@ -40,7 +40,7 @@ run_rust() {
 }
 
 run_api() {
-  log_step "INTEGRATION TESTS (Api, Media, Chat, Location, Community, Group)"
+  log_step "INTEGRATION TESTS (Api, Media, Chat, Location, Community, Group, Social)"
   bash "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
@@ -64,7 +64,7 @@ Usage: ./scripts/run-all-tests.sh [options] [-- api-test-args...]
 
 Runs, in order:
   1. Rust worker unit tests (cargo test in Docker)
-  2. Integration tests — Api + Media + Chat + Location + Community + Group (scripts/ci/docker-test.sh / Testcontainers)
+  2. Integration tests — Api + Media + Chat + Location + Community + Group + Social (scripts/ci/docker-test.sh / Testcontainers)
   3. Media harness E2E (scripts/ci/run-media-harness.sh)
   4. Web client tests (Vitest in Docker)
 

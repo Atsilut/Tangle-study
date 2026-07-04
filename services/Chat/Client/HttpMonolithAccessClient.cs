@@ -46,26 +46,6 @@ internal sealed class HttpMonolithAccessClient(
         return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
     }
 
-    public Task EnsureFriendshipExistsForUserPairAsync(long otherUserId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync(
-            "internal/access/friendships/validate-pair",
-            new InternalAccessOtherUserRequestDto(otherUserId),
-            cancellationToken);
-
-    public Task EnsureNoBlockBetweenUsersAsync(long otherUserId, CancellationToken cancellationToken = default) =>
-        PostNoContentAsync(
-            "internal/access/users/blocks/validate-between",
-            new InternalAccessOtherUserRequestDto(otherUserId),
-            cancellationToken);
-
-    public Task EnsureNoBlockBetweenUserAndOthersAsync(
-        IReadOnlyCollection<long> otherUserIds,
-        CancellationToken cancellationToken = default) =>
-        PostNoContentAsync(
-            "internal/access/users/blocks/validate-against-others",
-            new InternalAccessUserIdsRequestDto([.. otherUserIds]),
-            cancellationToken);
-
     private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
         PostNoContentAsync(relativePath, content: null, cancellationToken);
 

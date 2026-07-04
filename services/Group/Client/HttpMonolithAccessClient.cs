@@ -60,23 +60,6 @@ internal sealed class HttpMonolithAccessClient(
         return payload.Nicknames.ToDictionary(entry => entry.UserId, entry => entry.Nickname);
     }
 
-    public async Task<bool> IsBlockedByAsync(
-        long blockerUserId,
-        long blockedUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await PostAsync(
-            "internal/access/users/blocks/is-blocked-by",
-            new InternalAccessIsBlockedRequestDto(blockerUserId, blockedUserId),
-            cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<InternalAccessIsBlockedResponseDto>(
-            SerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Monolith is-blocked-by response was empty.");
-
-        return payload.IsBlocked;
-    }
-
     private async Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken)
     {
         using var response = await PostAsync(relativePath, content: null, cancellationToken);

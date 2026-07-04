@@ -25,7 +25,7 @@ internal static class LocationServiceTestFactory
         var distributedCache = new FakeDistributedCache();
         var workQueue = new FakeWorkQueue();
 
-        var locationAccessService = new LocationAccessService(monolith, monolith, http);
+        var locationAccessService = new LocationAccessService(monolith, monolith, monolith, http);
         var locationClusterService = new LocationClusterService(
             mapPinRepository,
             distributedCache,

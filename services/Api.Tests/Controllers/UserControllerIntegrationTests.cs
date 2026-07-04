@@ -229,6 +229,7 @@ public sealed class UserControllerIntegrationTests(PostgresTestcontainerFixture 
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
         Assert.Contains(created.Id, Factory.FakeChatClient.DetachedUserIds);
         Assert.Contains(created.Id, Factory.FakeGroupClient.DetachedUserIds);
+        Assert.Contains(created.Id, Factory.FakeSocialClient.DetachedUserIds);
 
         var found = await Client.GetAsync($"/api/users/{created.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(found, HttpStatusCode.NotFound);
