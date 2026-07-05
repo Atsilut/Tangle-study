@@ -36,7 +36,8 @@ require_release_binary() {
   [[ -f "${ROOT}/${path}" ]] || fail "missing ${path} — run ./scripts/ci/build-workers-release.sh first"
 }
 
-require_publish_output ".ci-cache/publish/api" "Api.dll"
+require_publish_output ".ci-cache/publish/gateway" "Gateway.dll"
+require_publish_output ".ci-cache/publish/users" "Users.dll"
 require_publish_output ".ci-cache/publish/media" "Media.dll"
 require_release_binary "workers/target/release/worker-media"
 
@@ -44,10 +45,11 @@ log_step "BUILD WORKER RUNTIME IMAGE"
 WORKER_MEDIA_IMAGE="$WORKER_MEDIA_IMAGE" bash "$ROOT/scripts/ci/build-worker-images.sh" --media-only
 
 log_step "BUILD STACK SERVICE IMAGES"
-tangle_compose "${COMPOSE_FILES[@]}" build --parallel api media nginx rust-worker-media harness
+tangle_compose "${COMPOSE_FILES[@]}" build --parallel gateway users media nginx rust-worker-media harness
 
 STACK_IMAGES=(
-  "${COMPOSE_PROJECT_NAME}-api"
+  "${COMPOSE_PROJECT_NAME}-gateway"
+  "${COMPOSE_PROJECT_NAME}-users"
   "${COMPOSE_PROJECT_NAME}-media"
   "${COMPOSE_PROJECT_NAME}-nginx"
   "$WORKER_MEDIA_IMAGE"

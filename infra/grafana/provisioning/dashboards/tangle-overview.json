@@ -80,7 +80,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (code) (rate(http_requests_received_total{job=\"api\"}[5m]))",
+          "expr": "sum by (code) (rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social"}[5m]))",
           "legendFormat": "{{code}}",
           "range": true,
           "refId": "A"
@@ -174,7 +174,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=~"users|media|chat|location|community|group|social"}[5m])))",
           "legendFormat": "p95",
           "range": true,
           "refId": "A"
@@ -185,7 +185,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"api\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job=~"users|media|chat|location|community|group|social"}[5m])))",
           "legendFormat": "p50",
           "range": true,
           "refId": "B"
@@ -266,7 +266,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (code) (rate(http_requests_received_total{job=\"api\", code=~\"4..\"}[5m]))",
+          "expr": "sum by (code) (rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code=~\"4..\"}[5m]))",
           "legendFormat": "{{code}}",
           "range": true,
           "refId": "A"
@@ -362,7 +362,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "tangle:api_5xx_ratio",
+          "expr": "tangle:services_5xx_ratio",
           "legendFormat": "5xx ratio",
           "range": true,
           "refId": "A"
@@ -458,7 +458,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "tangle:api_other_4xx_ratio",
+          "expr": "tangle:services_other_4xx_ratio",
           "legendFormat": "other 4xx ratio",
           "range": true,
           "refId": "A"
@@ -539,7 +539,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (controller, code) (rate(http_requests_received_total{job=\"api\", code=~\"[45]..\"}[5m]))",
+          "expr": "sum by (controller, code) (rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code=~\"[45]..\"}[5m]))",
           "legendFormat": "{{controller}} {{code}}",
           "range": true,
           "refId": "A"
@@ -620,7 +620,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(5, sum by (controller) (rate(http_requests_received_total{job=\"api\", code=~\"5..\"}[5m])))",
+          "expr": "topk(5, sum by (controller) (rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code=~\"5..\"}[5m])))",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -701,7 +701,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_requests_received_total{job=\"api\", code=~\"5..\"}[5m]))",
+          "expr": "sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code=~\"5..\"}[5m]))",
           "legendFormat": "5xx",
           "range": true,
           "refId": "A"
@@ -1036,7 +1036,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (stream) (rate(tangle_workqueue_enqueue_total{job=\"api\"}[5m]))",
+          "expr": "sum by (stream) (rate(tangle_workqueue_enqueue_total{job=~"users|media|chat|location|community|group|social"}[5m]))",
           "legendFormat": "{{stream}}",
           "range": true,
           "refId": "A"

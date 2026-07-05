@@ -36,6 +36,8 @@ ci_fix_cache_ownership() {
   [[ -d "$p" ]] && paths+=("$p")
 
   for proj in \
+    Gateway \
+    Users Users.Tests \
     Api Api.Tests \
     Media Media.Tests \
     Chat Chat.Tests \

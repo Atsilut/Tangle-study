@@ -26,10 +26,10 @@ infra/
 
 ## Start
 
-Monitoring uses the Compose `monitoring` profile. The API must be running for the `api` scrape target; workers need the `workers` profile.
+Monitoring uses the Compose `monitoring` profile. The default stack (gateway + domain services) must be running; workers need the `workers` profile.
 
 ```bash
-# API + Prometheus + Grafana + infra exporters
+# Default stack + Prometheus + Grafana + infra exporters
 docker compose --profile monitoring up --build
 
 # Include Rust workers (chat + media scrape targets)
@@ -42,8 +42,8 @@ docker compose --profile monitoring --profile workers up --build
 |---------|-----|-------|
 | Grafana | http://localhost:3000 | Login: `admin` / `admin` (dev default) |
 | Prometheus | http://localhost:9090 | Targets page shows scrape health |
-| API health | http://localhost:5000/health | Plain-text `Healthy` / `Unhealthy` (Compose healthcheck uses status code) |
-| API metrics | http://localhost:5000/metrics | Requires `X-Metrics-Secret` in Docker (see below) |
+| Edge health | http://localhost:8080/health | Nginx aggregate health (plain-text `Healthy` / `Unhealthy`) |
+| Service metrics | in-container `:8080/metrics` | Scraped by Prometheus on the Compose network (requires `X-Metrics-Secret` in Docker) |
 | Worker metrics | in-container `:9090/metrics` | Scraped by Prometheus on the Compose network |
 
 ## Scrape targets
@@ -52,7 +52,13 @@ Core jobs in [prometheus/prometheus.yml](prometheus/prometheus.yml). Worker jobs
 
 | Job | Target | Metrics |
 |-----|--------|---------|
-| `api` | `api:8080` | HTTP request rate, latency, status codes; health gauges; work queue enqueue counter |
+| `users` | `users:8080` | HTTP request rate, latency, status codes; health gauges |
+| `media` | `media:8080` | Same |
+| `chat` | `chat:8080` | Same |
+| `location` | `location:8080` | Same |
+| `community` | `community:8080` | Same |
+| `group` | `group:8080` | Same |
+| `social` | `social:8080` | Same |
 | `rust-worker-chat` | `rust-worker-chat:9090` | Job processing, pending queue, DLQ length, callback responses (`workers` profile) |
 | `rust-worker-media` | `rust-worker-media:9090` | Same (`workers` profile) |
 | `rust-worker-location` | `rust-worker-location:9090` | Same (`workers` profile) |
@@ -63,9 +69,9 @@ Without `--profile workers`, worker jobs are **not scraped** (no targets, no fal
 
 Optional host debug ports (not mapped by default): exec into a worker container and `wget -qO- http://127.0.0.1:9090/metrics`.
 
-## API `/health`
+## Service `/health`
 
-`GET /health` returns a plain-text aggregate result (`Healthy` or `Unhealthy`) from ASP.NET Core health checks for PostgreSQL and Redis (when Redis is enabled). The API Compose healthcheck probes this endpoint for the status code only.
+Each .NET service exposes `GET /health` — a plain-text aggregate result (`Healthy` or `Unhealthy`) from ASP.NET Core health checks for PostgreSQL and Redis (when enabled). Compose healthchecks probe this endpoint for the status code only.
 
 Per-dependency detail is not in the HTTP body. It is exported to `/metrics` as `aspnetcore_healthcheck_status{name="postgres|redis"}` (1 = healthy, 0 = unhealthy) via `prometheus-net.AspNetCore.HealthChecks`.
 
@@ -150,8 +156,8 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 ### Triage quick reference
 
 1. **Scrape DOWN** — check Compose profiles (`monitoring`, `workers`) and container logs. Worker scrape jobs exist only with `--profile workers`; restart Prometheus after enabling workers if targets are missing.
-2. **Dependency unhealthy** — `docker compose logs api db redis`; verify `/health`.
-3. **5xx spike** — Grafana dashboard → errors by controller; check API logs.
+2. **Dependency unhealthy** — `docker compose logs users db redis`; verify service `/health`.
+3. **5xx spike** — Grafana dashboard → errors by controller; check service logs.
 4. **Worker DLQ** — `cargo run -- replay` or inspect `{stream}.dlq` in Redis.
 5. **Callback 5xx** — media worker cannot reach media-service; check `API_BASE_URL` and `WORKER_CALLBACK_SECRET`.
 
@@ -161,21 +167,20 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 # Full stack
 docker compose --profile monitoring --profile workers up --build
 
-# Prometheus targets (api, postgres, redis, workers) should be UP
+# Prometheus targets (users, media, chat, location, community, group, social, postgres, redis, workers) should be UP
 open http://localhost:9090/targets
 
-# Health (plain text)
-curl -s http://localhost:5000/health
+# Edge health (plain text)
+curl -s http://localhost:8080/health
 
-# Per-dependency health gauges (Prometheus)
-curl -s -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics | grep aspnetcore_healthcheck_status
+# Per-dependency health gauges (Prometheus — users example)
+curl -s -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:9090/api/v1/query?query=aspnetcore_healthcheck_status{job=\"users\"}
 
-# Metrics endpoint auth (Docker)
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5000/metrics          # expect 401
-curl -s -o /dev/null -w "%{http_code}\n" -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:5000/metrics  # expect 200
+# Metrics endpoint auth (Docker — exec into users container)
+docker compose exec users wget -qO- --header='X-Metrics-Secret: dev-metrics-secret' http://127.0.0.1:8080/metrics | head
 
 # Integration tests (Testcontainers — use `test` profile, not `docker-dotnet.sh` / `sdk`)
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
+./scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ```
 
 ## Azure Container Apps (production)

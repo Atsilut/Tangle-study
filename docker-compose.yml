@@ -7,7 +7,7 @@ name: tangle-study
 x-dotnet-build-args: &dotnet-build-args
   DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
 
-x-api-build-args: &api-build-args
+x-service-build-args: &service-build-args
   DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
   DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
 
@@ -108,41 +108,11 @@ services:
       retries: 10
       start_period: 10s
 
-  api:
-    build:
-      context: .
-      dockerfile: services/Api/Dockerfile
-      args: *api-build-args
-    environment:
-      ASPNETCORE_ENVIRONMENT: Docker
-      ASPNETCORE_URLS: http://+:8080
-      Redis__InstanceName: "tangle:"
-      Redis__SignalRChannelPrefix: "tangle:signalr:"
-      Redis__WorkQueueStreamPrefix: "tangle:queue:"
-      Metrics__RequireScrapeSecret: "true"
-      Metrics__ScrapeSecret: "dev-metrics-secret"
-    ports:
-      - "5000:8080"
-    depends_on:
-      azurite:
-        condition: service_started
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-    restart: unless-stopped
-
   media:
     build:
       context: .
       dockerfile: services/Media/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -170,7 +140,7 @@ services:
     build:
       context: .
       dockerfile: services/Chat/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -196,7 +166,7 @@ services:
     build:
       context: .
       dockerfile: services/Location/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -223,7 +193,7 @@ services:
     build:
       context: .
       dockerfile: services/Community/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -246,7 +216,7 @@ services:
     build:
       context: .
       dockerfile: services/Group/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -269,7 +239,7 @@ services:
     build:
       context: .
       dockerfile: services/Social/Dockerfile
-      args: *api-build-args
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
@@ -288,6 +258,67 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  users:
+    build:
+      context: .
+      dockerfile: services/Users/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__Enabled: "true"
+      Redis__ConnectionString: "redis:6379"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/Gateway/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Gateway__Secret: "dev-gateway-secret"
+    expose:
+      - "8080"
+    depends_on:
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      chat:
+        condition: service_healthy
+      location:
+        condition: service_healthy
+      community:
+        condition: service_healthy
+      group:
+        condition: service_healthy
+      social:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+
   # Nginx edge:
   # serves the built React SPA (built in clients/web/Dockerfile).
   # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
@@ -299,8 +330,10 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      api:
-        condition: service_started
+      gateway:
+        condition: service_healthy
+      users:
+        condition: service_healthy
       media:
         condition: service_healthy
       chat:
@@ -455,8 +488,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      api:
-        condition: service_started
+      location:
+        condition: service_healthy
     restart: unless-stopped
 
   harness:
@@ -479,7 +512,9 @@ services:
         condition: service_healthy
       azurite:
         condition: service_started
-      api:
+      gateway:
+        condition: service_healthy
+      users:
         condition: service_healthy
       media:
         condition: service_healthy
@@ -523,7 +558,7 @@ services:
     command:
       [
         "test",
-        "services/Api.Tests/Api.Tests.csproj",
+        "services/Users.Tests/Users.Tests.csproj",
         "services/Media.Tests/Media.Tests.csproj",
         "services/Chat.Tests/Chat.Tests.csproj",
         "services/Location.Tests/Location.Tests.csproj",

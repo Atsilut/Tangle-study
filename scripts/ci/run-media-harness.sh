@@ -33,14 +33,14 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tangle-study}"
 STACK_ARTIFACT="${STACK_ARTIFACT:-harness-stack.tar}"
 
 ensure_stack_images_loaded() {
-  local api_image="${COMPOSE_PROJECT_NAME}-api"
-  if docker image inspect "$api_image" >/dev/null 2>&1; then
+  local gateway_image="${COMPOSE_PROJECT_NAME}-gateway"
+  if docker image inspect "$gateway_image" >/dev/null 2>&1; then
     return 0
   fi
 
   local tar_path="$STACK_ARTIFACT"
   [[ "$tar_path" == /* ]] || tar_path="${ROOT}/${tar_path}"
-  [[ -f "$tar_path" ]] || fail "missing stack images ($api_image) and no ${STACK_ARTIFACT} — run ./scripts/ci/compose-build-stack.sh first"
+  [[ -f "$tar_path" ]] || fail "missing stack images ($gateway_image) and no ${STACK_ARTIFACT} — run ./scripts/ci/compose-build-stack.sh first"
 
   bash "$ROOT/scripts/ci/load-compose-stack.sh" "$tar_path"
 }
@@ -128,7 +128,7 @@ fi
 
 log_step "START HARNESS STACK"
 docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait \
-  db redis azurite api media rust-worker-media
+  db redis azurite gateway users media rust-worker-media
 docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait nginx
 
 nginx_ip="$(resolve_container_ip nginx)"

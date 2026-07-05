@@ -26,5 +26,5 @@ x-worker-media-env: &worker-media-env
 
 x-worker-location-env: &worker-location-env
   <<: *worker-common
-  API_BASE_URL: http://api:8080
+  API_BASE_URL: http://location:8080
   WORKER_CALLBACK_SECRET: dev-media-worker-secret

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-: "${TANGLE_API_UPSTREAM:=api:8080}"
+: "${TANGLE_API_UPSTREAM:=gateway:8080}"
 : "${TANGLE_API_HOST:=${TANGLE_API_UPSTREAM%%:*}}"
 
 export TANGLE_API_UPSTREAM
