@@ -10,6 +10,6 @@ internal static class ServiceTestHelpers
         User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", userId.ToString())])),
     };
 
-    public static TestUser CreateUser(InMemoryMonolithAccessClient monolith, string nickname = "test") =>
+    public static TestUser CreateUser(InMemoryUserClient monolith, string nickname = "test") =>
         monolith.CreateUser(nickname);
 }

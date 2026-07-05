@@ -12,38 +12,32 @@ namespace Social.Tests.Infrastructure;
 
 public sealed class SocialWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
 {
-    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
-    public const string TestJwtIssuer = "Tangle";
-    public const string TestJwtAudience = "TangleClient";
     public const string TestInternalServiceSecret = "test-internal-service-secret";
+    public const string TestGatewaySecret = SocialTestAuthHelpers.TestGatewaySecret;
 
     private readonly string _connectionString = connectionString;
 
-    public InMemoryMonolithAccessClient MonolithAccess =>
-        Services.GetRequiredService<InMemoryMonolithAccessClient>();
+    public InMemoryUserClient InMemoryUser =>
+        Services.GetRequiredService<InMemoryUserClient>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
-        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Users:BaseUrl", "http://users.test");
+        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
-        builder.UseSetting("Jwt:Secret", TestJwtSecret);
-        builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
-        builder.UseSetting("Jwt:Audience", TestJwtAudience);
+        builder.UseSetting("GatewayIdentity:Secret", TestGatewaySecret);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Monolith:BaseUrl"] = "http://monolith.test",
-                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Users:BaseUrl"] = "http://users.test",
+                ["Users:InternalSecret"] = TestInternalServiceSecret,
                 ["InternalAccess:Secret"] = TestInternalServiceSecret,
-                ["Jwt:Secret"] = TestJwtSecret,
-                ["Jwt:Issuer"] = TestJwtIssuer,
-                ["Jwt:Audience"] = TestJwtAudience,
+                ["GatewayIdentity:Secret"] = TestGatewaySecret,
                 ["Metrics:RequireScrapeSecret"] = "false",
                 ["Database:ResetOnStartup"] = "false",
             });
@@ -51,10 +45,10 @@ public sealed class SocialWebApplicationFactory(string connectionString) : WebAp
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMonolithAccessClient>(services);
-            services.AddSingleton<InMemoryMonolithAccessClient>();
-            services.AddSingleton<IMonolithAccessClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            RemoveService<IUserClient>(services);
+            services.AddSingleton<InMemoryUserClient>();
+            services.AddSingleton<IUserClient>(sp =>
+                sp.GetRequiredService<InMemoryUserClient>());
         });
 
         builder.ConfigureServices(services =>

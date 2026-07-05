@@ -13,12 +13,12 @@ public abstract class ChatIntegrationTestBase(
     protected const string ChatRoomsBase = "/api/chat/rooms";
 
     protected TestUser CreateUserForTest(string testMethodName, long index = 1) =>
-        MonolithAccess.CreateUser(ChatTestAuthHelpers.BuildNickname(testMethodName, index));
+        InMemoryUser.CreateUser(ChatTestAuthHelpers.BuildNickname(testMethodName, index));
 
     protected void LoginAs(TestUser user) => ChatTestAuthHelpers.LoginAs(Client, user.Id);
 
     protected void AcceptFriendship(TestUser requester, TestUser addressee) =>
-        MonolithAccess.AddFriendship(requester.Id, addressee.Id);
+        InMemoryUser.AddFriendship(requester.Id, addressee.Id);
 
     protected async Task<ChatRoomGetResponseDto> GetOrCreateDirectRoomAsync(
         TestUser asUser,
@@ -74,14 +74,14 @@ public abstract class ChatIntegrationTestBase(
         TestUser owner,
         TestUser member)
     {
-        var groupId = MonolithAccess.CreateGroup();
-        MonolithAccess.AddGroupMember(groupId, owner.Id);
-        MonolithAccess.AddGroupMember(groupId, member.Id);
+        var groupId = InMemoryUser.CreateGroup();
+        InMemoryUser.AddGroupMember(groupId, owner.Id);
+        InMemoryUser.AddGroupMember(groupId, member.Id);
         return (owner, member, groupId);
     }
 
     protected void SeedGroupMember(long groupId, TestUser member) =>
-        MonolithAccess.AddGroupMember(groupId, member.Id);
+        InMemoryUser.AddGroupMember(groupId, member.Id);
 
     protected async Task<List<ChatRoomSummaryGetResponseDto>?> ListMyRoomsAsync()
     {

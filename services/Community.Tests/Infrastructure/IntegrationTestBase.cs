@@ -10,7 +10,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected CommunityWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
-    protected InMemoryMonolithAccessClient MonolithAccess => Factory.MonolithAccess;
+    protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected InMemoryGroupClient GroupAccess => Factory.GroupAccess;
     protected FakeMediaClient FakeMedia => Factory.FakeMediaClient;
     protected FakeLocationClient FakeLocation => Factory.FakeLocationClient;
@@ -19,13 +19,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         Factory = new CommunityWebApplicationFactory(postgres.ConnectionString);
         Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IMonolithAccessClient>();
+        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
     public async ValueTask InitializeAsync()
     {
         await Factory.ClearAllCommunityDataAsync();
-        MonolithAccess.Reset();
+        InMemoryUser.Reset();
         GroupAccess.Reset();
         FakeMedia.Reset();
         FakeLocation.Reset();

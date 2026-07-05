@@ -4,9 +4,8 @@ using Media.Exceptions;
 using Media.Infrastructure;
 using Media.Security;
 using Media.Telemetry;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Prometheus;
 
@@ -43,36 +42,24 @@ builder.Configuration
     // YAML is loaded after the host's default env vars; re-add so CD-injected Jwt__Secret wins.
     .AddEnvironmentVariables();
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
-builder.Services.AddSingleton<JwtBearerValidator>();
+builder.Services.Configure<GatewayIdentityOptions>(builder.Configuration.GetSection(GatewayIdentityOptions.SectionName));
 
-// Interim JWT validation: tokens are issued by the monolith (future users-service). Media only
-// validates bearer tokens so [Authorize] and user-id reads work before a gateway exists.
-// Target (MSA step 7): gateway validates once and forwards identity claims; slim or remove this.
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = GatewayIdentityAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = GatewayIdentityAuthenticationHandler.SchemeName;
     })
-    .AddJwtBearer();
-
-builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
-    new PostConfigureOptions<JwtBearerOptions>(
-        JwtBearerDefaults.AuthenticationScheme,
-        options =>
-        {
-            var jwtValidator = sp.GetRequiredService<JwtBearerValidator>();
-            options.TokenValidationParameters = jwtValidator.GetValidationParameters();
-            options.MapInboundClaims = false;
-        }));
+    .AddScheme<AuthenticationSchemeOptions, GatewayIdentityAuthenticationHandler>(
+        GatewayIdentityAuthenticationHandler.SchemeName,
+        _ => { });
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleMedia(builder.Configuration);
-builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleUsersAccess(builder.Configuration);
 builder.Services.AddTangleCommunityAccess(builder.Configuration);
 builder.Services.AddTangleChatAccess(builder.Configuration);
 
@@ -97,8 +84,6 @@ healthChecksBuilder.ForwardToPrometheus();
 
 var app = builder.Build();
 
-var jwtOptions = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
-JwtStartupValidator.Validate(app.Environment, jwtOptions);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);

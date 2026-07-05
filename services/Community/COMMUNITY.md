@@ -26,11 +26,11 @@ Owns `Post` and `Comment` in Postgres schema `community`.
 | `POST /internal/community/comments/{id}/media-view` | Media |
 | `POST /internal/community/{id}/validate-owner` | Location |
 | `POST /internal/community/viewable-ids` | Location |
-| `POST /internal/community/users/{id}/detach-on-deletion` | Api (user delete) |
-| `POST /internal/community/groups/{id}/delete-all` | Api (group delete) |
+| `POST /internal/community/users/{id}/detach-on-deletion` | Users-service |
+| `POST /internal/community/groups/{id}/delete-all` | Group-service |
 
 ## Outbound
 
-- **Monolith** (`Monolith:BaseUrl`): users, nicknames, mutual blocks, group-board view/write/viewable-keys
+- **Users** (`Users:BaseUrl`): users, nicknames, mutual blocks, group-board view/write/viewable-keys
 - **Media** (`MediaClient:BaseUrl`): link / batch / delete attachments
 - **Location** (`LocationClient:BaseUrl`): post geo upsert/clear/list

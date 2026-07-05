@@ -19,7 +19,7 @@ Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [
 
 \* Content is public when the asset is linked to a post or comment the caller could read; chat attachments require auth.
 
-Swagger: `http://localhost:8080/api` (via nginx) or direct `http://localhost:5000/api` on the monolith during migration.
+Swagger: `http://localhost:8080/api` (via nginx → gateway).
 
 ---
 

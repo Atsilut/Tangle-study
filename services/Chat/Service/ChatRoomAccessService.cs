@@ -7,11 +7,11 @@ namespace Chat.Service;
 
 [Service]
 public class ChatRoomAccessService(
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient)
 {
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
@@ -22,7 +22,7 @@ public class ChatRoomAccessService(
     {
         if (userId == otherUserId) throw new ArgumentException("Cannot create a direct chat room with yourself.");
 
-        await _monolithAccess.EnsureUserExistsAsync(otherUserId);
+        await _userClient.EnsureUserExistsAsync(otherUserId);
         await _socialClient.EnsureFriendshipExistsForUserPairAsync(userId, otherUserId);
         await EnsureNoBlockBetweenUsersAsync(userId, otherUserId);
     }
@@ -50,7 +50,7 @@ public class ChatRoomAccessService(
         long inviteeUserId,
         IReadOnlyList<ChatRoomParticipant> participants)
     {
-        await _monolithAccess.EnsureUserExistsAsync(inviteeUserId);
+        await _userClient.EnsureUserExistsAsync(inviteeUserId);
 
         await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(
             inviteeUserId,
@@ -84,7 +84,7 @@ public class ChatRoomAccessService(
         var otherParticipantIds = OtherParticipantIds(creatorUserId, participantUserIds);
         if (otherParticipantIds.Count == 0) return;
 
-        await _monolithAccess.EnsureUsersExistAsync(otherParticipantIds);
+        await _userClient.EnsureUsersExistAsync(otherParticipantIds);
         await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
         await _groupClient.EnsureGroupMembersAsync(
             platformGroupId,
@@ -97,7 +97,7 @@ public class ChatRoomAccessService(
         var otherParticipantIds = OtherParticipantIds(creatorUserId, participantUserIds);
         if (otherParticipantIds.Count == 0) return;
 
-        await _monolithAccess.EnsureUsersExistAsync(otherParticipantIds);
+        await _userClient.EnsureUsersExistAsync(otherParticipantIds);
         await _socialClient.EnsureNoBlockBetweenUserAndOthersAsync(creatorUserId, otherParticipantIds);
     }
 

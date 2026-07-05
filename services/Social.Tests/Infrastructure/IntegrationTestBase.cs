@@ -7,19 +7,19 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected SocialWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
-    protected InMemoryMonolithAccessClient MonolithAccess => Factory.MonolithAccess;
+    protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
 
     protected IntegrationTestBase(PostgresTestcontainerFixture postgres)
     {
         Factory = new SocialWebApplicationFactory(postgres.ConnectionString);
         Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IMonolithAccessClient>();
+        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
     public async ValueTask InitializeAsync()
     {
         await Factory.ClearAllSocialDataAsync();
-        MonolithAccess.Reset();
+        InMemoryUser.Reset();
         SocialTestAuthHelpers.ClearAuth(Client);
     }
 

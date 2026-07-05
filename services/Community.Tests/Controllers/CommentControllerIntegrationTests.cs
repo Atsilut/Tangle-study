@@ -12,7 +12,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task CreateAndListComments_ByPostId()
     {
-        var userId = MonolithAccess.SeedUser("dave");
+        var userId = InMemoryUser.SeedUser("dave");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
@@ -43,7 +43,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task DeleteComment_AsAuthor_Succeeds()
     {
-        var userId = MonolithAccess.SeedUser("erin");
+        var userId = InMemoryUser.SeedUser("erin");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
@@ -78,9 +78,9 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task CommentsOnBlockedAuthorPost_AreHiddenAndCreateDenied()
     {
-        var authorId = MonolithAccess.SeedUser("post-author");
-        var commenterId = MonolithAccess.SeedUser("commenter");
-        var viewerId = MonolithAccess.SeedUser("blocked-viewer");
+        var authorId = InMemoryUser.SeedUser("post-author");
+        var commenterId = InMemoryUser.SeedUser("commenter");
+        var viewerId = InMemoryUser.SeedUser("blocked-viewer");
 
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
         var createPostRes = await Client.PostAsJsonAsync(
@@ -99,7 +99,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Created, createCommentRes.StatusCode);
 
-        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        InMemoryUser.AddMutualBlock(authorId, viewerId);
         CommunityTestAuthHelpers.LoginAs(Client, viewerId);
 
         var listRes = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
@@ -115,7 +115,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task GetCommentsByPostId_OrdersRootsAndRepliesChronologically()
     {
-        var userId = MonolithAccess.SeedUser("order-commenter");
+        var userId = InMemoryUser.SeedUser("order-commenter");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
@@ -164,7 +164,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task GetCommentsByUserId_OrdersByCreatedAtDescending()
     {
-        var userId = MonolithAccess.SeedUser("user-comments-order");
+        var userId = InMemoryUser.SeedUser("user-comments-order");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(

@@ -50,7 +50,7 @@ public sealed class MapPinControllerIntegrationTests(
         const string testMethodName = "MapPinCreateForPost";
         var user = CreateUserForTest(testMethodName);
         LoginAs(user);
-        var postId = MonolithAccess.SeedPost(user.Id);
+        var postId = InMemoryUser.SeedPost(user.Id);
 
         var res = await Client.PostAsJsonAsync(
             "/api/location/pins",
@@ -196,7 +196,7 @@ public sealed class MapPinControllerIntegrationTests(
             TestContext.Current.CancellationToken);
 
         var viewer = CreateUserForTest(testMethodName, index: 2);
-        MonolithAccess.AddBlock(viewer.Id, owner.Id);
+        InMemoryUser.AddBlock(viewer.Id, owner.Id);
         LoginAs(viewer);
 
         var res = await Client.GetAsync(
@@ -218,8 +218,8 @@ public sealed class MapPinControllerIntegrationTests(
         AddGroupMember(groupId, member);
 
         const long postId = 1001;
-        MonolithAccess.SeedPost(member.Id, postId);
-        MonolithAccess.SetPostViewable(postId, member.Id);
+        InMemoryUser.SeedPost(member.Id, postId);
+        InMemoryUser.SetPostViewable(postId, member.Id);
 
         LoginAs(member);
         await Client.PostAsJsonAsync(
@@ -259,8 +259,8 @@ public sealed class MapPinControllerIntegrationTests(
         AddGroupMember(groupId, member);
 
         const long postId = 1002;
-        MonolithAccess.SeedPost(member.Id, postId);
-        MonolithAccess.SetPostViewable(postId, member.Id);
+        InMemoryUser.SeedPost(member.Id, postId);
+        InMemoryUser.SetPostViewable(postId, member.Id);
 
         LoginAs(member);
         await Client.PostAsJsonAsync(

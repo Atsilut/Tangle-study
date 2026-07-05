@@ -8,10 +8,10 @@ namespace Chat.Tests.Services;
 
 public sealed class ChatRoomAccessServiceUnitTests
 {
-    private static (ChatRoomAccessService Service, InMemoryMonolithAccessClient Monolith, FakeHttpContextAccessor Http) CreateGraph()
+    private static (ChatRoomAccessService Service, InMemoryUserClient Monolith, FakeHttpContextAccessor Http) CreateGraph()
     {
         var http = new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryMonolithAccessClient(http);
+        var monolith = new InMemoryUserClient(http);
         var service = new ChatRoomAccessService(monolith, monolith, monolith);
         return (service, monolith, http);
     }

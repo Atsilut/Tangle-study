@@ -241,7 +241,7 @@ public sealed class MediaServiceUnitTests
             new MediaAssetRepository(db),
             serviceProvider,
             new MediaLimitPolicy(mediaOptions),
-            new AllowAllMonolithAccessClient(),
+            new AllowAllUserClient(),
             new AllowAllCommunityAccessClient(),
             new AllowAllChatAccessClient(),
             workQueue,

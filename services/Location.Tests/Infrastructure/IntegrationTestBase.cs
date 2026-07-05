@@ -8,7 +8,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected LocationWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
-    protected InMemoryMonolithAccessClient MonolithAccess => Factory.MonolithAccess;
+    protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
 
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
@@ -17,13 +17,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         Redis = redis;
         Factory = new LocationWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString);
         Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IMonolithAccessClient>();
+        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
     public async ValueTask InitializeAsync()
     {
         await Factory.ClearAllLocationDataAsync();
-        MonolithAccess.Reset();
+        InMemoryUser.Reset();
     }
 
     public ValueTask DisposeAsync()

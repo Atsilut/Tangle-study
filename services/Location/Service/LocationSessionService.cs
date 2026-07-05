@@ -12,7 +12,7 @@ namespace Location.Service;
 [Service]
 public class LocationSessionService(
     ILocationSessionRepository repo,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient,
     LiveLocationRedisStore liveStore,
@@ -21,7 +21,7 @@ public class LocationSessionService(
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly ILocationSessionRepository _repo = repo;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
@@ -32,7 +32,7 @@ public class LocationSessionService(
     public async Task<LocationSessionGetResponseDto> StartSessionAsync(LocationSessionCreateRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         ValidateCoordinates(request.Latitude, request.Longitude);
         await _groupClient.EnsureGroupMemberAsync(request.GroupId, userId, "Group not found");
 
@@ -83,7 +83,7 @@ public class LocationSessionService(
         if (visibleMemberIds.Count == 0) return null;
 
         var liveByUserId = await _liveStore.GetLiveLocationsAsync(groupId, visibleMemberIds);
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(visibleMemberIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(visibleMemberIds);
 
         List<LiveLocationGetResponseDto> result = [];
         foreach (var session in sessions)
@@ -169,7 +169,7 @@ public class LocationSessionService(
             session.Id,
             session.GroupId,
             session.OwnerUserId,
-            (await _monolithAccess.GetNicknamesByUserIdsAsync([session.OwnerUserId]))
+            (await _userClient.GetNicknamesByUserIdsAsync([session.OwnerUserId]))
                 .GetValueOrDefault(session.OwnerUserId, "Deleted User"),
             snapshot.Latitude,
             snapshot.Longitude,
@@ -306,7 +306,7 @@ public class LocationSessionService(
         LocationSession session,
         LiveLocationSnapshot snapshot)
     {
-        var nickname = (await _monolithAccess.GetNicknamesByUserIdsAsync([session.OwnerUserId]))
+        var nickname = (await _userClient.GetNicknamesByUserIdsAsync([session.OwnerUserId]))
             .GetValueOrDefault(session.OwnerUserId, "Deleted User");
 
         return new LocationSessionGetResponseDto(

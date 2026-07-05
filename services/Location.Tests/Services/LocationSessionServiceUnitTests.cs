@@ -11,9 +11,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
@@ -39,9 +39,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -71,10 +71,10 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var sharer = ServiceTestHelpers.CreateUser(graph.MonolithAccess,"Sharer");
-        var viewer = ServiceTestHelpers.CreateUser(graph.MonolithAccess,"Viewer");
+        var sharer = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Sharer");
+        var viewer = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Viewer");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             sharer.Id,
             viewer.Id);
 
@@ -105,11 +105,11 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var sharer = ServiceTestHelpers.CreateUser(graph.MonolithAccess,"Sharer");
-        var idle = ServiceTestHelpers.CreateUser(graph.MonolithAccess,"Idle");
-        var viewer = ServiceTestHelpers.CreateUser(graph.MonolithAccess,"Viewer");
+        var sharer = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Sharer");
+        var idle = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Idle");
+        var viewer = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Viewer");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             sharer.Id,
             idle.Id,
             viewer.Id);
@@ -140,9 +140,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -166,9 +166,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -194,9 +194,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -221,9 +221,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -247,9 +247,9 @@ public sealed class LocationSessionServiceUnitTests
         // Arrange
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationSessionServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.MonolithAccess,
+            graph.InMemoryUser,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto

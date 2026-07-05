@@ -11,13 +11,13 @@ internal static class LocationServiceTestFactory
         MapPinService MapPinService,
         LocationClusterService LocationClusterService,
         LocationAccessService LocationAccessService,
-        InMemoryMonolithAccessClient MonolithAccess,
+        InMemoryUserClient InMemoryUser,
         IMapPinRepository MapPinRepository);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryMonolithAccessClient(http);
+        var monolith = new InMemoryUserClient(http);
         var db = new LocationDbContext(new DbContextOptionsBuilder<LocationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);

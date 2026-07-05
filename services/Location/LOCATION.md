@@ -59,7 +59,7 @@ Swagger: `http://localhost:8080/api` under `api/location/pins` (via nginx) or th
 
 Coordinates use `decimal(9,6)` (plain lat/lng, no PostGIS in v1).
 
-Posts may optionally attach a location on create or patch (`latitude` / `longitude` on post DTOs). Monolith `PostService` upserts or clears the linked pin via `ILocationClient`; post delete and group delete call location-service explicitly (no cross-schema FKs).
+Posts may optionally attach a location on create or patch (`latitude` / `longitude` on post DTOs). Community `PostService` upserts or clears the linked pin via `ILocationClient`; post delete and group delete call location-service explicitly (no cross-schema FKs).
 
 ---
 
@@ -219,6 +219,6 @@ Baked into the image; override via env (`Places__ApiKey`, `Redis__*`, etc.) when
 
 ---
 
-## Monolith integration
+## Users and peer integration
 
-The monolith and community call location-service over HTTP (`ILocationClient`) for post pin upsert/clear, user detach on deletion, and group session end. Location-service calls the monolith via `IMonolithAccessClient` for users and blocks, group-service via `IGroupClient` for membership, and community via `ICommunityAccessClient` for post visibility. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#location-service).
+Community and other services call location-service over HTTP (`ILocationClient`) for post pin upsert/clear, user detach on deletion, and group session end. Location-service calls users via `IUserClient`, group-service via `IGroupClient`, and community via `ICommunityAccessClient` for post visibility. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#location-service).

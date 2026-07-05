@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Social.Config;
 using Social.Db;
@@ -41,35 +40,24 @@ builder.Configuration
     .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<InternalAccessOptions>(builder.Configuration.GetSection(InternalAccessOptions.SectionName));
+builder.Services.Configure<GatewayIdentityOptions>(builder.Configuration.GetSection(GatewayIdentityOptions.SectionName));
 builder.Services.AddScoped<InternalAccessAuthorizationFilter>();
-builder.Services.AddSingleton<JwtBearerValidator>();
 
-// Interim JWT validation: tokens are issued by the monolith (future users-service). Social only
-// validates bearer tokens so [Authorize] and user-id reads work before a gateway exists.
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = GatewayIdentityAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = GatewayIdentityAuthenticationHandler.SchemeName;
     })
-    .AddJwtBearer();
-
-builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
-    new PostConfigureOptions<JwtBearerOptions>(
-        JwtBearerDefaults.AuthenticationScheme,
-        options =>
-        {
-            var jwtValidator = sp.GetRequiredService<JwtBearerValidator>();
-            options.TokenValidationParameters = jwtValidator.GetValidationParameters();
-            options.MapInboundClaims = false;
-        }));
+    .AddScheme<AuthenticationSchemeOptions, GatewayIdentityAuthenticationHandler>(
+        GatewayIdentityAuthenticationHandler.SchemeName,
+        _ => { });
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleUsersAccess(builder.Configuration);
 
 builder.Services.AddDbContext<SocialDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -82,9 +70,6 @@ builder.Services.AddHealthChecks()
     .ForwardToPrometheus();
 
 var app = builder.Build();
-
-var jwtOptions = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
-JwtStartupValidator.Validate(app.Environment, jwtOptions);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);

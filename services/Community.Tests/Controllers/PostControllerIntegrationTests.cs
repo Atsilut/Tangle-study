@@ -12,7 +12,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task CreateAndGetPost_ReturnsCreatedPost()
     {
-        var userId = MonolithAccess.SeedUser("alice");
+        var userId = InMemoryUser.SeedUser("alice");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -45,7 +45,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task UpdateAndDeletePost_AsAuthor_Succeeds()
     {
-        var userId = MonolithAccess.SeedUser("bob");
+        var userId = InMemoryUser.SeedUser("bob");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -83,7 +83,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task GetPostsByNickname_ReturnsAuthorPosts()
     {
-        var userId = MonolithAccess.SeedUser("carol");
+        var userId = InMemoryUser.SeedUser("carol");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -105,7 +105,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task CreatePost_WithMediaAndLocation_ReturnsThemOnGet()
     {
-        var userId = MonolithAccess.SeedUser("media-user");
+        var userId = InMemoryUser.SeedUser("media-user");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
         var assetId = FakeMedia.SeedReadyAsset();
 
@@ -135,7 +135,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task UpdatePost_PatchesMediaAndLocation_ThenClearsLocation()
     {
-        var userId = MonolithAccess.SeedUser("patch-media");
+        var userId = InMemoryUser.SeedUser("patch-media");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
         var firstAsset = FakeMedia.SeedReadyAsset(fileName: "a.png");
         var secondAsset = FakeMedia.SeedReadyAsset(fileName: "b.png");
@@ -199,7 +199,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task DeletePost_RemovesLinkedMediaAndLocation()
     {
-        var userId = MonolithAccess.SeedUser("delete-media");
+        var userId = InMemoryUser.SeedUser("delete-media");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
         var assetId = FakeMedia.SeedReadyAsset();
 
@@ -243,8 +243,8 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task UpdateAndDeletePost_AsNonAuthor_ReturnsForbidden()
     {
-        var authorId = MonolithAccess.SeedUser("author");
-        var otherId = MonolithAccess.SeedUser("other");
+        var authorId = InMemoryUser.SeedUser("author");
+        var otherId = InMemoryUser.SeedUser("other");
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -270,7 +270,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task CreatePost_PartialGroupIds_ReturnsBadRequest()
     {
-        var userId = MonolithAccess.SeedUser("partial-group");
+        var userId = InMemoryUser.SeedUser("partial-group");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var res = await Client.PostAsJsonAsync(
@@ -283,7 +283,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task CreatePost_LatitudeWithoutLongitude_ReturnsBadRequest()
     {
-        var userId = MonolithAccess.SeedUser("bad-loc");
+        var userId = InMemoryUser.SeedUser("bad-loc");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var res = await Client.PostAsJsonAsync(
@@ -296,9 +296,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task GetAllPosts_FiltersBlockedAuthors()
     {
-        var authorId = MonolithAccess.SeedUser("blocked-author");
-        var viewerId = MonolithAccess.SeedUser("viewer");
-        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        var authorId = InMemoryUser.SeedUser("blocked-author");
+        var viewerId = InMemoryUser.SeedUser("viewer");
+        InMemoryUser.AddMutualBlock(authorId, viewerId);
 
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
         var createRes = await Client.PostAsJsonAsync(
@@ -326,7 +326,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         const long groupId = 10;
         const long boardId = 20;
-        var userId = MonolithAccess.SeedUser("board-writer");
+        var userId = InMemoryUser.SeedUser("board-writer");
         GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
@@ -361,7 +361,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         const long groupId = 11;
         const long boardId = 21;
-        var userId = MonolithAccess.SeedUser("no-write");
+        var userId = InMemoryUser.SeedUser("no-write");
         GroupAccess.AllowAllBoards = false;
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
@@ -377,7 +377,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         const long groupId = 12;
         const long boardId = 22;
-        var writerId = MonolithAccess.SeedUser("writer");
+        var writerId = InMemoryUser.SeedUser("writer");
         GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, writerId);
 
@@ -402,7 +402,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         const long groupId = 13;
         const long boardId = 23;
-        var writerId = MonolithAccess.SeedUser("group-author");
+        var writerId = InMemoryUser.SeedUser("group-author");
         GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, writerId);
 
@@ -436,7 +436,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     [Fact]
     public async Task GetAllPosts_OrdersByCreatedAtDescending()
     {
-        var userId = MonolithAccess.SeedUser("order-user");
+        var userId = InMemoryUser.SeedUser("order-user");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         await Client.PostAsJsonAsync(

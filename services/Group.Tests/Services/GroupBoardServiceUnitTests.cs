@@ -11,7 +11,7 @@ public sealed class GroupBoardServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = GroupServiceTestFactory.Create(http);
-        var ownerId = graph.MonolithAccess.SeedUser("owner");
+        var ownerId = graph.InMemoryUser.SeedUser("owner");
         http.HttpContext = FakeHttpContextAccessor.ContextFor(ownerId);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {
@@ -34,8 +34,8 @@ public sealed class GroupBoardServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = GroupServiceTestFactory.Create(http);
-        var ownerId = graph.MonolithAccess.SeedUser("owner");
-        var memberId = graph.MonolithAccess.SeedUser("member");
+        var ownerId = graph.InMemoryUser.SeedUser("owner");
+        var memberId = graph.InMemoryUser.SeedUser("member");
         http.HttpContext = FakeHttpContextAccessor.ContextFor(ownerId);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {

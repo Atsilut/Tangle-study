@@ -29,15 +29,16 @@ public sealed class LocationWebApplicationFactory(
     private readonly string _connectionString = connectionString;
     private readonly string _redisConnectionString = redisConnectionString;
 
-    public InMemoryMonolithAccessClient MonolithAccess =>
-        Services.GetRequiredService<InMemoryMonolithAccessClient>();
+    public InMemoryUserClient InMemoryUser =>
+        Services.GetRequiredService<InMemoryUserClient>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Docker");
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
-        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Users:BaseUrl", "http://users.test");
+        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GatewayIdentity:Secret", LocationTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
         builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
@@ -60,8 +61,9 @@ public sealed class LocationWebApplicationFactory(
                 ["Redis:ConnectionString"] = _redisConnectionString,
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
-                ["Monolith:BaseUrl"] = "http://monolith.test",
-                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Users:BaseUrl"] = "http://users.test",
+                ["Users:InternalSecret"] = TestInternalServiceSecret,
+                ["GatewayIdentity:Secret"] = LocationTestAuthHelpers.TestGatewaySecret,
                 ["SocialClient:BaseUrl"] = "http://social.test",
                 ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["GroupClient:BaseUrl"] = "http://group.test",
@@ -80,20 +82,20 @@ public sealed class LocationWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMonolithAccessClient>(services);
+            RemoveService<IUserClient>(services);
             RemoveService<ISocialClient>(services);
             RemoveService<ICommunityAccessClient>(services);
             RemoveService<IGroupClient>(services);
-            services.AddSingleton<InMemoryMonolithAccessClient>(sp =>
-                new InMemoryMonolithAccessClient(sp.GetRequiredService<IHttpContextAccessor>()));
-            services.AddSingleton<IMonolithAccessClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<InMemoryUserClient>(sp =>
+                new InMemoryUserClient(sp.GetRequiredService<IHttpContextAccessor>()));
+            services.AddSingleton<IUserClient>(sp =>
+                sp.GetRequiredService<InMemoryUserClient>());
             services.AddSingleton<ISocialClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+                sp.GetRequiredService<InMemoryUserClient>());
             services.AddSingleton<ICommunityAccessClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+                sp.GetRequiredService<InMemoryUserClient>());
             services.AddSingleton<IGroupClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+                sp.GetRequiredService<InMemoryUserClient>());
         });
 
         builder.ConfigureServices(services =>
@@ -126,7 +128,7 @@ public sealed class LocationWebApplicationFactory(
         {
             try
             {
-                MonolithAccess.Reset();
+                InMemoryUser.Reset();
             }
             catch (InvalidOperationException)
             {

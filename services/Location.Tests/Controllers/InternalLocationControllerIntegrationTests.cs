@@ -77,7 +77,7 @@ public sealed class InternalLocationControllerIntegrationTests(
         const string testMethodName = nameof(GetClusterPoints_Returns200_WithVisiblePin);
         var user = CreateUserForTest(testMethodName);
         LoginAs(user);
-        var postId = MonolithAccess.SeedPost(user.Id);
+        var postId = InMemoryUser.SeedPost(user.Id);
         await Client.PostAsJsonAsync(
             "/api/location/pins",
             new MapPinCreateRequestDto { Latitude = TestLat, Longitude = TestLng, PostId = postId },

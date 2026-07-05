@@ -7,12 +7,12 @@ namespace Location.Service;
 
 [Service]
 public class LocationAccessService(
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     ICommunityAccessClient communityAccess,
     IHttpContextAccessor httpContextAccessor)
 {
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;

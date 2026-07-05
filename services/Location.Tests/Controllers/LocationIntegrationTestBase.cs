@@ -9,7 +9,7 @@ public abstract class LocationIntegrationTestBase(
 {
     protected TestUser CreateUserForTest(string testMethodName, long index = 1)
     {
-        var user = MonolithAccess.CreateUser(LocationTestAuthHelpers.BuildNickname(testMethodName, index));
+        var user = InMemoryUser.CreateUser(LocationTestAuthHelpers.BuildNickname(testMethodName, index));
         return user;
     }
 
@@ -17,11 +17,11 @@ public abstract class LocationIntegrationTestBase(
 
     protected long CreateGroupWithOwner(TestUser owner)
     {
-        var groupId = MonolithAccess.CreateGroup();
-        MonolithAccess.AddGroupMember(groupId, owner.Id);
+        var groupId = InMemoryUser.CreateGroup();
+        InMemoryUser.AddGroupMember(groupId, owner.Id);
         return groupId;
     }
 
     protected void AddGroupMember(long groupId, TestUser member) =>
-        MonolithAccess.AddGroupMember(groupId, member.Id);
+        InMemoryUser.AddGroupMember(groupId, member.Id);
 }

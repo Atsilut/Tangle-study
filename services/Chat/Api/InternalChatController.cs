@@ -14,7 +14,7 @@ public sealed class InternalChatController(
     ChatRoomService chatRoomService) : ControllerBase
 {
     [HttpPost("users/{userId:long}/detach-on-deletion")]
-    [SwaggerOperation(Summary = "Detach a deleted user from chat rooms and messages (monolith user deletion)")]
+    [SwaggerOperation(Summary = "Detach a deleted user from chat rooms and messages (users-service user deletion)")]
     public async Task<IActionResult> DetachUserOnDeletion([FromRoute] long userId)
     {
         await chatMessageService.DetachSenderFromDeletedUserAsync(userId);

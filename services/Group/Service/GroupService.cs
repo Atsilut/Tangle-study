@@ -13,7 +13,7 @@ namespace Group.Service
     public class GroupService(
         IGroupRepository repo,
         GroupMembershipService membership,
-        IMonolithAccessClient monolithAccess,
+        IUserClient userClient,
         GroupDbContext db,
         IHttpContextAccessor httpContextAccessor,
         Lazy<GroupInvitationService> invitationService,
@@ -25,7 +25,7 @@ namespace Group.Service
     {
         private readonly IGroupRepository _repo = repo;
         private readonly GroupMembershipService _membership = membership;
-        private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly Lazy<GroupInvitationService> _invitationService = invitationService;
@@ -52,7 +52,7 @@ namespace Group.Service
         public async Task<GroupGetResponseDto> CreateGroupAsync(GroupCreateRequestDto request)
         {
             var creatorId = GetUserIdFromLogin();
-            await _monolithAccess.EnsureUserExistsAsync(creatorId, "Authentication failed", StatusCodes.Status400BadRequest);
+            await _userClient.EnsureUserExistsAsync(creatorId, "Authentication failed", StatusCodes.Status400BadRequest);
 
             var group = new GroupEntity(
                 request.Name,

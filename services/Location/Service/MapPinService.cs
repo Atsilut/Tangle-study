@@ -10,13 +10,13 @@ namespace Location.Service;
 [Service]
 public class MapPinService(
     IMapPinRepository repo,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     LocationAccessService access,
     Lazy<LocationClusterService> clusterService,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IMapPinRepository _repo = repo;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly LocationAccessService _access = access;
     private readonly Lazy<LocationClusterService> _clusterService = clusterService;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -27,7 +27,7 @@ public class MapPinService(
     public async Task<MapPinGetResponseDto> CreateMapPinAsync(MapPinCreateRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         ValidateBounds(request.Latitude, request.Longitude);
         await _access.EnsureCanCreateMapPinAsync(userId, request.PostId);
 
@@ -35,7 +35,7 @@ public class MapPinService(
         await _repo.CreateMapPinAsync(pin);
         await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
 
-        var nickname = (await _monolithAccess.GetNicknamesByUserIdsAsync([userId])).GetValueOrDefault(userId, "Deleted User");
+        var nickname = (await _userClient.GetNicknamesByUserIdsAsync([userId])).GetValueOrDefault(userId, "Deleted User");
         return MapToDto(pin, nickname);
     }
 
@@ -47,7 +47,7 @@ public class MapPinService(
         var viewerUserId = _access.TryGetViewerUserId();
         if (!await _access.CanViewMapPinAsync(pin, viewerUserId)) return null;
 
-        var nickname = (await _monolithAccess.GetNicknamesByUserIdsAsync([pin.OwnerUserId]))
+        var nickname = (await _userClient.GetNicknamesByUserIdsAsync([pin.OwnerUserId]))
             .GetValueOrDefault(pin.OwnerUserId, "Deleted User");
         return MapToDto(pin, nickname);
     }
@@ -131,7 +131,7 @@ public class MapPinService(
 
     private async Task<List<MapPinGetResponseDto>> MapManyAsync(IReadOnlyList<MapPin> pins)
     {
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(pins.Select(p => p.OwnerUserId));
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(pins.Select(p => p.OwnerUserId));
         return [.. pins.Select(pin => MapToDto(
             pin,
             nicknames.GetValueOrDefault(pin.OwnerUserId, "Deleted User")))];

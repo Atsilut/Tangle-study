@@ -12,12 +12,12 @@ namespace Social.UserBlocks.Service;
 public class UserBlockService(
     IUserBlockRepository repo,
     Lazy<FriendRequestService> friendRequestService,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IUserBlockRepository _repo = repo;
     private readonly Lazy<FriendRequestService> _friendRequestService = friendRequestService;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -77,8 +77,8 @@ public class UserBlockService(
     private async Task ValidateBlockPartiesAsync(long blockerId, long blockedUserId)
     {
         if (blockerId == blockedUserId) throw new ArgumentException("Cannot block yourself.");
-        await _monolithAccess.EnsureUserExistsAsync(blockerId, "Authentication failed", StatusCodes.Status400BadRequest);
-        await _monolithAccess.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
+        await _userClient.EnsureUserExistsAsync(blockerId, "Authentication failed", StatusCodes.Status400BadRequest);
+        await _userClient.EnsureUserExistsAsync(blockedUserId, "User not found", StatusCodes.Status400BadRequest);
     }
 
     private static UserBlockGetResponseDto MapToDto(UserBlock block, string blockedUserNickname) =>
@@ -92,7 +92,7 @@ public class UserBlockService(
     private async Task<List<UserBlockGetResponseDto>> MapManyAsync(IReadOnlyList<UserBlock> blocks)
     {
         var blockedUserIds = blocks.Select(b => b.BlockedUserId).Distinct();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(blockedUserIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(blockedUserIds);
 
         return [.. blocks.Select(b =>
             MapToDto(b, nicknames.GetValueOrDefault(b.BlockedUserId, "Deleted User")))];

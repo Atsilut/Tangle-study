@@ -10,11 +10,11 @@ namespace Social.Friendships.Service;
 [Service]
 public class FriendshipService(
     IFriendshipRepository repo,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IFriendshipRepository _repo = repo;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -64,7 +64,7 @@ public class FriendshipService(
     public async Task<List<FriendshipGetResponseDto>?> GetUserFriendsAsync(long userId)
     {
         var viewerId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId, "User not found");
+        await _userClient.EnsureUserExistsAsync(userId, "User not found");
         await EnsureCanViewFriendsListAsync(userId, viewerId);
 
         var friendships = await _repo.GetAllForUserAsync(userId);
@@ -78,7 +78,7 @@ public class FriendshipService(
     {
         if (targetUserId == viewerId) return;
 
-        var visibility = await _monolithAccess.GetFriendsListVisibilityAsync(targetUserId);
+        var visibility = await _userClient.GetFriendsListVisibilityAsync(targetUserId);
         switch (visibility)
         {
             case FriendsListVisibility.Public:
@@ -105,7 +105,7 @@ public class FriendshipService(
     private async Task<List<FriendshipGetResponseDto>> MapManyAsync(IReadOnlyList<Friendship> friendships, long viewerId)
     {
         var otherIds = friendships.Select(f => f.OtherPartyId(viewerId)).Distinct();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(otherIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(otherIds);
 
         return [.. friendships.Select(f =>
             MapToDto(f, viewerId, nicknames.GetValueOrDefault(f.OtherPartyId(viewerId), "Deleted User")))];
