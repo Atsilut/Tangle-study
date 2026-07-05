@@ -16,7 +16,7 @@ internal static class LocationRealtimeTestHelpers
                 options.HttpMessageHandlerFactory = _ => new GatewayIdentityHttpHandler(
                     factory.Server.CreateHandler(),
                     userId,
-                    LocationTestAuthHelpers.TestGatewaySecret);
+                    GatewayTestAuthHelpers.TestGatewaySecret);
             })
             .Build();
 

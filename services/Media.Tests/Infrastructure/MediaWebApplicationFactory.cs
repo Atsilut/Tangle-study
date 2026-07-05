@@ -44,7 +44,7 @@ public sealed class MediaWebApplicationFactory(
         builder.UseSetting("Media:InternalServiceSecret", TestInternalServiceSecret);
         builder.UseSetting("Users:BaseUrl", "http://users.test");
         builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", MediaTestAuthHelpers.TestGatewaySecret);
+        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
         builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
@@ -63,7 +63,7 @@ public sealed class MediaWebApplicationFactory(
                 ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
                 ["Users:BaseUrl"] = "http://users.test",
                 ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = MediaTestAuthHelpers.TestGatewaySecret,
+                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
                 ["ChatClient:BaseUrl"] = "http://chat.test",
                 ["CommunityClient:BaseUrl"] = "http://community.test",
                 ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
@@ -76,16 +76,16 @@ public sealed class MediaWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMediaStorage>(services);
+            services.RemoveService<IMediaStorage>();
             services.AddSingleton<IMediaStorage>(_fakeStorage);
 
-            RemoveService<IUserClient>(services);
+            services.RemoveService<IUserClient>();
             services.AddSingleton<IUserClient, AllowAllUserClient>();
 
-            RemoveService<ICommunityAccessClient>(services);
+            services.RemoveService<ICommunityAccessClient>();
             services.AddSingleton<ICommunityAccessClient, AllowAllCommunityAccessClient>();
 
-            RemoveService<IChatAccessClient>(services);
+            services.RemoveService<IChatAccessClient>();
             services.AddSingleton<IChatAccessClient, AllowAllChatAccessClient>();
         });
 
@@ -101,8 +101,8 @@ public sealed class MediaWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IConnectionMultiplexer>(services);
-            RemoveService<IWorkQueue>(services);
+            services.RemoveService<IConnectionMultiplexer>();
+            services.RemoveService<IWorkQueue>();
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(
                     RedisServiceCollectionExtensions.ParseRedisConfiguration(_redisConnectionString)));
@@ -126,11 +126,5 @@ public sealed class MediaWebApplicationFactory(
         }
 
         base.Dispose(disposing);
-    }
-
-    private static void RemoveService<T>(IServiceCollection services)
-    {
-        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
-            services.Remove(descriptor);
     }
 }

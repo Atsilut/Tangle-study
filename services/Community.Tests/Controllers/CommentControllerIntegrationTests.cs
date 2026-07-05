@@ -13,7 +13,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     public async Task CreateAndListComments_ByPostId()
     {
         var userId = InMemoryUser.SeedUser("dave");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -44,7 +44,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     public async Task DeleteComment_AsAuthor_Succeeds()
     {
         var userId = InMemoryUser.SeedUser("erin");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -82,7 +82,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         var commenterId = InMemoryUser.SeedUser("commenter");
         var viewerId = InMemoryUser.SeedUser("blocked-viewer");
 
-        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        GatewayTestAuthHelpers.LoginAs(Client, authorId);
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Post", Content = "Body" },
@@ -92,7 +92,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
             (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        CommunityTestAuthHelpers.LoginAs(Client, commenterId);
+        GatewayTestAuthHelpers.LoginAs(Client, commenterId);
         var createCommentRes = await Client.PostAsJsonAsync(
             "/api/comments",
             new CommentCreateRequestDto { PostId = postId, Content = "Visible to friends" },
@@ -100,7 +100,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
         Assert.Equal(HttpStatusCode.Created, createCommentRes.StatusCode);
 
         InMemoryUser.AddMutualBlock(authorId, viewerId);
-        CommunityTestAuthHelpers.LoginAs(Client, viewerId);
+        GatewayTestAuthHelpers.LoginAs(Client, viewerId);
 
         var listRes = await Client.GetAsync($"/api/comments/post/{postId}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, listRes.StatusCode);
@@ -116,7 +116,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     public async Task GetCommentsByPostId_OrdersRootsAndRepliesChronologically()
     {
         var userId = InMemoryUser.SeedUser("order-commenter");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -165,7 +165,7 @@ public sealed class CommentControllerIntegrationTests(PostgresTestcontainerFixtu
     public async Task GetCommentsByUserId_OrdersByCreatedAtDescending()
     {
         var userId = InMemoryUser.SeedUser("user-comments-order");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",

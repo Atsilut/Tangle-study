@@ -17,7 +17,7 @@ internal static class ChatRealtimeTestHelpers
                 options.HttpMessageHandlerFactory = _ => new GatewayIdentityHttpHandler(
                     factory.Server.CreateHandler(),
                     userId,
-                    ChatTestAuthHelpers.TestGatewaySecret);
+                    GatewayTestAuthHelpers.TestGatewaySecret);
             })
             .Build();
 

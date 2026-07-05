@@ -20,7 +20,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task InitUpload_Returns400_WhenDeclaredSizeExceedsIngressLimit()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         const long ingressLimit = MediaIntegrationTestHelpers.PostVideoPerFileBytes * MediaIntegrationTestHelpers.IngressMultiplier;
         var req = new MediaUploadInitRequestDto
         {
@@ -39,7 +39,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task CompleteUpload_EnqueuesMediaUploadedJob_ToRedisStream()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var init = await MediaIntegrationTestHelpers.InitUploadAsync(
             Client,
             MediaIntendedContext.Post,
@@ -59,7 +59,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task CompleteUpload_Returns400_WhenBlobMissing()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var init = await MediaIntegrationTestHelpers.InitUploadAsync(
             Client,
             MediaIntendedContext.Post,
@@ -78,7 +78,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task WorkerCallback_MarksAssetReady()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var init = await MediaIntegrationTestHelpers.InitUploadAsync(
             Client,
             MediaIntendedContext.Post,
@@ -104,7 +104,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task WorkerCallback_Returns401_WithoutWorkerSecret()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var init = await MediaIntegrationTestHelpers.InitUploadAsync(
             Client,
             MediaIntendedContext.Post,
@@ -129,7 +129,7 @@ public sealed class MediaIntegrationTests(
     [Fact]
     public async Task WorkerCallback_Returns401_WithInvalidWorkerSecret()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var init = await MediaIntegrationTestHelpers.InitUploadAsync(
             Client,
             MediaIntendedContext.Post,
@@ -155,7 +155,7 @@ public sealed class MediaIntegrationTests(
     public async Task GetContent_Returns200_ForLinkedPostMedia_WithoutAuth()
     {
         const long userId = 1;
-        MediaTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
             Client,
             MediaIntendedContext.Post,
@@ -176,7 +176,7 @@ public sealed class MediaIntegrationTests(
     public async Task LinkToPost_Returns400_WhenVideoTotalExceeded()
     {
         const long userId = 1;
-        MediaTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var mediaAssetIds = new List<long>();
         for (var i = 0; i < 6; i++)
         {
@@ -224,7 +224,7 @@ public sealed class MediaIntegrationPostgresTests(
     [Fact]
     public async Task DeleteUnlinked_Returns204_ForReadyAsset()
     {
-        MediaTestAuthHelpers.LoginAs(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAs(Client, userId: 1);
         var mediaAssetId = await MediaIntegrationTestHelpers.UploadAndMarkReadyAsync(
             Client,
             MediaIntendedContext.Post,

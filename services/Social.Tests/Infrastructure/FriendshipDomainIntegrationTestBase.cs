@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Social.Client;
 using Social.Db;
-using Social.Friendships.Dto;
-using Social.UserBlocks.Dto;
+using Social.Dto;
 
 namespace Social.Tests.Infrastructure;
 
@@ -22,7 +21,7 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         FriendsListVisibility visibility = FriendsListVisibility.Private) =>
         InMemoryUser.SeedUser($"{testMethodName}User{index}", visibility: visibility);
 
-    protected void LoginAs(long userId) => SocialTestAuthHelpers.LoginAs(Client, userId);
+    protected void LoginAs(long userId) => GatewayTestAuthHelpers.LoginAs(Client, userId);
 
     protected void SetFriendsListVisibility(long userId, FriendsListVisibility visibility) =>
         InMemoryUser.FriendsListVisibilityByUserId[userId] = visibility;

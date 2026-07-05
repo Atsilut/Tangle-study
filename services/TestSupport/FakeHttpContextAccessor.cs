@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 
-namespace Chat.Tests.Infrastructure;
+namespace Tangle.TestSupport;
 
-internal sealed class FakeHttpContextAccessor(string userId) : IHttpContextAccessor
+public sealed class FakeHttpContextAccessor(string userId) : IHttpContextAccessor
 {
     public HttpContext? HttpContext { get; set; } = CreateContext(userId);
+
+    public static DefaultHttpContext ContextFor(long userId) => CreateContext(userId.ToString());
 
     private static DefaultHttpContext CreateContext(string userId)
     {

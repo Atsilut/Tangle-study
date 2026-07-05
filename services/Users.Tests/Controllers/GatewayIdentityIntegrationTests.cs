@@ -16,7 +16,7 @@ public sealed class GatewayIdentityIntegrationTests(
     {
         const string testMethodName = nameof(ProtectedEndpoint_Returns401_WhenGatewaySecretWrong);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
         Client.DefaultRequestHeaders.Add("X-Gateway-Secret", "wrong-gateway-secret");
         Client.DefaultRequestHeaders.Add("X-User-Id", user.Id.ToString());
 
@@ -33,8 +33,8 @@ public sealed class GatewayIdentityIntegrationTests(
     {
         const string testMethodName = nameof(ProtectedEndpoint_Returns401_WhenUserIdMissing);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.ClearAuth(Client);
-        Client.DefaultRequestHeaders.Add("X-Gateway-Secret", UsersTestAuthHelpers.TestGatewaySecret);
+        GatewayTestAuthHelpers.ClearAuth(Client);
+        Client.DefaultRequestHeaders.Add("X-Gateway-Secret", GatewayTestAuthHelpers.TestGatewaySecret);
 
         var res = await Client.PatchAsJsonAsync(
             "/api/users",

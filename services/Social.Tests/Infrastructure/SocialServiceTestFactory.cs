@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Social.Db;
-using Social.Friendships.Service;
+using Social.Service;
 using Social.Tests.Repositories;
-using Social.UserBlocks.Service;
+using Social.Service;
 
 namespace Social.Tests.Infrastructure;
 

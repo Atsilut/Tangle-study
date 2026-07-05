@@ -28,11 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
     <ProjectReference Include="..\Location\Location.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Tangle.TestSupport" />
   </ItemGroup>
 
 </Project>

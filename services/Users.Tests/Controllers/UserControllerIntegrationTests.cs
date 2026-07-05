@@ -120,7 +120,7 @@ public sealed class UserControllerIntegrationTests(
         // Arrange
         const string testMethodName = "UserPatchUnauth";
         var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = "new" }, TestContext.Current.CancellationToken);
@@ -211,7 +211,7 @@ public sealed class UserControllerIntegrationTests(
     public async Task UpdatePrivacy_Returns401_WhenNotAuthenticated()
     {
         // Arrange
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",

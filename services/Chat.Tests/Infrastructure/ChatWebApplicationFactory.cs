@@ -39,7 +39,7 @@ public sealed class ChatWebApplicationFactory(
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Users:BaseUrl", "http://users.test");
         builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", ChatTestAuthHelpers.TestGatewaySecret);
+        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
         builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
@@ -62,7 +62,7 @@ public sealed class ChatWebApplicationFactory(
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
                 ["Users:BaseUrl"] = "http://users.test",
                 ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = ChatTestAuthHelpers.TestGatewaySecret,
+                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
                 ["SocialClient:BaseUrl"] = "http://social.test",
                 ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["GroupClient:BaseUrl"] = "http://group.test",
@@ -79,14 +79,14 @@ public sealed class ChatWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IUserClient>(services);
-            RemoveService<ISocialClient>(services);
-            RemoveService<IGroupClient>(services);
+            services.RemoveService<IUserClient>();
+            services.RemoveService<ISocialClient>();
+            services.RemoveService<IGroupClient>();
             services.AddSingleton<IUserClient>(_monolithAccess);
             services.AddSingleton<ISocialClient>(_monolithAccess);
             services.AddSingleton<IGroupClient>(_monolithAccess);
 
-            RemoveService<IMediaClient>(services);
+            services.RemoveService<IMediaClient>();
             services.AddSingleton<IMediaClient>(_fakeMediaClient);
         });
 
@@ -102,9 +102,9 @@ public sealed class ChatWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IConnectionMultiplexer>(services);
-            RemoveService<IWorkQueue>(services);
-            RemoveService<IEventPublisher>(services);
+            services.RemoveService<IConnectionMultiplexer>();
+            services.RemoveService<IWorkQueue>();
+            services.RemoveService<IEventPublisher>();
 
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(
@@ -131,11 +131,5 @@ public sealed class ChatWebApplicationFactory(
         }
 
         base.Dispose(disposing);
-    }
-
-    private static void RemoveService<T>(IServiceCollection services)
-    {
-        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
-            services.Remove(descriptor);
     }
 }

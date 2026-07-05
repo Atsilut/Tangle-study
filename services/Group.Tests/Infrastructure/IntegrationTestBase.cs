@@ -24,7 +24,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         InMemoryUser.Reset();
         FakeCommunity.Reset();
         FakeLocation.Reset();
-        GroupTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
     }
 
     public ValueTask DisposeAsync()

@@ -14,7 +14,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     public async Task DetachOnDeletion_DetachesAuthorFromPostsAndComments()
     {
         var userId = InMemoryUser.SeedUser("frank");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -36,7 +36,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             .Content.ReadFromJsonAsync<List<CommentGetResponseDto>>(TestContext.Current.CancellationToken);
         var commentId = Assert.Single(comments!).Id;
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var detachRes = await Client.PostAsync(
             $"/internal/community/users/{userId}/detach-on-deletion",
             content: null,
@@ -81,7 +81,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     public async Task DeleteAllByGroup_RemovesGroupPostsAndLocations()
     {
         var userId = InMemoryUser.SeedUser("grace");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -108,7 +108,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             (await FakeLocation.GetLocationsByPostIdsAsync([postId], TestContext.Current.CancellationToken))
                 .ContainsKey(postId));
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var deleteRes = await Client.PostAsync(
             "/internal/community/groups/10/delete-all",
             content: null,
@@ -121,7 +121,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
 
         Client.DefaultRequestHeaders.Authorization = null;
         Client.DefaultRequestHeaders.Remove("X-Internal-Secret");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var listRes = await Client.GetAsync(
             "/api/groups/10/boards/20/posts",
             TestContext.Current.CancellationToken);
@@ -132,7 +132,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     public async Task ViewableIds_ReturnsPublicPosts()
     {
         var userId = InMemoryUser.SeedUser("hank");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Visible", Content = "Body" },
@@ -142,7 +142,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
         var postId = Assert.Single(posts!).Id;
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client, userId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, userId);
         var res = await Client.PostAsJsonAsync(
             "/internal/community/viewable-ids",
             new InternalCommunityViewableIdsRequestDto([postId], userId),
@@ -160,7 +160,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         var viewerId = InMemoryUser.SeedUser("viewer");
         GroupAccess.AllowBoard(groupId: 30, boardId: 40);
 
-        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        GatewayTestAuthHelpers.LoginAs(Client, authorId);
         var publicCreate = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Public", Content = "Body" },
@@ -190,7 +190,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         GroupAccess.WritableBoards.Clear();
         GroupAccess.AllowAllBoards = false;
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, viewerId);
         var res = await Client.PostAsJsonAsync(
             "/internal/community/viewable-ids",
             new InternalCommunityViewableIdsRequestDto([publicPostId, groupPostId], viewerId),
@@ -206,7 +206,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     {
         var ownerId = InMemoryUser.SeedUser("owner");
         var otherId = InMemoryUser.SeedUser("not-owner");
-        CommunityTestAuthHelpers.LoginAs(Client, ownerId);
+        GatewayTestAuthHelpers.LoginAs(Client, ownerId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -217,14 +217,14 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client, ownerId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, ownerId);
         var ownerRes = await Client.PostAsync(
             $"/internal/community/{postId}/validate-owner",
             content: null,
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, ownerRes.StatusCode);
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client, otherId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, otherId);
         var otherRes = await Client.PostAsync(
             $"/internal/community/{postId}/validate-owner",
             content: null,
@@ -239,7 +239,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         const long boardId = 60;
         var userId = InMemoryUser.SeedUser("media-view");
         GroupAccess.AllowBoard(groupId, boardId);
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -262,7 +262,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         GroupAccess.WritableBoards.Clear();
         GroupAccess.AllowAllBoards = false;
 
-        CommunityTestAuthHelpers.LoginAsInternal(Client, userId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, userId);
         var denied = await Client.PostAsync(
             $"/internal/community/{postId}/media-view",
             content: null,
@@ -280,7 +280,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task MediaView_MissingPost_ReturnsNotFound()
     {
-        CommunityTestAuthHelpers.LoginAsInternal(Client, userId: 1);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, userId: 1);
         var res = await Client.PostAsync(
             "/internal/community/999999/media-view",
             content: null,
@@ -293,7 +293,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     {
         var authorId = InMemoryUser.SeedUser("media-author");
         var viewerId = InMemoryUser.SeedUser("media-viewer");
-        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        GatewayTestAuthHelpers.LoginAs(Client, authorId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -305,7 +305,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
         InMemoryUser.AddMutualBlock(authorId, viewerId);
-        CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, viewerId);
         var res = await Client.PostAsync(
             $"/internal/community/{postId}/media-view",
             content: null,

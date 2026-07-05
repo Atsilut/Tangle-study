@@ -21,7 +21,7 @@ public sealed class UsersWebApplicationFactory(
     string? metricsScrapeSecret = null) : WebApplicationFactory<Program>
 {
     public const string TestInternalServiceSecret = "test-internal-service-secret";
-    public const string TestGatewaySecret = UsersTestAuthHelpers.TestGatewaySecret;
+    public const string TestGatewaySecret = GatewayTestAuthHelpers.TestGatewaySecret;
     public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
 
     private readonly string _connectionString = connectionString;
@@ -106,8 +106,8 @@ public sealed class UsersWebApplicationFactory(
             ReplaceClient<IGroupClient, FakeGroupClient>(services, _fakeGroupClient);
             ReplaceClient<ISocialClient, FakeSocialClient>(services, _fakeSocialClient);
 
-            RemoveService<IConnectionMultiplexer>(services);
-            RemoveService<IEventPublisher>(services);
+            services.RemoveService<IConnectionMultiplexer>();
+            services.RemoveService<IEventPublisher>();
 
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(
@@ -160,11 +160,5 @@ public sealed class UsersWebApplicationFactory(
         foreach (var descriptor in descriptors)
             services.Remove(descriptor);
         services.AddSingleton<TInterface>(fake);
-    }
-
-    private static void RemoveService<T>(IServiceCollection services)
-    {
-        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
-            services.Remove(descriptor);
     }
 }

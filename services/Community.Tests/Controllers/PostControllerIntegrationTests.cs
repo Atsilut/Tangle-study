@@ -13,7 +13,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task CreateAndGetPost_ReturnsCreatedPost()
     {
         var userId = InMemoryUser.SeedUser("alice");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -46,7 +46,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task UpdateAndDeletePost_AsAuthor_Succeeds()
     {
         var userId = InMemoryUser.SeedUser("bob");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -84,7 +84,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task GetPostsByNickname_ReturnsAuthorPosts()
     {
         var userId = InMemoryUser.SeedUser("carol");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Nick", Content = "Post" },
@@ -106,7 +106,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task CreatePost_WithMediaAndLocation_ReturnsThemOnGet()
     {
         var userId = InMemoryUser.SeedUser("media-user");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var assetId = FakeMedia.SeedReadyAsset();
 
         var createRes = await Client.PostAsJsonAsync(
@@ -136,7 +136,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task UpdatePost_PatchesMediaAndLocation_ThenClearsLocation()
     {
         var userId = InMemoryUser.SeedUser("patch-media");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var firstAsset = FakeMedia.SeedReadyAsset(fileName: "a.png");
         var secondAsset = FakeMedia.SeedReadyAsset(fileName: "b.png");
 
@@ -200,7 +200,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task DeletePost_RemovesLinkedMediaAndLocation()
     {
         var userId = InMemoryUser.SeedUser("delete-media");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
         var assetId = FakeMedia.SeedReadyAsset();
 
         var createRes = await Client.PostAsJsonAsync(
@@ -245,7 +245,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     {
         var authorId = InMemoryUser.SeedUser("author");
         var otherId = InMemoryUser.SeedUser("other");
-        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        GatewayTestAuthHelpers.LoginAs(Client, authorId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -256,7 +256,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        CommunityTestAuthHelpers.LoginAs(Client, otherId);
+        GatewayTestAuthHelpers.LoginAs(Client, otherId);
         var patchRes = await Client.PatchAsJsonAsync(
             "/api/posts",
             new PostPatchRequestDto { Id = postId, Title = "Hijack", Content = "Nope" },
@@ -271,7 +271,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task CreatePost_PartialGroupIds_ReturnsBadRequest()
     {
         var userId = InMemoryUser.SeedUser("partial-group");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var res = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -284,7 +284,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task CreatePost_LatitudeWithoutLongitude_ReturnsBadRequest()
     {
         var userId = InMemoryUser.SeedUser("bad-loc");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var res = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -300,7 +300,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         var viewerId = InMemoryUser.SeedUser("viewer");
         InMemoryUser.AddMutualBlock(authorId, viewerId);
 
-        CommunityTestAuthHelpers.LoginAs(Client, authorId);
+        GatewayTestAuthHelpers.LoginAs(Client, authorId);
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
             new PostCreateRequestDto { Title = "Hidden", Content = "Body" },
@@ -310,7 +310,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        CommunityTestAuthHelpers.LoginAs(Client, viewerId);
+        GatewayTestAuthHelpers.LoginAs(Client, viewerId);
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
 
@@ -328,7 +328,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long boardId = 20;
         var userId = InMemoryUser.SeedUser("board-writer");
         GroupAccess.AllowBoard(groupId, boardId);
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             $"/api/groups/{groupId}/boards/{boardId}/posts",
@@ -363,7 +363,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long boardId = 21;
         var userId = InMemoryUser.SeedUser("no-write");
         GroupAccess.AllowAllBoards = false;
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
             $"/api/groups/{groupId}/boards/{boardId}/posts",
@@ -379,7 +379,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long boardId = 22;
         var writerId = InMemoryUser.SeedUser("writer");
         GroupAccess.AllowBoard(groupId, boardId);
-        CommunityTestAuthHelpers.LoginAs(Client, writerId);
+        GatewayTestAuthHelpers.LoginAs(Client, writerId);
 
         var createRes = await Client.PostAsJsonAsync(
             $"/api/groups/{groupId}/boards/{boardId}/posts",
@@ -404,7 +404,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         const long boardId = 23;
         var writerId = InMemoryUser.SeedUser("group-author");
         GroupAccess.AllowBoard(groupId, boardId);
-        CommunityTestAuthHelpers.LoginAs(Client, writerId);
+        GatewayTestAuthHelpers.LoginAs(Client, writerId);
 
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -437,7 +437,7 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     public async Task GetAllPosts_OrdersByCreatedAtDescending()
     {
         var userId = InMemoryUser.SeedUser("order-user");
-        CommunityTestAuthHelpers.LoginAs(Client, userId);
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
 
         await Client.PostAsJsonAsync(
             "/api/posts",

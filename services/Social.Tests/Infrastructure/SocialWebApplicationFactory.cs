@@ -13,7 +13,7 @@ namespace Social.Tests.Infrastructure;
 public sealed class SocialWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
 {
     public const string TestInternalServiceSecret = "test-internal-service-secret";
-    public const string TestGatewaySecret = SocialTestAuthHelpers.TestGatewaySecret;
+    public const string TestGatewaySecret = GatewayTestAuthHelpers.TestGatewaySecret;
 
     private readonly string _connectionString = connectionString;
 
@@ -45,7 +45,7 @@ public sealed class SocialWebApplicationFactory(string connectionString) : WebAp
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IUserClient>(services);
+            services.RemoveService<IUserClient>();
             services.AddSingleton<InMemoryUserClient>();
             services.AddSingleton<IUserClient>(sp =>
                 sp.GetRequiredService<InMemoryUserClient>());
@@ -72,10 +72,4 @@ public sealed class SocialWebApplicationFactory(string connectionString) : WebAp
         db.ChangeTracker.Clear();
     }
 
-    private static void RemoveService<T>(IServiceCollection services)
-    {
-        var descriptors = services.Where(d => d.ServiceType == typeof(T)).ToList();
-        foreach (var descriptor in descriptors)
-            services.Remove(descriptor);
-    }
 }

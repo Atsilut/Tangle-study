@@ -31,7 +31,7 @@ public sealed class AuthorizedEndpointsIntegrationTests(
         string url,
         object? body)
     {
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
 
         var res = await SendAsync(method, url, body);
 

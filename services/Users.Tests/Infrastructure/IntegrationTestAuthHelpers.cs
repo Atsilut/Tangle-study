@@ -46,7 +46,7 @@ internal static class IntegrationTestAuthHelpers
 
     public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null)
     {
-        UsersTestAuthHelpers.LoginAs(client, user.Id);
+        GatewayTestAuthHelpers.LoginAs(client, user.Id);
         return Task.CompletedTask;
     }
 }

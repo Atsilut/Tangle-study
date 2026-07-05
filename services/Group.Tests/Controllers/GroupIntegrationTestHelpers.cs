@@ -22,7 +22,7 @@ internal static class GroupIntegrationTestHelpers
     }
 
     public static void LoginAs(HttpClient client, TestUser user) =>
-        GroupTestAuthHelpers.LoginAs(client, user.Id);
+        GatewayTestAuthHelpers.LoginAs(client, user.Id);
 
     public static async Task<GroupGetResponseDto> CreateGroupAsAsync(
         HttpClient client,

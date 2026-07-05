@@ -20,7 +20,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         await Factory.ClearAllSocialDataAsync();
         InMemoryUser.Reset();
-        SocialTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
     }
 
     public ValueTask DisposeAsync()

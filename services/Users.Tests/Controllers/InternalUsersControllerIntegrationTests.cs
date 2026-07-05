@@ -15,7 +15,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     [Fact]
     public async Task InternalEndpoint_Returns401_WhenSecretMissing()
     {
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
 
         var res = await Client.PostAsync(
             "/internal/users/1/exists",
@@ -28,7 +28,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     [Fact]
     public async Task InternalEndpoint_Returns401_WhenSecretWrong()
     {
-        UsersTestAuthHelpers.ClearAuth(Client);
+        GatewayTestAuthHelpers.ClearAuth(Client);
         Client.DefaultRequestHeaders.Add("X-Internal-Secret", "wrong-secret");
 
         var res = await Client.PostAsync(
@@ -42,7 +42,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     [Fact]
     public async Task EnsureUserExists_Returns400_WithAuthenticationFailed_WhenMissing()
     {
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
             "/internal/users/999/exists",
@@ -55,7 +55,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     [Fact]
     public async Task ValidateUserExists_Returns400_WithUserNotFound_WhenMissing()
     {
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
             "/internal/users/999/validate",
@@ -70,7 +70,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     {
         const string testMethodName = nameof(EnsureUserExists_Returns204_WhenUserExists);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
             $"/internal/users/{user.Id}/exists",
@@ -85,7 +85,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     {
         const string testMethodName = nameof(EnsureUsersExist_Returns400_WhenAnyUserMissing);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
             "/internal/users/validate-exist",
@@ -100,7 +100,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     {
         const string testMethodName = nameof(GetNicknames_ReturnsDeletedUserFallback_ForMissingIds);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
             "/internal/users/nicknames",
@@ -119,7 +119,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     [Fact]
     public async Task GetUserIdByNickname_Returns404_WhenMissing()
     {
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
             "/internal/users/by-nickname",
@@ -134,7 +134,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     {
         const string testMethodName = nameof(GetUserIdByNickname_ReturnsUserId_WhenFound);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
             "/internal/users/by-nickname",
@@ -153,7 +153,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     {
         const string testMethodName = nameof(GetFriendsListVisibility_ReturnsSetting);
         var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        UsersTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
             $"/internal/users/{user.Id}/friends-list-visibility",

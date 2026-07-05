@@ -13,7 +13,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
     [Fact]
     public async Task EnsureGroupExists_Returns404_WithGroupNotFound_WhenMissing()
     {
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
             "/internal/group/999/exists",
@@ -30,7 +30,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         var stranger = GroupIntegrationTestHelpers.CreateUser(Factory, "stranger");
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"/internal/group/{group.Id}/members/{stranger.Id}/validate",
             new { notFoundMessage = "Group not found" },
@@ -46,7 +46,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         var stranger = GroupIntegrationTestHelpers.CreateUser(Factory, "stranger");
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsync(
             $"/internal/group/{group.Id}/members/{stranger.Id}/validate",
             content: null,
@@ -62,7 +62,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         var stranger = GroupIntegrationTestHelpers.CreateUser(Factory, "stranger");
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"/internal/group/{group.Id}/members/validate",
             new { userIds = new[] { stranger.Id }, errorMessage = "All participants must be members of this group" },
@@ -97,7 +97,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         var board = await boardRes.Content.ReadFromJsonAsync<GroupBoardGetResponseDto>(
             TestContext.Current.CancellationToken);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client, owner.Id);
+        GatewayTestAuthHelpers.LoginAsInternal(Client, owner.Id);
         var res = await Client.PostAsync(
             $"/internal/group/{group.Id}/boards/{board!.Id}/validate-view",
             content: null,
@@ -112,14 +112,14 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         var owner = GroupIntegrationTestHelpers.CreateUser(Factory, "owner");
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var detachRes = await Client.PostAsync(
             $"/internal/group/users/{owner.Id}/detach-on-deletion",
             content: null,
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, detachRes.StatusCode);
 
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var existsRes = await Client.PostAsync(
             $"/internal/group/{group.Id}/exists",
             content: null,

@@ -15,7 +15,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, scenario.Owner);
 
         // Act
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var delete = await Client.PostAsync($"/internal/group/users/{scenario.Owner.Id}/detach-on-deletion", null, TestContext.Current.CancellationToken);
 
         // Assert
@@ -34,7 +34,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
 
         // Act
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var delete = await Client.PostAsync($"/internal/group/users/{scenario.Owner.Id}/detach-on-deletion", null, TestContext.Current.CancellationToken);
 
         // Assert
@@ -55,7 +55,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
 
         // Act
-        GroupTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var delete = await Client.PostAsync($"/internal/group/users/{scenario.Member.Id}/detach-on-deletion", null, TestContext.Current.CancellationToken);
 
         // Assert

@@ -15,7 +15,7 @@ public abstract class ChatIntegrationTestBase(
     protected TestUser CreateUserForTest(string testMethodName, long index = 1) =>
         InMemoryUser.CreateUser(ChatTestAuthHelpers.BuildNickname(testMethodName, index));
 
-    protected void LoginAs(TestUser user) => ChatTestAuthHelpers.LoginAs(Client, user.Id);
+    protected void LoginAs(TestUser user) => GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
     protected void AcceptFriendship(TestUser requester, TestUser addressee) =>
         InMemoryUser.AddFriendship(requester.Id, addressee.Id);

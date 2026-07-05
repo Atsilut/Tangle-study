@@ -37,7 +37,7 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
         builder.UseSetting("Users:BaseUrl", "http://users.test");
         builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", CommunityTestAuthHelpers.TestGatewaySecret);
+        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
         builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
@@ -58,7 +58,7 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
                 ["Users:BaseUrl"] = "http://users.test",
                 ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = CommunityTestAuthHelpers.TestGatewaySecret,
+                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
                 ["SocialClient:BaseUrl"] = "http://social.test",
                 ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["GroupClient:BaseUrl"] = "http://group.test",
@@ -77,23 +77,23 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IUserClient>(services);
-            RemoveService<ISocialClient>(services);
+            services.RemoveService<IUserClient>();
+            services.RemoveService<ISocialClient>();
             services.AddSingleton<InMemoryUserClient>();
             services.AddSingleton<IUserClient>(sp =>
                 sp.GetRequiredService<InMemoryUserClient>());
             services.AddSingleton<ISocialClient>(sp =>
                 sp.GetRequiredService<InMemoryUserClient>());
 
-            RemoveService<IGroupClient>(services);
+            services.RemoveService<IGroupClient>();
             services.AddSingleton<InMemoryGroupClient>();
             services.AddSingleton<IGroupClient>(sp =>
                 sp.GetRequiredService<InMemoryGroupClient>());
 
-            RemoveService<IMediaClient>(services);
+            services.RemoveService<IMediaClient>();
             services.AddSingleton<IMediaClient>(_fakeMediaClient);
 
-            RemoveService<ILocationClient>(services);
+            services.RemoveService<ILocationClient>();
             services.AddSingleton<ILocationClient>(_fakeLocationClient);
         });
 
@@ -117,10 +117,4 @@ public sealed class CommunityWebApplicationFactory(string connectionString) : We
         db.ChangeTracker.Clear();
     }
 
-    private static void RemoveService<T>(IServiceCollection services)
-    {
-        var descriptors = services.Where(d => d.ServiceType == typeof(T)).ToList();
-        foreach (var descriptor in descriptors)
-            services.Remove(descriptor);
-    }
 }

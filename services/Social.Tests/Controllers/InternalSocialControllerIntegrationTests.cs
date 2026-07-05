@@ -18,7 +18,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         var b = CreateUserForTest("InternalFriends", 2);
         await AcceptFriendshipAsync(a, b);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/friendships/validate-pair",
             new InternalSocialUserPairRequestDto(a, b),
@@ -33,7 +33,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         var a = CreateUserForTest("InternalNotFriends", 1);
         var b = CreateUserForTest("InternalNotFriends", 2);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/friendships/validate-pair",
             new InternalSocialUserPairRequestDto(a, b),
@@ -65,7 +65,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         var a = CreateUserForTest("InternalNoBlock", 1);
         var b = CreateUserForTest("InternalNoBlock", 2);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/validate-between",
             new InternalSocialUserPairRequestDto(a, b),
@@ -82,7 +82,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         LoginAs(a);
         await BlockUserAsync(b);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/validate-between",
             new InternalSocialUserPairRequestDto(a, b),
@@ -101,7 +101,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         var b = CreateUserForTest("InternalAgainstOthers", 2);
         var c = CreateUserForTest("InternalAgainstOthers", 3);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/validate-against-others",
             new InternalSocialMutualBlocksRequestDto(a, [b, c]),
@@ -119,7 +119,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         LoginAs(c);
         await BlockUserAsync(a);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/validate-against-others",
             new InternalSocialMutualBlocksRequestDto(a, [b, c]),
@@ -140,7 +140,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         LoginAs(a);
         await BlockUserAsync(b);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/mutual-ids",
             new InternalSocialMutualBlocksRequestDto(a, [b, c]),
@@ -161,7 +161,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         LoginAs(blocker);
         await BlockUserAsync(blocked);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/is-blocked-by",
             new InternalSocialIsBlockedRequestDto(blocker, blocked),
@@ -180,7 +180,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         var blocker = CreateUserForTest("InternalNotBlocked", 1);
         var blocked = CreateUserForTest("InternalNotBlocked", 2);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var res = await Client.PostAsJsonAsync(
             $"{InternalBase}/blocks/is-blocked-by",
             new InternalSocialIsBlockedRequestDto(blocker, blocked),
@@ -205,7 +205,7 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
         await SendFriendRequestAsync(c);
         await BlockUserAsync(c);
 
-        SocialTestAuthHelpers.LoginAsInternal(Client);
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
         var detach = await Client.PostAsync(
             $"{InternalBase}/users/{a}/detach-on-deletion",
             null,
