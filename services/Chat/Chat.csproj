@@ -28,9 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="security.yml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="chat-config.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

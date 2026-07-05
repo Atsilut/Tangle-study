@@ -26,12 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="security.yml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <InternalsVisibleTo Include="Social.Tests" />
   </ItemGroup>
 </Project>

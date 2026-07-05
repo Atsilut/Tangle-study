@@ -38,7 +38,6 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCustomDependencies();
 
 builder.Configuration
-    .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddYamlFile("chat-config.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 

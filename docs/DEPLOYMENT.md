@@ -172,7 +172,7 @@ Optional: add **required reviewers** on the `prod` environment in GitHub for app
 | ----------------------------- | --------------------------------------------------------------------------------- |
 | `appsettings.json`            | Base defaults                                                                     |
 | `appsettings.Production.json` | Production flags (Redis on, media on, metrics auth on); empty connection strings  |
-| `security.yml`                | JWT issuer/audience/expiry; placeholder secret allowed only in Development/Docker |
+| `security.yml`                | JWT issuer/audience/expiry on **Gateway** and **Users** only; placeholder secret allowed only in Development/Docker |
 | `media-config.yml`            | Upload limits, `Redis:WorkQueueStreamPrefix`                                      |
 | `chat-config.yml`             | Chat policy, `Redis:WorkQueueStreamPrefix` (chat-service)                         |
 | **Environment variables**     | Secrets and connection strings from GitHub Actions → Container Apps               |
@@ -180,9 +180,9 @@ Optional: add **required reviewers** on the `prod` environment in GitHub for app
 
 ASP.NET Core binds nested config with double underscores, e.g. `Redis__ConnectionString` → `Redis:ConnectionString`.
 
-**Important:** Environment variables are re-applied after YAML in each service's `Program.cs` (e.g. [`services/Media/Program.cs`](../services/Media/Program.cs)) so GitHub-injected secrets override `security.yml` placeholders.
+**Important:** Environment variables are re-applied after YAML in each service's `Program.cs` (e.g. [`services/Media/Program.cs`](../services/Media/Program.cs)) so GitHub-injected secrets override YAML placeholders.
 
-Each service ships its own `security.yml` with the same `Jwt` shape; production CD must inject `Jwt__Secret` on gateway/users and every service that validates bearer tokens.
+Only **Gateway** and **Users** load `security.yml` for JWT settings. Domain services (Social, Group, Location, …) authenticate via gateway identity headers, not local JWT validation.
 
 ---
 
@@ -238,7 +238,7 @@ Queue stream prefix comes from each service's `*-config.yml` (`Redis:WorkQueueSt
 
 **Worker:** change `API_BASE_URL` on `tangle-study-worker-media` from `http://tangle-study-api` to `http://tangle-study-media` when the media Container App exists.
 
-Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits, queue stream prefix) stay in each service's `security.yml` / `*-config.yml` baked into the image.
+Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits, queue stream prefix) stay in Gateway/Users `security.yml` and each service's `*-config.yml` baked into the image.
 
 **Shared (all Container Apps):**
 
@@ -724,7 +724,7 @@ Before first deploy:
 4. Enable Redis — required for SignalR backplane and work queues when the API scales beyond one replica.
 5. Run `./scripts/migrate.sh --production` (or the Container Apps migrate job) as part of each CD deploy — startup does not migrate in Production.
 
-JWT placeholder in each service's `security.yml` causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
+JWT placeholder in Gateway/Users `security.yml` causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
 
 ---
 

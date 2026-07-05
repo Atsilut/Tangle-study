@@ -43,7 +43,6 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCustomDependencies();
 
 builder.Configuration
-    .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddYamlFile("location-config.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 

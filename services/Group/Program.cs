@@ -37,7 +37,6 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCustomDependencies();
 
 builder.Configuration
-    .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));

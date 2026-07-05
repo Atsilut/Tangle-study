@@ -37,9 +37,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCustomDependencies();
 
 builder.Configuration
-    .AddYamlFile("security.yml", optional: false, reloadOnChange: true)
     .AddYamlFile("media-config.yml", optional: false, reloadOnChange: true)
-    // YAML is loaded after the host's default env vars; re-add so CD-injected Jwt__Secret wins.
     .AddEnvironmentVariables();
 
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));

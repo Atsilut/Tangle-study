@@ -29,9 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="security.yml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="location-config.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
