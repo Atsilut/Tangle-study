@@ -55,7 +55,7 @@ Integration tests use Testcontainers; Docker Desktop must be running. The compos
 docker compose up --build
 ```
 
-API: http://localhost:5000 — Postgres on `localhost:5433`.
+Web/API entry: http://localhost:8080 — Postgres on `localhost:5433`.
 
 ## When diagnosing failures
 

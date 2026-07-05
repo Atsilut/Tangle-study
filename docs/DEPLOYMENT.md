@@ -2,30 +2,29 @@
 
 Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via `[.github/workflows/cd-v1.yml](../.github/workflows/cd-v1.yml)`.
 
-Local development uses Docker Compose with **media, chat, and location extracted** (Nginx strangler). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-3--location-service-develop-done). **Azure production** still deploys only the monolith for `/api/*` until ACA + `nginx.production.conf` cutover lands.
+**Local development** uses Docker Compose with the **gateway-centric stack** (gateway, users, and all domain services). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-7--users-service--gateway-develop-compose-done-azure-open). **Azure production** still deploys only the monolith for `/api/*` until gateway/users + domain Container Apps and `nginx.production.conf` cutover land.
 
 ---
 
-## Local Compose (media, chat, location extracted)
+## Local Compose (gateway stack)
 
-Default `docker compose up` runs `api`, `media`, `chat`, `location`, `nginx`, `db`, `redis`, and `azurite`.
+Default `docker compose up` runs `gateway`, `users`, `media`, `chat`, `location`, `community`, `group`, `social`, `nginx`, `db`, `redis`, and `azurite`.
 
 | Path | Routed to | Config |
 |------|-----------|--------|
-| `/api/media/*`, `/internal/media/*` | `media:8080` | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
-| `/api/chat/*`, `/internal/chat/*`, `/hubs/chat` | `chat:8080` | Same |
-| `/api/location/*`, `/internal/location/*`, `/hubs/location` | `location:8080` | Same |
-| Other `/api/*` | `api:8080` | Monolith |
+| `/api/*`, `/hubs/*`, `/internal/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
 
-**Api (Docker):** `MediaClient`, `ChatClient`, and `LocationClient` base URLs in [`appsettings.Docker.json`](../services/Api/appsettings.Docker.json) point at the extracted services.
+Gateway YARP routes by path prefix to users, media, chat, location, community, group, and social. See [GATEWAY.md](../services/Gateway/GATEWAY.md).
 
-**Media / Chat / Location (Docker):** each service's `appsettings.Docker.json` — Redis on where needed, `Monolith__BaseUrl=http://api:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`.
+**Domain services (Docker):** each service's `appsettings.Docker.json` — Redis where needed, `Users:BaseUrl=http://users:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`. Services trust gateway identity via `GatewayIdentityOptions`.
 
 **Workers:** `API_BASE_URL=http://media:8080` on `rust-worker-media`, `http://chat:8080` on `rust-worker-chat`, `http://location:8080` on `rust-worker-location`.
 
-**Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-media-harness.sh`.
+**Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-media-harness.sh` (starts gateway + users + media).
 
-**Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Api/Media/Chat/Location unit and integration suites.
+**Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Users/Media/Chat/Location/Community/Group/Social unit and integration suites.
+
+**Legacy monolith:** opt-in via `docker compose --profile legacy-monolith up api` (port `:5000`).
 
 ---
 
@@ -233,7 +232,7 @@ Non-secrets at deploy time:
 
 Queue stream prefix comes from each service's `*-config.yml` (`Redis:WorkQueueStreamPrefix`); override with `Redis__WorkQueueStreamPrefix` if needed.
 
-**Web nginx (Azure cutover):** add `TANGLE_MEDIA_UPSTREAM` (or equivalent) to [`nginx.production.conf`](../infra/nginx/nginx.production.conf) mirroring local [`nginx.conf`](../infra/nginx/nginx.conf) media `location` blocks. Until then, production keeps serving `/api/media/*` from the monolith.
+**Web nginx (Azure cutover):** point `nginx.production.conf` at gateway/users + domain Container Apps (local Compose uses a single gateway upstream). Until then, production keeps serving `/api/*` from the monolith.
 
 **Worker:** change `API_BASE_URL` on `tangle-study-worker-media` from `http://tangle-study-api` to `http://tangle-study-media` when the media Container App exists.
 
@@ -751,6 +750,6 @@ docker build -f clients/web/Dockerfile \
 
 ## Related docs
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — monolith + media-service in Compose
+- [ARCHITECTURE.md](ARCHITECTURE.md) — gateway-centric Compose stack + Azure gaps
 - [MSA_MIGRATION.md](MSA_MIGRATION.md) — Phase 9 extraction progress and Azure follow-ups
 

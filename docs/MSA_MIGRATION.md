@@ -13,7 +13,7 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) (as-built diagram), [SERVICE_BOUNDAR
 | **`develop`** | Full CI ladder (see below) | None — safe place for MSA work |
 | **`main`** | CI | Production CD (runtime images → GHCR) |
 
-MSA extraction lands on **`develop`** first. Azure production still serves all `/api/*` from the monolith until media Container App + `nginx.production.conf` strangler ship on **`main`**.
+MSA extraction lands on **`develop`** first. Azure production still serves all `/api/*` from the monolith until gateway/users + domain Container Apps and `nginx.production.conf` cutover ship on **`main`**.
 
 ---
 
@@ -23,12 +23,12 @@ Build once, test many times — harness reuses compiled artifacts instead of reb
 
 ```text
 Tier 1 (parallel)
-  dotnet-build   → dotnet-publish.sh (Api + Media + Chat + Location + Community + Group + Social publish, test projects built)
+  dotnet-build   → dotnet-publish.sh (Gateway + Users + Media + Chat + Location + Community + Group + Social publish, service test projects built)
   rust           → build-workers-release.sh (cargo test + release binaries)
   web            → lint, test, build
 
 Tier 2 (needs dotnet-build)
-  api-tests      → Api.Tests --no-build (Category!=Harness)
+  users-tests    → Users.Tests --no-build
   media-tests    → Media.Tests --no-build
   chat-tests     → Chat.Tests --no-build
   location-tests → Location.Tests --no-build
@@ -36,22 +36,22 @@ Tier 2 (needs dotnet-build)
   group-tests    → Group.Tests --no-build
   social-tests   → Social.Tests --no-build
 
-Tier 3 (needs dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests)
+Tier 3 (needs dotnet-build, rust, users-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests)
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
-  harness-media  → load stack tar, compose up --no-build, Category=Harness tests
+  harness-media  → load stack tar, compose up --no-build, Api.Tests Category=Harness E2E
 ```
 
 | Job | Produces | Harness reuses? |
 |-----|----------|-----------------|
-| `dotnet-build` | `.ci-cache/publish/{api,media,chat,location,community,group,social}`, test `bin/` | Yes — runtime service Dockerfiles |
+| `dotnet-build` | `.ci-cache/publish/{gateway,users,media,chat,location,community,group,social}`, service test `bin/` | Yes — runtime service Dockerfiles |
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
-| `api-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` / `group-tests` / `social-tests` | Pass/fail | Gate only |
-| `compose-build` | `api`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
+| `users-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` / `group-tests` / `social-tests` | Pass/fail | Gate only |
+| `compose-build` | `gateway`, `users`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
 | `harness-media` | E2E pass/fail | — |
 
-**PR path filters:** integration jobs run only when their service paths change; harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).
+**PR path filters:** integration jobs run when their service paths change; Gateway/Users changes (`dotnet-api`) also trigger downstream service test jobs that depend on identity/routing. Harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).
 
 **Local parity:**
 
@@ -84,8 +84,8 @@ Tier 4 (needs compose-build)
 3. location   ← done on develop (Compose)
 4. community (posts + comments)  ← done on develop (Compose)
 5. group                         ← done on develop (Compose)
-6. social (friendships + user-blocks)
-7. users + gateway
+6. social (friendships + user-blocks) ← done on develop (Compose)
+7. users + gateway ← done on develop (Compose)
 ```
 
 Rationale: start with services that already have async/realtime boundaries (media, chat), leave identity and the gateway for last.
@@ -94,16 +94,16 @@ Rationale: start with services that already have async/realtime boundaries (medi
 
 ## Workflow (per service)
 
-Use this loop on **`develop`** for each extraction. Step 1 (media) followed it end-to-end.
+Use this loop on **`develop`** for each extraction. Step 1 (media) followed it end-to-end. After step 7, services use **`IUserClient`** and **gateway identity auth** instead of monolith internal access.
 
 ```text
-1. Extract   → services/{Service}/, schema/migrations, Dockerfile, compose + nginx routes
-2. Test      → services/{Service}.Tests (unit + integration); keep boundary tests in Api.Tests
-3. Wire Api  → HTTP client (e.g. IMediaClient), InternalAccess callbacks; require service URL at startup
+1. Extract   → services/{Service}/, schema/migrations, Dockerfile, compose + gateway YARP routes
+2. Test      → services/{Service}.Tests (unit + integration)
+3. Wire      → HTTP clients (e.g. IMediaClient, IUserClient); require service URL at startup
 4. Remove    → delete monolith Domain/{Name}/*, drop public tables, EF migration
-5. Test again → Api.Tests + harness E2E through nginx
+5. Test again → {Service}.Tests + harness E2E through nginx → gateway
 6. Docs      → ARCHITECTURE, SERVICE_BOUNDARIES, this file
-7. Merge     → develop → main when Azure cutover is ready (media: pending)
+7. Merge     → develop → main when Azure cutover is ready
 ```
 
 **Test split**
@@ -111,7 +111,7 @@ Use this loop on **`develop`** for each extraction. Step 1 (media) followed it e
 | Project | Owns |
 |---------|------|
 | `{Service}.Tests` | Service routes, limits, worker callbacks, internal APIs |
-| `Api.Tests` | Monolith boundary (`Fake*Client`), cross-domain attach flows, stack harness |
+| `Api.Tests` | Stack harness E2E only (`Category=Harness`) |
 
 ---
 
@@ -119,13 +119,12 @@ Use this loop on **`develop`** for each extraction. Step 1 (media) followed it e
 
 ### Runtime (local Compose)
 
-```text
-Browser → nginx:8080
-  ├─ /api/media/*, /internal/media/*  → media:8080
-  └─ /api/*, /hubs/*                  → api:8080
+Current routing (post step 7). Service-specific paths are handled by gateway YARP — see Step 7 below.
 
-api ──HttpMediaClient──► media (/internal/media/*)
-media ──HttpMonolithAccessClient──► api (/internal/access/*)
+```text
+Browser → nginx:8080 → gateway:8080 → media:8080
+community / chat ──IMediaClient──► media (/internal/media/*)
+media ──IUserClient──► users (/internal/users/*)
 rust-worker-media ──PATCH──► media (/internal/media/{id}/processed)
 ```
 
@@ -138,7 +137,7 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | `services/Media/` | Done |
 | `media` schema + `MediaDbContext` migrations | Done |
 | Nginx strangler + compose `media` service | Done |
-| `IMediaClient` / `IMonolithAccessClient` | Done |
+| `IMediaClient` / `IUserClient` | Done |
 | `rust-worker-media` → media callbacks | Done |
 | Monolith cleanup (`Domain/Media`, `public."MediaAssets"`) | Done |
 | `Media.Tests` + `Api.Tests` boundary/harness | Done |
@@ -151,7 +150,6 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | Azure media Container App | CD + Bicep/parameters |
 | `nginx.production.conf` media upstream | Strangler for prod |
 | Worker `API_BASE_URL` on Azure | Point at media-service, not monolith |
-| Gateway JWT (step 7) | Media still validates bearer tokens interim |
 
 **Dev data:** uploads live in `media."MediaAssets"`. Legacy `public."MediaAssets"` is gone — reset the Compose DB volume if you need a clean slate.
 
@@ -162,16 +160,11 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 ### Runtime (local Compose)
 
 ```text
-Browser → nginx:8080
-  ├─ /api/media/*, /internal/media/*           → media:8080
-  ├─ /api/chat/*, /api/groups/*/chat-rooms,
-  │  /internal/chat/*, /hubs/chat              → chat:8080
-  └─ /api/* (other), /hubs/location            → api:8080
-
-api ──HttpChatClient──► chat (/internal/chat/users/{id}/detach-on-deletion)
+Browser → nginx:8080 → gateway:8080 → chat:8080
+users ──IChatClient──► chat (/internal/chat/users/{id}/detach-on-deletion)
 media ──HttpChatAccessClient──► chat (/internal/chat/messages/{id}/media-view)
-chat ──HttpMonolithAccessClient──► api (/internal/access/*)
-chat ──HttpMediaClient──► media (/internal/media/*)
+chat ──IUserClient──► users (/internal/users/*)
+chat ──IMediaClient──► media (/internal/media/*)
 rust-worker-chat ──POST──► chat (chat.message.created callback)
 ```
 
@@ -184,7 +177,7 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | `services/Chat/` | Done |
 | `chat` schema + `ChatDbContext` migrations | Done |
 | Nginx strangler + compose `chat` service | Done |
-| `IChatClient` / `IChatAccessClient` / `IMonolithAccessClient` | Done |
+| `IChatClient` / `IChatAccessClient` / `IUserClient` | Done |
 | `rust-worker-chat` → chat callbacks | Done |
 | Monolith cleanup (`Domain/Chat`, public chat tables) | Done |
 | `Chat.Tests` + `Api.Tests` boundary tests | Done |
@@ -202,7 +195,7 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 ### Local commands
 
 ```bash
-# Stack (media + chat + monolith + nginx) — multi-stage dev build
+# Full gateway stack — multi-stage dev build
 docker compose up --build
 
 # Workers + monitoring (optional)
@@ -210,7 +203,7 @@ docker compose --profile workers --profile monitoring up --build
 
 # CI-like: publish + integration tests (--no-build matches CI after dotnet-publish)
 ./scripts/ci/dotnet-publish.sh
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --no-build
 ./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
 ./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
 
@@ -225,14 +218,9 @@ docker compose --profile workers --profile monitoring up --build
 ### Runtime (local Compose)
 
 ```text
-Browser → nginx:8080
-  ├─ /api/media/*, /internal/media/*                         → media:8080
-  ├─ /api/chat/*, /internal/chat/*, /hubs/chat              → chat:8080
-  ├─ /api/location/*, /internal/location/*, /hubs/location  → location:8080
-  └─ /api/* (other)                                          → api:8080
-
-api ──HttpLocationClient──► location (/internal/location/*)
-location ──HttpMonolithAccessClient──► api (/internal/access/*)
+Browser → nginx:8080 → gateway:8080 → location:8080
+users ──ILocationClient──► location (/internal/location/*)
+location ──IUserClient──► users (/internal/users/*)
 rust-worker-location ──GET/PUT──► location (/internal/location/cluster-*)
 ```
 
@@ -245,7 +233,7 @@ Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `loc
 | `services/Location/` | Done |
 | `location` schema + `LocationDbContext` migrations | Done |
 | Nginx strangler + compose `location` service | Done |
-| `ILocationClient` / extended `IMonolithAccessClient` | Done |
+| `ILocationClient` / `IUserClient` | Done |
 | `rust-worker-location` → location callbacks (`API_BASE_URL=http://location:8080`) | Done |
 | Monolith cleanup (`Domain/Location`, public location tables) | Done |
 | `Location.Tests` + `Api.Tests` boundary tests (`FakeLocationClient`) | Done |
@@ -263,12 +251,12 @@ Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `loc
 ### Local commands
 
 ```bash
-# Stack (media + chat + location + monolith + nginx) — multi-stage dev build
+# Full gateway stack — multi-stage dev build
 docker compose up --build
 
 # CI-like: publish + integration tests (--no-build matches CI after dotnet-publish)
 ./scripts/ci/dotnet-publish.sh
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+./scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --no-build
 ./scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
 ./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
 ./scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release --no-build
@@ -283,18 +271,11 @@ One service owns both aggregates (tight delete/detach and board-visibility coupl
 ### Runtime (local Compose)
 
 ```text
-Browser → nginx:8080
-  ├─ /api/media/*, /internal/media/*                         → media
-  ├─ /api/chat/*, /internal/chat/*, /hubs/chat              → chat
-  ├─ /api/location/*, /internal/location/*, /hubs/location  → location
-  ├─ /api/posts/*, /api/comments/*,
-  │  /api/groups/*/boards/*/posts, /internal/community/*     → community
-  └─ /api/* (other)                                          → api
-
-api ──ICommunityClient──► community (detach, delete-by-group)
+Browser → nginx:8080 → gateway:8080 → community:8080
+users ──ICommunityClient──► community (detach, delete-by-group)
 media ──ICommunityAccessClient──► community (post/comment media-view)
 location ──ICommunityAccessClient──► community (owner, viewable-ids)
-community ──IMonolithAccessClient──► api (users, blocks, board access)
+community ──IUserClient──► users (users, blocks, board access)
 community ──IMediaClient──► media
 community ──ILocationClient──► location
 ```
@@ -315,21 +296,12 @@ One service owns groups, boards, memberships, invitations, applications, and bla
 ### Runtime (local Compose)
 
 ```text
-Browser → nginx:8080
-  ├─ /api/media/*, /internal/media/*                         → media
-  ├─ /api/chat/*, /api/groups/*/chat-rooms, /hubs/chat      → chat
-  ├─ /api/location/*, /hubs/location                        → location
-  ├─ /api/posts/*, /api/comments/*,
-  │  /api/groups/*/boards/*/posts, /internal/community/*     → community
-  ├─ /api/groups/*, /api/invitations/*, /api/applications/*,
-  │  /internal/group/*                                       → group
-  └─ /api/* (other)                                          → api
-
-api ──IGroupClient──► group (user detach)
+Browser → nginx:8080 → gateway:8080 → group:8080
+users ──IGroupClient──► group (user detach)
 community ──IGroupClient──► group (board access)
 chat ──IGroupClient──► group (membership)
 location ──IGroupClient──► group (membership)
-group ──IMonolithAccessClient──► api (users, blocks)
+group ──IUserClient──► users (users, blocks)
 group ──ICommunityClient──► community (delete-all)
 group ──ILocationClient──► location (end-sessions)
 ```
@@ -350,15 +322,10 @@ One service owns friendships, friend requests, and user-blocks (tight block ↔ 
 ### Runtime (local Compose)
 
 ```text
-Browser → nginx:8080
-  ├─ … (media, chat, location, community, group)
-  ├─ /api/friendships/*, /api/users/blocks,
-  │  /internal/social/*                                  → social
-  └─ /api/* (other)                                      → api
-
-api ──ISocialClient──► social (user detach)
+Browser → nginx:8080 → gateway:8080 → social:8080
+users ──ISocialClient──► social (user detach)
 chat / group / community / location ──ISocialClient──► social (friendship + block checks)
-social ──IMonolithAccessClient──► api (users, nicknames, friends-list visibility)
+social ──IUserClient──► users (users, nicknames, friends-list visibility)
 ```
 
 Postgres: `social` schema (`Friendships`, `FriendRequests`, `UserBlocks`). Legacy `public` social tables dropped by `RemoveMonolithSocialTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [SOCIAL.md](../services/Social/SOCIAL.md).
@@ -370,17 +337,70 @@ Postgres: `social` schema (`Friendships`, `FriendRequests`, `UserBlocks`). Legac
 | Azure social Container App | CD + Bicep/parameters |
 | `nginx.production.conf` social upstream | Strangler for prod |
 
-## Step 7
+## Step 7 — users-service + gateway (`develop`: Compose done; Azure open)
 
-Not started. Reuse the [workflow](#workflow-per-service) above; FK and cross-route notes live in [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md).
+Users and gateway are **separate deployables** (not combined). Users owns identity; gateway owns routing and JWT validation. **Compose dev stack is complete**; Azure/CD and `nginx.production.conf` remain open.
+
+### users-service
+
+- Source: former `services/Api/Domain/Users/`
+- Postgres: `users` schema (`Users` table)
+- Public routes: `/api/users/*`, `/api/login`, `/api/join`
+- Internal routes: `/internal/users/*` (exists, nicknames, friends-list visibility)
+- Issues JWT via `TokenProvider`; orchestrates user delete across extracted services
+
+### gateway-service
+
+- YARP reverse proxy: routes all `/api/*` and `/hubs/*` to extracted services
+- Validates bearer JWT once; forwards `X-User-Id` + `X-Gateway-Secret` to downstream services
+- Anonymous: login/join, public user GETs, public media content, public community reads, health
+
+### Runtime (local Compose)
+
+```text
+Browser → nginx:8080
+  └─ /api/*, /hubs/*, /internal/* → gateway:8080
+       ├─ /api/login, /api/join, /api/users/* → users:8080
+       ├─ /api/media/* → media:8080
+       ├─ … (chat, location, community, group, social)
+       └─ JWT validated at gateway; services trust X-User-Id
+
+extracted services ──IUserClient──► users (/internal/users/*)
+users ──I*Client──► community, media, chat, group, social, location (user delete detach)
+```
+
+### Completed on develop
+
+| Item | Status |
+|------|--------|
+| `services/Users/` | Done |
+| `users` schema + migrations | Done |
+| `services/Gateway/` (YARP + JWT middleware) | Done |
+| Nginx → single gateway upstream | Done |
+| `IUserClient` replaces `IMonolithAccessClient` | Done |
+| Gateway identity auth in services | Done |
+| `Users.Tests` migration from Api.Tests | Done |
+| Monolith removed from default compose / solution | Done (`api` profile `legacy-monolith`) |
+| Local Prometheus/Grafana scrape targets | Done (users, media, chat, location, community, group, social) |
+| Media harness through gateway | Done (`run-media-harness.sh` starts gateway + users) |
+
+### Still open (before `main` cutover)
+
+| Item | Notes |
+|------|-------|
+| Azure users + gateway Container Apps | CD + Bicep/parameters |
+| `nginx.production.conf` gateway upstream | Strangler for prod |
+| Azure domain Container Apps (media, chat, location, community, group, social) | CD + Bicep/parameters per service |
+
+Azure/nginx.production cutover deferred. See [Strangler edge](#strangler-edge) below.
 
 ---
 
 ## Strangler edge
 
-| Environment | Edge | Extracted routes |
-|-------------|------|------------------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/media/*` → `media:8080`; `/api/chat/*`, `/hubs/chat` → `chat:8080`; `/api/location/*`, `/hubs/location` → `location:8080`; `/api/posts/*`, `/api/comments/*`, group-board posts, `/internal/community/*` → `community:8080`; `/api/groups/*`, `/api/invitations/*`, `/api/applications/*`, `/internal/group/*` → `group:8080`; `/api/friendships/*`, `/api/users/blocks`, `/internal/social/*` → `social:8080` |
+| Environment | Edge | Routing |
+|-------------|------|---------|
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | All `/api/*`, `/hubs/*`, `/internal/*` → `gateway:8080`; gateway YARP routes to users, media, chat, location, community, group, social |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
 
-Target end state: gateway validates JWT once; services receive identity claims. Until step 7, each service validates bearer tokens with the shared `Jwt:Secret`.
+Gateway validates JWT once; services receive identity via `X-User-Id` (trusted gateway secret). Login/JWT issuance stays on users-service.

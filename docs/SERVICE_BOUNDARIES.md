@@ -1,6 +1,6 @@
 # Service boundaries
 
-Future microservice boundaries align with existing `services/Api/Domain/` folders. Each row below is one target deployable unless noted.
+Future microservice boundaries align with existing `services/Api/Domain/` folders (now extracted into `services/{Users,Media,...}/`). Each row below is one target deployable unless noted.
 
 Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
@@ -10,7 +10,8 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 | Service | Source folder | Owned aggregates | API routes (today) | Status |
 |---------|---------------|------------------|-------------------|--------|
-| **users** | `Domain/Users/` | `User`, JWT auth | `api/users`, `api` (login) | Implemented |
+| **gateway** | [`services/Gateway/`](../services/Gateway/) | — (routing + JWT validation) | All `/api/*`, `/hubs/*` via YARP | **Extracted (Compose)** — [GATEWAY.md](../services/Gateway/GATEWAY.md); Azure CD pending |
+| **users** | [`services/Users/`](../services/Users/) | `User`, JWT auth | `api/users`, `api/login`, `api/join` | **Extracted (Compose)** — [USERS.md](../services/Users/USERS.md); Azure CD pending |
 | **posts** / **comments** | [`services/Community/`](../services/Community/) | Post, Comment | `api/posts`, `api/comments`, group-board posts | **Extracted (Compose)** — [COMMUNITY.md](../services/Community/COMMUNITY.md); Azure CD pending |
 | **group** | [`services/Group/`](../services/Group/) | Group, Board, Member, Invitation, Application, Blacklist | `api/groups/*`, invitations, applications | **Extracted (Compose)** — [GROUP.md](../services/Group/GROUP.md); Azure CD pending |
 | **social** | [`services/Social/`](../services/Social/) | Friendship, FriendRequest, UserBlock | `api/friendships/*`, `api/users/blocks` | **Extracted (Compose)** — [SOCIAL.md](../services/Social/SOCIAL.md); Azure CD pending |
@@ -39,7 +40,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 **Owns:** `Post` and `Comment` in Postgres `community` schema (tight delete/detach and board-visibility coupling).
 
 **Depends on:**
-- **users** — author nickname enrichment, user existence (via `IMonolithAccessClient`)
+- **users** — author nickname enrichment, user existence (via `IUserClient`)
 - **social** — mutual block filtering (via `ISocialClient`)
 - **group** — board view/write access (via `IGroupClient` → `/internal/group/*`)
 - **media** / **location** — attachments and post geo (HTTP clients)
@@ -53,7 +54,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 **Owns:** groups, boards, memberships, invitations, applications, blacklist in Postgres `group` schema.
 
 **Depends on:**
-- **users** — member identity, inviter/invitee (via `IMonolithAccessClient`)
+- **users** — member identity, inviter/invitee (via `IUserClient`)
 - **social** — block checks (via `ISocialClient`)
 - **community** — delete-all posts on group delete (`ICommunityClient`)
 - **location** — end sessions on group delete (`ILocationClient`)
@@ -68,11 +69,11 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Owns:** `Friendship`, `FriendRequest`, and `UserBlock` in Postgres `social` schema (tight block ↔ pending-request coupling via `IgnoredByBlock`).
 
-**Depends on:** **users** — party existence, nicknames, friends-list visibility (via `IMonolithAccessClient`).
+**Depends on:** **users** — party existence, nicknames, friends-list visibility (via `IUserClient`).
 
 **Public routes:** `/api/friendships/*`, `/api/users/blocks`. **Internal:** `/internal/social/*` (friendship/block checks, user detach).
 
-**Read by:** Chat (DM friendship + blocks), Group (is-blocked-by), Community and Location (mutual blocks), Api (user delete detach).
+**Read by:** Chat (DM friendship + blocks), Group (is-blocked-by), Community and Location (mutual blocks), Users-service (user delete detach).
 
 ### chat-service
 
@@ -81,7 +82,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 **Owns:** chat rooms, messages, participants, SignalR hub in Postgres `chat` schema.
 
 **Depends on:**
-- **users** — participants, sender identity (via `IMonolithAccessClient`)
+- **users** — participants, sender identity (via `IUserClient`)
 - **group** — `PlatformGroup` room type ties to a group ID (via `IGroupClient`)
 - **media** — chat message attachments (via `IMediaClient`)
 
@@ -89,7 +90,7 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Realtime:** SignalR `/hubs/chat` — Redis backplane for multi-replica scale-out.
 
-**Monolith boundary:** user deletion calls `IChatClient.DetachOnDeletionAsync`; media links via `IChatAccessClient`.
+**User delete:** Users-service calls `IChatClient.DetachOnDeletionAsync`; media links via `IChatAccessClient`.
 
 Hub contract: [CHAT.md](../services/Chat/CHAT.md).
 
@@ -101,20 +102,20 @@ Hub contract: [CHAT.md](../services/Chat/CHAT.md).
 
 **References (by ID only):** `UploaderId`, `PostId`, `CommentId`, `ChatMessageId` — no cross-schema FKs.
 
-**Inbound:** browser/app via Nginx `/api/media/*`; monolith via `IMediaClient` (`/internal/media/*`); worker callback `PATCH /internal/media/{id}/processed`.
+**Inbound:** browser/app via nginx → gateway → `/api/media/*`; domain services via `IMediaClient` (`/internal/media/*`); worker callback `PATCH /internal/media/{id}/processed`.
 
-**Outbound:** `IMonolithAccessClient` → Api `/internal/access/*` for user existence and content visibility checks.
+**Outbound:** `IUserClient` → users-service `/internal/users/*` for user existence and content visibility checks.
 
 **Async flow:**
 
 ```text
-Client → nginx → media-service (presigned URL) → object storage
+Client → nginx → gateway → media-service (presigned URL) → object storage
               → Stream: media.uploaded → rust-worker-media (transcode)
               → PATCH media-service /internal/media/{id}/processed
-              → monolith stores mediaAssetId on post/comment/chat (HttpMediaClient link)
+              → community/chat attach mediaAssetId via IMediaClient link
 ```
 
-**Interim auth:** media-service validates JWT (same secret as monolith) until a gateway owns auth (MSA step 7).
+**Auth:** Gateway validates JWT at the edge; media-service trusts `X-Gateway-Secret` + `X-User-Id` from the gateway.
 
 **Worker:** `worker-media` binary; `API_BASE_URL=http://media:8080` in Compose.
 
@@ -131,11 +132,11 @@ Client → nginx → media-service (presigned URL) → object storage
 - Google Places proxy (`/api/location/places/*`)
 
 **Depends on:**
-- **users** (via `IMonolithAccessClient`) — existence, nicknames, blocks
+- **users** (via `IUserClient`) — existence, nicknames, blocks
 - **group** (via `IGroupClient`) — membership for live sharing and alerts
 - **community** (via `ICommunityAccessClient`) — post ownership and viewability for post-linked pins
 
-**Monolith integration:** `ILocationClient` — post upsert/clear, user detach on deletion, group session end on group delete.
+**users-service integration:** `ILocationClient` — post upsert/clear, user detach on deletion, group session end on group delete.
 
 **Realtime:** SignalR `/hubs/location` — `LocationUpdated`, `SafetyAlertRaised`; group-scoped live sharing.
 
@@ -149,7 +150,7 @@ Client → nginx → media-service (presigned URL) → object storage
 
 ## Internal service authentication
 
-Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Api, Chat, Location), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Monolith:InternalSecret`, `ChatClient:InternalSecret`, `LocationClient:InternalSecret`).
+Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Chat, Location, Users), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Users:InternalSecret`, `ChatClient:InternalSecret`, `LocationClient:InternalSecret`).
 
 Worker callbacks use separate secrets: `X-Worker-Callback-Secret` on media and location processed routes — see [MEDIA.md](../services/Media/MEDIA.md).
 
@@ -192,7 +193,7 @@ flowchart TB
 
 ## MSA-prep rules
 
-Apply these for remaining extractions (users, …). Media, chat, location, community, group, and social already follow these patterns.
+Apply these patterns for any future extractions. Media, chat, location, community, group, social, users, and gateway already follow them.
 
 1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 
@@ -202,7 +203,7 @@ Apply these for remaining extractions (users, …). Media, chat, location, commu
 
 4. **No shared mutable tables for async work** — workers read jobs from Streams and write results back through the owning service's API or a well-defined storage contract, not ad-hoc shared tables.
 
-5. **Explicit contracts before extraction** — Group ↔ Community and Group ↔ Chat interim contracts live in [GROUP.md](../services/Group/GROUP.md) (gateway compose deferred to step 7).
+5. **Explicit contracts before extraction** — Group ↔ Community and Group ↔ Chat interim contracts live in [GROUP.md](../services/Group/GROUP.md); gateway YARP routes board posts and group chat rooms to the correct service.
 
 6. **Gateway owns auth context** — JWT validation at the edge; services receive user identity claims, not raw credentials.
 

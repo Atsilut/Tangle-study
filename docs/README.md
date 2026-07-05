@@ -14,9 +14,9 @@ Central index for architecture and migration docs. Deep-dive guides for specific
 
 | Doc | Purpose | Status |
 |-----|---------|--------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Current modular monolith vs target MSA | Implemented (describes as-built + target) |
-| [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md) | `Domain/` folder → future microservice mapping | Implemented |
-| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Branch workflow, extraction order, media + chat + location status | In progress (media + chat + location done on `develop`) |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Gateway-centric as-built + remaining Azure gaps | Implemented (local Compose complete) |
+| [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md) | Domain → microservice mapping | Implemented |
+| [MSA_MIGRATION.md](MSA_MIGRATION.md) | Branch workflow, extraction order, steps 1–7 status | In progress (Compose done; Azure cutover pending) |
 
 ## Development phases
 
@@ -30,18 +30,21 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | 6 | Web client (React) — backend parity through media | [clients/web](../clients/web/README.md) — **Done** |
 | 7 | Location / Memory Map (extracted to location-service) | [LOCATION.md](../services/Location/LOCATION.md) — **Done** |
 | 8 | MSA prep (contracts, QUEUE rows) | [GROUP.md](../services/Group/GROUP.md), [EVENTS.md](../services/Api/Global/Events/EVENTS.md), [SERVICE_BOUNDARIES.md#msa-prep-rules](SERVICE_BOUNDARIES.md#msa-prep-rules) — **Done** |
-| 9 | MSA migration — media + chat + location + community + group extracted in Compose; Azure + remaining services pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
+| 9 | MSA migration — all domains + gateway/users in Compose; Azure cutover pending | [MSA_MIGRATION.md](MSA_MIGRATION.md) — **In progress** |
 
 ## Subsystem deep-dives
 
 | Doc | Location | Topic |
 |-----|----------|-------|
+| Gateway | [services/Gateway/GATEWAY.md](../services/Gateway/GATEWAY.md) | YARP routing and JWT validation |
+| Users | [services/Users/USERS.md](../services/Users/USERS.md) | Identity, login, JWT issuance |
 | Api service layer | [services/Api/AGENTS.md](../services/Api/AGENTS.md) | Repository boundaries, DTO naming, HTTP semantics |
 | Redis | [services/Api/Global/REDIS.md](../services/Api/Global/REDIS.md) | Cache, SignalR backplane, pub/sub, Streams producer |
 | Work queue | [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) | Redis Streams contracts, API → worker flow |
 | Domain events | [services/Api/Global/Events/EVENTS.md](../services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
 | Group | [services/Group/GROUP.md](../services/Group/GROUP.md) | Groups, boards, membership, internal access contracts |
 | Community | [services/Community/COMMUNITY.md](../services/Community/COMMUNITY.md) | Posts, comments, group-board posts |
+| Social | [services/Social/SOCIAL.md](../services/Social/SOCIAL.md) | Friendships and user blocks |
 | Chat | [services/Chat/CHAT.md](../services/Chat/CHAT.md) | REST routes, SignalR hub contract |
 | Media | [services/Media/MEDIA.md](../services/Media/MEDIA.md) | Upload flow, limits, worker callback |
 | Location | [services/Location/LOCATION.md](../services/Location/LOCATION.md) | Memory Map, live sharing, safety alerts, clustering |

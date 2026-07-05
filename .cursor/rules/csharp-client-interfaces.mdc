@@ -51,13 +51,13 @@ So: **explicit `public` on the interface** is for readability and consistency; *
 
 | Piece | Visibility | Example |
 |-------|------------|---------|
-| Port (injected by domain services) | `public interface` | `IMediaClient`, `IMonolithAccessClient` |
-| HTTP adapter | `internal sealed class` | `HttpMediaClient`, `HttpMonolithAccessClient` |
-| Test fakes | `public` in `*.Tests` (friend assembly) | `FakeMediaClient`, `AllowAllMonolithAccessClient` |
+| Port (injected by domain services) | `public interface` | `IMediaClient`, `IUserClient` |
+| HTTP adapter | `internal sealed class` | `HttpMediaClient`, `HttpUserClient` |
+| Test fakes | `public` in `*.Tests` (friend assembly) | `FakeMediaClient`, `InMemoryUserClient` |
 
 Ports stay `public` because public domain services (`PostService`, `MediaService`, …) take them in public constructors (C# CS0051).
 
-The real module boundary is **HTTP** (`/internal/media/*`, `/internal/access/*`), not the C# port type.
+The real module boundary is **HTTP** (`/internal/media/*`, `/internal/users/*`), not the C# port type.
 
 ## When editing
 
