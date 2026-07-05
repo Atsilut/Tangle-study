@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Social.Friendships.Dto;
-using Social.Friendships.Service;
+using Social.Dto;
+using Social.Service;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Social.Friendships.Api;
+namespace Social.Api;
 
 [ApiController]
 [Route("api/friendships/requests")]

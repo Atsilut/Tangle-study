@@ -1,5 +1,5 @@
-using Social.Friendships.Domain;
-using Social.Friendships.Repository;
+using Social.Entities;
+using Social.Repository;
 
 namespace Social.Tests.Repositories;
 

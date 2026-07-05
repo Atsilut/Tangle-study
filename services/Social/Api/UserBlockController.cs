@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Social.UserBlocks.Dto;
-using Social.UserBlocks.Service;
+using Social.Dto;
+using Social.Service;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Social.UserBlocks.Api;
+namespace Social.Api;
 
 [ApiController]
 [Route("api/users/blocks")]

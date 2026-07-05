@@ -23,7 +23,7 @@ namespace Social.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Social.Friendships.Domain.FriendRequest", b =>
+            modelBuilder.Entity("Social.Entities.FriendRequest", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -61,7 +61,7 @@ namespace Social.Migrations
                     b.ToTable("FriendRequests", "social");
                 });
 
-            modelBuilder.Entity("Social.Friendships.Domain.Friendship", b =>
+            modelBuilder.Entity("Social.Entities.Friendship", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -96,7 +96,7 @@ namespace Social.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Social.UserBlocks.Domain.UserBlock", b =>
+            modelBuilder.Entity("Social.Entities.UserBlock", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()

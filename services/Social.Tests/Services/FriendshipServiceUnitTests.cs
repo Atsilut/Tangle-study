@@ -1,4 +1,4 @@
-using Social.Friendships.Dto;
+using Social.Dto;
 using Social.Tests.Infrastructure;
 
 namespace Social.Tests.Services;

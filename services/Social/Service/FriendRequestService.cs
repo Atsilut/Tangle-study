@@ -3,13 +3,13 @@ using Npgsql;
 using Social.Client;
 using Social.Db;
 using Social.Exceptions;
-using Social.Friendships.Domain;
-using Social.Friendships.Dto;
-using Social.Friendships.Repository;
+using Social.Entities;
+using Social.Dto;
+using Social.Repository;
 using Social.Infrastructure;
-using Social.UserBlocks.Service;
+using Social.Service;
 
-namespace Social.Friendships.Service;
+namespace Social.Service;
 
 [Service]
 public partial class FriendRequestService(

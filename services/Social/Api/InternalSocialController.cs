@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Social.Db;
-using Social.Friendships.Service;
 using Social.Security;
-using Social.UserBlocks.Service;
+using Social.Service;
 
 namespace Social.Api;
 

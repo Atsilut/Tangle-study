@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Social.Friendships.Domain;
+namespace Social.Entities;
 
 public class FriendRequest
 {

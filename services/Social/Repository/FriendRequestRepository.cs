@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Social.Db;
-using Social.Friendships.Domain;
+using Social.Entities;
 using Social.Infrastructure;
 
-namespace Social.Friendships.Repository;
+namespace Social.Repository;
 
 [Repository]
 public class FriendRequestRepository(SocialDbContext context) : IFriendRequestRepository

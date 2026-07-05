@@ -1,4 +1,4 @@
-namespace Social.Friendships.Dto;
+namespace Social.Dto;
 
 public record FriendshipGetResponseDto(
     long Id,

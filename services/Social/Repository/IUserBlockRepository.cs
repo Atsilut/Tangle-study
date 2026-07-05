@@ -1,6 +1,6 @@
-using Social.UserBlocks.Domain;
+using Social.Entities;
 
-namespace Social.UserBlocks.Repository;
+namespace Social.Repository;
 
 public interface IUserBlockRepository
 {

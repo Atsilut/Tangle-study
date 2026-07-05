@@ -1,5 +1,5 @@
 using Social.Tests.Infrastructure;
-using Social.UserBlocks.Dto;
+using Social.Dto;
 
 namespace Social.Tests.Services;
 

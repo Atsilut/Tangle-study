@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
 using Social.Client;
-using Social.Friendships.Dto;
+using Social.Dto;
 using Social.Tests.Infrastructure;
 
 namespace Social.Tests.Controllers;

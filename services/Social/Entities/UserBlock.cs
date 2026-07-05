@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Social.UserBlocks.Domain;
+namespace Social.Entities;
 
 public class UserBlock
 {

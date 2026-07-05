@@ -1,6 +1,6 @@
 # Social service (friendships + user-blocks)
 
-Owns `Friendship`, `FriendRequest`, and `UserBlock` in Postgres schema `social`.
+Owns `Friendship`, `FriendRequest`, and `UserBlock` in Postgres schema `social`. Layout follows the horizontal extracted-service template (`Api/`, `Service/`, `Repository/`, `Entities/`, `Dto/` — see [`docs/SERVICE_BOUNDARIES.md`](../../docs/SERVICE_BOUNDARIES.md)).
 
 Block and friend-request flows are coupled (`IgnoredByBlock`, block deletes outgoing pending requests). Group **blacklist** stays in Group.
 

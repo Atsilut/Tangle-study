@@ -1,6 +1,6 @@
-using Social.Friendships.Domain;
+using Social.Entities;
 
-namespace Social.Friendships.Repository;
+namespace Social.Repository;
 
 public interface IFriendRequestRepository
 {

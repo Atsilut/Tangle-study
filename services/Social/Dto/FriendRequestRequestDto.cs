@@ -2,7 +2,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace Social.Friendships.Dto;
+namespace Social.Dto;
 
 public record FriendRequestCreateRequestDto
 {

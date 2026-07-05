@@ -1,12 +1,12 @@
 using Social.Client;
 using Social.Exceptions;
-using Social.Friendships.Service;
+using Social.Service;
 using Social.Infrastructure;
-using Social.UserBlocks.Domain;
-using Social.UserBlocks.Dto;
-using Social.UserBlocks.Repository;
+using Social.Entities;
+using Social.Dto;
+using Social.Repository;
 
-namespace Social.UserBlocks.Service;
+namespace Social.Service;
 
 [Service]
 public class UserBlockService(

@@ -1,5 +1,5 @@
-using Social.UserBlocks.Domain;
-using Social.UserBlocks.Repository;
+using Social.Entities;
+using Social.Repository;
 
 namespace Social.Tests.Repositories;
 

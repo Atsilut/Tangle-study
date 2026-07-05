@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Social.Friendships.Domain;
-using Social.UserBlocks.Domain;
+using Social.Entities;
 
 namespace Social.Db;
 

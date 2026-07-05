@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Social.UserBlocks.Dto;
+namespace Social.Dto;
 
 public record UserBlockCreateRequestDto
 {

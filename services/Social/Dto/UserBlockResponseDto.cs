@@ -1,4 +1,4 @@
-namespace Social.UserBlocks.Dto;
+namespace Social.Dto;
 
 public record UserBlockGetResponseDto(
     long Id,

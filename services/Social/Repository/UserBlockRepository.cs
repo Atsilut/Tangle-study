@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Social.Db;
 using Social.Infrastructure;
-using Social.UserBlocks.Domain;
+using Social.Entities;
 
-namespace Social.UserBlocks.Repository;
+namespace Social.Repository;
 
 [Repository]
 public class UserBlockRepository(SocialDbContext context) : IUserBlockRepository

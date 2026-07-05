@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Social.Friendships.Dto;
+using Social.Dto;
 using Social.Tests.Infrastructure;
-using Social.UserBlocks.Dto;
+using Social.Dto;
 
 namespace Social.Tests.Controllers;
 
