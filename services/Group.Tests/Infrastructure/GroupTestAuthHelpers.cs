@@ -16,13 +16,20 @@ internal static class GroupTestAuthHelpers
 
     public static void LoginAsInternal(HttpClient client, long? userId = null)
     {
+        client.DefaultRequestHeaders.Remove("Authorization");
         client.DefaultRequestHeaders.Remove("X-Gateway-Secret");
         client.DefaultRequestHeaders.Remove("X-User-Id");
-        client.DefaultRequestHeaders.Remove("Authorization");
+        client.DefaultRequestHeaders.Remove("X-Internal-Secret");
+
+        if (userId is not null)
+        {
+            client.DefaultRequestHeaders.Add("X-Gateway-Secret", TestGatewaySecret);
+            client.DefaultRequestHeaders.Add("X-User-Id", userId.Value.ToString());
+        }
+
         client.DefaultRequestHeaders.Add(
             "X-Internal-Secret",
             GroupWebApplicationFactory.TestInternalServiceSecret);
-        if (userId is not null) LoginAs(client, userId.Value);
     }
 
     public static void ClearAuth(HttpClient client)
