@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+# Runtime image — requires scripts/ci/dotnet-publish.sh (output: .ci-cache/publish/gateway)
+
+ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:latest
+
+FROM ${DOTNET_ASPNET_IMAGE}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+EXPOSE 8080
+
+COPY .ci-cache/publish/gateway/ .
+ENTRYPOINT ["dotnet", "Gateway.dll"]
