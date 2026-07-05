@@ -76,7 +76,7 @@ build_stack_tests() {
   docker compose "${COMPOSE_ARGS[@]}" run --rm --no-deps \
     -v "$nuget_mount" \
     --entrypoint bash \
-    harness -c "dotnet build services/Stack.Tests/Stack.Tests.csproj -c Release --no-incremental"
+    harness -c "dotnet build services/Stack.Tests/Stack.Tests.csproj -c Release"
   ci_fix_cache_ownership
 }
 
