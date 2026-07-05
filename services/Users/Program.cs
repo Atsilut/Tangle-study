@@ -8,6 +8,7 @@ using Users.Infrastructure;
 using Users.Security;
 using Users.Telemetry;
 using Prometheus;
+using StackExchange.Redis;
 
 if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 {
@@ -80,7 +81,7 @@ var healthChecksBuilder = builder.Services.AddHealthChecks()
 var redisOptions = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
 RedisStartupValidator.Validate(redisOptions);
 healthChecksBuilder.AddRedis(
-    redisOptions.ConnectionString,
+    sp => sp.GetRequiredService<IConnectionMultiplexer>(),
     name: "redis",
     timeout: TimeSpan.FromSeconds(5));
 
