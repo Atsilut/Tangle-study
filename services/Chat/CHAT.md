@@ -110,4 +110,4 @@ Planned: return the latest messages from `JoinRoom` to reduce round-trips (not i
 | `Redis:Enabled=false` | In-process SignalR groups; fine for single API instance and tests |
 | `Redis:Enabled=true` | SignalR Redis backplane syncs groups across API replicas |
 
-See [Api REDIS.md](../Api/Global/REDIS.md) for cache, pub/sub, and Streams. **Postgres remains message history; Redis does not store chat transcripts for clients.**
+See [REDIS.md](../../docs/REDIS.md) for cache, pub/sub, and Streams. **Postgres remains message history; Redis does not store chat transcripts for clients.**

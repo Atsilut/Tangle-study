@@ -55,8 +55,8 @@ jobs:
               - 'services/Gateway/**'
               - 'services/Users/**'
               - 'services/Users.Tests/**'
-              - 'services/Api/**'
-              - 'services/Api.Tests/**'
+              - 'services/Stack.Tests/**'
+              - 'services/Stack.Tests/**'
             dotnet-media:
               - 'services/Media/**'
               - 'services/Media.Tests/**'
@@ -94,9 +94,8 @@ jobs:
             harness:
               - 'services/Gateway/**'
               - 'services/Users/**'
-              - 'services/Api.Tests/Fixtures/Harness/**'
-              - 'services/Api.Tests/Harness/**'
-              - 'services/Api/**'
+              - 'services/Stack.Tests/Fixtures/Harness/**'
+              - 'services/Stack.Tests/**'
               - 'services/Media/**'
               - 'services/Chat/**'
               - 'services/Location/**'
@@ -165,10 +164,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -193,7 +190,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -261,10 +258,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -289,7 +284,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -357,10 +352,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -385,7 +378,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -454,10 +447,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -482,7 +473,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -551,10 +542,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -579,7 +568,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -648,10 +637,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -676,7 +663,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -745,10 +732,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -773,7 +758,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -841,10 +826,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -869,7 +852,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -1057,10 +1040,8 @@ jobs:
             services/Users/obj
             services/Users.Tests/bin
             services/Users.Tests/obj
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -1085,7 +1066,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -1171,9 +1152,9 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api.Tests/bin
-            services/Api.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-

@@ -1,12 +1,12 @@
 ---
 description: HTTP status mapping for Api services (exceptions and tests)
-globs: services/Api/**/*.cs,services/Api.Tests/**/*.cs
+globs: services/**/*.cs
 alwaysApply: false
 ---
 
 # API exception → HTTP status
 
-Mapped by `GlobalExceptionHandler` in `services/Api/Global/Exceptions/GlobalExceptionHandler.cs`.
+Mapped by each service's `GlobalExceptionHandler` (e.g. `services/Users/Exceptions/GlobalExceptionHandler.cs`).
 
 | Case | Throw / source | HTTP |
 |------|----------------|------|

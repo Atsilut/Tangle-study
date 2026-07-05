@@ -27,8 +27,8 @@ if [[ " $* " == *" --no-build "* ]]; then
     *Users.Tests*)
       require_test_build_output "Users.Tests" "Users.Tests.dll"
       ;;
-    *Api.Tests*)
-      require_test_build_output "Api.Tests" "Api.Tests.dll"
+    *Stack.Tests*)
+      require_test_build_output "Stack.Tests" "Stack.Tests.dll"
       ;;
     *Media.Tests*)
       require_test_build_output "Media.Tests" "Media.Tests.dll"

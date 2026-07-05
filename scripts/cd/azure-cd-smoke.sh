@@ -23,7 +23,7 @@ log_info "web_fqdn=$WEB_FQDN"
 ############################################
 log_step "WAIT FOR READINESS"
 
-for app in tangle-study-api tangle-study-web; do
+for app in tangle-study-web; do
   az containerapp revision list --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" \
     --query "[?properties.provisioningState=='Provisioned' && properties.runningState=='Running']" \
     --output none || fail "$app not ready"

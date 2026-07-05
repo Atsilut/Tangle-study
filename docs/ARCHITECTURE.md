@@ -1,8 +1,8 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Local Compose runs **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure production still runs the legacy monolith until Bicep/CD cutover.
+Tangle is a learning project that simulates a distributed system. Local Compose runs **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure production CD still targets the removed monolith image until Bicep/parameters cutover — see [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
-Service-layer conventions (originally from the monolith, still followed in extracted services): [services/Api/AGENTS.md](../services/Api/AGENTS.md).
+Service-layer conventions: [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -90,7 +90,7 @@ The web client talks to the API same-origin through Nginx (the API has no CORS):
 
 Each domain service owns one repository; cross-aggregate access goes through peer HTTP clients (`IUserClient`, `IMediaClient`, etc.), not foreign repositories. Orchestrators coordinate multi-step workflows without repositories.
 
-Extracted services live under `services/{Users,Media,Chat,...}/`. The legacy monolith layout (`services/Api/Domain/`) remains for harness E2E and historical migrations only — see [AGENTS.md](../services/Api/AGENTS.md) for the original conventions.
+Extracted services live under `services/{Users,Media,Chat,...}/`. Cross-stack E2E lives in `services/Stack.Tests/` — see [QUEUE.md](QUEUE.md).
 
 ### Async boundary
 
@@ -104,11 +104,11 @@ chat-service (ChatMessageService) → Redis Stream chat.message.created → rust
 location-service (MapPinService) → Redis Stream location.cluster → rust-worker-location → GET/PUT location-service /internal/location/cluster-*
 ```
 
-See [QUEUE.md](../services/Api/Global/Queue/QUEUE.md), [services/Media/MEDIA.md](../services/Media/MEDIA.md), [services/Chat/CHAT.md](../services/Chat/CHAT.md), and [workers/README.md](../workers/README.md).
+See [QUEUE.md](QUEUE.md), [services/Media/MEDIA.md](../services/Media/MEDIA.md), [services/Chat/CHAT.md](../services/Chat/CHAT.md), and [workers/README.md](../workers/README.md).
 
 ### Realtime
 
-Chat uses SignalR (`/hubs/chat`) in the chat-service. Location uses SignalR (`/hubs/location`) in the location-service. With Redis enabled, the SignalR backplane allows multiple replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](../services/Api/Global/REDIS.md), [CHAT.md](../services/Chat/CHAT.md), and [LOCATION.md](../services/Location/LOCATION.md).
+Chat uses SignalR (`/hubs/chat`) in the chat-service. Location uses SignalR (`/hubs/location`) in the location-service. With Redis enabled, the SignalR backplane allows multiple replicas. Client delivery is **not** pub/sub or Streams — see [REDIS.md](REDIS.md), [CHAT.md](../services/Chat/CHAT.md), and [LOCATION.md](../services/Location/LOCATION.md).
 
 ### Observability
 
@@ -149,7 +149,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 | `redis` | Cache, backplane, pub/sub, Streams |
 | `nginx` | Edge proxy + SPA; all API/hub traffic → gateway |
 | `azurite` | Default — local Azure Blob storage (media uploads) |
-| `api` | Optional (`legacy-monolith` profile) — legacy monolith escape hatch |
+| `Stack.Tests` | Cross-stack harness E2E (`Category=Harness`) |
 | `rust-worker-media` | Optional (`--profile workers`, `harness`) — `media.uploaded` |
 | `rust-worker-chat` | Optional (`--profile workers`, `harness`) — `chat.message.created` |
 | `rust-worker-location` | Optional (`--profile workers`) — `location.cluster` |
@@ -218,7 +218,7 @@ The worker stays a **separate process**, not a microservice per handler. Handler
 
 | Pattern | Use when | Today | Target |
 |---------|----------|-------|--------|
-| In-process service call | Same deployable, strong consistency | Legacy monolith only | Replaced by HTTP/gRPC client |
+| In-process service call | Same deployable, strong consistency | Removed with monolith | Replaced by HTTP clients |
 | Sync HTTP / gRPC | Cross-service reads, auth checks, enrichment | Services → users (`IUserClient`) | Primary sync boundary |
 | Redis pub/sub | Fire-and-forget domain events | `IEventPublisher` | Cross-service notifications |
 | Redis Streams | Durable async work | `IWorkQueue` → rust-worker | Same; may add Kafka later |
@@ -240,7 +240,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
   /Community    ← extracted service (Compose)
   /Group        ← extracted service (Compose)
   /Social       ← extracted service (Compose)
-  /Api          ← legacy monolith (harness E2E, migrations; legacy-monolith profile)
+  /Stack.Tests  ← cross-stack harness E2E
 /clients/web    ← React client (Phase 6–7: includes Memory Map at /map); MAUI optional later
 /workers
   /crates/worker-core, worker-media, worker-chat, worker-location
@@ -251,13 +251,13 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 /docs           ← architecture and migration docs (this folder)
 ```
 
-Solution file (`Tangle.slnx`) includes `Gateway`, `Users`, `Users.Tests`, and all extracted services with their test projects. Workers and infra are folders outside the .NET solution.
+Solution file (`Tangle.slnx`) includes `Gateway`, `Users`, extracted services, their test projects, and `Stack.Tests`. Workers and infra are folders outside the .NET solution.
 
 ---
 
 ## What is not MSA today
 
-- **Azure (`main`)** — still monolith-only until Bicep/CD cutover (gateway, users, and domain Container Apps not deployed yet).
+- **Azure (`main`)** — CD still references removed `tangle-study-api`; gateway/users + domain Container Apps cutover pending ([MSA_MIGRATION.md](MSA_MIGRATION.md)).
 - **Database-per-service** — local Compose uses one Postgres instance with schema-per-service; physical DB split is deferred.
 - No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.

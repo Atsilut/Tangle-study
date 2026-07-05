@@ -1,8 +1,10 @@
 # Deployment
 
-Azure Container Apps deployment for the Tangle monolith. Secrets are injected from **GitHub Environment secrets** at deploy time via `[.github/workflows/cd-v1.yml](../.github/workflows/cd-v1.yml)`.
+Azure Container Apps deployment. Secrets are injected from **GitHub Environment secrets** at deploy time via [`cd-v1.yml`](../.github/workflows/cd-v1.yml).
 
-**Local development** uses Docker Compose with the **gateway-centric stack** (gateway, users, and all domain services). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md#step-7--users-service--gateway-develop-compose-done-azure-open). **Azure production** still deploys only the monolith for `/api/*` until gateway/users + domain Container Apps and `nginx.production.conf` cutover land.
+**Local development** uses Docker Compose with the **gateway-centric stack** (gateway, users, and all domain services). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md).
+
+> **Note:** `services/Api/` (legacy monolith) was removed from the repo. Azure Bicep, parameters, migrate job, and several CD scripts still reference `tangle-study-api` until gateway/users + domain Container Apps cutover. CD image build no longer produces `tangle-study-api`.
 
 ---
 
@@ -24,8 +26,6 @@ Gateway YARP routes by path prefix to users, media, chat, location, community, g
 
 **Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Users/Media/Chat/Location/Community/Group/Social unit and integration suites.
 
-**Legacy monolith:** opt-in via `docker compose --profile legacy-monolith up api` (port `:5000`).
-
 ---
 
 ## Environments
@@ -38,7 +38,7 @@ Gateway YARP routes by path prefix to users, media, chat, location, community, g
 
 `develop` runs CI only — no automatic deploy. Local experiments may use `tangle-study-dev` via `./scripts/azure-deploy-infra.sh dev`.
 
-Set `ASPNETCORE_ENVIRONMENT=Production` on the API Container App so `[appsettings.Production.json](../services/Api/appsettings.Production.json)` loads.
+Set `ASPNETCORE_ENVIRONMENT=Production` on each domain Container App so its `appsettings.Production.json` loads (e.g. [`services/Users/appsettings.Production.json`](../services/Users/appsettings.Production.json)).
 
 ---
 
@@ -180,9 +180,9 @@ Optional: add **required reviewers** on the `prod` environment in GitHub for app
 
 ASP.NET Core binds nested config with double underscores, e.g. `Redis__ConnectionString` → `Redis:ConnectionString`.
 
-**Important:** Environment variables are re-applied after YAML in `[Program.cs](../services/Api/Program.cs)` (and `[services/Media/Program.cs](../services/Media/Program.cs)`) so GitHub-injected secrets override `security.yml` placeholders.
+**Important:** Environment variables are re-applied after YAML in each service's `Program.cs` (e.g. [`services/Media/Program.cs`](../services/Media/Program.cs)) so GitHub-injected secrets override `security.yml` placeholders.
 
-Each extracted service ships its own `[security.yml](../services/Media/security.yml)` with the same `Jwt` shape; production CD must inject `Jwt__Secret` on every deployable that validates bearer tokens (same value as the monolith).
+Each service ships its own `security.yml` with the same `Jwt` shape; production CD must inject `Jwt__Secret` on gateway/users and every service that validates bearer tokens.
 
 ---
 
@@ -192,7 +192,9 @@ Each extracted service ships its own `[security.yml](../services/Media/security.
 
 Store these on GitHub Environment `production`. The deploy workflow maps each secret to a Container App secret ref, then to the env vars below.
 
-### API (`services/Api`)
+### Legacy monolith API (removed)
+
+The `services/Api/` project and `tangle-study-api` image were removed from the repo. Azure Bicep/parameters below still describe the old monolith deploy — update during gateway/users ACA cutover. Until then, treat this section as historical.
 
 
 | GitHub secret                              | Container App env var                                                         | Required | Notes                                                                                                                 |
@@ -299,15 +301,11 @@ Per-worker settings in `[parameters.prod.json](../infra/azure/parameters.prod.js
 
 ## Database migrations
 
-Production and staging **do not** apply migrations on API startup. Migrations run as a separate Container Apps Job (`tangle-study-migrate`) that executes `dotnet Api.dll --migrate` from the API image.
+Production and staging **do not** apply migrations on service startup. Migrations run via `./scripts/migrate.sh` (local) or the Azure migrate job (stale — still references removed `tangle-study-api` image until cutover).
 
-### Command
+### Command (local)
 
-```bash
-dotnet Api.dll --migrate
-```
-
-Implemented in `[DatabaseMigrationRunner.cs](../services/Api/Global/Db/DatabaseMigrationRunner.cs)`. Requires `ConnectionStrings__DefaultConnection` (or `appsettings.Production.json` + env override).
+Each domain service supports `dotnet {Service}.dll --migrate` (see each service's `Db/DatabaseMigrationRunner.cs`).
 
 ### Local (Compose Postgres)
 
@@ -315,7 +313,7 @@ Implemented in `[DatabaseMigrationRunner.cs](../services/Api/Global/Db/DatabaseM
 ./scripts/migrate.sh
 ```
 
-Uses the `api` image against the compose `db` service (`ASPNETCORE_ENVIRONMENT=Docker`).
+Runs migrations for Users, Media, Chat, Location, Community, Group, and Social against the compose `db` service.
 
 ### Staging / production (manual)
 
@@ -351,7 +349,7 @@ Development/Docker still auto-migrate on API startup for local convenience.
 
 ### Application Insights
 
-Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on `tangle-study-api`. The API enables [Azure Monitor OpenTelemetry](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable?tabs=aspnetcore) when that variable is present — see `[AzureMonitorTelemetryExtensions.cs](../services/Api/Global/Telemetry/AzureMonitorTelemetryExtensions.cs)`.
+Bicep provisions workspace-based **Application Insights** (free tier eligible) and sets `APPLICATIONINSIGHTS_CONNECTION_STRING` on deployables. Services enable Azure Monitor OpenTelemetry when that variable is present (see each service's telemetry extensions).
 
 Container Apps platform logs go to the same Log Analytics workspace.
 
@@ -726,7 +724,7 @@ Before first deploy:
 4. Enable Redis — required for SignalR backplane and work queues when the API scales beyond one replica.
 5. Run `./scripts/migrate.sh --production` (or the Container Apps migrate job) as part of each CD deploy — startup does not migrate in Production.
 
-JWT placeholder in `[security.yml](../services/Api/security.yml)` causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
+JWT placeholder in each service's `security.yml` causes startup failure outside Development/Docker unless `Jwt__Secret` is injected.
 
 ---
 

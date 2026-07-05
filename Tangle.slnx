@@ -18,4 +18,5 @@
   <Project Path="services/Community.Tests/Community.Tests.csproj" />
   <Project Path="services/Group.Tests/Group.Tests.csproj" />
   <Project Path="services/Social.Tests/Social.Tests.csproj" />
+  <Project Path="services/Stack.Tests/Stack.Tests.csproj" />
 </Solution>

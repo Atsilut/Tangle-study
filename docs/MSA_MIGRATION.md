@@ -40,7 +40,7 @@ Tier 3 (needs dotnet-build, rust, users-tests, media-tests, chat-tests, location
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
-  harness-media  → load stack tar, compose up --no-build, Api.Tests Category=Harness E2E
+  harness-media  → load stack tar, compose up --no-build, Stack.Tests Category=Harness E2E
 ```
 
 | Job | Produces | Harness reuses? |
@@ -65,7 +65,7 @@ Tier 4 (needs compose-build)
 
 **Runtime images:** CI/CD and harness use `docker-compose.runtime.yml` (slim Dockerfiles COPY prebuilt binaries). Local `docker compose up --build` still uses multi-stage Dockerfiles for ad-hoc dev.
 
-**CD** mirrors CI compile step: `azure-cd-build-push.sh` runs `dotnet-publish.sh` + `build-workers-release.sh`, then pushes runtime images (`tangle-study-api`, three worker tags, web, monitoring).
+**CD** mirrors CI compile step: `azure-cd-build-push.sh` runs `dotnet-publish.sh` + `build-workers-release.sh`, then pushes runtime images (web, workers, monitoring). **`tangle-study-api` removed from repo** — Azure Bicep/parameters still reference it until cutover.
 
 ### Adding the next service
 
@@ -111,7 +111,7 @@ Use this loop on **`develop`** for each extraction. Step 1 (media) followed it e
 | Project | Owns |
 |---------|------|
 | `{Service}.Tests` | Service routes, limits, worker callbacks, internal APIs |
-| `Api.Tests` | Stack harness E2E only (`Category=Harness`) |
+| `Stack.Tests` | Stack harness E2E only (`Category=Harness`) |
 
 ---
 
@@ -140,7 +140,7 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | `IMediaClient` / `IUserClient` | Done |
 | `rust-worker-media` → media callbacks | Done |
 | Monolith cleanup (`Domain/Media`, `public."MediaAssets"`) | Done |
-| `Media.Tests` + `Api.Tests` boundary/harness | Done |
+| `Media.Tests` + `Stack.Tests` harness | Done |
 | `Media:Enabled` toggle removed — blob storage required at startup | Done |
 
 ### Still open (before `main` cutover)
@@ -180,7 +180,7 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | `IChatClient` / `IChatAccessClient` / `IUserClient` | Done |
 | `rust-worker-chat` → chat callbacks | Done |
 | Monolith cleanup (`Domain/Chat`, public chat tables) | Done |
-| `Chat.Tests` + `Api.Tests` boundary tests | Done |
+| `Chat.Tests` + monolith boundary tests (historical) | Done |
 
 ### Still open (before `main` cutover)
 
@@ -236,7 +236,7 @@ Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `loc
 | `ILocationClient` / `IUserClient` | Done |
 | `rust-worker-location` → location callbacks (`API_BASE_URL=http://location:8080`) | Done |
 | Monolith cleanup (`Domain/Location`, public location tables) | Done |
-| `Location.Tests` + `Api.Tests` boundary tests (`FakeLocationClient`) | Done |
+| `Location.Tests` + monolith boundary tests (historical) | Done |
 
 ### Still open (before `main` cutover)
 
@@ -380,7 +380,8 @@ users ──I*Client──► community, media, chat, group, social, location (u
 | `IUserClient` replaces `IMonolithAccessClient` | Done |
 | Gateway identity auth in services | Done |
 | `Users.Tests` migration from Api.Tests | Done |
-| Monolith removed from default compose / solution | Done (`api` profile `legacy-monolith`) |
+| Monolith (`services/Api/`) removed from repo | Done |
+| Monolith removed from default compose / solution | Done |
 | Local Prometheus/Grafana scrape targets | Done (users, media, chat, location, community, group, social) |
 | Media harness through gateway | Done (`run-media-harness.sh` starts gateway + users) |
 

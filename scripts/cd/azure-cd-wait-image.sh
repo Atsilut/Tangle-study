@@ -12,7 +12,6 @@ require_env IMAGE_TAG
 log_step "GHCR CONSISTENCY GATE"
 
 IMAGES=(
-  tangle-study-api
   tangle-study-web
   tangle-study-worker-media
   tangle-study-worker-chat

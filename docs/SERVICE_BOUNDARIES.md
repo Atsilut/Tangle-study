@@ -1,6 +1,6 @@
 # Service boundaries
 
-Future microservice boundaries align with existing `services/Api/Domain/` folders (now extracted into `services/{Users,Media,...}/`). Each row below is one target deployable unless noted.
+Future microservice boundaries align with extracted `services/{Users,Media,...}/` projects. Each row below is one target deployable unless noted.
 
 Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
@@ -195,11 +195,11 @@ flowchart TB
 
 Apply these patterns for any future extractions. Media, chat, location, community, group, social, users, and gateway already follow them.
 
-1. **No cross-domain repository access** — already enforced in [AGENTS.md](../services/Api/AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
+1. **No cross-domain repository access** — enforced in [AGENTS.md](AGENTS.md). Keep it; never add `_db.OtherAggregate` queries.
 
 2. **Reference by ID** — store `userId`, `postId`, `groupId`, `mediaAssetId` across boundaries. No FK joins to another service's tables after split.
 
-3. **Versioned job and event payloads** — Streams in [QUEUE.md](../services/Api/Global/Queue/QUEUE.md); pub/sub in [EVENTS.md](../services/Api/Global/Events/EVENTS.md). Every payload includes `schemaVersion` (currently `1`).
+3. **Versioned job and event payloads** — Streams in [QUEUE.md](QUEUE.md); pub/sub in [EVENTS.md](EVENTS.md). Every payload includes `schemaVersion` (currently `1`).
 
 4. **No shared mutable tables for async work** — workers read jobs from Streams and write results back through the owning service's API or a well-defined storage contract, not ad-hoc shared tables.
 
@@ -211,17 +211,9 @@ Apply these patterns for any future extractions. Media, chat, location, communit
 
 ## Extracted service layout
 
-When code moves from `services/Api/Domain/{Name}/` into `services/{Service}/`, **do not** nest another `Domain/{Name}/` folder — the project *is* the bounded context.
+When extracting a domain into `services/{Service}/`, **do not** nest another `Domain/{Name}/` folder — the project *is* the bounded context.
 
-**Monolith (many domains):**
-
-```text
-services/Api/
-  Domain/Posts/Api/
-  Domain/Posts/Service/
-  Client/                 → IMediaClient (calls media-service)
-  Global/...
-```
+**Historical monolith layout (removed):** domains lived under `services/Api/Domain/{Name}/` with shared `Client/` and `Global/` infra.
 
 **Extracted microservice (flat folders, namespaced layers):**
 

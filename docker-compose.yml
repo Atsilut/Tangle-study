@@ -525,7 +525,7 @@ services:
     command:
       [
         "test",
-        "services/Api.Tests/Api.Tests.csproj",
+        "services/Stack.Tests/Stack.Tests.csproj",
         "-c",
         "Release",
         "--no-build",

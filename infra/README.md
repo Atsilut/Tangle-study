@@ -226,4 +226,4 @@ See [infra/azure/README.md](azure/README.md) and [docs/DEPLOYMENT.md](../docs/DE
 - [README.md](../README.md#development-phases) — phased roadmap
 - [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — system overview and observability
 - [workers/README.md](../workers/README.md) — worker metrics
-- [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md) — async job contracts
+- [docs/QUEUE.md](../docs/QUEUE.md) — async job contracts

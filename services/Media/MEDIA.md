@@ -2,7 +2,7 @@
 
 Direct-to-storage uploads (Azure Blob / Azurite locally), async processing via Redis Streams + [worker-media](../../../workers/README.md), and attachment by ID on posts, comments, and chat messages.
 
-Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
+Stream contract: [QUEUE.md](../../docs/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
 
 ---
 
@@ -45,7 +45,7 @@ CompleteUpload → XADD media.uploaded → rust-worker-media
 
 Worker config: `WORKER_STREAM_KEY=media.uploaded`, `API_BASE_URL` (media-service base, e.g. `http://media:8080` in Compose), `WORKER_CALLBACK_SECRET` (must match `Media:WorkerCallbackSecret` on media-service).
 
-Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../Api/Global/Queue/QUEUE.md).
+Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../../docs/QUEUE.md).
 
 ---
 

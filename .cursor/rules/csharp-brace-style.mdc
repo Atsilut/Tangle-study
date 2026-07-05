@@ -1,6 +1,6 @@
 ---
 description: C# control-flow layout — same-line vs next-line actions, no braces for single statements
-globs: services/Api/**/*.cs,services/Api.Tests/**/*.cs
+globs: services/**/*.cs
 alwaysApply: false
 ---
 
@@ -64,6 +64,6 @@ if (condition)
 
 - **New code**: follow the three line-placement rules; default to braceless single statements.
 - **Existing code**: match the surrounding method; do not mass-reformat unrelated style.
-- **Do not apply** in `services/Api/Migrations/` (generated EF code).
+- **Do not apply** in `**/Migrations/` (generated EF code).
 
 `RCS1001` is suppressed in `.editorconfig` for this style.

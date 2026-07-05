@@ -67,7 +67,7 @@ Monitoring:
 Services / Workers → Prometheus → Grafana
 ```
 
-Api service-layer conventions (one repository per service, peer services for other aggregates): see [services/Api/AGENTS.md](services/Api/AGENTS.md).
+Service-layer conventions (one repository per service, peer services for other aggregates): see [docs/AGENTS.md](docs/AGENTS.md).
 
 Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md), [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md).
 
@@ -163,7 +163,7 @@ services/
   Community/        ← Posts/comments microservice (+ Community.Tests)
   Group/            ← Groups microservice (+ Group.Tests)
   Social/           ← Friendships + user-blocks microservice (+ Social.Tests)
-  Api/              ← Legacy monolith (harness E2E; legacy-monolith profile)
+  Stack.Tests/      ← Cross-stack harness E2E (Category=Harness)
 clients/
   web/              ← React SPA (Phase 6)
 workers/
@@ -236,7 +236,7 @@ Central index: [docs/README.md](docs/README.md)
 | [services/Group/GROUP.md](services/Group/GROUP.md) | Group service routes and internal contracts |
 | [services/Social/SOCIAL.md](services/Social/SOCIAL.md) | Social service (friendships + user-blocks) routes and internal contracts |
 | [services/Community/COMMUNITY.md](services/Community/COMMUNITY.md) | Posts/comments service |
-| [services/Api/Global/Events/EVENTS.md](services/Api/Global/Events/EVENTS.md) | Redis pub/sub event contracts |
+| [docs/EVENTS.md](docs/EVENTS.md) | Redis pub/sub event contracts |
 
 ---
 
@@ -246,12 +246,12 @@ Central index: [docs/README.md](docs/README.md)
 |-------|-------|--------|
 | 1 | Core API (auth, community, friends) | Done |
 | 2 | Real-time chat (SignalR) — [CHAT.md](services/Chat/CHAT.md) | Done (extracted to chat-service) |
-| 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
+| 3 | Redis (cache + pub/sub + Streams producer) — [QUEUE.md](docs/QUEUE.md) | Done |
 | 4 | Rust workers + media on post/comment/chat — [workers README](workers/README.md) | Done |
 | 5 | Monitoring (Prometheus / Grafana) — thin stack in [infra/](infra/) | Done |
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map — [LOCATION.md](services/Location/LOCATION.md) | Done (extracted to location-service) |
-| 8 | MSA prep — cross-service contracts — [GROUP.md](services/Group/GROUP.md), [EVENTS.md](services/Api/Global/Events/EVENTS.md), [QUEUE.md](services/Api/Global/Queue/QUEUE.md) | Done |
+| 8 | MSA prep — cross-service contracts — [GROUP.md](services/Group/GROUP.md), [EVENTS.md](docs/EVENTS.md), [QUEUE.md](docs/QUEUE.md) | Done |
 | 9 | MSA migration — all domains + gateway/users cutover in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (Compose complete; Azure cutover pending) |
 
 Phase 9 steps 1–7 (media, chat, location, community, group, social, users + gateway) are **complete in local Compose**. Azure Container Apps + `nginx.production.conf` cutover is the remaining milestone. MAUI remains optional after the React path works.
@@ -312,7 +312,6 @@ Shell helpers under `scripts/` use Bash (`chmod +x` on Linux/macOS). On Windows,
 | `sdk` | `tools` | no | One-off .NET CLI (`run --rm`) |
 | `test` | `test` | no | One-off test run (`run --rm`) |
 | `harness` | `harness` | no | One-off harness tests (`run --rm`) |
-| `api` | `legacy-monolith` | no | Legacy monolith escape hatch |
 
 ### Default runtime (gateway + services + Postgres + Redis + Azurite + Web)
 
@@ -334,7 +333,7 @@ docker compose --env-file docker/versions.prod.env up --build
 
 Each service runs EF migrations on startup when `ASPNETCORE_ENVIRONMENT` is `Development` or `Docker`.
 
-Redis details: [services/Api/Global/REDIS.md](services/Api/Global/REDIS.md). Chat hub: [CHAT.md](services/Chat/CHAT.md). Location: [LOCATION.md](services/Location/LOCATION.md).
+Redis details: [REDIS.md](docs/REDIS.md). Chat hub: [CHAT.md](services/Chat/CHAT.md). Location: [LOCATION.md](services/Location/LOCATION.md).
 
 ### Manual testing (run the stack, use the UI)
 
@@ -439,15 +438,15 @@ Does not clear Redis or Azurite blob storage. Re-run sign-up in the web client a
 chmod +x scripts/docker-dotnet.sh
 
 ./scripts/docker-dotnet.sh build Tangle.slnx
-./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Api
-./scripts/docker-dotnet.sh ef database update --project services/Api
+./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Users
+./scripts/docker-dotnet.sh ef database update --project services/Users
 ```
 
 Equivalent without the script:
 
 ```bash
 docker compose --profile tools run --rm sdk build Tangle.slnx
-docker compose --profile tools run --rm sdk ef migrations add MyMigration --project services/Api
+docker compose --profile tools run --rm sdk ef migrations add MyMigration --project services/Users
 ```
 
 ### Tests (Docker Compose)
@@ -535,8 +534,8 @@ chmod +x scripts/ci/run-media-harness.sh
 #### Notes
 
 - The compose `db` service is **not** required for integration tests (Testcontainers provides Postgres).
-- Harness E2E (`Category=Harness` in `Api.Tests`) runs only through `run-media-harness.sh`; `Api.Tests` is built inside that script when needed.
-- Service integration tests disable Redis in-process by default; realtime tests use a Testcontainers Redis — see [REDIS.md](services/Api/Global/REDIS.md).
+- Harness E2E (`Category=Harness` in `Stack.Tests`) runs only through `run-media-harness.sh`; `Stack.Tests` is built inside that script when needed.
+- Service integration tests disable Redis in-process by default; realtime tests use a Testcontainers Redis — see [REDIS.md](docs/REDIS.md).
 
 ### Rust workers (optional, `workers` profile)
 

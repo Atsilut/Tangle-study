@@ -14,16 +14,16 @@ ENV PATH="${PATH}:/tmp/dotnet-cli/.dotnet/tools:/root/.dotnet/tools"
 WORKDIR /src
 
 COPY Tangle.slnx .
-COPY services/Api/Api.csproj services/Api/
-COPY services/Api.Tests/Api.Tests.csproj services/Api.Tests/
+COPY services/Users/Users.csproj services/Users/
 COPY services/Media/Media.csproj services/Media/
+COPY services/Stack.Tests/Stack.Tests.csproj services/Stack.Tests/
 COPY services/Media.Tests/Media.Tests.csproj services/Media.Tests/
 COPY services/Chat/Chat.csproj services/Chat/
 COPY services/Chat.Tests/Chat.Tests.csproj services/Chat.Tests/
 COPY services/Location/Location.csproj services/Location/
 COPY services/Location.Tests/Location.Tests.csproj services/Location.Tests/
 RUN --mount=type=cache,target=/tmp/nuget-packages \
-    dotnet restore services/Api.Tests/Api.Tests.csproj && \
+    dotnet restore services/Stack.Tests/Stack.Tests.csproj && \
     dotnet restore services/Media.Tests/Media.Tests.csproj && \
     dotnet restore services/Chat.Tests/Chat.Tests.csproj && \
     dotnet restore services/Chat/Chat.csproj && \

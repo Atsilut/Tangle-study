@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/services/Api/Api.csproj",
+                "${workspaceFolder}/services/Gateway/Gateway.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/services/Api/Api.csproj",
+                "${workspaceFolder}/services/Gateway/Gateway.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/services/Api/Api.csproj"
+                "${workspaceFolder}/services/Gateway/Gateway.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

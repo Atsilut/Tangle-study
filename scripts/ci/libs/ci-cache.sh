@@ -38,7 +38,7 @@ ci_fix_cache_ownership() {
   for proj in \
     Gateway \
     Users Users.Tests \
-    Api Api.Tests \
+    Stack.Tests \
     Media Media.Tests \
     Chat Chat.Tests \
     Location Location.Tests \

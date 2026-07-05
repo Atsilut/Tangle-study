@@ -13,7 +13,7 @@ Use `scripts/docker-dotnet.sh` (wraps `docker compose --profile tools`):
 
 ```bash
 ./scripts/docker-dotnet.sh build Tangle.slnx
-./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Api
+./scripts/docker-dotnet.sh ef migrations add MyMigration --project services/Users
 ```
 
 Equivalent without the script:
@@ -35,14 +35,14 @@ Run tests via `scripts/ci/docker-test.sh` (wraps `docker compose --profile test`
 ./scripts/ci/docker-test.sh
 
 # Filtered run
-./scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests"
+./scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --filter "FullyQualifiedName~UserControllerIntegrationTests"
 ```
 
 Equivalent without the script:
 
 ```bash
 docker compose --profile test run --rm test
-docker compose --profile test run --rm test test services/Api.Tests/Api.Tests.csproj -c Release --filter "..."
+docker compose --profile test run --rm test test services/Media.Tests/Media.Tests.csproj -c Release --filter "..."
 ```
 
 Do not run bare `dotnet test` on the host.

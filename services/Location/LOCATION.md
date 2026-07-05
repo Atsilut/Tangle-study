@@ -202,7 +202,7 @@ Group members subscribed via `JoinGroupAlerts` receive `SafetyAlertRaised` event
 
 Stale alerts dedupe per session until the next position update. Monitor interval: `LocationSafety:MonitorIntervalSeconds` (see `location-config.yml`).
 
-Async job contract for map clustering: [QUEUE.md](../Api/Global/Queue/QUEUE.md) (`location.cluster`).
+Async job contract for map clustering: [QUEUE.md](../../docs/QUEUE.md) (`location.cluster`).
 
 ---
 

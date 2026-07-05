@@ -45,15 +45,15 @@ ensure_stack_images_loaded() {
   bash "$ROOT/scripts/ci/load-compose-stack.sh" "$tar_path"
 }
 
-api_tests_dll() {
-  echo "${ROOT}/services/Api.Tests/bin/Release/net10.0/Api.Tests.dll"
+stack_tests_dll() {
+  echo "${ROOT}/services/Stack.Tests/bin/Release/net10.0/Stack.Tests.dll"
 }
 
-api_tests_need_rebuild() {
+stack_tests_need_rebuild() {
   local dll src_dir out_dir fixture
-  dll="$(api_tests_dll)"
-  src_dir="${ROOT}/services/Api.Tests/Fixtures/Harness"
-  out_dir="${ROOT}/services/Api.Tests/bin/Release/net10.0/Fixtures/Harness"
+  dll="$(stack_tests_dll)"
+  src_dir="${ROOT}/services/Stack.Tests/Fixtures/Harness"
+  out_dir="${ROOT}/services/Stack.Tests/bin/Release/net10.0/Fixtures/Harness"
 
   [[ -f "$dll" ]] || return 0
   [[ -f "$out_dir/sample.jpg" && -f "$out_dir/sample.mp4" ]] || return 0
@@ -61,23 +61,22 @@ api_tests_need_rebuild() {
   for fixture in sample.jpg sample.mp4; do
     [[ "${src_dir}/${fixture}" -nt "${out_dir}/${fixture}" ]] && return 0
   done
-  [[ "${ROOT}/services/Api.Tests/Api.Tests.csproj" -nt "$dll" ]] && return 0
-  [[ "${ROOT}/services/Api/Api.csproj" -nt "$dll" ]] && return 0
+  [[ "${ROOT}/services/Stack.Tests/Stack.Tests.csproj" -nt "$dll" ]] && return 0
 
   while IFS= read -r -d '' cs_file; do
     [[ "$cs_file" -nt "$dll" ]] && return 0
-  done < <(find "${ROOT}/services/Api.Tests" "${ROOT}/services/Api" -name '*.cs' -print0)
+  done < <(find "${ROOT}/services/Stack.Tests" "${ROOT}/services/Media" "${ROOT}/services/Users" -name '*.cs' -print0)
 
   return 1
 }
 
-build_api_tests() {
-  log_step "BUILD API.TESTS"
+build_stack_tests() {
+  log_step "BUILD STACK.TESTS"
   nuget_mount="$(ci_nuget_mount)"
   docker compose "${COMPOSE_ARGS[@]}" run --rm --no-deps \
     -v "$nuget_mount" \
     --entrypoint bash \
-    harness -c "dotnet build services/Api.Tests/Api.Tests.csproj -c Release --no-incremental"
+    harness -c "dotnet build services/Stack.Tests/Stack.Tests.csproj -c Release --no-incremental"
   ci_fix_cache_ownership
 }
 
@@ -135,11 +134,11 @@ nginx_ip="$(resolve_container_ip nginx)"
 configure_media_blob_endpoint "$nginx_ip"
 
 log_step "RUN HARNESS TESTS"
-if api_tests_need_rebuild; then
-  build_api_tests
+if stack_tests_need_rebuild; then
+  build_stack_tests
 fi
-[[ -f "$(api_tests_dll)" ]] \
-  || fail "missing services/Api.Tests/bin/Release/net10.0/Api.Tests.dll — run ./scripts/ci/dotnet-publish.sh first"
+[[ -f "$(stack_tests_dll)" ]] \
+  || fail "missing services/Stack.Tests/bin/Release/net10.0/Stack.Tests.dll — build Stack.Tests first"
 
 nuget_mount="$(ci_nuget_mount)"
 docker compose "${COMPOSE_ARGS[@]}" run --rm --no-deps \

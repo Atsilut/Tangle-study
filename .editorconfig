@@ -15,9 +15,6 @@ dotnet_diagnostic.RCS1037.severity = none
 # Typed exceptions use status-code constructors only, not the standard Exception trio
 dotnet_diagnostic.RCS1194.severity = none
 
-[services/Api/Domain/**/Domain/*.cs]
-dotnet_diagnostic.CS8618.severity = none
-
-[services/Api/Migrations/**.cs]
+[services/**/Migrations/**.cs]
 generated_code = true
 dotnet_analyzer_diagnostic.category-roslynator.severity = none
