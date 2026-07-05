@@ -9,19 +9,19 @@ public abstract class LocationIntegrationTestBase(
 {
     protected TestUser CreateUserForTest(string testMethodName, long index = 1)
     {
-        var user = InMemoryUser.CreateUser(LocationTestAuthHelpers.BuildNickname(testMethodName, index));
+        var user = InMemoryUser.CreateUser($"{testMethodName}User{index}");
         return user;
     }
 
-    protected void LoginAs(TestUser user) => LocationTestAuthHelpers.LoginAs(Client, user.Id);
+    protected void LoginAs(TestUser user) => GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
     protected long CreateGroupWithOwner(TestUser owner)
     {
-        var groupId = InMemoryUser.CreateGroup();
-        InMemoryUser.AddGroupMember(groupId, owner.Id);
+        var groupId = FakeGroup.CreateGroup();
+        FakeGroup.AddGroupMember(groupId, owner.Id);
         return groupId;
     }
 
     protected void AddGroupMember(long groupId, TestUser member) =>
-        InMemoryUser.AddGroupMember(groupId, member.Id);
+        FakeGroup.AddGroupMember(groupId, member.Id);
 }

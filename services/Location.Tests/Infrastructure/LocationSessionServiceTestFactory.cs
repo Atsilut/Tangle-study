@@ -18,6 +18,8 @@ internal static class LocationSessionServiceTestFactory
         LocationSafetyAlertService SafetyAlertService,
         LiveLocationRedisStore LiveStore,
         InMemoryUserClient InMemoryUser,
+        FakeSocialClient FakeSocial,
+        FakeGroupClient FakeGroup,
         FakeLocationRealtimeNotifier RealtimeNotifier);
 
     internal sealed class FakeLocationRealtimeNotifier : ILocationRealtimeNotifier
@@ -52,7 +54,9 @@ internal static class LocationSessionServiceTestFactory
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryUserClient(http);
+        var users = new InMemoryUserClient();
+        var social = new FakeSocialClient();
+        var group = new FakeGroupClient(users);
         var db = new LocationDbContext(new DbContextOptionsBuilder<LocationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -69,9 +73,9 @@ internal static class LocationSessionServiceTestFactory
         var safetyAlertService = new LocationSafetyAlertService(
             sessionRepository,
             liveStore,
-            monolith,
-            monolith,
-            monolith,
+            users,
+            social,
+            group,
             realtimeNotifier,
             distributedCache,
             Options.Create(LocationTestOptions.Safety),
@@ -79,9 +83,9 @@ internal static class LocationSessionServiceTestFactory
 
         var locationSessionService = new LocationSessionService(
             sessionRepository,
-            monolith,
-            monolith,
-            monolith,
+            users,
+            social,
+            group,
             liveStore,
             realtimeNotifier,
             safetyAlertService,
@@ -91,16 +95,18 @@ internal static class LocationSessionServiceTestFactory
             locationSessionService,
             safetyAlertService,
             liveStore,
-            monolith,
+            users,
+            social,
+            group,
             realtimeNotifier);
     }
 
-    public static long SeedGroupWithMembers(InMemoryUserClient monolith, long ownerId, params long[] memberIds)
+    public static long SeedGroupWithMembers(FakeGroupClient group, long ownerId, params long[] memberIds)
     {
         const long groupId = 1;
-        monolith.AddGroupMember(groupId, ownerId);
+        group.AddGroupMember(groupId, ownerId);
         foreach (var memberId in memberIds)
-            monolith.AddGroupMember(groupId, memberId);
+            group.AddGroupMember(groupId, memberId);
         return groupId;
     }
 }

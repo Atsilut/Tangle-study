@@ -9,6 +9,9 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
+    protected FakeSocialClient FakeSocial => Factory.FakeSocial;
+    protected FakeCommunityAccessClient FakeCommunity => Factory.FakeCommunity;
+    protected FakeGroupClient FakeGroup => Factory.FakeGroup;
 
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
@@ -24,6 +27,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         await Factory.ClearAllLocationDataAsync();
         InMemoryUser.Reset();
+        FakeSocial.Reset();
+        FakeCommunity.Reset();
+        FakeGroup.Reset();
+        GatewayTestAuthHelpers.ClearAuth(Client);
     }
 
     public ValueTask DisposeAsync()

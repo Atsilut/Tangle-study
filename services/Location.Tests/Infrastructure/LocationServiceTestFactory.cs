@@ -12,12 +12,18 @@ internal static class LocationServiceTestFactory
         LocationClusterService LocationClusterService,
         LocationAccessService LocationAccessService,
         InMemoryUserClient InMemoryUser,
+        FakeSocialClient FakeSocial,
+        FakeCommunityAccessClient FakeCommunity,
+        FakeGroupClient FakeGroup,
         IMapPinRepository MapPinRepository);
 
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryUserClient(http);
+        var users = new InMemoryUserClient();
+        var social = new FakeSocialClient();
+        var community = new FakeCommunityAccessClient(http);
+        var group = new FakeGroupClient(users);
         var db = new LocationDbContext(new DbContextOptionsBuilder<LocationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -25,14 +31,14 @@ internal static class LocationServiceTestFactory
         var distributedCache = new FakeDistributedCache();
         var workQueue = new FakeWorkQueue();
 
-        var locationAccessService = new LocationAccessService(monolith, monolith, monolith, http);
+        var locationAccessService = new LocationAccessService(users, social, community, http);
         var locationClusterService = new LocationClusterService(
             mapPinRepository,
             distributedCache,
             workQueue);
         var mapPinService = new MapPinService(
             mapPinRepository,
-            monolith,
+            users,
             locationAccessService,
             new Lazy<LocationClusterService>(() => locationClusterService),
             http);
@@ -41,7 +47,10 @@ internal static class LocationServiceTestFactory
             mapPinService,
             locationClusterService,
             locationAccessService,
-            monolith,
+            users,
+            social,
+            community,
+            group,
             mapPinRepository);
     }
 }

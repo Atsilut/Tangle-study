@@ -14,7 +14,7 @@ public sealed class LocationSafetyAlertServiceUnitTests
         var graph = LocationSessionServiceTestFactory.Create(http);
         var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Helper");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.InMemoryUser,
+            graph.FakeGroup,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -42,7 +42,7 @@ public sealed class LocationSafetyAlertServiceUnitTests
         var graph = LocationSessionServiceTestFactory.Create(http);
         var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Walker");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.InMemoryUser,
+            graph.FakeGroup,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -79,7 +79,7 @@ public sealed class LocationSafetyAlertServiceUnitTests
         var graph = LocationSessionServiceTestFactory.Create(http);
         var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Helper");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.InMemoryUser,
+            graph.FakeGroup,
             user.Id);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
@@ -106,13 +106,13 @@ public sealed class LocationSafetyAlertServiceUnitTests
         var member = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Member");
         var blocked = ServiceTestHelpers.CreateUser(graph.InMemoryUser,"Blocked");
         var groupId = LocationSessionServiceTestFactory.SeedGroupWithMembers(
-            graph.InMemoryUser,
+            graph.FakeGroup,
             owner.Id,
             member.Id,
             blocked.Id);
 
         http.HttpContext = ServiceTestHelpers.ContextFor(blocked.Id);
-        graph.InMemoryUser.AddBlock(blocked.Id, owner.Id);
+        graph.FakeSocial.AddBlock(blocked.Id, owner.Id);
 
         http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var started = await graph.LocationSessionService.StartSessionAsync(new LocationSessionCreateRequestDto
