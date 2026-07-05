@@ -224,7 +224,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use redis::streams::StreamId;
+    use crate::test_support::stream_id;
     use redis::Value;
 
     #[test]
@@ -239,10 +239,7 @@ mod tests {
             Value::BulkString(br#"{"messageId":1}"#.to_vec()),
         );
 
-        let entry = StreamId {
-            id: "9-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("9-0", map);
 
         let (job_type, payload) = parse_dlq_entry(&entry).unwrap();
         assert_eq!(job_type, "chat.message.created");
@@ -261,10 +258,7 @@ mod tests {
             Value::BulkString(b"".to_vec()),
         );
 
-        let entry = StreamId {
-            id: "9-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("9-0", map);
 
         assert!(parse_dlq_entry(&entry).is_err());
     }
@@ -281,10 +275,7 @@ mod tests {
             Value::BulkString(br#"{"messageId":1}"#.to_vec()),
         );
 
-        let entry = StreamId {
-            id: "9-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("9-0", map);
 
         let err = parse_dlq_entry(&entry).unwrap_err();
         assert!(err.to_string().contains("empty `type`"));

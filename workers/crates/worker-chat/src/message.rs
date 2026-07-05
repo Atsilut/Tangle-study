@@ -14,9 +14,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use redis::streams::StreamId;
     use redis::Value;
     use worker_core::error::is_malformed;
+    use worker_core::test_support::stream_id;
 
     #[test]
     fn decodes_chat_message_created_payload() {
@@ -33,10 +33,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let job = decode_chat_message_created(&entry).unwrap();
         assert_eq!(job.message_id, 1);
@@ -48,10 +45,7 @@ mod tests {
 
     #[test]
     fn malformed_entry_detects_missing_type_field() {
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map: HashMap::new(),
-        };
+        let entry = stream_id("1-0", HashMap::new());
 
         let err = decode_chat_message_created(&entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -72,10 +66,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let err = decode_chat_message_created(&entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -93,10 +84,7 @@ mod tests {
             Value::BulkString(b"not-json".to_vec()),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let err = decode_chat_message_created(&entry).unwrap_err();
         assert!(is_malformed(&err));

@@ -17,9 +17,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use redis::streams::StreamId;
     use redis::Value;
     use worker_core::error::is_malformed;
+    use worker_core::test_support::stream_id;
 
     #[test]
     fn decodes_media_uploaded_payload() {
@@ -36,10 +36,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "2-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("2-0", map);
 
         let job = decode_media_uploaded(&entry).unwrap();
         assert_eq!(job.media_asset_id, 9);
@@ -66,10 +63,7 @@ mod tests {
                 ),
             );
 
-            let entry = StreamId {
-                id: "2-0".to_owned(),
-                map,
-            };
+            let entry = stream_id("2-0", map);
 
             let err = decode_media_uploaded(&entry).unwrap_err();
             assert!(is_malformed(&err), "targetMaxBytes={target_max_bytes}");
@@ -88,10 +82,7 @@ mod tests {
             Value::BulkString(b"not-json".to_vec()),
         );
 
-        let entry = StreamId {
-            id: "2-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("2-0", map);
 
         let err = decode_media_uploaded(&entry).unwrap_err();
         assert!(is_malformed(&err));

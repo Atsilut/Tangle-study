@@ -17,9 +17,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use redis::streams::StreamId;
     use redis::Value;
     use worker_core::error::is_malformed;
+    use worker_core::test_support::stream_id;
 
     #[test]
     fn decodes_location_cluster_payload() {
@@ -36,10 +36,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "3-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("3-0", map);
 
         let job = decode_location_cluster(&entry).unwrap();
         assert_eq!(job.zoom, 3);
@@ -60,10 +57,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "3-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("3-0", map);
 
         let err = decode_location_cluster(&entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -84,10 +78,7 @@ mod tests {
             ),
         );
 
-        let entry = StreamId {
-            id: "3-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("3-0", map);
 
         let err = decode_location_cluster(&entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -105,10 +96,7 @@ mod tests {
             Value::BulkString(b"not-json".to_vec()),
         );
 
-        let entry = StreamId {
-            id: "3-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("3-0", map);
 
         let err = decode_location_cluster(&entry).unwrap_err();
         assert!(is_malformed(&err));

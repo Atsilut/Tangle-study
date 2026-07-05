@@ -52,6 +52,7 @@ mod tests {
 
     use super::*;
     use crate::error::is_malformed;
+    use crate::test_support::stream_id;
     use redis::Value;
     use serde::Deserialize;
 
@@ -73,10 +74,7 @@ mod tests {
             Value::BulkString(br#"{"messageId":1}"#.to_vec()),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let job: SampleJob = decode_typed_job("chat.message.created", &entry).unwrap();
         assert_eq!(job.message_id, 1);
@@ -94,10 +92,7 @@ mod tests {
             Value::BulkString(br#"{"messageId":1}"#.to_vec()),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let err = decode_typed_job::<SampleJob>("chat.message.created", &entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -105,10 +100,7 @@ mod tests {
 
     #[test]
     fn decode_typed_job_marks_missing_type_as_malformed() {
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map: HashMap::new(),
-        };
+        let entry = stream_id("1-0", HashMap::new());
 
         let err = decode_typed_job::<SampleJob>("chat.message.created", &entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -126,10 +118,7 @@ mod tests {
             Value::BulkString(b"not-json".to_vec()),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         let err = decode_typed_job::<SampleJob>("chat.message.created", &entry).unwrap_err();
         assert!(is_malformed(&err));
@@ -147,10 +136,7 @@ mod tests {
             Value::BulkString(vec![0xff, 0xfe]),
         );
 
-        let entry = StreamId {
-            id: "1-0".to_owned(),
-            map,
-        };
+        let entry = stream_id("1-0", map);
 
         assert!(extract_envelope_fields(&entry).is_err());
     }
