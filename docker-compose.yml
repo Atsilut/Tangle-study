@@ -294,6 +294,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
       Gateway__Secret: "dev-gateway-secret"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
     expose:
       - "8080"
     depends_on:
@@ -377,6 +379,22 @@ services:
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
     depends_on:
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      chat:
+        condition: service_healthy
+      location:
+        condition: service_healthy
+      community:
+        condition: service_healthy
+      group:
+        condition: service_healthy
+      social:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
       postgres-exporter:
         condition: service_started
       redis-exporter:
@@ -385,6 +403,9 @@ services:
         condition: service_started
         required: false
       rust-worker-media:
+        condition: service_started
+        required: false
+      rust-worker-location:
         condition: service_started
         required: false
 

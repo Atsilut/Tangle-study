@@ -20,7 +20,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: up{job=~"users|media|chat|location|community|group|social"}
+              expr: up{job=~"users|media|chat|location|community|group|social|gateway"}
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -78,7 +78,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: min(aspnetcore_healthcheck_status{job=~"users|media|chat|location|community|group|social"})
+              expr: min(aspnetcore_healthcheck_status{job=~"users|media|chat|location|community|group|social|gateway"})
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -136,7 +136,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code=~"5.."}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code=~"5.."}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -252,7 +252,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code="401"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="401"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -310,7 +310,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code="403"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="403"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -368,7 +368,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social", code="409"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="409"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto

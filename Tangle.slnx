@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/infra/" />
   <Folder Name="/services/">
-    <Project Path="services/Gateway/Gateway.csproj" />
+  <Project Path="services/Gateway/Gateway.csproj" />
     <Project Path="services/Users/Users.csproj" />
     <Project Path="services/Chat/Chat.csproj" />
     <Project Path="services/Location/Location.csproj" />
@@ -11,6 +11,7 @@
     <Project Path="services/Social/Social.csproj" />
   </Folder>
   <Folder Name="/workers/" />
+  <Project Path="services/Gateway.Tests/Gateway.Tests.csproj" />
   <Project Path="services/Users.Tests/Users.Tests.csproj" />
   <Project Path="services/Media.Tests/Media.Tests.csproj" />
   <Project Path="services/Chat.Tests/Chat.Tests.csproj" />

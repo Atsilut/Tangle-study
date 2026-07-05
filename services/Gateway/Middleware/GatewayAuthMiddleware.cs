@@ -21,6 +21,7 @@ public sealed class GatewayAuthMiddleware(
         "/api/join",
         "/api/join/nickname-available",
         "/health",
+        "/metrics",
     };
 
     private static readonly string[] AnonymousPrefixes =

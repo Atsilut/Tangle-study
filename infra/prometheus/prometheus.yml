@@ -9,6 +9,15 @@ scrape_config_files:
   - /etc/prometheus/scrape/*.yml
 
 scrape_configs:
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
   - job_name: users
     static_configs:
       - targets: ["users:8080"]

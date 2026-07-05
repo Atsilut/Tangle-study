@@ -12,7 +12,7 @@ infra/
     prometheus.yml                   # core scrape targets + rule_files
     scrape/workers.yml               # worker jobs (loaded only with `workers` profile)
     docker-entrypoint.sh             # enables worker scrape when rust-worker exists
-    recording_rules.yml              # precomputed tangle:api_* metrics
+    recording_rules.yml              # precomputed tangle:services_* metrics
   grafana/provisioning/
     datasources/prometheus.yml       # Grafana → Prometheus datasource
     dashboards/
@@ -32,9 +32,18 @@ Monitoring uses the Compose `monitoring` profile. The default stack (gateway + d
 # Default stack + Prometheus + Grafana + infra exporters
 docker compose --profile monitoring up --build
 
-# Include Rust workers (chat + media scrape targets)
+# Include Rust workers (chat, media, location scrape targets)
 docker compose --profile monitoring --profile workers up --build
 ```
+
+## Troubleshooting empty dashboards
+
+Grafana and Prometheus are **not** started by `docker compose up` alone. If panels are empty or Prometheus has no data:
+
+1. Start the stack with the monitoring profile: `docker compose --profile monitoring up --build`
+2. Open http://localhost:9090/targets — all eight API jobs (`gateway`, `users`, `media`, `chat`, `location`, `community`, `group`, `social`) should be **UP**
+3. For worker metrics, add `--profile workers` and restart Prometheus if workers were enabled after it started
+4. Check the **Scrape target health (up)** panel on the Tangle Study Overview dashboard
 
 ## URLs (host)
 
@@ -52,6 +61,7 @@ Core jobs in [prometheus/prometheus.yml](prometheus/prometheus.yml). Worker jobs
 
 | Job | Target | Metrics |
 |-----|--------|---------|
+| `gateway` | `gateway:8080` | Edge HTTP request rate, latency, status codes |
 | `users` | `users:8080` | HTTP request rate, latency, status codes; health gauges |
 | `media` | `media:8080` | Same |
 | `chat` | `chat:8080` | Same |
@@ -91,11 +101,11 @@ Precomputed in [prometheus/recording_rules.yml](prometheus/recording_rules.yml) 
 
 | Metric | Purpose |
 |--------|---------|
-| `tangle:api_request_rate` | Traffic guard for ratio/latency alerts |
-| `tangle:api_5xx_ratio` | 5xx share of total requests |
-| `tangle:api_other_4xx_ratio` | 4xx excluding 401/403/409 |
-| `tangle:api_5xx_rate_by_controller` | Per-controller 5xx rate |
-| `tangle:api_request_duration_p95` | API latency SLO input |
+| `tangle:services_request_rate` | Traffic guard for ratio/latency alerts |
+| `tangle:services_5xx_ratio` | 5xx share of total requests |
+| `tangle:services_other_4xx_ratio` | 4xx excluding 401/403/409 |
+| `tangle:services_5xx_rate_by_controller` | Per-controller 5xx rate |
+| `tangle:services_request_duration_p95` | API latency SLO input |
 
 ## Dashboard
 
@@ -108,8 +118,9 @@ Precomputed in [prometheus/recording_rules.yml](prometheus/recording_rules.yml) 
 - Worker jobs processed by outcome
 - Worker callback responses by code
 - Worker pending messages and DLQ length
-- Work queue enqueue rate from the API
+- Work queue enqueue rate from Media, Chat, and Location
 - Postgres connections and Redis memory/clients
+- Scrape target health (`up`) per API job
 
 Panels use metrics from `prometheus-net` (API) and custom `tangle_*` counters/gauges (workers).
 
@@ -123,15 +134,15 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 
 | Rule | Condition | Severity |
 |------|-----------|----------|
-| `ApiScrapeTargetDown` | `up{job="api"} == 0` | critical |
-| `ApiDependencyUnhealthy` | `min(aspnetcore_healthcheck_status{job="api"}) == 0` | critical |
+| `ApiScrapeTargetDown` | any `up{job=~"users|media|chat|location|community|group|social|gateway"} == 0` | critical |
+| `ApiDependencyUnhealthy` | `min(aspnetcore_healthcheck_status{job=~"users|media|chat|location|community|group|social"}) == 0` | critical |
 | `ApiHigh5xxRate` | 5xx rate > **0.1 req/s** | critical |
-| `ApiHigh5xxRatio` | `tangle:api_5xx_ratio > 1%` and traffic > 0.05 req/s | critical |
+| `ApiHigh5xxRatio` | `tangle:services_5xx_ratio > 1%` and traffic > 0.05 req/s | critical |
 | `ApiHigh401Rate` | 401 rate > **0.5 req/s** | warning |
 | `ApiHigh403Rate` | 403 rate > **0.1 req/s** | warning |
 | `ApiHigh409Rate` | 409 rate > **0.5 req/s** | warning |
-| `ApiHighOther4xxRatio` | `tangle:api_other_4xx_ratio > 10%` and traffic > 0.05 req/s | warning |
-| `ApiHighLatencyP95` | `tangle:api_request_duration_p95 > 2s` and traffic > 0.05 req/s | warning |
+| `ApiHighOther4xxRatio` | `tangle:services_other_4xx_ratio > 10%` and traffic > 0.05 req/s | warning |
+| `ApiHighLatencyP95` | `tangle:services_request_duration_p95 > 2s` and traffic > 0.05 req/s | warning |
 | `ApiControllerHigh5xxRate` | any controller 5xx rate > **0.05 req/s** and traffic > 0.05 req/s | critical |
 
 ### Workers (`rules-workers.yml`)
@@ -167,8 +178,11 @@ No Alertmanager, Slack, or email — alerts appear in the Grafana UI only.
 # Full stack
 docker compose --profile monitoring --profile workers up --build
 
-# Prometheus targets (users, media, chat, location, community, group, social, postgres, redis, workers) should be UP
+# Prometheus targets (gateway, users, media, chat, location, community, group, social, postgres, redis, workers) should be UP
 open http://localhost:9090/targets
+
+# Count healthy API scrape targets (expect 8)
+curl -s 'http://localhost:9090/api/v1/query?query=count(up{job=~"gateway|users|media|chat|location|community|group|social"}==1)'
 
 # Edge health (plain text)
 curl -s http://localhost:8080/health
@@ -180,6 +194,7 @@ curl -s -H "X-Metrics-Secret: dev-metrics-secret" http://localhost:9090/api/v1/q
 docker compose exec users wget -qO- --header='X-Metrics-Secret: dev-metrics-secret' http://127.0.0.1:8080/metrics | head
 
 # Integration tests (Testcontainers — use `test` profile, not `docker-dotnet.sh` / `sdk`)
+./scripts/ci/docker-test.sh test services/Gateway.Tests/Gateway.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ./scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --filter "FullyQualifiedName~MetricsIntegrationTests|FullyQualifiedName~MetricsScrapeAuthIntegrationTests"
 ```
 
