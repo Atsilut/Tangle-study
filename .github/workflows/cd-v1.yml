@@ -1,8 +1,8 @@
-name: CD-v1
+name: Deploy
 
 on:
   workflow_run:
-    workflows: [CI-v1]
+    workflows: [CI]
     types: [completed]
     branches: [main]
 
