@@ -2,7 +2,7 @@ apiVersion: 1
 
 groups:
   - orgId: 1
-    name: tangle-study-api-http
+    name: tangle-study-services-http
     folder: Tangle Study
     interval: 1m
     rules:
@@ -20,7 +20,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: up{job="api"}
+              expr: up{job=~"users|media|chat|location|community|group|social|gateway"}
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -78,7 +78,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: min(aspnetcore_healthcheck_status{job="api"})
+              expr: min(aspnetcore_healthcheck_status{job=~"users|media|chat|location|community|group|social|gateway"})
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -136,7 +136,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job="api", code=~"5.."}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code=~"5.."}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -194,7 +194,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: (tangle:api_5xx_ratio > 0.01) and (tangle:api_request_rate > 0.05)
+              expr: (tangle:services_5xx_ratio > 0.01) and (tangle:services_request_rate > 0.05)
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -252,7 +252,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job="api", code="401"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="401"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -310,7 +310,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job="api", code="403"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="403"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -368,7 +368,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: sum(rate(http_requests_received_total{job="api", code="409"}[5m]))
+              expr: sum(rate(http_requests_received_total{job=~"users|media|chat|location|community|group|social|gateway", code="409"}[5m]))
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -426,7 +426,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: (tangle:api_other_4xx_ratio > 0.10) and (tangle:api_request_rate > 0.05)
+              expr: (tangle:services_other_4xx_ratio > 0.10) and (tangle:services_request_rate > 0.05)
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -484,7 +484,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: (tangle:api_request_duration_p95 > 2) and (tangle:api_request_rate > 0.05)
+              expr: (tangle:services_request_duration_p95 > 2) and (tangle:services_request_rate > 0.05)
               instant: true
               intervalMs: 1000
               legendFormat: __auto
@@ -542,7 +542,7 @@ groups:
                 type: prometheus
                 uid: prometheus
               editorMode: code
-              expr: (max(tangle:api_5xx_rate_by_controller) > 0.05) and (tangle:api_request_rate > 0.05)
+              expr: (max(tangle:services_5xx_rate_by_controller) > 0.05) and (tangle:services_request_rate > 0.05)
               instant: true
               intervalMs: 1000
               legendFormat: __auto

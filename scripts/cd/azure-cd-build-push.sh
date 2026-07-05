@@ -50,7 +50,6 @@ bash "$ROOT/scripts/ci/dotnet-publish.sh"
 log_step "BUILD IMAGES"
 
 IMAGES=(
-  tangle-study-api
   tangle-study-web
   tangle-study-worker-media
   tangle-study-worker-chat
@@ -60,7 +59,6 @@ IMAGES=(
 )
 
 declare -A DOCKERFILE_MAP=(
-  [tangle-study-api]="services/Api/Dockerfile.runtime"
   [tangle-study-web]="clients/web/Dockerfile"
   [tangle-study-worker-media]="workers/docker/Dockerfile.runtime.media"
   [tangle-study-worker-chat]="workers/docker/Dockerfile.runtime.chat"
@@ -74,9 +72,6 @@ set_build_args() {
   BUILD_ARGS=()
 
   case "$image" in
-    tangle-study-api)
-      BUILD_ARGS+=("--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
-      ;;
     tangle-study-web)
       BUILD_ARGS+=(
         "--build-arg" "NODE_IMAGE=$NODE_IMG"

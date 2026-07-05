@@ -20,7 +20,7 @@ namespace Group.Service
         GroupMembershipService membershipService,
         Lazy<GroupJoinResolutionService> joinResolution,
         GroupBlacklistService blacklistService,
-        IMonolithAccessClient monolithAccess,
+        IUserClient userClient,
         ISocialClient socialClient,
         GroupDbContext db,
         IHttpContextAccessor httpContextAccessor)
@@ -32,7 +32,7 @@ namespace Group.Service
         private readonly GroupMembershipService _membershipService = membershipService;
         private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
         private readonly GroupBlacklistService _blacklistService = blacklistService;
-        private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly IUserClient _userClient = userClient;
         private readonly ISocialClient _socialClient = socialClient;
         private readonly GroupDbContext _db = db;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -73,7 +73,7 @@ namespace Group.Service
 
             if (inviterId == request.InviteeId) throw new ArgumentException("Cannot invite yourself.");
 
-            await _monolithAccess.EnsureUserExistsAsync(request.InviteeId, "Invitee not found", StatusCodes.Status400BadRequest);
+            await _userClient.EnsureUserExistsAsync(request.InviteeId, "Invitee not found", StatusCodes.Status400BadRequest);
 
             if (await _membershipService.IsMemberAsync(groupId, request.InviteeId)) throw new EntityAlreadyExistsException("User is already a member of this group.");
 
@@ -163,7 +163,7 @@ namespace Group.Service
             var userIds = invitations
                 .SelectMany(i => new[] { i.InviterId, i.InviteeId })
                 .Distinct();
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(userIds);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(userIds);
 
             return [.. invitations.Select(i => new GroupInvitationGroupListItemDto(
                 i.Id,
@@ -248,7 +248,7 @@ namespace Group.Service
         {
             var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([invitation.GroupId]);
             var otherUserId = invitation.InviteeId == viewerId ? invitation.InviterId : invitation.InviteeId;
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([otherUserId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([otherUserId]);
             var nickname = nicknames.GetValueOrDefault(otherUserId, "Deleted User");
             return Map(
                 invitation,
@@ -264,7 +264,7 @@ namespace Group.Service
             var otherUserIds = invitations
                 .Select(i => i.InviteeId == viewerId ? i.InviterId : i.InviteeId)
                 .Distinct();
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(otherUserIds);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(otherUserIds);
 
             return [.. invitations
                 .Select(i =>

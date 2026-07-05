@@ -13,14 +13,14 @@ namespace Chat.Service;
 public class ChatRoomService(
     IChatRoomRepository repo,
     ChatRoomAccessService access,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     Lazy<ChatMessageService> chatMessageService,
     ChatDbContext db,
     IHttpContextAccessor httpContextAccessor)
 {
     private readonly IChatRoomRepository _repo = repo;
     private readonly ChatRoomAccessService _access = access;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
     private readonly ChatDbContext _db = db;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -158,7 +158,7 @@ public class ChatRoomService(
             return participant;
         });
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([request.UserId]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([request.UserId]);
         return MapParticipantToDto(
             newParticipant,
             nicknames.GetValueOrDefault(request.UserId, "Deleted User"));
@@ -228,7 +228,7 @@ public class ChatRoomService(
         var lastMessages = await _chatMessageService.Value.GetLatestMessageSummariesByRoomIdsAsync(roomIds);
 
         var participantUserIds = rooms.SelectMany(r => r.Participants.Select(p => p.UserId)).Distinct();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(participantUserIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(participantUserIds);
 
         return [.. rooms.Select(r => MapToSummaryDto(
             r,
@@ -266,7 +266,7 @@ public class ChatRoomService(
             ? [.. room.Participants]
             : [];
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(participants.Select(p => p.UserId));
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(participants.Select(p => p.UserId));
         List<ChatRoomParticipantGetResponseDto> participantDtos = [.. participants
             .Select(p => MapParticipantToDto(p, nicknames.GetValueOrDefault(p.UserId, "Deleted User")))];
 

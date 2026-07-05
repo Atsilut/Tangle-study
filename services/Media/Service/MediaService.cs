@@ -16,7 +16,7 @@ public sealed class MediaService(
     IMediaAssetRepository repo,
     IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ICommunityAccessClient communityAccess,
     IChatAccessClient chatAccess,
     IWorkQueue workQueue,
@@ -28,7 +28,7 @@ public sealed class MediaService(
     private readonly IMediaAssetRepository _repo = repo;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IChatAccessClient _chatAccess = chatAccess;
     private readonly IWorkQueue _workQueue = workQueue;
@@ -264,7 +264,7 @@ public sealed class MediaService(
     public async Task<MediaUploadInitResponseDto> InitUploadAsync(MediaUploadInitRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
 
         var kind = _limitPolicy.ClassifyKind(request.MimeType);
         _limitPolicy.EnsureWithinIngressLimit(request.IntendedContext, kind, request.SizeBytes);

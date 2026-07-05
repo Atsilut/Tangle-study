@@ -32,11 +32,10 @@ public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         LoginAs(userA);
-        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
 
         var received = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, userA.Id);
         hubConnection.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => received.TrySetResult(dto));
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
         await hubConnection.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken);
@@ -66,9 +65,8 @@ public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
 
         LoginAs(userB);
-        var tokenB = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var receivedByB = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var hubB = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, tokenB);
+        var hubB = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, userB.Id);
         hubB.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => receivedByB.TrySetResult(dto));
         await hubB.StartAsync(TestContext.Current.CancellationToken);
         await hubB.InvokeAsync("JoinRoom", room.Id, TestContext.Current.CancellationToken);
@@ -99,8 +97,7 @@ public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture
         AcceptFriendship(userA, userB);
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
         LoginAs(stranger);
-        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
-        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, stranger.Id);
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
@@ -120,10 +117,9 @@ public sealed class ChatHubRealtimeIntegrationTests(PostgresTestcontainerFixture
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         LoginAs(userA);
-        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
 
-        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        var hubConnection = ChatRealtimeTestHelpers.BuildHubConnection(Factory, Client, userA.Id);
         var received = new TaskCompletionSource<ChatMessageGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         hubConnection.On<ChatMessageGetResponseDto>(ChatHub.MessageCreatedEvent, dto => received.TrySetResult(dto));
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);

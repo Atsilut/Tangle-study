@@ -35,11 +35,11 @@ Cross-routes owned by other services (nginx routes them first):
 | `POST /internal/group/{id}/boards/{boardId}/validate-view` | Community |
 | `POST /internal/group/{id}/boards/{boardId}/validate-write` | Community |
 | `POST /internal/group/boards/viewable-keys` | Community |
-| `POST /internal/group/users/{id}/detach-on-deletion` | Api (user delete) |
+| `POST /internal/group/users/{id}/detach-on-deletion` | Users-service |
 
 ## Outbound
 
-- **Monolith** (`Monolith:BaseUrl`): users, nicknames, block checks
+- **Users** (`Users:BaseUrl`): users, nicknames, block checks
 - **Community** (`CommunityClient:BaseUrl`): delete-all posts on group delete
 - **Location** (`LocationClient:BaseUrl`): end sessions on group delete
 
@@ -59,5 +59,3 @@ Fresh volumes start empty in `group` schema. Azure cutover (when added) needs an
 ## Internal membership error messages
 
 Single-member validate (`POST .../members/{userId}/validate`) accepts an optional JSON body `{ "notFoundMessage": "..." }` (default `"Group not found"`) so Chat/Location can hide membership. Batch validate accepts `{ "userIds": [...], "errorMessage": "..." }`.
-
-Gateway compose for board posts / chat rooms is deferred to MSA step 7.

@@ -35,7 +35,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, GroupWebApplicat
     {
         if (role == GroupActorRole.Anonymous)
         {
-            client.DefaultRequestHeaders.Authorization = null;
+            GroupTestAuthHelpers.ClearAuth(client);
             return;
         }
 

@@ -16,7 +16,7 @@ public class PostService(
     IMediaClient mediaClient,
     ILocationClient locationClient,
     IHttpContextAccessor httpContextAccessor,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient)
 {
@@ -26,7 +26,7 @@ public class PostService(
     private readonly IMediaClient _mediaClient = mediaClient;
     private readonly ILocationClient _locationClient = locationClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
@@ -105,7 +105,7 @@ public class PostService(
     public async Task CreatePostAsync(PostCreateRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
 
         if (request.GroupId.HasValue || request.GroupBoardId.HasValue)
         {
@@ -151,7 +151,7 @@ public class PostService(
         posts = await FilterPostsByBlockAsync(TryGetViewerUserId(), posts);
         if (posts.Count == 0) return null;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
         return await MapManyAsync(posts, nicknames);
     }
 
@@ -165,7 +165,7 @@ public class PostService(
         if (post.GroupId is not null && post.GroupBoardId is not null)
             await _groupClient.EnsureCanViewBoardAsync(post.GroupId.Value, post.GroupBoardId.Value);
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([post.AuthorUserId]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([post.AuthorUserId]);
         return await MapToDtoAsync(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User"));
     }
 
@@ -222,7 +222,7 @@ public class PostService(
     public async Task CreateGroupBoardPostAsync(long groupId, long boardId, GroupBoardPostCreateRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         await _groupClient.EnsureCanWritePostAsync(groupId, boardId);
 
         ValidateOptionalLocation(request.Latitude, request.Longitude);
@@ -257,7 +257,7 @@ public class PostService(
         posts = await FilterPostsByBlockAsync(TryGetViewerUserId(), posts);
         if (posts.Count == 0) return null;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(posts.Select(p => p.AuthorUserId));
         return await MapManyAsync(posts, nicknames);
     }
 
@@ -269,7 +269,7 @@ public class PostService(
 
         if (await IsAuthorBlockedByViewerAsync(TryGetViewerUserId(), post.AuthorUserId)) return null;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([post.AuthorUserId]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([post.AuthorUserId]);
         return await MapToDtoAsync(post, nicknames.GetValueOrDefault(post.AuthorUserId, "Deleted User"));
     }
 
@@ -285,7 +285,7 @@ public class PostService(
     public async Task<List<PostGetResponseDto>?> GetPostsByUserNicknameAsync(string nickname)
     {
         var viewerUserId = TryGetViewerUserId();
-        var userId = await _monolithAccess.GetUserIdByNicknameAsync(nickname);
+        var userId = await _userClient.GetUserIdByNicknameAsync(nickname);
         if (userId is null) return null;
         if (await IsAuthorBlockedByViewerAsync(viewerUserId, userId.Value)) return null;
 
@@ -305,7 +305,7 @@ public class PostService(
             viewableBoards.Contains((p.GroupId.Value, p.GroupBoardId!.Value)))];
         if (posts.Count == 0) return null;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([userId.Value]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([userId.Value]);
         return await MapManyAsync(posts, nicknames);
     }
 
@@ -349,7 +349,7 @@ public class PostService(
     public async Task<PostPatchResponseDto> UpdatePostAsync(PostPatchRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         var post = await GetPostOrThrowAsync(request.Id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
             await _groupClient.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);
@@ -421,7 +421,7 @@ public class PostService(
     public async Task DeletePostAsync(long id)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         var post = await GetPostOrThrowAsync(id);
         if (post.GroupId is not null && post.GroupBoardId is not null)
             await _groupClient.EnsureCanWritePostAsync(post.GroupId.Value, post.GroupBoardId.Value);

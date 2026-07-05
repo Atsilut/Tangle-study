@@ -17,7 +17,7 @@ internal static class LocationSessionServiceTestFactory
         LocationSessionService LocationSessionService,
         LocationSafetyAlertService SafetyAlertService,
         LiveLocationRedisStore LiveStore,
-        InMemoryMonolithAccessClient MonolithAccess,
+        InMemoryUserClient InMemoryUser,
         FakeLocationRealtimeNotifier RealtimeNotifier);
 
     internal sealed class FakeLocationRealtimeNotifier : ILocationRealtimeNotifier
@@ -52,7 +52,7 @@ internal static class LocationSessionServiceTestFactory
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryMonolithAccessClient(http);
+        var monolith = new InMemoryUserClient(http);
         var db = new LocationDbContext(new DbContextOptionsBuilder<LocationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
@@ -95,7 +95,7 @@ internal static class LocationSessionServiceTestFactory
             realtimeNotifier);
     }
 
-    public static long SeedGroupWithMembers(InMemoryMonolithAccessClient monolith, long ownerId, params long[] memberIds)
+    public static long SeedGroupWithMembers(InMemoryUserClient monolith, long ownerId, params long[] memberIds)
     {
         const long groupId = 1;
         monolith.AddGroupMember(groupId, ownerId);

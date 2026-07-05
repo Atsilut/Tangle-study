@@ -52,8 +52,11 @@ jobs:
         with:
           filters: |
             dotnet-api:
-              - 'services/Api/**'
-              - 'services/Api.Tests/**'
+              - 'services/Gateway/**'
+              - 'services/Users/**'
+              - 'services/Users.Tests/**'
+              - 'services/Stack.Tests/**'
+              - 'services/Stack.Tests/**'
             dotnet-media:
               - 'services/Media/**'
               - 'services/Media.Tests/**'
@@ -89,9 +92,10 @@ jobs:
             rust:
               - 'workers/**'
             harness:
-              - 'services/Api.Tests/Fixtures/Harness/**'
-              - 'services/Api.Tests/Harness/**'
-              - 'services/Api/**'
+              - 'services/Gateway/**'
+              - 'services/Users/**'
+              - 'services/Stack.Tests/Fixtures/Harness/**'
+              - 'services/Stack.Tests/**'
               - 'services/Media/**'
               - 'services/Chat/**'
               - 'services/Location/**'
@@ -154,10 +158,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -182,7 +190,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -196,13 +204,13 @@ jobs:
       ############################################
       # 5. DOTNET PUBLISH
       ############################################
-      - name: Publish Api, Media, Chat, Location, Community, Group, and Social; build test projects
+      - name: Publish Gateway, Users, Media, Chat, Location, Community, Group, and Social; build test projects
         run: |
           mkdir -p .ci-cache/nuget .ci-cache/publish
           bash scripts/ci/dotnet-publish.sh
 
-  api-tests:
-    name: API integration tests
+  users-tests:
+    name: Users integration tests
     needs: [changes, dotnet-build]
     if: |
       always() &&
@@ -244,10 +252,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -272,7 +284,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -284,12 +296,12 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       ############################################
-      # 5. API INTEGRATION TESTS
+      # 5. USERS INTEGRATION TESTS
       ############################################
-      - name: Run API integration tests
+      - name: Run Users integration tests
         run: |
           mkdir -p .ci-cache/nuget
-          bash scripts/ci/docker-test.sh test services/Api.Tests/Api.Tests.csproj -c Release --no-build --filter "Category!=Harness"
+          bash scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --no-build
 
   media-tests:
     name: Media integration tests
@@ -299,6 +311,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-media == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
       )
@@ -333,10 +346,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -361,7 +378,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -388,6 +405,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-chat == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
@@ -423,10 +441,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -451,7 +473,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -478,6 +500,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-location == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
@@ -513,10 +536,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -541,7 +568,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -568,6 +595,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-community == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
@@ -603,10 +631,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -631,7 +663,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -658,6 +690,7 @@ jobs:
       needs.dotnet-build.result == 'success' && (
         github.event_name != 'pull_request' ||
         needs.changes.outputs.dotnet-group == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
         needs.changes.outputs.dotnet-social == 'true' ||
         needs.changes.outputs.dotnet-shared == 'true' ||
         needs.changes.outputs.harness == 'true'
@@ -693,10 +726,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -721,7 +758,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -783,10 +820,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -811,7 +852,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -946,12 +987,12 @@ jobs:
 
   compose-build:
     name: Build harness stack images
-    needs: [changes, dotnet-build, rust, api-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests]
+    needs: [changes, dotnet-build, rust, users-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests]
     if: |
       always() &&
       needs.dotnet-build.result == 'success' &&
       (needs.rust.result == 'success' || needs.rust.result == 'skipped') &&
-      (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') &&
+      (needs.users-tests.result == 'success' || needs.users-tests.result == 'skipped') &&
       (needs.media-tests.result == 'success' || needs.media-tests.result == 'skipped') &&
       (needs.chat-tests.result == 'success' || needs.chat-tests.result == 'skipped') &&
       (needs.location-tests.result == 'success' || needs.location-tests.result == 'skipped') &&
@@ -993,10 +1034,14 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api/bin
-            services/Api/obj
-            services/Api.Tests/bin
-            services/Api.Tests/obj
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
             services/Media/bin
             services/Media/obj
             services/Media.Tests/bin
@@ -1021,7 +1066,7 @@ jobs:
             services/Social/obj
             services/Social.Tests/bin
             services/Social.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -1107,9 +1152,9 @@ jobs:
           path: |
             .ci-cache/nuget
             .ci-cache/publish
-            services/Api.Tests/bin
-            services/Api.Tests/obj
-          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Api.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
@@ -1138,7 +1183,7 @@ jobs:
 
   ci-gate:
     name: CI
-    needs: [changes, dotnet-build, api-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests, rust, web, compose-build, harness-media]
+    needs: [changes, dotnet-build, users-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests, rust, web, compose-build, harness-media]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -1152,4 +1197,17 @@ jobs:
           echo "========================================"
           echo "[CI][FAILURE] One or more jobs failed or were cancelled"
           echo "========================================"
+          echo "changes:        ${{ needs.changes.result }}"
+          echo "dotnet-build:   ${{ needs.dotnet-build.result }}"
+          echo "users-tests:    ${{ needs.users-tests.result }}"
+          echo "media-tests:    ${{ needs.media-tests.result }}"
+          echo "chat-tests:     ${{ needs.chat-tests.result }}"
+          echo "location-tests: ${{ needs.location-tests.result }}"
+          echo "community-tests:${{ needs.community-tests.result }}"
+          echo "group-tests:    ${{ needs.group-tests.result }}"
+          echo "social-tests:   ${{ needs.social-tests.result }}"
+          echo "rust:           ${{ needs.rust.result }}"
+          echo "web:            ${{ needs.web.result }}"
+          echo "compose-build:  ${{ needs.compose-build.result }}"
+          echo "harness-media:  ${{ needs.harness-media.result }}"
           exit 1

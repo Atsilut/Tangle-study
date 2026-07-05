@@ -10,7 +10,7 @@ source "$ROOT/scripts/shared/common.sh"
 source "$ROOT/scripts/shared/compose-env.sh"
 
 if [[ $# -eq 0 ]]; then
-  fail "usage: $0 <dotnet-args...> (example: $0 ef migrations add MyMigration --project services/Api)"
+  fail "usage: $0 <dotnet-args...> (example: $0 ef migrations add MyMigration --project services/Users)"
 fi
 
 log_step "BUILD SDK IMAGE"

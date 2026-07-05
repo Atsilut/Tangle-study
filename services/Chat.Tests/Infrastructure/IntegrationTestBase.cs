@@ -5,7 +5,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected ChatWebApplicationFactory Factory { get; }
     protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
-    protected InMemoryMonolithAccessClient MonolithAccess => Factory.MonolithAccess;
+    protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected FakeMediaClient FakeMediaClient => Factory.FakeMediaClient;
 
     protected IntegrationTestBase(
@@ -20,7 +20,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await Factory.ClearAllChatDataAsync();
-        MonolithAccess.Reset();
+        InMemoryUser.Reset();
     }
 
     public ValueTask DisposeAsync()

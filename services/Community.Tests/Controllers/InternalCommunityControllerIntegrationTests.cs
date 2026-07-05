@@ -13,7 +13,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task DetachOnDeletion_DetachesAuthorFromPostsAndComments()
     {
-        var userId = MonolithAccess.SeedUser("frank");
+        var userId = InMemoryUser.SeedUser("frank");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createPostRes = await Client.PostAsJsonAsync(
@@ -53,7 +53,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
         Assert.Null(commentEntity.UserId);
         Assert.Equal(userId, commentEntity.DeletedUserId);
 
-        MonolithAccess.SimulateUserDeleted(userId);
+        InMemoryUser.SimulateUserDeleted(userId);
 
         Client.DefaultRequestHeaders.Authorization = null;
         Client.DefaultRequestHeaders.Remove("X-Internal-Secret");
@@ -80,7 +80,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task DeleteAllByGroup_RemovesGroupPostsAndLocations()
     {
-        var userId = MonolithAccess.SeedUser("grace");
+        var userId = InMemoryUser.SeedUser("grace");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -131,7 +131,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task ViewableIds_ReturnsPublicPosts()
     {
-        var userId = MonolithAccess.SeedUser("hank");
+        var userId = InMemoryUser.SeedUser("hank");
         CommunityTestAuthHelpers.LoginAs(Client, userId);
         var createRes = await Client.PostAsJsonAsync(
             "/api/posts",
@@ -156,8 +156,8 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task ViewableIds_ExcludesBlockedAndInaccessibleGroupPosts()
     {
-        var authorId = MonolithAccess.SeedUser("author");
-        var viewerId = MonolithAccess.SeedUser("viewer");
+        var authorId = InMemoryUser.SeedUser("author");
+        var viewerId = InMemoryUser.SeedUser("viewer");
         GroupAccess.AllowBoard(groupId: 30, boardId: 40);
 
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
@@ -185,7 +185,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             (await (await Client.GetAsync("/api/groups/30/boards/40/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        InMemoryUser.AddMutualBlock(authorId, viewerId);
         GroupAccess.ViewableBoards.Clear();
         GroupAccess.WritableBoards.Clear();
         GroupAccess.AllowAllBoards = false;
@@ -204,8 +204,8 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task ValidatePostOwner_AsOwner_Succeeds_AsOther_ReturnsForbidden()
     {
-        var ownerId = MonolithAccess.SeedUser("owner");
-        var otherId = MonolithAccess.SeedUser("not-owner");
+        var ownerId = InMemoryUser.SeedUser("owner");
+        var otherId = InMemoryUser.SeedUser("not-owner");
         CommunityTestAuthHelpers.LoginAs(Client, ownerId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -237,7 +237,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     {
         const long groupId = 50;
         const long boardId = 60;
-        var userId = MonolithAccess.SeedUser("media-view");
+        var userId = InMemoryUser.SeedUser("media-view");
         GroupAccess.AllowBoard(groupId, boardId);
         CommunityTestAuthHelpers.LoginAs(Client, userId);
 
@@ -291,8 +291,8 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     [Fact]
     public async Task MediaView_BlockedAuthor_ReturnsNotFound()
     {
-        var authorId = MonolithAccess.SeedUser("media-author");
-        var viewerId = MonolithAccess.SeedUser("media-viewer");
+        var authorId = InMemoryUser.SeedUser("media-author");
+        var viewerId = InMemoryUser.SeedUser("media-viewer");
         CommunityTestAuthHelpers.LoginAs(Client, authorId);
 
         var createRes = await Client.PostAsJsonAsync(
@@ -304,7 +304,7 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
             (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
                 .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
 
-        MonolithAccess.AddMutualBlock(authorId, viewerId);
+        InMemoryUser.AddMutualBlock(authorId, viewerId);
         CommunityTestAuthHelpers.LoginAsInternal(Client, viewerId);
         var res = await Client.PostAsync(
             $"/internal/community/{postId}/media-view",

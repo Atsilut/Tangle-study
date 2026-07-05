@@ -11,8 +11,8 @@ public sealed class GroupApplicationServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = GroupServiceTestFactory.Create(http);
-        var ownerId = graph.MonolithAccess.SeedUser("owner");
-        var strangerId = graph.MonolithAccess.SeedUser("stranger");
+        var ownerId = graph.InMemoryUser.SeedUser("owner");
+        var strangerId = graph.InMemoryUser.SeedUser("stranger");
         http.HttpContext = FakeHttpContextAccessor.ContextFor(ownerId);
         var group = await graph.GroupService.CreateGroupAsync(new GroupCreateRequestDto
         {

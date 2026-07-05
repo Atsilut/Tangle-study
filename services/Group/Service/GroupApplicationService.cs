@@ -18,7 +18,7 @@ namespace Group.Service
         GroupMembershipService membershipService,
         Lazy<GroupJoinResolutionService> joinResolution,
         GroupBlacklistService blacklistService,
-        IMonolithAccessClient monolithAccess,
+        IUserClient userClient,
         GroupDbContext db,
         IHttpContextAccessor httpContextAccessor)
     {
@@ -28,7 +28,7 @@ namespace Group.Service
         private readonly GroupMembershipService _membershipService = membershipService;
         private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
         private readonly GroupBlacklistService _blacklistService = blacklistService;
-        private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
@@ -189,7 +189,7 @@ namespace Group.Service
         {
             if (applications.Count == 0) return [];
 
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(applications.Select(a => a.ApplicantId));
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(applications.Select(a => a.ApplicantId));
             var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
             return [.. applications
                 .Select(a => MapForReviewer(
@@ -201,7 +201,7 @@ namespace Group.Service
         private async Task<List<GroupApplicationGetResponseDto>> MapApplicationsForApplicantAsync(
             IReadOnlyList<GroupApplication> applications, long applicantId)
         {
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([applicantId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([applicantId]);
             var nickname = nicknames.GetValueOrDefault(applicantId, "Deleted User");
             var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
             return [.. applications.Select(a => MapForApplicant(
@@ -214,7 +214,7 @@ namespace Group.Service
         private async Task<GroupApplicationGetResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)
         {
             var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([application.GroupId]);
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([application.ApplicantId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([application.ApplicantId]);
             var nickname = nicknames.GetValueOrDefault(application.ApplicantId, "Deleted User");
             return MapForApplicant(
                 application,

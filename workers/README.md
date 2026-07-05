@@ -1,6 +1,6 @@
 # Tangle Rust workers
 
-Redis Streams consumers for async jobs from .NET services (`IWorkQueue`). See [services/Api/Global/Queue/QUEUE.md](../services/Api/Global/Queue/QUEUE.md).
+Redis Streams consumers for async jobs from .NET services (`IWorkQueue`). See [docs/QUEUE.md](../docs/QUEUE.md).
 
 ## Workspace layout
 

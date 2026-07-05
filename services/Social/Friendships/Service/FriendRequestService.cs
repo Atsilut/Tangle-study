@@ -15,7 +15,7 @@ namespace Social.Friendships.Service;
 public partial class FriendRequestService(
     IFriendRequestRepository requestRepo,
     FriendshipService friendshipService,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     UserBlockService userBlockService,
     SocialDbContext db,
     IHttpContextAccessor httpContextAccessor,
@@ -23,7 +23,7 @@ public partial class FriendRequestService(
 {
     private readonly IFriendRequestRepository _repo = requestRepo;
     private readonly FriendshipService _friendshipService = friendshipService;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly UserBlockService _userBlockService = userBlockService;
     private readonly SocialDbContext _db = db;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
@@ -76,8 +76,8 @@ public partial class FriendRequestService(
     {
         if (requesterId == addresseeId) throw new ArgumentException("Cannot send a friend request to yourself.");
 
-        await _monolithAccess.EnsureUserExistsAsync(requesterId, "Authentication failed", StatusCodes.Status400BadRequest);
-        await _monolithAccess.EnsureUserExistsAsync(addresseeId, "Addressee not found", StatusCodes.Status400BadRequest);
+        await _userClient.EnsureUserExistsAsync(requesterId, "Authentication failed", StatusCodes.Status400BadRequest);
+        await _userClient.EnsureUserExistsAsync(addresseeId, "Addressee not found", StatusCodes.Status400BadRequest);
         await _friendshipService.EnsureFriendshipDoesNotExistForUserPairAsync(requesterId, addresseeId);
 
         if (await _userBlockService.IsBlockedByAsync(requesterId, addresseeId))
@@ -214,7 +214,7 @@ public partial class FriendRequestService(
     private async Task<List<FriendRequestGetResponseDto>> MapRequestsAsync(IReadOnlyList<FriendRequest> requests, long viewerId)
     {
         var otherIds = requests.Select(r => r.OtherPartyId(viewerId)).Distinct();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(otherIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(otherIds);
 
         return [.. requests.Select(r =>
             MapRequestToDto(r, viewerId, nicknames.GetValueOrDefault(r.OtherPartyId(viewerId), "Deleted User")))];

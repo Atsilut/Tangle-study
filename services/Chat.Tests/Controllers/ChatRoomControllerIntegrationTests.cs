@@ -69,7 +69,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         var userB = CreateUserForTest(testMethodName, 2);
         AcceptFriendship(userA, userB);
         LoginAs(userA);
-        MonolithAccess.AddBlock(userA.Id, userB.Id);
+        InMemoryUser.AddBlock(userA.Id, userB.Id);
 
         // Act
         var res = await Client.PostAsJsonAsync(
@@ -179,7 +179,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         var userA = CreateUserForTest(testMethodName, 1);
         var userB = CreateUserForTest(testMethodName, 2);
         LoginAs(userA);
-        MonolithAccess.AddBlock(userA.Id, userB.Id);
+        InMemoryUser.AddBlock(userA.Id, userB.Id);
 
         // Act
         var res = await Client.PostAsJsonAsync(

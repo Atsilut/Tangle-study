@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Wipe application data from the local Docker Compose Postgres (dev only).
 #
-# Keeps the schema and __EFMigrationsHistory; deletes all rows and resets
-# identity sequences. Does not touch Redis, Azurite blobs, or volumes.
+# Keeps schemas and per-schema __EFMigrationsHistory; deletes all rows and
+# resets identity sequences across every application schema (public, users,
+# chat, social, etc.). Does not touch Redis, Azurite blobs, or volumes.
 #
 # Usage:
 #   ./scripts/dev-clear-db.sh          # interactive confirm
@@ -26,7 +27,7 @@ for arg in "$@"; do
       echo "Usage: $0 [--yes]"
       echo
       echo "Delete all application rows from the local Compose Postgres ($DB_NAME on db:5432)."
-      echo "Schema and EF migration history are preserved."
+      echo "All application schemas are cleared; EF migration history is preserved."
       exit 0
       ;;
     *)
@@ -44,7 +45,7 @@ fi
 if [[ "$SKIP_CONFIRM" != true ]]; then
   log_info "this will DELETE ALL application data in local Postgres:"
   log_info "database=$DB_NAME host=localhost:5433"
-  log_info "schema and migrations are kept; Redis and blob storage are NOT cleared"
+  log_info "schemas and migrations are kept; Redis and blob storage are NOT cleared"
   read -r -p "Type 'yes' to continue: " answer
   [[ "$answer" == "yes" ]] || fail "aborted"
 fi
@@ -57,11 +58,15 @@ DECLARE
   stmt text;
 BEGIN
   SELECT 'TRUNCATE TABLE '
-         || string_agg(format('%I', tablename), ', ' ORDER BY tablename)
+         || string_agg(
+              format('%I.%I', schemaname, tablename),
+              ', '
+              ORDER BY schemaname, tablename
+            )
          || ' RESTART IDENTITY CASCADE'
   INTO stmt
   FROM pg_tables
-  WHERE schemaname = 'public'
+  WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
     AND tablename <> '__EFMigrationsHistory';
 
   IF stmt IS NULL THEN

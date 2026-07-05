@@ -44,7 +44,7 @@ public sealed class LocationClusterServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
         await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {

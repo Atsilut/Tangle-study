@@ -10,7 +10,7 @@ public sealed class MapPinServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.MonolithAccess);
+        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
         http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
 
         var dto = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
@@ -28,8 +28,8 @@ public sealed class MapPinServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var owner = ServiceTestHelpers.CreateUser(graph.MonolithAccess, "owner");
-        var other = ServiceTestHelpers.CreateUser(graph.MonolithAccess, "other");
+        var owner = ServiceTestHelpers.CreateUser(graph.InMemoryUser, "owner");
+        var other = ServiceTestHelpers.CreateUser(graph.InMemoryUser, "other");
         http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
         var created = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {

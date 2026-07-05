@@ -24,8 +24,11 @@ if [[ " $* " == *" --no-build "* ]]; then
   }
 
   case " $* " in
-    *Api.Tests*)
-      require_test_build_output "Api.Tests" "Api.Tests.dll"
+    *Users.Tests*)
+      require_test_build_output "Users.Tests" "Users.Tests.dll"
+      ;;
+    *Stack.Tests*)
+      require_test_build_output "Stack.Tests" "Stack.Tests.dll"
       ;;
     *Media.Tests*)
       require_test_build_output "Media.Tests" "Media.Tests.dll"
@@ -46,7 +49,7 @@ if [[ " $* " == *" --no-build "* ]]; then
       require_test_build_output "Social.Tests" "Social.Tests.dll"
       ;;
     *)
-      require_test_build_output "Api.Tests" "Api.Tests.dll"
+      require_test_build_output "Users.Tests" "Users.Tests.dll"
       require_test_build_output "Media.Tests" "Media.Tests.dll"
       require_test_build_output "Chat.Tests" "Chat.Tests.dll"
       require_test_build_output "Location.Tests" "Location.Tests.dll"

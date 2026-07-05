@@ -1,10 +1,17 @@
 # Runtime-only service images for CI harness and CD parity.
 # Requires: scripts/ci/dotnet-publish.sh + scripts/ci/build-workers-release.sh
 services:
-  api:
+  gateway:
     build:
       context: .
-      dockerfile: services/Api/Dockerfile.runtime
+      dockerfile: services/Gateway/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  users:
+    build:
+      context: .
+      dockerfile: services/Users/Dockerfile.runtime
       args:
         DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
 

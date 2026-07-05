@@ -311,7 +311,7 @@ public sealed class LocationSessionControllerIntegrationTests(
         var groupId = CreateGroupWithOwner(sharer);
         AddGroupMember(groupId, viewer);
 
-        MonolithAccess.AddBlock(viewer.Id, sharer.Id);
+        InMemoryUser.AddBlock(viewer.Id, sharer.Id);
 
         LoginAs(sharer);
         await Client.PostAsJsonAsync(

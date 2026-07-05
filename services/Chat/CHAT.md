@@ -26,10 +26,10 @@ Room kinds: `Direct`, `Multi`, `PlatformGroup`. See Swagger under `api/chat` and
 
 | Method | Route | Caller | Notes |
 |--------|-------|--------|-------|
-| `POST` | `/internal/chat/users/{userId}/detach-on-deletion` | Monolith | User deletion cleanup |
+| `POST` | `/internal/chat/users/{userId}/detach-on-deletion` | Users-service | User deletion cleanup |
 | `POST` | `/internal/chat/messages/{chatMessageId}/media-view` | Media-service | Chat attachment ACL check (also requires caller JWT) |
 
-Shared secret: `InternalAccess:Secret` on chat-service; `Monolith:InternalSecret` / `ChatClient:InternalSecret` on callers. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
+Shared secret: `InternalAccess:Secret` on chat-service; `Users:InternalSecret` / `ChatClient:InternalSecret` on callers. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
 
 ---
 
@@ -40,7 +40,7 @@ Shared secret: `InternalAccess:Secret` on chat-service; `Monolith:InternalSecret
 | Item | Value |
 |------|--------|
 | URL | `/hubs/chat` |
-| Auth | JWT (same as REST) |
+| Auth | JWT validated at gateway; hub accepts `?access_token=` query param |
 
 ### JWT on WebSocket negotiate
 
@@ -110,4 +110,4 @@ Planned: return the latest messages from `JoinRoom` to reduce round-trips (not i
 | `Redis:Enabled=false` | In-process SignalR groups; fine for single API instance and tests |
 | `Redis:Enabled=true` | SignalR Redis backplane syncs groups across API replicas |
 
-See [Api REDIS.md](../Api/Global/REDIS.md) for cache, pub/sub, and Streams. **Postgres remains message history; Redis does not store chat transcripts for clients.**
+See [REDIS.md](../../docs/REDIS.md) for cache, pub/sub, and Streams. **Postgres remains message history; Redis does not store chat transcripts for clients.**

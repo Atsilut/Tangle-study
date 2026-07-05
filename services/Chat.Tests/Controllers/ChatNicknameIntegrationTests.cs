@@ -26,7 +26,7 @@ public sealed class ChatNicknameIntegrationTests(
         var createRes = await PostMessageAsync(room.Id, "Nickname refresh");
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
 
-        MonolithAccess.Nicknames[userA.Id] = updatedNickname;
+        InMemoryUser.Nicknames[userA.Id] = updatedNickname;
 
         // Act
         LoginAs(userB);

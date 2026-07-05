@@ -14,7 +14,7 @@ public class CommentService(
     CommunityDbContext db,
     IHttpContextAccessor httpContextAccessor,
     PostService postService,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient,
     IMediaClient mediaClient)
@@ -24,7 +24,7 @@ public class CommentService(
     private readonly IMediaClient _mediaClient = mediaClient;
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
     private readonly PostService _postService = postService;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
@@ -75,7 +75,7 @@ public class CommentService(
     public async Task CreateCommentAsync(CommentCreateRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         await _postService.EnsureCanCommentOnPostAsync(request.PostId);
 
         if (request.ParentId.HasValue)
@@ -133,7 +133,7 @@ public class CommentService(
         if (await IsAuthorBlockedByViewerAsync(comment.AuthorUserId)) return null;
         if (comment.PostId is not null)
             await _postService.EnsureCanViewPostAsync(comment.PostId.Value);
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([comment.AuthorUserId]);
         var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([comment.Id]);
         return MapToDto(
             comment,
@@ -168,7 +168,7 @@ public class CommentService(
         var comments = await _repo.GetCommentsByUserIdAsync(userId);
         if (comments.Count == 0)
         {
-            await _monolithAccess.EnsureUserExistsAsync(userId);
+            await _userClient.EnsureUserExistsAsync(userId);
             return null;
         }
 
@@ -180,7 +180,7 @@ public class CommentService(
         comments = [.. comments.Where(c => c.PostId is null || viewablePostIds.Contains(c.PostId.Value))];
         if (comments.Count == 0) return null;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
         var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
         return [.. comments.Select(c => MapToDto(
             c,
@@ -210,7 +210,7 @@ public class CommentService(
 
     private async Task<List<CommentGetResponseDto>> BuildCommentTreeAsync(IReadOnlyList<Comment> comments)
     {
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(comments.Select(c => c.AuthorUserId).Distinct());
         var mediaByCommentId = await _mediaClient.GetMediaByCommentIdsAsync([.. comments.Select(c => c.Id)]);
         var byId = comments.ToDictionary(
             c => c.Id,
@@ -238,7 +238,7 @@ public class CommentService(
     public async Task<CommentPatchResponseDto> UpdateCommentAsync(CommentPatchRequestDto request)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         var comment = await GetCommentOrThrowAsync(request.Id);
         if (comment.PostId is null && comment.DeletedPostId is not null)
             throw new ArgumentException("Post is not reachable. Comments are readonly.");
@@ -276,7 +276,7 @@ public class CommentService(
     public async Task DeleteCommentAsync(long id)
     {
         var userId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(userId);
+        await _userClient.EnsureUserExistsAsync(userId);
         var comment = await GetCommentOrThrowAsync(id);
         if (comment.PostId is not null) await EnsureGroupBoardWriteAccessForPostAsync(comment.PostId.Value);
         if (comment.AuthorUserId != userId)

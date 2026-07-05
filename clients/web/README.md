@@ -2,7 +2,7 @@
 
 React web client for the Tangle API. Thin, accessibility-minded UI covering auth, posts, comments, friends, blocks, groups, chat, and media. Component and hook reuse is a first-class concern.
 
-Project overview: [../../README.md](../../README.md). Backend feature reference: Swagger at `http://localhost:5000/api`.
+Project overview: [../../README.md](../../README.md). Backend feature reference: Swagger at `http://localhost:8080/api`.
 
 ---
 

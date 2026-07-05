@@ -23,11 +23,11 @@ Subject user ids are always explicit in the request body (not taken from JWT). C
 | `POST /internal/social/blocks/validate-against-others` | `{ userId, otherUserIds }` | Chat |
 | `POST /internal/social/blocks/mutual-ids` | `{ userId, otherUserIds }` | Community, Location |
 | `POST /internal/social/blocks/is-blocked-by` | `{ blockerUserId, blockedUserId }` | Group |
-| `POST /internal/social/users/{id}/detach-on-deletion` | — | Api (user delete; transactional) |
+| `POST /internal/social/users/{id}/detach-on-deletion` | — | Users-service (transactional) |
 
 ## Outbound
 
-- **Monolith** (`Monolith:BaseUrl`): user existence, nicknames, friends-list visibility
+- **Users** (`Users:BaseUrl`): user existence, nicknames, friends-list visibility
 
 ## Dev data
 

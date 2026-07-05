@@ -11,12 +11,12 @@ namespace Group.Service
     public class GroupMembershipService(
         IGroupMemberRepository repo,
         Lazy<GroupService> groupService,
-        IMonolithAccessClient monolithAccess,
+        IUserClient userClient,
         IHttpContextAccessor httpContextAccessor)
     {
         private readonly IGroupMemberRepository _repo = repo;
         private readonly Lazy<GroupService> _groupService = groupService;
-        private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly IUserClient _userClient = userClient;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
@@ -164,7 +164,7 @@ namespace Group.Service
             target.ChangeRole(request.Role);
             await _repo.UpdateMemberAsync(target);
 
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([target.UserId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([target.UserId]);
             var nickname = nicknames.GetValueOrDefault(target.UserId, "Deleted User");
             return MapToDto(target, nickname);
         }
@@ -203,7 +203,7 @@ namespace Group.Service
 
         private async Task<List<GroupMemberGetResponseDto>> MapManyAsync(IReadOnlyList<GroupMember> members)
         {
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(members.Select(m => m.UserId));
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(members.Select(m => m.UserId));
             return [.. members
                 .OrderByDescending(m => m.Role)
                 .ThenBy(m => m.JoinedAt)

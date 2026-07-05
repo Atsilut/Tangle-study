@@ -42,8 +42,9 @@ public sealed class MediaWebApplicationFactory(
         builder.UseSetting("Media:ConnectionString", TestBlobConnectionString);
         builder.UseSetting("Media:WorkerCallbackSecret", TestWorkerCallbackSecret);
         builder.UseSetting("Media:InternalServiceSecret", TestInternalServiceSecret);
-        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
-        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Users:BaseUrl", "http://users.test");
+        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GatewayIdentity:Secret", MediaTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
         builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
@@ -60,8 +61,9 @@ public sealed class MediaWebApplicationFactory(
                 ["Media:ContainerName"] = "tangle-media",
                 ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
                 ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
-                ["Monolith:BaseUrl"] = "http://monolith.test",
-                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Users:BaseUrl"] = "http://users.test",
+                ["Users:InternalSecret"] = TestInternalServiceSecret,
+                ["GatewayIdentity:Secret"] = MediaTestAuthHelpers.TestGatewaySecret,
                 ["ChatClient:BaseUrl"] = "http://chat.test",
                 ["CommunityClient:BaseUrl"] = "http://community.test",
                 ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
@@ -77,8 +79,8 @@ public sealed class MediaWebApplicationFactory(
             RemoveService<IMediaStorage>(services);
             services.AddSingleton<IMediaStorage>(_fakeStorage);
 
-            RemoveService<IMonolithAccessClient>(services);
-            services.AddSingleton<IMonolithAccessClient, AllowAllMonolithAccessClient>();
+            RemoveService<IUserClient>(services);
+            services.AddSingleton<IUserClient, AllowAllUserClient>();
 
             RemoveService<ICommunityAccessClient>(services);
             services.AddSingleton<ICommunityAccessClient, AllowAllCommunityAccessClient>();

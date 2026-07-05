@@ -98,5 +98,5 @@ workers:
     stream_key: location.cluster
     requires_callback: true
     compose:
-      API_BASE_URL: http://api:8080
+      API_BASE_URL: http://location:8080
       WORKER_CALLBACK_SECRET: dev-media-worker-secret

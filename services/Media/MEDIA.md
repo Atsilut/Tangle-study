@@ -2,7 +2,7 @@
 
 Direct-to-storage uploads (Azure Blob / Azurite locally), async processing via Redis Streams + [worker-media](../../../workers/README.md), and attachment by ID on posts, comments, and chat messages.
 
-Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
+Stream contract: [QUEUE.md](../../docs/QUEUE.md). Service config: [`media-config.yml`](media-config.yml).
 
 ---
 
@@ -19,7 +19,7 @@ Stream contract: [Api QUEUE.md](../Api/Global/Queue/QUEUE.md). Service config: [
 
 \* Content is public when the asset is linked to a post or comment the caller could read; chat attachments require auth.
 
-Swagger: `http://localhost:8080/api` (via nginx) or direct `http://localhost:5000/api` on the monolith during migration.
+Swagger: `http://localhost:8080/api` (via nginx → gateway).
 
 ---
 
@@ -45,7 +45,7 @@ CompleteUpload → XADD media.uploaded → rust-worker-media
 
 Worker config: `WORKER_STREAM_KEY=media.uploaded`, `API_BASE_URL` (media-service base, e.g. `http://media:8080` in Compose), `WORKER_CALLBACK_SECRET` (must match `Media:WorkerCallbackSecret` on media-service).
 
-Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../Api/Global/Queue/QUEUE.md).
+Harness smoke: `./scripts/ci/run-media-harness.sh` — see [QUEUE.md](../../docs/QUEUE.md).
 
 ---
 

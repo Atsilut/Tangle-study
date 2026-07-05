@@ -6,7 +6,7 @@ using Location.Realtime;
 using Location.Security;
 using Location.Service;
 using Location.Telemetry;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +47,6 @@ builder.Configuration
     .AddYamlFile("location-config.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
 builder.Services.Configure<LocationSafetyOptions>(builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
@@ -55,46 +54,25 @@ builder.Services.Configure<LocationClusterOptions>(builder.Configuration.GetSect
 builder.Services.Configure<PlacesOptions>(builder.Configuration.GetSection(PlacesOptions.SectionName));
 builder.Services.Configure<InternalAccessOptions>(builder.Configuration.GetSection(InternalAccessOptions.SectionName));
 builder.Services.Configure<WorkerCallbackOptions>(builder.Configuration.GetSection(WorkerCallbackOptions.SectionName));
+builder.Services.Configure<GatewayIdentityOptions>(builder.Configuration.GetSection(GatewayIdentityOptions.SectionName));
 builder.Services.AddScoped<InternalAccessAuthorizationFilter>();
 builder.Services.AddScoped<WorkerCallbackAuthorizationFilter>();
-builder.Services.AddSingleton<JwtBearerValidator>();
 
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = GatewayIdentityAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = GatewayIdentityAuthenticationHandler.SchemeName;
     })
-    .AddJwtBearer();
-
-builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>>(sp =>
-    new PostConfigureOptions<JwtBearerOptions>(
-        JwtBearerDefaults.AuthenticationScheme,
-        options =>
-        {
-            var jwtValidator = sp.GetRequiredService<JwtBearerValidator>();
-            options.TokenValidationParameters = jwtValidator.GetValidationParameters();
-            options.MapInboundClaims = false;
-            options.Events = new JwtBearerEvents
-            {
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken)
-                        && path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase))
-                        context.Token = accessToken;
-
-                    return Task.CompletedTask;
-                },
-            };
-        }));
+    .AddScheme<AuthenticationSchemeOptions, GatewayIdentityAuthenticationHandler>(
+        GatewayIdentityAuthenticationHandler.SchemeName,
+        _ => { });
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
 builder.Services.AddTangleRedis(builder.Configuration);
-builder.Services.AddTangleMonolithAccess(builder.Configuration);
+builder.Services.AddTangleUsersAccess(builder.Configuration);
 builder.Services.AddTangleSocialClient(builder.Configuration);
 builder.Services.AddTangleGroupClient(builder.Configuration);
 builder.Services.AddTangleCommunityAccess(builder.Configuration);
@@ -167,8 +145,6 @@ healthChecksBuilder.ForwardToPrometheus();
 
 var app = builder.Build();
 
-var jwtOptions = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
-JwtStartupValidator.Validate(app.Environment, jwtOptions);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);

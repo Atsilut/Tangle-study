@@ -1,8 +1,0 @@
-# JWT signing and validation. Loaded at startup (see Program.cs).
-# Replace Secret before any non-Development / non-Docker deployment, or inject
-# Jwt__Secret via environment variables (overrides this file in Production).
-Jwt:
-  Issuer: "Tangle"
-  Audience: "TangleClient"
-  Secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_32+_CHARS"
-  ExpiryMinutes: 15

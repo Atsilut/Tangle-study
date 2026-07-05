@@ -27,18 +27,19 @@ public sealed class ChatWebApplicationFactory(
 
     private readonly string _connectionString = connectionString;
     private readonly string _redisConnectionString = redisConnectionString;
-    private readonly InMemoryMonolithAccessClient _monolithAccess = new(new FakeHttpContextAccessor("1"));
+    private readonly InMemoryUserClient _monolithAccess = new(new FakeHttpContextAccessor("1"));
     private readonly FakeMediaClient _fakeMediaClient = new();
 
-    public InMemoryMonolithAccessClient MonolithAccess => _monolithAccess;
+    public InMemoryUserClient InMemoryUser => _monolithAccess;
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Docker");
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
-        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Users:BaseUrl", "http://users.test");
+        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GatewayIdentity:Secret", ChatTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
         builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
@@ -59,8 +60,9 @@ public sealed class ChatWebApplicationFactory(
                 ["Redis:ConnectionString"] = _redisConnectionString,
                 ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
                 ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
-                ["Monolith:BaseUrl"] = "http://monolith.test",
-                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Users:BaseUrl"] = "http://users.test",
+                ["Users:InternalSecret"] = TestInternalServiceSecret,
+                ["GatewayIdentity:Secret"] = ChatTestAuthHelpers.TestGatewaySecret,
                 ["SocialClient:BaseUrl"] = "http://social.test",
                 ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["GroupClient:BaseUrl"] = "http://group.test",
@@ -77,10 +79,10 @@ public sealed class ChatWebApplicationFactory(
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMonolithAccessClient>(services);
+            RemoveService<IUserClient>(services);
             RemoveService<ISocialClient>(services);
             RemoveService<IGroupClient>(services);
-            services.AddSingleton<IMonolithAccessClient>(_monolithAccess);
+            services.AddSingleton<IUserClient>(_monolithAccess);
             services.AddSingleton<ISocialClient>(_monolithAccess);
             services.AddSingleton<IGroupClient>(_monolithAccess);
 

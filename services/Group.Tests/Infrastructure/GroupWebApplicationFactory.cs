@@ -21,8 +21,8 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
     private readonly FakeCommunityClient _fakeCommunityClient = new();
     private readonly FakeLocationClient _fakeLocationClient = new();
 
-    public InMemoryMonolithAccessClient MonolithAccess =>
-        Services.GetRequiredService<InMemoryMonolithAccessClient>();
+    public InMemoryUserClient InMemoryUser =>
+        Services.GetRequiredService<InMemoryUserClient>();
 
     public FakeCommunityClient FakeCommunityClient => _fakeCommunityClient;
     public FakeLocationClient FakeLocationClient => _fakeLocationClient;
@@ -31,8 +31,9 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
     {
         builder.UseEnvironment(Environments.Production);
         builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Monolith:BaseUrl", "http://monolith.test");
-        builder.UseSetting("Monolith:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("Users:BaseUrl", "http://users.test");
+        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
+        builder.UseSetting("GatewayIdentity:Secret", GroupTestAuthHelpers.TestGatewaySecret);
         builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
         builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
         builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
@@ -49,8 +50,9 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Monolith:BaseUrl"] = "http://monolith.test",
-                ["Monolith:InternalSecret"] = TestInternalServiceSecret,
+                ["Users:BaseUrl"] = "http://users.test",
+                ["Users:InternalSecret"] = TestInternalServiceSecret,
+                ["GatewayIdentity:Secret"] = GroupTestAuthHelpers.TestGatewaySecret,
                 ["SocialClient:BaseUrl"] = "http://social.test",
                 ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
                 ["CommunityClient:BaseUrl"] = "http://community.test",
@@ -68,13 +70,13 @@ public sealed class GroupWebApplicationFactory(string connectionString) : WebApp
 
         builder.ConfigureTestServices(services =>
         {
-            RemoveService<IMonolithAccessClient>(services);
+            RemoveService<IUserClient>(services);
             RemoveService<ISocialClient>(services);
-            services.AddSingleton<InMemoryMonolithAccessClient>();
-            services.AddSingleton<IMonolithAccessClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+            services.AddSingleton<InMemoryUserClient>();
+            services.AddSingleton<IUserClient>(sp =>
+                sp.GetRequiredService<InMemoryUserClient>());
             services.AddSingleton<ISocialClient>(sp =>
-                sp.GetRequiredService<InMemoryMonolithAccessClient>());
+                sp.GetRequiredService<InMemoryUserClient>());
 
             RemoveService<ICommunityClient>(services);
             services.AddSingleton<ICommunityClient>(_fakeCommunityClient);

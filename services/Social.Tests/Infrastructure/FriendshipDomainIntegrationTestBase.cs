@@ -20,12 +20,12 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         string testMethodName,
         long index = 1,
         FriendsListVisibility visibility = FriendsListVisibility.Private) =>
-        MonolithAccess.SeedUser($"{testMethodName}User{index}", visibility: visibility);
+        InMemoryUser.SeedUser($"{testMethodName}User{index}", visibility: visibility);
 
     protected void LoginAs(long userId) => SocialTestAuthHelpers.LoginAs(Client, userId);
 
     protected void SetFriendsListVisibility(long userId, FriendsListVisibility visibility) =>
-        MonolithAccess.FriendsListVisibilityByUserId[userId] = visibility;
+        InMemoryUser.FriendsListVisibilityByUserId[userId] = visibility;
 
     protected async Task SendFriendRequestAsync(long addresseeId)
     {

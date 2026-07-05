@@ -14,7 +14,7 @@ namespace Group.Service
         Lazy<GroupService> groupService,
         GroupMembershipService membershipService,
         Lazy<GroupJoinResolutionService> joinResolution,
-        IMonolithAccessClient monolithAccess,
+        IUserClient userClient,
         GroupDbContext db,
         IHttpContextAccessor httpContextAccessor)
     {
@@ -22,7 +22,7 @@ namespace Group.Service
         private readonly Lazy<GroupService> _groupService = groupService;
         private readonly GroupMembershipService _membershipService = membershipService;
         private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
-        private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+        private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
@@ -46,7 +46,7 @@ namespace Group.Service
 
             if (callerId == request.UserId) throw new ArgumentException("Cannot blacklist yourself.");
 
-            await _monolithAccess.EnsureUserExistsAsync(request.UserId, "User not found", StatusCodes.Status400BadRequest);
+            await _userClient.EnsureUserExistsAsync(request.UserId, "User not found", StatusCodes.Status400BadRequest);
 
             if (await _repo.ExistsAsync(groupId, request.UserId)) throw new EntityAlreadyExistsException("User is already blacklisted from this group.");
 
@@ -60,7 +60,7 @@ namespace Group.Service
                 await _joinResolution.Value.DeleteJoinArtifactsForUserAndGroupAsync(groupId, request.UserId);
             });
 
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([request.UserId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([request.UserId]);
             var nickname = nicknames.GetValueOrDefault(request.UserId, "Deleted User");
             return MapToDto(entry, nickname);
         }
@@ -84,7 +84,7 @@ namespace Group.Service
             var entries = await _repo.GetByGroupAsync(groupId);
             if (entries.Count == 0) return [];
 
-            var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(entries.Select(e => e.UserId));
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(entries.Select(e => e.UserId));
             return [.. entries
                 .Select(e => MapToDto(e, nicknames.GetValueOrDefault(e.UserId, "Deleted User")))];
         }

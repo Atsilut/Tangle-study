@@ -1,7 +1,20 @@
-# Harness runs tests inside Compose; API is reached via nginx (strangler edge).
+# Harness runs tests inside Compose; API is reached via nginx → gateway.
 services:
-  api:
+  gateway:
     ports: !reset []
+    depends_on: !override
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+
+  users:
+    ports: !reset []
+    depends_on: !override
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   media:
     environment:
@@ -13,7 +26,9 @@ services:
       args:
         NGINX_CONF: infra/nginx/nginx.harness.conf
     depends_on: !override
-      api:
+      gateway:
+        condition: service_healthy
+      users:
         condition: service_healthy
       media:
         condition: service_healthy

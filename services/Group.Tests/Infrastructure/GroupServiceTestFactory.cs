@@ -23,7 +23,7 @@ internal static class GroupServiceTestFactory
         FakeGroupInvitationRepository GroupInvitationRepository,
         FakeGroupBlacklistRepository GroupBlacklistRepository,
         FakeGroupBoardRepository GroupBoardRepository,
-        InMemoryMonolithAccessClient MonolithAccess,
+        InMemoryUserClient InMemoryUser,
         FakeCommunityClient CommunityClient,
         FakeLocationClient LocationClient,
         FakeHttpContextAccessor Http);
@@ -37,7 +37,7 @@ internal static class GroupServiceTestFactory
         var groupBlacklistRepository = new FakeGroupBlacklistRepository();
         var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
-        var monolith = new InMemoryMonolithAccessClient();
+        var monolith = new InMemoryUserClient();
         var communityClient = new FakeCommunityClient();
         var locationClient = new FakeLocationClient();
         var db = new GroupDbContext(new DbContextOptionsBuilder<GroupDbContext>()

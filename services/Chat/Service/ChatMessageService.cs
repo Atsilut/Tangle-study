@@ -18,7 +18,7 @@ public class ChatMessageService(
     IChatMessageRepository repo,
     ChatDbContext db,
     ChatRoomService chatRoomService,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     IMediaClient mediaClient,
     IChatRealtimeNotifier realtime,
     IEventPublisher eventPublisher,
@@ -33,7 +33,7 @@ public class ChatMessageService(
     private readonly ChatDbContext _db = db;
     private readonly IMediaClient _mediaClient = mediaClient;
     private readonly ChatRoomService _chatRoomService = chatRoomService;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly IChatRealtimeNotifier _realtime = realtime;
     private readonly IEventPublisher _eventPublisher = eventPublisher;
     private readonly IWorkQueue _workQueue = workQueue;
@@ -86,7 +86,7 @@ public class ChatMessageService(
         await _chatRoomService.EnsureCurrentUserIsParticipantAsync(roomId);
 
         var senderUserId = GetUserIdFromLogin();
-        await _monolithAccess.EnsureUserExistsAsync(senderUserId);
+        await _userClient.EnsureUserExistsAsync(senderUserId);
 
         var body = request.Body.Trim();
         if (body.Length == 0 && request.MediaAssetId is null)
@@ -130,7 +130,7 @@ public class ChatMessageService(
         if (messagesByRoom.Count == 0) return new Dictionary<long, ChatRoomSummaryLastMessageDto>();
 
         var messages = messagesByRoom.Values.ToList();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(messages.Select(m => m.LogicalSenderUserId));
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(messages.Select(m => m.LogicalSenderUserId));
         var mediaByMessageId = await _mediaClient.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
 
         return messages.ToDictionary(
@@ -236,7 +236,7 @@ public class ChatMessageService(
         long viewerUserId)
     {
         var senderIds = messages.Select(m => m.LogicalSenderUserId).Distinct();
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(senderIds);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(senderIds);
         var mediaByMessageId = await _mediaClient.GetMediaByChatMessageIdsAsync([.. messages.Select(m => m.Id)]);
         var seenByOther = await _repo.GetMessageIdsSeenByOtherParticipantsAsync([.. messages.Select(m => m.Id)]);
         var editsByMessageId = await _repo.GetChatMessageEditsByMessageIdsAsync([.. messages.Select(m => m.Id)]);
@@ -254,7 +254,7 @@ public class ChatMessageService(
 
     private async Task<ChatMessageGetResponseDto> MapToDtoAsync(ChatMessage message, long viewerUserId)
     {
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync([message.LogicalSenderUserId]);
         var media = message.IsDeleted
             ? null
             : await _mediaClient.GetMediaForChatMessageAsync(message.Id);

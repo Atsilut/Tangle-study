@@ -18,7 +18,7 @@ internal static class GroupIntegrationTestHelpers
     public static TestUser CreateUser(GroupWebApplicationFactory factory, string nickname, long index = 1)
     {
         var name = index == 1 ? nickname : $"{nickname}_{index}";
-        return new(factory.MonolithAccess.SeedUser(name), name);
+        return new(factory.InMemoryUser.SeedUser(name), name);
     }
 
     public static void LoginAs(HttpClient client, TestUser user) =>
@@ -45,7 +45,7 @@ internal static class GroupIntegrationTestHelpers
     }
 
     public static void BlockUser(GroupWebApplicationFactory factory, long blockerUserId, long blockedUserId) =>
-        factory.MonolithAccess.AddBlock(blockerUserId, blockedUserId);
+        factory.InMemoryUser.AddBlock(blockerUserId, blockedUserId);
 
     public static async Task SeedGroupMemberAsync(
         GroupWebApplicationFactory factory,

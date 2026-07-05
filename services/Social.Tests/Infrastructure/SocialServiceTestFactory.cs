@@ -17,7 +17,7 @@ public sealed class SocialServiceTestFactory : IDisposable
     public FakeFriendshipRepository FriendshipRepository { get; }
     public FakeFriendRequestRepository FriendRequestRepository { get; }
     public FakeUserBlockRepository UserBlockRepository { get; }
-    public InMemoryMonolithAccessClient Monolith { get; }
+    public InMemoryUserClient Monolith { get; }
     public FakeHttpContextAccessor Http { get; }
     public SocialDbContext Db { get; }
 
@@ -28,7 +28,7 @@ public sealed class SocialServiceTestFactory : IDisposable
         FakeFriendshipRepository friendshipRepository,
         FakeFriendRequestRepository friendRequestRepository,
         FakeUserBlockRepository userBlockRepository,
-        InMemoryMonolithAccessClient monolith,
+        InMemoryUserClient monolith,
         FakeHttpContextAccessor http,
         SocialDbContext db)
     {
@@ -49,7 +49,7 @@ public sealed class SocialServiceTestFactory : IDisposable
         var friendshipRepo = new FakeFriendshipRepository();
         var friendRequestRepo = new FakeFriendRequestRepository();
         var userBlockRepo = new FakeUserBlockRepository();
-        var monolith = new InMemoryMonolithAccessClient();
+        var monolith = new InMemoryUserClient();
         var db = new SocialDbContext(new DbContextOptionsBuilder<SocialDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);

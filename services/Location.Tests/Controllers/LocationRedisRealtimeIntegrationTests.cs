@@ -42,9 +42,8 @@ public sealed class LocationRedisRealtimeIntegrationTests(
             TestContext.Current.CancellationToken))!;
 
         LoginAs(member);
-        var tokenB = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var received = new TaskCompletionSource<LiveLocationGetResponseDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, tokenB);
+        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, member.Id);
         hubConnection.On<LiveLocationGetResponseDto>(LocationHub.LocationUpdatedEvent, dto => received.TrySetResult(dto));
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
         await hubConnection.InvokeAsync("JoinSession", session.Id, TestContext.Current.CancellationToken);
@@ -92,8 +91,7 @@ public sealed class LocationRedisRealtimeIntegrationTests(
             TestContext.Current.CancellationToken))!;
 
         LoginAs(stranger);
-        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
-        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, stranger.Id);
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
@@ -129,9 +127,8 @@ public sealed class LocationRedisRealtimeIntegrationTests(
             TestContext.Current.CancellationToken))!;
 
         LoginAs(member);
-        var token = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var received = new TaskCompletionSource<LocationSafetyAlertDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, token);
+        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, member.Id);
         hubConnection.On<LocationSafetyAlertDto>(LocationHub.SafetyAlertRaisedEvent, dto => received.TrySetResult(dto));
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
         await hubConnection.InvokeAsync("JoinGroupAlerts", groupId, TestContext.Current.CancellationToken);
@@ -179,9 +176,8 @@ public sealed class LocationRedisRealtimeIntegrationTests(
             TestContext.Current.CancellationToken))!;
 
         LoginAs(member);
-        var tokenB = Client.DefaultRequestHeaders.Authorization!.Parameter!;
         var received = new TaskCompletionSource<LocationSessionEndedDto>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, tokenB);
+        var hubConnection = LocationRealtimeTestHelpers.BuildHubConnection(Factory, Client, member.Id);
         hubConnection.On<LocationSessionEndedDto>(LocationHub.LocationSessionEndedEvent, dto => received.TrySetResult(dto));
         await hubConnection.StartAsync(TestContext.Current.CancellationToken);
         await hubConnection.InvokeAsync("JoinSession", session.Id, TestContext.Current.CancellationToken);

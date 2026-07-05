@@ -1,7 +1,8 @@
 <Solution>
   <Folder Name="/infra/" />
   <Folder Name="/services/">
-    <Project Path="services/Api/Api.csproj" />
+  <Project Path="services/Gateway/Gateway.csproj" />
+    <Project Path="services/Users/Users.csproj" />
     <Project Path="services/Chat/Chat.csproj" />
     <Project Path="services/Location/Location.csproj" />
     <Project Path="services/Media/Media.csproj" />
@@ -10,11 +11,13 @@
     <Project Path="services/Social/Social.csproj" />
   </Folder>
   <Folder Name="/workers/" />
-  <Project Path="services/Api.Tests/Api.Tests.csproj" Id="c16e227b-3f87-4248-bdb2-091b9d47f7e0" />
+  <Project Path="services/Gateway.Tests/Gateway.Tests.csproj" />
+  <Project Path="services/Users.Tests/Users.Tests.csproj" />
   <Project Path="services/Media.Tests/Media.Tests.csproj" />
   <Project Path="services/Chat.Tests/Chat.Tests.csproj" />
   <Project Path="services/Location.Tests/Location.Tests.csproj" />
   <Project Path="services/Community.Tests/Community.Tests.csproj" />
   <Project Path="services/Group.Tests/Group.Tests.csproj" />
   <Project Path="services/Social.Tests/Social.Tests.csproj" />
+  <Project Path="services/Stack.Tests/Stack.Tests.csproj" />
 </Solution>

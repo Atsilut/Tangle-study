@@ -16,7 +16,7 @@ namespace Location.Service;
 public class LocationSafetyAlertService(
     ILocationSessionRepository repo,
     LiveLocationRedisStore liveStore,
-    IMonolithAccessClient monolithAccess,
+    IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient,
     ILocationRealtimeNotifier realtime,
@@ -29,7 +29,7 @@ public class LocationSafetyAlertService(
 
     private readonly ILocationSessionRepository _repo = repo;
     private readonly LiveLocationRedisStore _liveStore = liveStore;
-    private readonly IMonolithAccessClient _monolithAccess = monolithAccess;
+    private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
@@ -89,7 +89,7 @@ public class LocationSafetyAlertService(
 
         if (staleSessions.Count == 0) return;
 
-        var nicknames = await _monolithAccess.GetNicknamesByUserIdsAsync(
+        var nicknames = await _userClient.GetNicknamesByUserIdsAsync(
             staleSessions.Select(s => s.Session.OwnerUserId).Distinct());
 
         foreach (var (session, live) in staleSessions)
@@ -163,7 +163,7 @@ public class LocationSafetyAlertService(
     }
 
     private async Task<string> GetNicknameAsync(long userId) =>
-        (await _monolithAccess.GetNicknamesByUserIdsAsync([userId]))
+        (await _userClient.GetNicknamesByUserIdsAsync([userId]))
             .GetValueOrDefault(userId, "Deleted User");
 
     private async Task<LocationSession> GetActiveSessionOwnedByUserOrThrowAsync(long sessionId, long userId)
