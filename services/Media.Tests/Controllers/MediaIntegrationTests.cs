@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Media;
 using Media.Dto;
 using Media.Config;
 using Media.Queue;
@@ -8,6 +7,7 @@ using Media.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Media.Entities;
 
 namespace Media.Tests.Controllers;
 

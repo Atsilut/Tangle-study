@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Media;
+namespace Media.Entities;
 
 public class MediaAsset
 {

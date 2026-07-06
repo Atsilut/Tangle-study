@@ -1,4 +1,4 @@
-using Media;
+using Media.Entities;
 
 namespace Media.Repository;
 

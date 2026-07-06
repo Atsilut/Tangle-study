@@ -1,4 +1,4 @@
-using Media;
+using Media.Entities;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
 using System.IO;

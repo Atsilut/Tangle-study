@@ -1,4 +1,4 @@
-namespace Media;
+namespace Media.Entities;
 
 public enum MediaProcessingStatus
 {

@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using Media.Storage;
-using Media;
 using Media.Dto;
 using Media.Config;
 using Media.Queue;
 using Media.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Media.Entities;
 
 namespace Media.Tests.Infrastructure;
 

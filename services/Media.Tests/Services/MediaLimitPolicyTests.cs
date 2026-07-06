@@ -1,4 +1,5 @@
 using Media.Config;
+using Media.Entities;
 using Microsoft.Extensions.Options;
 
 namespace Media.Tests.Services;

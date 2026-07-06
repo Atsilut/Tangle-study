@@ -1,4 +1,4 @@
-using Media;
+using Media.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Media.Db;

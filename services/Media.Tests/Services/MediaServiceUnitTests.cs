@@ -9,6 +9,7 @@ using Media.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Media.Entities;
 
 namespace Media.Tests.Services;
 

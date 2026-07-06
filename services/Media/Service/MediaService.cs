@@ -1,4 +1,3 @@
-using Media;
 using Media.Client;
 using Media.Dto;
 using Media.Repository;
@@ -8,6 +7,7 @@ using Media.Exceptions;
 using Media.Infrastructure;
 using Media.Queue;
 using Microsoft.Extensions.Options;
+using Media.Entities;
 
 namespace Media.Service;
 

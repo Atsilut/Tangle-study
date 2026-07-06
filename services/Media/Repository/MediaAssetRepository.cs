@@ -1,5 +1,5 @@
-using Media;
 using Media.Db;
+using Media.Entities;
 using Media.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
