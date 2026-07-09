@@ -1,9 +1,9 @@
-namespace Tangle.TestSupport;
+namespace Tangle.TestSupport.Auth;
 
 public static class GatewayTestAuthHelpers
 {
-    public const string TestGatewaySecret = "test-gateway-secret";
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
+    public const string TestGatewaySecret = TestWebHostConfiguration.GatewaySecret;
+    public const string TestInternalServiceSecret = TestWebHostConfiguration.InternalServiceSecret;
 
     public static void LoginAs(HttpClient client, long userId)
     {

@@ -1,27 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
-namespace Tangle.TestSupport;
+namespace Tangle.TestSupport.Fixtures;
 
-public abstract class PostgresTestcontainerFixture<TDbContext> : IAsyncLifetime
+public abstract class PostgresTestcontainerFixture<TDbContext>(
+    string databaseName,
+    Func<DbContextOptions<TDbContext>, TDbContext> createContext) : IAsyncLifetime
     where TDbContext : DbContext
 {
-    private readonly PostgreSqlContainer _postgres;
-    private readonly string _databaseName;
-    private readonly Func<DbContextOptions<TDbContext>, TDbContext> _createContext;
-
-    protected PostgresTestcontainerFixture(
-        string databaseName,
-        Func<DbContextOptions<TDbContext>, TDbContext> createContext)
-    {
-        _databaseName = databaseName;
-        _createContext = createContext;
-        _postgres = new PostgreSqlBuilder("postgres:18.4")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.4")
             .WithDatabase(databaseName)
             .WithUsername("test")
             .WithPassword("test")
             .Build();
-    }
+    private readonly Func<DbContextOptions<TDbContext>, TDbContext> _createContext = createContext;
 
     public string ConnectionString => AppendTestPoolSettings(_postgres.GetConnectionString());
 

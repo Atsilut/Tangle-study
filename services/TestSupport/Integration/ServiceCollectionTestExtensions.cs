@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Tangle.TestSupport;
+namespace Tangle.TestSupport.Integration;
 
 public static class ServiceCollectionTestExtensions
 {

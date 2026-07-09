@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 
-namespace Tangle.TestSupport;
+namespace Tangle.TestSupport.Integration;
 
 public sealed class FakeHttpContextAccessor(string userId) : IHttpContextAccessor
 {
