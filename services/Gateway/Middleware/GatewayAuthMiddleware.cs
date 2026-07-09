@@ -71,8 +71,9 @@ public sealed class GatewayAuthMiddleware(
             if (!string.IsNullOrWhiteSpace(_gatewayOptions.Secret))
                 context.Request.Headers["X-Gateway-Secret"] = _gatewayOptions.Secret;
         }
-        catch (SecurityTokenException)
+        catch (Exception ex) when (ex is SecurityTokenException or ArgumentException)
         {
+            // Malformed tokens throw SecurityTokenMalformedException (ArgumentException), not SecurityTokenException.
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
