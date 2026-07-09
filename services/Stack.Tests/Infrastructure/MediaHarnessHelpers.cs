@@ -1,52 +1,16 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Media;
 using Media.Dto;
+using Media.Entities;
+using Tangle.TestSupport.Integration;
 
 namespace Stack.Tests.Infrastructure;
 
 internal static class MediaHarnessHelpers
 {
-    public const string ApiBaseUrlEnv = "TANGLE_HARNESS_API_BASE_URL";
     public const long PostImagePerFileBytes = 157_286_400;
     public const long PostVideoPerFileBytes = 2_147_483_648;
-
-    public static HttpClient CreateHarnessClient()
-    {
-        var baseUrl = Environment.GetEnvironmentVariable(ApiBaseUrlEnv)
-            ?? throw new InvalidOperationException($"{ApiBaseUrlEnv} is not set.");
-        return new HttpClient
-        {
-            BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
-            Timeout = TimeSpan.FromMinutes(3),
-        };
-    }
-
-    public static async Task WaitForApiReadyAsync(HttpClient client, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        Exception? lastError = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                var response = await client.GetAsync("health", TestContext.Current.CancellationToken);
-                if (response.IsSuccessStatusCode) return;
-            }
-            catch (Exception ex)
-            {
-                lastError = ex;
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException(
-            $"API at {client.BaseAddress} did not become ready within {timeout}.",
-            lastError);
-    }
 
     public static async Task UploadFixtureToBlobAsync(string uploadUrl, byte[] bytes, string contentType)
     {
@@ -73,27 +37,25 @@ internal static class MediaHarnessHelpers
         long mediaAssetId,
         TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var response = await client.GetAsync($"api/media/{mediaAssetId}", TestContext.Current.CancellationToken);
-            await IntegrationAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
-            var asset = await response.Content.ReadFromJsonAsync<MediaAssetGetResponseDto>(
-                TestContext.Current.CancellationToken);
-            Assert.NotNull(asset);
-
-            if (asset.ProcessingStatus == MediaProcessingStatus.Ready) return asset;
-            if (asset.ProcessingStatus == MediaProcessingStatus.Failed)
+        var asset = await IntegrationTestPolling.PollUntilAsync(
+            async ct =>
             {
-                throw new InvalidOperationException(
-                    $"Media asset {mediaAssetId} failed processing: {asset.FailureReason ?? "(no reason)"}");
-            }
+                var response = await client.GetAsync($"api/media/{mediaAssetId}", ct);
+                await IntegrationAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
+                return (await response.Content.ReadFromJsonAsync<MediaAssetGetResponseDto>(ct))!;
+            },
+            a => a.ProcessingStatus is MediaProcessingStatus.Ready or MediaProcessingStatus.Failed,
+            timeout,
+            delay: TimeSpan.FromSeconds(1),
+            cancellationToken: TestContext.Current.CancellationToken);
 
-            await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        if (asset.ProcessingStatus == MediaProcessingStatus.Failed)
+        {
+            throw new InvalidOperationException(
+                $"Media asset {mediaAssetId} failed processing: {asset.FailureReason ?? "(no reason)"}");
         }
 
-        throw new TimeoutException($"Media asset {mediaAssetId} did not reach Ready within {timeout}.");
+        return asset;
     }
 
     public static string GetFixturePath(string fileName) =>

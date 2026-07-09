@@ -7,6 +7,22 @@ services:
         condition: service_healthy
       media:
         condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
 
   users:
     ports: !reset []
@@ -16,9 +32,24 @@ services:
       redis:
         condition: service_healthy
 
+  social:
+    ports: !reset []
+
+  group:
+    ports: !reset []
+
+  community:
+    ports: !reset []
+
+  chat:
+    ports: !reset []
+
+  location:
+    ports: !reset []
+
   media:
     environment:
-      # Set by run-media-harness.sh after nginx is up (SAS URLs proxied via /devstoreaccount1).
+      # Set by run-stack-harness.sh after nginx is up (SAS URLs proxied via /devstoreaccount1).
       Media__PublicBlobEndpoint: ${HARNESS_PUBLIC_BLOB_ENDPOINT:-}
 
   nginx:
@@ -32,6 +63,28 @@ services:
         condition: service_healthy
       media:
         condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
       rust-worker-media:
+        condition: service_started
+        required: false
+      rust-worker-chat:
+        condition: service_started
+        required: false
+      rust-worker-location:
         condition: service_started
         required: false

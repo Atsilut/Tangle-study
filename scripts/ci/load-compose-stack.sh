@@ -18,14 +18,23 @@ fi
 
 SDK_IMAGE="${SDK_IMAGE:-tangle-study-sdk:local}"
 WORKER_MEDIA_IMAGE="${WORKER_MEDIA_IMAGE:-tangle-study-worker-media:local}"
+WORKER_CHAT_IMAGE="${WORKER_CHAT_IMAGE:-tangle-study-worker-chat:local}"
+WORKER_LOCATION_IMAGE="${WORKER_LOCATION_IMAGE:-tangle-study-worker-location:local}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-tangle-study}"
 
 EXPECTED_IMAGES=(
   "${COMPOSE_PROJECT_NAME}-gateway"
   "${COMPOSE_PROJECT_NAME}-users"
   "${COMPOSE_PROJECT_NAME}-media"
+  "${COMPOSE_PROJECT_NAME}-chat"
+  "${COMPOSE_PROJECT_NAME}-location"
+  "${COMPOSE_PROJECT_NAME}-community"
+  "${COMPOSE_PROJECT_NAME}-group"
+  "${COMPOSE_PROJECT_NAME}-social"
   "${COMPOSE_PROJECT_NAME}-nginx"
   "$WORKER_MEDIA_IMAGE"
+  "$WORKER_CHAT_IMAGE"
+  "$WORKER_LOCATION_IMAGE"
   "$SDK_IMAGE"
 )
 

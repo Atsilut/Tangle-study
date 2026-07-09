@@ -497,7 +497,7 @@ services:
     restart: unless-stopped
 
   rust-worker-location:
-    profiles: ["workers"]
+    profiles: ["workers", "harness"]
     build:
       context: .
       dockerfile: workers/docker/Dockerfile.location
@@ -533,16 +533,40 @@ services:
         condition: service_healthy
       azurite:
         condition: service_started
+        required: false
       gateway:
         condition: service_healthy
       users:
         condition: service_healthy
       media:
         condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
       nginx:
         condition: service_started
       rust-worker-media:
         condition: service_started
+        required: false
+      rust-worker-chat:
+        condition: service_started
+        required: false
+      rust-worker-location:
+        condition: service_started
+        required: false
     command:
       [
         "test",
@@ -551,7 +575,7 @@ services:
         "Release",
         "--no-build",
         "--filter",
-        "Category=Harness",
+        "${HARNESS_FILTER:-Category=Harness}",
         "--verbosity",
         "minimal",
       ]
@@ -579,13 +603,7 @@ services:
     command:
       [
         "test",
-        "services/Users.Tests/Users.Tests.csproj",
-        "services/Media.Tests/Media.Tests.csproj",
-        "services/Chat.Tests/Chat.Tests.csproj",
-        "services/Location.Tests/Location.Tests.csproj",
-        "services/Community.Tests/Community.Tests.csproj",
-        "services/Group.Tests/Group.Tests.csproj",
-        "services/Social.Tests/Social.Tests.csproj",
+        "Tangle.slnx",
         "-c",
         "Release",
         "--filter",

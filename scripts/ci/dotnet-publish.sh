@@ -82,6 +82,7 @@ tangle_compose --profile tools run --rm \
     dotnet build services/Community.Tests/Community.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Group.Tests/Group.Tests.csproj -c '${CONFIGURATION}' --no-incremental
     dotnet build services/Social.Tests/Social.Tests.csproj -c '${CONFIGURATION}' --no-incremental
+    dotnet build services/Gateway.Tests/Gateway.Tests.csproj -c '${CONFIGURATION}' --no-incremental
   "
 
 require_publish_output "$GATEWAY_PUBLISH_DIR" "Gateway.dll"

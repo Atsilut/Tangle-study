@@ -2,11 +2,13 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
+using Tangle.TestSupport.Integration;
 using Users.Dto;
 
 namespace Stack.Tests.Infrastructure;
 
-internal static class HarnessAuthHelpers
+public static class HarnessAuthHelpers
 {
     public const string DefaultPassword = "testtest123!";
 
@@ -20,7 +22,7 @@ internal static class HarnessAuthHelpers
     {
         password ??= DefaultPassword;
         var email = testMethodName + index.ToString() + "@test.com";
-        var nickname = $"{testMethodName}User" + index.ToString();
+        var nickname = TestUserIdentity.BuildNickname(testMethodName, index);
         var req = new UserCreateRequestDto
         {
             Email = email,
@@ -37,12 +39,15 @@ internal static class HarnessAuthHelpers
         return profile;
     }
 
-    public static async Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null)
+    public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null) =>
+        LoginAsAsync(client, user.Id, password);
+
+    public static async Task LoginAsAsync(HttpClient client, long userId, string? password = null)
     {
         password ??= DefaultPassword;
-        var email = TestEmailsByUserId.GetValueOrDefault(user.Id)
+        var email = TestEmailsByUserId.GetValueOrDefault(userId)
             ?? throw new InvalidOperationException(
-                $"No test email registered for user id {user.Id}. Create the user via {nameof(CreateUserForTestAsync)} first.");
+                $"No test email registered for user id {userId}. Create the user via {nameof(CreateUserForTestAsync)} first.");
         var req = new LoginRequestDto
         {
             Email = email,

@@ -1,34 +1,26 @@
-using Media;
+using Media.Entities;
 using Stack.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
+using Tangle.TestSupport.Harness;
+using Users.Dto;
 
-namespace Stack.Tests.Harness;
+namespace Stack.Tests.Harness.Media;
 
-[Collection(MediaHarnessTestCollection.Name)]
-[Trait("Category", "Harness")]
-public sealed class MediaPipelineHarnessTests : IAsyncLifetime, IAsyncDisposable
+[Collection(HarnessTestCollection.Name)]
+[Trait(HarnessTraits.Category, HarnessTraits.Harness)]
+[Trait(HarnessTraits.HarnessModule, HarnessTraits.Media)]
+public sealed class MediaPipelineHarnessTests : HarnessTestBase
 {
-    private HttpClient? _client;
-
-    public async ValueTask InitializeAsync()
-    {
-        Assert.SkipUnless(
-            !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(MediaHarnessHelpers.ApiBaseUrlEnv)),
-            $"{MediaHarnessHelpers.ApiBaseUrlEnv} is not set.");
-
-        _client = MediaHarnessHelpers.CreateHarnessClient();
-        await MediaHarnessHelpers.WaitForApiReadyAsync(_client, TimeSpan.FromSeconds(90));
-    }
-
     [Fact]
     public async Task ImageUpload_ProcessesToReady()
     {
         const string testMethodName = nameof(ImageUpload_ProcessesToReady);
 
-        var user = await HarnessAuthHelpers.CreateUserForTestAsync(_client!, UniqueTestPrefix(testMethodName));
-        await HarnessAuthHelpers.LoginAsAsync(_client!, user);
+        UserGetResponseDto user = await HarnessAuthHelpers.CreateUserForTestAsync(Client, UniqueTestPrefix(testMethodName));
+        await HarnessAuthHelpers.LoginAsAsync(Client, user);
 
         var asset = await MediaHarnessHelpers.UploadFixtureThroughPipelineAsync(
-            _client!,
+            Client,
             fixtureFileName: "sample.jpg",
             mimeType: "image/jpeg",
             context: MediaIntendedContext.Post,
@@ -46,11 +38,11 @@ public sealed class MediaPipelineHarnessTests : IAsyncLifetime, IAsyncDisposable
     {
         const string testMethodName = nameof(VideoUpload_ProcessesToReady);
 
-        var user = await HarnessAuthHelpers.CreateUserForTestAsync(_client!, UniqueTestPrefix(testMethodName));
-        await HarnessAuthHelpers.LoginAsAsync(_client!, user);
+        var user = await HarnessAuthHelpers.CreateUserForTestAsync(Client, UniqueTestPrefix(testMethodName));
+        await HarnessAuthHelpers.LoginAsAsync(Client, user);
 
         var asset = await MediaHarnessHelpers.UploadFixtureThroughPipelineAsync(
-            _client!,
+            Client,
             fixtureFileName: "sample.mp4",
             mimeType: "video/mp4",
             context: MediaIntendedContext.Post,
@@ -62,13 +54,4 @@ public sealed class MediaPipelineHarnessTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(asset.StoredSizeBytes <= MediaHarnessHelpers.PostVideoPerFileBytes);
         Assert.Null(asset.FailureReason);
     }
-
-    public ValueTask DisposeAsync()
-    {
-        _client?.Dispose();
-        return ValueTask.CompletedTask;
-    }
-
-    private static string UniqueTestPrefix(string testMethodName) =>
-        $"{testMethodName}_{Guid.NewGuid():N}"[..Math.Min(40, testMethodName.Length + 9)];
 }
