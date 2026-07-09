@@ -36,7 +36,9 @@ ci_fix_cache_ownership() {
   [[ -d "$p" ]] && paths+=("$p")
 
   for proj in \
-    Gateway \
+    Gateway Gateway.Tests \
+    Tangle.AspNetCore \
+    TestSupport TestSupport.Scenarios \
     Users Users.Tests \
     Stack.Tests \
     Media Media.Tests \
