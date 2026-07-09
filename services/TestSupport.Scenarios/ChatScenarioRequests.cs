@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using Chat.Dto;
 
-namespace Stack.Tests.Scenarios;
+namespace Tangle.TestSupport.Scenarios;
 
 public static class ChatScenarioRequests
 {

@@ -1,5 +1,5 @@
 using Community.Dto;
-using Stack.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 using Tangle.TestSupport.Auth;
 using Users.Dto;
 

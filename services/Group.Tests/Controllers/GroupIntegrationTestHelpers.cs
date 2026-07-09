@@ -7,7 +7,7 @@ using GroupInvitationEntity = Group.Entities.GroupInvitation;
 using GroupApplicationEntity = Group.Entities.GroupApplication;
 using GroupBoardEntity = Group.Entities.GroupBoard;
 using Tangle.TestSupport.Auth;
-using Group.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 
 namespace Group.Tests.Controllers;
 

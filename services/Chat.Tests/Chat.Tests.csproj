@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
+    <ProjectReference Include="..\TestSupport.Scenarios\TestSupport.Scenarios.csproj" />
     <ProjectReference Include="..\Chat\Chat.csproj" />
   </ItemGroup>
 
@@ -41,7 +42,7 @@
     <Using Include="Tangle.TestSupport.Fixtures" />
     <Using Include="Tangle.TestSupport.Integration" />
     <Using Include="Tangle.TestSupport.Auth" />
-    <Using Include="Chat.Tests.Scenarios" />
+    <Using Include="Tangle.TestSupport.Scenarios" />
   </ItemGroup>
 
 </Project>

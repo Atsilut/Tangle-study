@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using Group.Dto;
 using Group.Entities;
 
-namespace Stack.Tests.Scenarios;
+namespace Tangle.TestSupport.Scenarios;
 
 public static class GroupScenarioRequests
 {

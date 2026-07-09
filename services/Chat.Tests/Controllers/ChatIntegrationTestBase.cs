@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Chat.Dto;
 using Chat.Tests.Infrastructure;
 using Tangle.TestSupport.Auth;
-using Chat.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 
 namespace Chat.Tests.Controllers;
 

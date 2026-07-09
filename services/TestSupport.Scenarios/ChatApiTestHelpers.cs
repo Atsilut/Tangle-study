@@ -3,9 +3,8 @@ using System.Net.Http.Json;
 using Chat.Dto;
 using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Integration;
-using Stack.Tests.Scenarios;
 
-namespace Stack.Tests.Scenarios;
+namespace Tangle.TestSupport.Scenarios;
 
 public static class ChatApiTestHelpers
 {

@@ -1,10 +1,9 @@
 using Chat.Dto;
 using Chat.Queue;
 using Microsoft.AspNetCore.SignalR.Client;
-using Stack.Tests.Scenarios;
 using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Harness;
-using Stack.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 using Users.Dto;
 
 namespace Stack.Tests.Infrastructure;

@@ -4,9 +4,8 @@ using Group.Dto;
 using Group.Entities;
 using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Integration;
-using Stack.Tests.Scenarios;
 
-namespace Stack.Tests.Scenarios;
+namespace Tangle.TestSupport.Scenarios;
 
 public static class GroupApiTestHelpers
 {

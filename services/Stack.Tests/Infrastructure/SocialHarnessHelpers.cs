@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Social.Dto;
-using Stack.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 using Tangle.TestSupport.Auth;
 using Users.Dto;
 

@@ -4,7 +4,7 @@ using Community.Dto;
 using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Integration;
 
-namespace Stack.Tests.Scenarios;
+namespace Tangle.TestSupport.Scenarios;
 
 public static class CommunityApiTestHelpers
 {

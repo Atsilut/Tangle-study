@@ -1,8 +1,7 @@
 using Group.Dto;
 using Group.Entities;
-using Stack.Tests.Scenarios;
 using Tangle.TestSupport.Auth;
-using Stack.Tests.Scenarios;
+using Tangle.TestSupport.Scenarios;
 using Users.Dto;
 
 namespace Stack.Tests.Infrastructure;
