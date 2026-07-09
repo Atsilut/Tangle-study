@@ -49,7 +49,7 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
             user,
             GroupVisibility.Private,
             GroupJoinPolicy.Requestable);
-        GroupIntegrationTestHelpers.LoginAs(Client, user);
+        GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
         // Act
         var res = await Client.GetAsync(GroupIntegrationTestHelpers.GroupsBase, TestContext.Current.CancellationToken);
@@ -71,7 +71,7 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
         // Arrange
         var user = GroupIntegrationTestHelpers.CreateUser(Factory, testMethodName, 1);
         await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, user, GroupVisibility.Private);
-        GroupIntegrationTestHelpers.LoginAs(Client, user);
+        GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
         // Act
         var res = await Client.GetAsync(GroupIntegrationTestHelpers.GroupsBase, TestContext.Current.CancellationToken);
@@ -97,7 +97,7 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
             owner,
             GroupVisibility.Private);
         await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, publicGroup.Id, member.Id, GroupRole.Member);
-        GroupIntegrationTestHelpers.LoginAs(Client, member);
+        GatewayTestAuthHelpers.LoginAs(Client, member.Id);
 
         // Act
         var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/me", TestContext.Current.CancellationToken);
@@ -118,7 +118,7 @@ public sealed class GroupControllerIntegrationTests(PostgresTestcontainerFixture
 
         // Arrange
         var user = GroupIntegrationTestHelpers.CreateUser(Factory, testMethodName, 1);
-        GroupIntegrationTestHelpers.LoginAs(Client, user);
+        GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
         // Act
         var res = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/me", TestContext.Current.CancellationToken);

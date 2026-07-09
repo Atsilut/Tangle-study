@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Tangle.AspNetCore\Tangle.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
@@ -26,13 +30,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
-    <ProjectReference Include="..\Users\Users.csproj" />
+    <ProjectReference Include="..\TestSupport\TestSupport.csproj" />    <ProjectReference Include="..\Users\Users.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="Tangle.TestSupport" />
+    <Using Include="Tangle.TestSupport" />    <Using Include="Tangle.TestSupport.Fixtures" />
+    <Using Include="Tangle.TestSupport.Integration" />    <Using Include="Tangle.TestSupport.Auth" />
+    <Using Include="Users.Tests.Infrastructure" />
   </ItemGroup>
 
 </Project>

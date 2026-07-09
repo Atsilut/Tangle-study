@@ -1,8 +1,7 @@
 using System.Net;
-using System.Net.Http.Json;
 using Group.Entities;
-using Group.Dto;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -28,7 +27,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
         JoinPolicyRouteOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"join_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"join_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: false,
@@ -77,7 +76,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     public async Task Join_WhenAlreadyMember_Returns409()
     {
         // Arrange
-        var scenario = CreateScenario("jp_p01");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"jp_p01");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             includeAdmin: false,
@@ -96,7 +95,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     public async Task Apply_WhenAlreadyMember_Returns409()
     {
         // Arrange
-        var scenario = CreateScenario("jp_p02");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"jp_p02");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Requestable);
@@ -114,7 +113,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     public async Task Join_WithPendingInvitation_AddsMember()
     {
         // Arrange
-        var scenario = CreateScenario("jp_p05");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"jp_p05");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Open);
@@ -134,7 +133,7 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     public async Task Apply_WithPendingInvitation_ReturnsOkAndAddsMember()
     {
         // Arrange
-        var scenario = CreateScenario("jp_p08");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"jp_p08");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Requestable);
@@ -155,13 +154,13 @@ public sealed class GroupJoinIntegrationMatrixTests(PostgresTestcontainerFixture
     public async Task Join_WhenGroupMissing_Returns404()
     {
         // Arrange
-        var scenario = CreateScenario("jp_p10");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"jp_p10");
         scenario.LoginAs(GroupActorRole.Stranger);
 
         // Act
         var res = await Client.PostAsync($"{GroupIntegrationTestHelpers.GroupsBase}/99999/join", null, TestContext.Current.CancellationToken);
 
         // Assert
-        await AssertGroupNotFoundAsync(res);
+        await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Group not found");
     }
 }

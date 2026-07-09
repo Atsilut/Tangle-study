@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Dto;
 using Group.Entities;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
 
 namespace Group.Tests.Controllers;
 
@@ -39,7 +40,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, GroupWebApplicat
             return;
         }
 
-        GroupIntegrationTestHelpers.LoginAs(client, ResolveUser(role));
+        GatewayTestAuthHelpers.LoginAs(client, ResolveUser(role).Id);
     }
 
     public long ResolveUserId(GroupActorRole role) => ResolveUser(role).Id;
@@ -128,7 +129,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, GroupWebApplicat
         string name,
         BoardVisibility visibility)
     {
-        GroupIntegrationTestHelpers.LoginAs(client, Owner);
+        GatewayTestAuthHelpers.LoginAs(client, Owner.Id);
         return await CreateBoardAsync(groupId, name, visibility);
     }
 
@@ -158,7 +159,7 @@ public sealed class GroupIntegrationScenario(HttpClient client, GroupWebApplicat
 
     public async Task BlacklistUserAsync(long groupId, long userId)
     {
-        GroupIntegrationTestHelpers.LoginAs(client, Owner);
+        GatewayTestAuthHelpers.LoginAs(client, Owner.Id);
         var res = await client.PostAsJsonAsync(
             $"{GroupIntegrationTestHelpers.GroupsBase}/{groupId}/blacklist",
             new GroupBlacklistCreateRequestDto { UserId = userId },

@@ -1,8 +1,8 @@
 using Chat.Entities;
-using Chat.Exceptions;
 using Chat.Service;
 using Chat.Tests.Infrastructure;
 using Microsoft.AspNetCore.Http;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Chat.Tests.Services;
 

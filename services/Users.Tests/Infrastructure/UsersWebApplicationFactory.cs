@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
 using Users.Client;
 using Users.Db;
-using Users.Events;
 using Users.Infrastructure;
 
 namespace Users.Tests.Infrastructure;
@@ -18,12 +16,8 @@ public sealed class UsersWebApplicationFactory(
     string connectionString,
     string redisConnectionString,
     bool metricsRequireScrapeSecret = false,
-    string? metricsScrapeSecret = null) : WebApplicationFactory<Program>
+    string? metricsScrapeSecret = null) : WebApplicationFactory<UsersProgram>
 {
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
-    public const string TestGatewaySecret = GatewayTestAuthHelpers.TestGatewaySecret;
-    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
-
     private readonly string _connectionString = connectionString;
     private readonly string _redisConnectionString = redisConnectionString;
     private readonly bool _metricsRequireScrapeSecret = metricsRequireScrapeSecret;
@@ -44,57 +38,26 @@ public sealed class UsersWebApplicationFactory(
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Production);
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
-        builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", TestGatewaySecret);
-        builder.UseSetting("Jwt:Secret", TestJwtSecret);
-        builder.UseSetting("Jwt:Issuer", "Tangle");
-        builder.UseSetting("Jwt:Audience", "TangleClient");
-        builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
-        builder.UseSetting("MediaClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
-        builder.UseSetting("ChatClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("LocationClient:BaseUrl", "http://location.test");
-        builder.UseSetting("LocationClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
-        builder.UseSetting("CommunityClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
-        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
-        builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
-
-        builder.ConfigureAppConfiguration((_, config) =>
+        var additionalSettings = new Dictionary<string, string?>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["InternalAccess:Secret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = TestGatewaySecret,
-                ["Jwt:Secret"] = TestJwtSecret,
-                ["Jwt:Issuer"] = "Tangle",
-                ["Jwt:Audience"] = "TangleClient",
-                ["Redis:ConnectionString"] = _redisConnectionString,
-                ["Redis:InstanceName"] = "tangle:",
-                ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
-                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
-                ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
-                ["Database:ResetOnStartup"] = "false",
-                ["MediaClient:BaseUrl"] = "http://media.test",
-                ["MediaClient:InternalSecret"] = TestInternalServiceSecret,
-                ["ChatClient:BaseUrl"] = "http://chat.test",
-                ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
-                ["LocationClient:BaseUrl"] = "http://location.test",
-                ["LocationClient:InternalSecret"] = TestInternalServiceSecret,
-                ["CommunityClient:BaseUrl"] = "http://community.test",
-                ["CommunityClient:InternalSecret"] = TestInternalServiceSecret,
-                ["GroupClient:BaseUrl"] = "http://group.test",
-                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
-                ["SocialClient:BaseUrl"] = "http://social.test",
-                ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
-            });
+            ["Redis:InstanceName"] = "tangle:",
+            ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
+            ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
+            ["Database:ResetOnStartup"] = "false",
+        };
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "MediaClient", "http://media.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "ChatClient", "http://chat.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "LocationClient", "http://location.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "CommunityClient", "http://community.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "GroupClient", "http://group.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "SocialClient", "http://social.test");
+
+        IntegrationTestConfiguration.Apply(builder, new IntegrationTestOptions
+        {
+            ConnectionString = _connectionString,
+            RedisConnectionString = _redisConnectionString,
+            Environment = Environments.Production,
+            AdditionalSettings = additionalSettings,
         });
 
         builder.ConfigureTestServices(services =>

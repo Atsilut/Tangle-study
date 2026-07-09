@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Entities;
 using Group.Dto;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -23,7 +24,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task InviteAuthorization_Matrix(GroupActorRole caller, GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"invite_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"invite_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupInvitationOnlyGroupAsync(
             includeAdmin: true,
             includeMember: caller == GroupActorRole.Member);
@@ -36,7 +37,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     public static TheoryData<GroupActorRole, InvitationRequestAction, GroupExpectedOutcome> InvitationActionData =>
@@ -66,7 +67,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"inv_act_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"inv_act_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupInvitationOnlyGroupAsync(
             includeAdmin: true,
             includeMember: caller == GroupActorRole.Member);
@@ -94,7 +95,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             if (action is InvitationRequestAction.Accept or InvitationRequestAction.AcceptAsNonInvitee)
                 await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
         }
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     public static TheoryData<GroupActorRole, ApplicationRequestAction, GroupExpectedOutcome> ApplicationActionData =>
@@ -121,7 +122,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"app_act_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"app_act_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupRequestableGroupAsync(includeAdmin: true);
         await GroupIntegrationTestHelpers.SeedGroupMemberAsync(Factory, group.Id, scenario.Member.Id, GroupRole.Member);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
@@ -149,14 +150,14 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
             if (action == ApplicationRequestAction.Approve)
                 await scenario.AssertIsMemberAsync(group.Id, scenario.Stranger.Id, true);
         }
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     [Fact]
     public async Task GetPendingApplications_OwnerSeesApplicant()
     {
         // Arrange
-        var scenario = CreateScenario("gal01");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"gal01");
         var group = await scenario.SetupRequestableGroupAsync();
         await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Owner);
@@ -176,7 +177,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetMyApplications_ApplicantSeesOutgoing()
     {
         // Arrange
-        var scenario = CreateScenario("gal04");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"gal04");
         var group = await scenario.SetupRequestableGroupAsync();
         await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -200,7 +201,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task InviteAfterApply_Returns200_AndAddsMember()
     {
         // Arrange
-        var scenario = CreateScenario("inv_recip");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_recip");
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Owner);
@@ -225,7 +226,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetMyInvitations_ListsPending()
     {
         // Arrange
-        var scenario = CreateScenario("inv_me");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_me");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -245,7 +246,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task IgnoreThenAccept_AddsMember()
     {
         // Arrange
-        var scenario = CreateScenario("inv_ignore_accept");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_ignore_accept");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -264,7 +265,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task Invite_ReturnsCreatedWithoutReactivate_WhenResendingAfterInviteeIgnored()
     {
         // Arrange
-        var scenario = CreateScenario("inv_resend");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_resend");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -288,7 +289,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetIgnoredIncoming_Returns204_WhenEmpty()
     {
         // Arrange
-        var scenario = CreateScenario("inv_ignored_empty");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_ignored_empty");
         scenario.LoginAs(GroupActorRole.Stranger);
 
         // Act
@@ -302,7 +303,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetIgnoredIncoming_ListsIgnored_ForInvitee()
     {
         // Arrange
-        var scenario = CreateScenario("inv_ignored_list");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_ignored_list");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -325,7 +326,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetMyInvitations_ShowsMaskedPending_ForInviterAfterInviteeIgnored()
     {
         // Arrange
-        var scenario = CreateScenario("inv_masked");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_masked");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -348,7 +349,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task Invite_Returns400_WhenInviterBlockedInvitee()
     {
         // Arrange
-        var scenario = CreateScenario("inv_block_out");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_block_out");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         scenario.LoginAs(GroupActorRole.Owner);
         GroupIntegrationTestHelpers.BlockUser(Factory, scenario.Owner.Id, scenario.Stranger.Id);
@@ -366,7 +367,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task Accept_Returns400_WhenInviteeBlockedInviter()
     {
         // Arrange
-        var scenario = CreateScenario("inv_block_in");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"inv_block_in");
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeMember: false);
         var invitation = await scenario.InviteStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Stranger);
@@ -386,7 +387,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task Ignore_Returns204_AndApproveStillWorks()
     {
         // Arrange
-        var scenario = CreateScenario("app_ignore_approve");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"app_ignore_approve");
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Owner);
@@ -405,7 +406,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetMyApplications_ShowsMaskedPending_AfterAdminIgnored()
     {
         // Arrange
-        var scenario = CreateScenario("app_masked");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"app_masked");
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Owner);
@@ -428,7 +429,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetIgnoredApplications_Returns204_WhenEmpty()
     {
         // Arrange
-        var scenario = CreateScenario("app_ignored_empty");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"app_ignored_empty");
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         scenario.LoginAs(GroupActorRole.Owner);
 
@@ -444,7 +445,7 @@ public sealed class GroupInvitationApplicationIntegrationMatrixTests(PostgresTes
     public async Task GetIgnoredApplications_ListsIgnored_ForAdmin()
     {
         // Arrange
-        var scenario = CreateScenario("app_ignored_list");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"app_ignored_list");
         var group = await scenario.SetupRequestableGroupAsync(includeMember: false);
         var application = await scenario.ApplyAsStrangerAsync(group.Id);
         scenario.LoginAs(GroupActorRole.Owner);

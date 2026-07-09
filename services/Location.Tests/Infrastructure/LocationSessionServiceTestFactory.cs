@@ -1,4 +1,3 @@
-using Location.Config;
 using Location.Db;
 using Location.Dto;
 using Location.Realtime;
@@ -8,6 +7,7 @@ using Location.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Auth;
 
 namespace Location.Tests.Infrastructure;
 
@@ -54,6 +54,7 @@ internal static class LocationSessionServiceTestFactory
     public static Graph Create(FakeHttpContextAccessor? httpContextAccessor = null)
     {
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
+        var currentUser = new CurrentUserAccessor(http);
         var users = new InMemoryUserClient();
         var social = new FakeSocialClient();
         var group = new FakeGroupClient(users);
@@ -79,7 +80,7 @@ internal static class LocationSessionServiceTestFactory
             realtimeNotifier,
             distributedCache,
             Options.Create(LocationTestOptions.Safety),
-            http);
+            currentUser);
 
         var locationSessionService = new LocationSessionService(
             sessionRepository,
@@ -89,7 +90,7 @@ internal static class LocationSessionServiceTestFactory
             liveStore,
             realtimeNotifier,
             safetyAlertService,
-            http);
+            currentUser);
 
         return new Graph(
             locationSessionService,

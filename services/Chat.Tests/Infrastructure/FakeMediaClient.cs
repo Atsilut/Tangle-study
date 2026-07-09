@@ -78,7 +78,7 @@ public sealed class FakeMediaClient : IMediaClient
     }
 }
 
-internal static class FakeMediaClientTestHelpers
+public static class FakeMediaClientTestHelpers
 {
     public static long SeedReadyAsset(
         FakeMediaClient mediaClient,

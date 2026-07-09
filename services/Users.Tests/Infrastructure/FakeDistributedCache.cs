@@ -2,7 +2,7 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace Users.Tests.Infrastructure;
 
-internal sealed class FakeDistributedCache : IDistributedCache
+public sealed class FakeDistributedCache : IDistributedCache
 {
     private readonly Dictionary<string, byte[]> _store = [];
     private readonly Lock _sync = new();

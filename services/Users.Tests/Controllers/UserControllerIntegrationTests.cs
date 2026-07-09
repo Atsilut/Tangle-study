@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
 using Users.Domain;
 using Users.Dto;
 using Users.Tests.Infrastructure;
@@ -19,7 +20,7 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "GetUserById";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
 
         // Act
         var res = await Client.GetAsync("/api/users/" + created.Id, TestContext.Current.CancellationToken);
@@ -46,8 +47,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "GetUserByIdEmailPrivacy";
-        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
-        var viewer = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Viewer");
+        var owner = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var viewer = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Viewer");
 
         // Act
         var res = await Client.GetAsync("/api/users/" + owner.Id, TestContext.Current.CancellationToken);
@@ -58,18 +59,18 @@ public sealed class UserControllerIntegrationTests(
         Assert.NotNull(user);
         Assert.Null(user.Email);
 
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, viewer);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, viewer);
         var viewerRes = await Client.GetAsync("/api/users/" + owner.Id, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(viewerRes, HttpStatusCode.OK);
         var asViewer = await viewerRes.Content.ReadFromJsonAsync<UserGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(asViewer);
         Assert.Null(asViewer.Email);
 
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, owner);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, owner);
         var selfRes = await Client.GetAsync("/api/users/" + owner.Id, TestContext.Current.CancellationToken);
         var self = await selfRes.Content.ReadFromJsonAsync<UserGetResponseDto>(TestContext.Current.CancellationToken);
         Assert.NotNull(self);
-        Assert.Equal(IntegrationTestAuthHelpers.GetTestEmail(owner.Id), self.Email);
+        Assert.Equal(UsersTestAuthHelpers.GetTestEmail(owner.Id), self.Email);
     }
 
     // --- PATCH ---
@@ -80,8 +81,8 @@ public sealed class UserControllerIntegrationTests(
         // Arrange
         const string testMethodName = "UserPatch";
         const string newNickname = "new";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
         var updatedAtBefore = created.UpdatedAt;
 
         // Act
@@ -102,8 +103,8 @@ public sealed class UserControllerIntegrationTests(
         // Arrange
         const string testMethodName = "UserPatchMissing";
         const string newNickname = "new";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
@@ -119,7 +120,7 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserPatchUnauth";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.ClearAuth(Client);
 
         // Act
@@ -134,8 +135,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserPatchSameNickname";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = created.Nickname }, TestContext.Current.CancellationToken);
@@ -153,9 +154,9 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserPatchDuplicateNickname";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        var existingUser = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Existing");
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var existingUser = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Existing");
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = created.Id, Nickname = existingUser.Nickname }, TestContext.Current.CancellationToken);
@@ -172,9 +173,9 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserPatchAuth";
-        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
-        var attacker = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, attacker);
+        var owner = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var attacker = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
+        await UsersTestAuthHelpers.LoginAsAsync(Client, attacker);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users", new UserPatchRequestDto { Id = owner.Id, Nickname = "hacked" }, TestContext.Current.CancellationToken);
@@ -188,8 +189,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserPrivacy";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var patch = await Client.PatchAsJsonAsync("/api/users/privacy",
@@ -228,8 +229,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserDelete";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}", TestContext.Current.CancellationToken);
@@ -252,8 +253,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserDeleteMissing";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
         var delete = await Client.DeleteAsync($"/api/users/{created.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
@@ -269,9 +270,9 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserDeleteAuth";
-        var owner = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
-        var attacker = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, attacker);
+        var owner = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Owner");
+        var attacker = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName + "Attacker");
+        await UsersTestAuthHelpers.LoginAsAsync(Client, attacker);
 
         // Act
         var delete = await Client.DeleteAsync($"/api/users/{owner.Id}", TestContext.Current.CancellationToken);
@@ -285,8 +286,8 @@ public sealed class UserControllerIntegrationTests(
     {
         // Arrange
         const string testMethodName = "UserDeleteDetachFail";
-        var created = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, created);
+        var created = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, created);
         Factory.FakeCommunityClient.DetachFailure = new HttpRequestException("community detach failed");
 
         // Act

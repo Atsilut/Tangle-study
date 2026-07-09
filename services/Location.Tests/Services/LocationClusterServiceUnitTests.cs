@@ -1,5 +1,4 @@
 using Location.Dto;
-using Location.Service;
 using Location.Tests.Infrastructure;
 
 namespace Location.Tests.Services;
@@ -44,8 +43,8 @@ public sealed class LocationClusterServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
-        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        var user = graph.InMemoryUser.CreateUser("user");
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(user.Id);
         await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
             Latitude = 37.5665m,

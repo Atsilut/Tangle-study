@@ -1,5 +1,5 @@
-using Media.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Media.Tests.Exceptions;
 

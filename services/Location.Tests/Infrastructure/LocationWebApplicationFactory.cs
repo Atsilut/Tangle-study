@@ -1,28 +1,23 @@
 using Location.Client;
 using Location.Db;
 using Location.Infrastructure;
-using Location.Queue;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
+using Tangle.AspNetCore.Queue;
 
 namespace Location.Tests.Infrastructure;
 
 public sealed class LocationWebApplicationFactory(string connectionString, string redisConnectionString)
     : WebApplicationFactory<Program>
 {
-    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
-    public const string TestJwtIssuer = "Tangle";
-    public const string TestJwtAudience = "TangleClient";
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
     public const string TestWorkerCallbackSecret = "test-location-worker-secret";
 
     private readonly string _connectionString = connectionString;
@@ -42,50 +37,21 @@ public sealed class LocationWebApplicationFactory(string connectionString, strin
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Production);
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Users:BaseUrl", "http://users.test");
-        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
-        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
-        builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
-        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
-        builder.UseSetting("CommunityClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
-        builder.UseSetting("WorkerCallback:Secret", TestWorkerCallbackSecret);
-        builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
-        builder.UseSetting("Jwt:Secret", TestJwtSecret);
-        builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
-        builder.UseSetting("Jwt:Audience", TestJwtAudience);
-        builder.UseSetting("Places:Enabled", "false");
-
-        builder.ConfigureAppConfiguration((_, config) =>
+        var additionalSettings = new Dictionary<string, string?>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Redis:ConnectionString"] = _redisConnectionString,
-                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
-                ["Users:BaseUrl"] = "http://users.test",
-                ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
-                ["SocialClient:BaseUrl"] = "http://social.test",
-                ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
-                ["GroupClient:BaseUrl"] = "http://group.test",
-                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
-                ["CommunityClient:BaseUrl"] = "http://community.test",
-                ["CommunityClient:InternalSecret"] = TestInternalServiceSecret,
-                ["InternalAccess:Secret"] = TestInternalServiceSecret,
-                ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
-                ["Jwt:Secret"] = TestJwtSecret,
-                ["Jwt:Issuer"] = TestJwtIssuer,
-                ["Jwt:Audience"] = TestJwtAudience,
-                ["Places:Enabled"] = "false",
-                ["Metrics:RequireScrapeSecret"] = "false",
-            });
+            ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
+            ["Places:Enabled"] = "false",
+        };
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "SocialClient", "http://social.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "GroupClient", "http://group.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "CommunityClient", "http://community.test");
+
+        IntegrationTestConfiguration.Apply(builder, new IntegrationTestOptions
+        {
+            ConnectionString = _connectionString,
+            RedisConnectionString = _redisConnectionString,
+            Environment = Environments.Production,
+            AdditionalSettings = additionalSettings,
         });
 
         builder.ConfigureTestServices(services =>

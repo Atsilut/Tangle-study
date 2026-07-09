@@ -41,5 +41,3 @@ public sealed class InMemoryUserClient : IUserClient
         return Task.FromResult<IReadOnlyDictionary<long, string>>(result);
     }
 }
-
-public sealed record TestUser(long Id, string Nickname);

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Community.Api;
 using Community.Dto;
 using Community.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
 
 namespace Community.Tests.Controllers;
 

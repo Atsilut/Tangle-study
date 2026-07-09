@@ -1,4 +1,3 @@
-using Tangle.TestSupport;
 using Users.Db;
 
 namespace Users.Tests.Infrastructure;

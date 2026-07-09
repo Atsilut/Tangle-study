@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Social.Api;
 using Social.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
 
 namespace Social.Tests.Controllers;
 

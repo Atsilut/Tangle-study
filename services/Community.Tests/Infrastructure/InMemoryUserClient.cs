@@ -1,5 +1,5 @@
 using Community.Client;
-using Community.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Community.Tests.Infrastructure;
 
@@ -63,7 +63,7 @@ public sealed class InMemoryUserClient : IUserClient, ISocialClient
         return Task.FromResult<long?>(null);
     }
 
-    public Task<HashSet<long>> GetMutuallyBlockedUserIdsAsync(
+    public Task<IReadOnlyCollection<long>> GetMutuallyBlockedUserIdsAsync(
         long userId,
         IReadOnlyCollection<long> otherUserIds,
         CancellationToken cancellationToken = default)
@@ -75,6 +75,6 @@ public sealed class InMemoryUserClient : IUserClient, ISocialClient
                 blocked.Add(other);
         }
 
-        return Task.FromResult(blocked);
+        return Task.FromResult<IReadOnlyCollection<long>>(blocked);
     }
 }

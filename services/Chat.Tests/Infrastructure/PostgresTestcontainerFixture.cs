@@ -1,5 +1,4 @@
 using Chat.Db;
-using Tangle.TestSupport;
 
 namespace Chat.Tests.Infrastructure;
 

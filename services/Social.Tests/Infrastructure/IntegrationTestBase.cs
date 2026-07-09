@@ -3,31 +3,22 @@ using Social.Client;
 
 namespace Social.Tests.Infrastructure;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<SocialWebApplicationFactory, Program>
 {
-    protected SocialWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
 
     protected IntegrationTestBase(PostgresTestcontainerFixture postgres)
+        : base(
+            () => new SocialWebApplicationFactory(postgres.ConnectionString),
+            factory => _ = factory.Services.GetRequiredService<IUserClient>())
     {
-        Factory = new SocialWebApplicationFactory(postgres.ConnectionString);
-        Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask ResetStateAsync()
     {
         await Factory.ClearAllSocialDataAsync();
         InMemoryUser.Reset();
         GatewayTestAuthHelpers.ClearAuth(Client);
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

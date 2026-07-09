@@ -3,35 +3,26 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Group.Tests.Infrastructure;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<GroupWebApplicationFactory, Program>
 {
-    protected GroupWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected FakeCommunityClient FakeCommunity => Factory.FakeCommunityClient;
     protected FakeLocationClient FakeLocation => Factory.FakeLocationClient;
 
     protected IntegrationTestBase(PostgresTestcontainerFixture postgres)
+        : base(
+            () => new GroupWebApplicationFactory(postgres.ConnectionString),
+            factory => _ = factory.Services.GetRequiredService<IUserClient>())
     {
-        Factory = new GroupWebApplicationFactory(postgres.ConnectionString);
-        Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask ResetStateAsync()
     {
         await Factory.ClearAllGroupDataAsync();
         InMemoryUser.Reset();
         FakeCommunity.Reset();
         FakeLocation.Reset();
         GatewayTestAuthHelpers.ClearAuth(Client);
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

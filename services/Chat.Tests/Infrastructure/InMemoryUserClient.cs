@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Chat.Client;
-using Chat.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Microsoft.AspNetCore.Http;
 
 namespace Chat.Tests.Infrastructure;
@@ -177,5 +177,3 @@ public sealed class InMemoryUserClient(IHttpContextAccessor httpContextAccessor)
     private static (long Low, long High) CanonicalPair(long userAId, long userBId) =>
         userAId < userBId ? (userAId, userBId) : (userBId, userAId);
 }
-
-public sealed record TestUser(long Id, string Nickname);

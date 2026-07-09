@@ -6,8 +6,8 @@ using Media.Config;
 using Media.Queue;
 using Media.Security;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Media.Entities;
+using Tangle.AspNetCore.Security;
 
 namespace Media.Tests.Infrastructure;
 
@@ -47,7 +47,7 @@ internal static class MediaIntegrationTestHelpers
         long mediaAssetId,
         string processedObjectKey,
         long storedSizeBytes,
-        string? workerSecret = MediaWebApplicationFactory.TestWorkerCallbackSecret)
+        string? workerSecret = IntegrationTestConstants.TestWorkerCallbackSecret)
     {
         var req = new MediaProcessedRequestDto
         {
@@ -68,7 +68,7 @@ internal static class MediaIntegrationTestHelpers
         HttpClient client,
         long mediaAssetId,
         MediaProcessedRequestDto request,
-        string? workerSecret = MediaWebApplicationFactory.TestWorkerCallbackSecret)
+        string? workerSecret = IntegrationTestConstants.TestWorkerCallbackSecret)
     {
         var message = new HttpRequestMessage(HttpMethod.Patch, $"/internal/media/{mediaAssetId}/processed")
         {
@@ -114,7 +114,7 @@ internal static class MediaIntegrationTestHelpers
         {
             Content = JsonContent.Create(new LinkPostMediaRequestDto(postId, uploaderUserId, mediaAssetIds)),
         };
-        message.Headers.Add(InternalServiceAuthorizationFilter.HeaderName, MediaWebApplicationFactory.TestInternalServiceSecret);
+        message.Headers.Add(InternalAccessAuthorizationFilter.HeaderName, GatewayTestAuthHelpers.TestInternalServiceSecret);
         var res = await client.SendAsync(message, TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
     }

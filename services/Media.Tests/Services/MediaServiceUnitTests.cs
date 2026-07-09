@@ -234,6 +234,7 @@ public sealed class MediaServiceUnitTests
         workQueue ??= new FakeWorkQueue();
         var mediaOptions = Options.Create(CreateTestMediaOptions());
         var http = new FakeHttpContextAccessor(userId);
+        var currentUser = new Tangle.AspNetCore.Auth.CurrentUserAccessor(http);
         var serviceProvider = new ServiceCollection()
             .AddSingleton<IMediaStorage>(storage)
             .BuildServiceProvider();
@@ -247,7 +248,7 @@ public sealed class MediaServiceUnitTests
             new AllowAllChatAccessClient(),
             workQueue,
             mediaOptions,
-            http);
+            currentUser);
     }
 
     private static MediaOptions CreateTestMediaOptions() => new()

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Social.Client;
@@ -12,9 +11,6 @@ namespace Social.Tests.Infrastructure;
 
 public sealed class SocialWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
 {
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
-    public const string TestGatewaySecret = GatewayTestAuthHelpers.TestGatewaySecret;
-
     private readonly string _connectionString = connectionString;
 
     public InMemoryUserClient InMemoryUser =>
@@ -22,25 +18,14 @@ public sealed class SocialWebApplicationFactory(string connectionString) : WebAp
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Production);
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Users:BaseUrl", "http://users.test");
-        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", TestGatewaySecret);
-
-        builder.ConfigureAppConfiguration((_, config) =>
+        IntegrationTestConfiguration.Apply(builder, new IntegrationTestOptions
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
+            ConnectionString = _connectionString,
+            Environment = Environments.Production,
+            AdditionalSettings = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Users:BaseUrl"] = "http://users.test",
-                ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["InternalAccess:Secret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = TestGatewaySecret,
-                ["Metrics:RequireScrapeSecret"] = "false",
                 ["Database:ResetOnStartup"] = "false",
-            });
+            },
         });
 
         builder.ConfigureTestServices(services =>
@@ -71,5 +56,4 @@ public sealed class SocialWebApplicationFactory(string connectionString) : WebAp
         await db.UserBlocks.ExecuteDeleteAsync();
         db.ChangeTracker.Clear();
     }
-
 }

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Entities;
 using Group.Dto;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -32,7 +33,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"acc_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"acc_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(visibility, includeAdmin: true, includeMember: true);
         scenario.LoginAs(actor);
 
@@ -71,8 +72,8 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                 Assert.True(members.Count >= 1);
             }
         }
-        else if (expected == GroupExpectedOutcome.NotFound) await AssertGroupNotFoundAsync(res);
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else if (expected == GroupExpectedOutcome.NotFound) await IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.NotFound, "Group not found");
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     public static TheoryData<GroupActorRole, GroupManagementAction, GroupExpectedOutcome> ManagementMatrixData =>
@@ -101,7 +102,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"mgmt_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"mgmt_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         scenario.LoginAs(caller);
 
@@ -133,7 +134,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         {
             case GroupManagementAction.Update:
                 if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-                else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+                else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
                 break;
             case GroupManagementAction.Delete:
                 if (expected == GroupExpectedOutcome.Ok)
@@ -141,9 +142,9 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                     await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
                     scenario.LoginAs(GroupActorRole.Owner);
                     var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
-                    await AssertGroupNotFoundAsync(get);
+                    await IntegrationAssertions.AssertProblemDetailAsync(get, HttpStatusCode.NotFound, "Group not found");
                 }
-                else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+                else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
                 break;
             case GroupManagementAction.TransferToMember:
                 if (expected == GroupExpectedOutcome.Ok)
@@ -151,7 +152,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
                     await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
                     await scenario.AssertMemberRoleAsync(group.Id, scenario.Member.Id, GroupRole.Owner);
                 }
-                else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+                else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
                 break;
             case GroupManagementAction.TransferToSelf:
             case GroupManagementAction.TransferToStranger:
@@ -183,7 +184,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"rm_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"rm_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var targetUserId = scenario.ResolveTargetUserId(target, caller);
         scenario.LoginAs(caller);
@@ -200,7 +201,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             var members = await scenario.GetMembersAsync(group.Id);
             Assert.DoesNotContain(members, m => m.UserId == targetUserId);
         }
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     public static TheoryData<GroupActorRole, GroupTargetRole, GroupRole, GroupExpectedOutcome> UpdateRoleMatrixData =>
@@ -224,7 +225,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"role_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"role_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         var targetUserId = scenario.ResolveTargetUserId(target, caller);
         scenario.LoginAs(caller);
@@ -242,14 +243,14 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
             Assert.NotNull(body);
             Assert.Equal(newRole, body.Role);
         }
-        else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     [Fact]
     public async Task TransferOwnership_SwapsOwnerAndPriorOwnerBecomesAdmin()
     {
         // Arrange
-        var scenario = CreateScenario("xfer");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"xfer");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
         scenario.LoginAs(GroupActorRole.Owner);
 
@@ -267,7 +268,7 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
     public async Task DeleteGroup_RemovesAllMemberships()
     {
         // Arrange
-        var scenario = CreateScenario("del");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"del");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
         scenario.LoginAs(GroupActorRole.Owner);
 
@@ -278,6 +279,6 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
 
         var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
-        await AssertGroupNotFoundAsync(get);
+        await IntegrationAssertions.AssertProblemDetailAsync(get, HttpStatusCode.NotFound, "Group not found");
     }
 }

@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using Social.Db;
-using Tangle.TestSupport;
 
 namespace Social.Tests.Infrastructure;
 

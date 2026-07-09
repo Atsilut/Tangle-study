@@ -1,5 +1,5 @@
 using System.Net;
-using Users.Telemetry;
+using Tangle.AspNetCore.Telemetry;
 using Users.Tests.Infrastructure;
 
 namespace Users.Tests.Controllers;

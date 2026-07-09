@@ -1,5 +1,5 @@
 using Location.Client;
-using Location.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Location.Tests.Infrastructure;
 

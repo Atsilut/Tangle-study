@@ -1,9 +1,8 @@
 namespace Chat.Tests.Infrastructure;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<ChatWebApplicationFactory, Program>
 {
-    protected ChatWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected FakeMediaClient FakeMediaClient => Factory.FakeMediaClient;
@@ -11,23 +10,15 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
         RedisTestcontainerFixture redis)
+        : base(() => new ChatWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString))
     {
         Redis = redis;
-        Factory = new ChatWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString);
-        Client = Factory.CreateClient();
     }
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask ResetStateAsync()
     {
         await Factory.ClearAllChatDataAsync();
         InMemoryUser.Reset();
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
+        GatewayTestAuthHelpers.ClearAuth(Client);
     }
 }

@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Users.Dto;
-using Users.Events;
 using Users.Tests.Infrastructure;
 using StackExchange.Redis;
+using Users.Infrastructure;
 
 namespace Users.Tests.Controllers;
 
@@ -23,8 +23,8 @@ public sealed class UserNicknameCacheRedisIntegrationTests(
         const string updatedNickname = "PubSubNick";
 
         // Arrange
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, user);
 
         var multiplexer = await ConnectionMultiplexer.ConnectAsync(Redis.ConnectionString);
         try

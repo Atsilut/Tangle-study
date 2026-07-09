@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Entities;
 using Group.Dto;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -21,7 +22,7 @@ public sealed class GroupInvitePolicyIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task Invite_MemberSucceeds_WhenInvitePolicyForAll()
     {
-        var scenario = CreateScenario(nameof(Invite_MemberSucceeds_WhenInvitePolicyForAll));
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,nameof(Invite_MemberSucceeds_WhenInvitePolicyForAll));
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
             Client,
             scenario.Owner,
@@ -42,7 +43,7 @@ public sealed class GroupInvitePolicyIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task Invite_MemberReturnsUnauthorized_WhenInvitePolicyAdminsOnly()
     {
-        var scenario = CreateScenario(nameof(Invite_MemberReturnsUnauthorized_WhenInvitePolicyAdminsOnly));
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,nameof(Invite_MemberReturnsUnauthorized_WhenInvitePolicyAdminsOnly));
         var group = await scenario.SetupInvitationOnlyGroupAsync(includeAdmin: true, includeMember: true);
 
         scenario.LoginAs(GroupActorRole.Member);
@@ -57,7 +58,7 @@ public sealed class GroupInvitePolicyIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task ListGroupInvitations_MemberCanList_WhenInvitePolicyForAll()
     {
-        var scenario = CreateScenario(nameof(ListGroupInvitations_MemberCanList_WhenInvitePolicyForAll));
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,nameof(ListGroupInvitations_MemberCanList_WhenInvitePolicyForAll));
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(
             Client,
             scenario.Owner,
@@ -84,7 +85,7 @@ public sealed class GroupInvitePolicyIntegrationTests(PostgresTestcontainerFixtu
     [Fact]
     public async Task UpdateGroup_PersistsInvitePolicy()
     {
-        var scenario = CreateScenario(nameof(UpdateGroup_PersistsInvitePolicy));
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,nameof(UpdateGroup_PersistsInvitePolicy));
         var group = await scenario.SetupInvitationOnlyGroupAsync();
 
         scenario.LoginAs(GroupActorRole.Owner);

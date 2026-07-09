@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Chat.Dto;
 using Chat.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
+using Chat.Tests.Scenarios;
 
 namespace Chat.Tests.Controllers;
 
@@ -10,65 +12,36 @@ public abstract class ChatIntegrationTestBase(
     RedisTestcontainerFixture redis)
     : IntegrationTestBase(postgres, redis)
 {
-    protected const string ChatRoomsBase = "/api/chat/rooms";
+    protected const string ChatRoomsBase = ChatScenarioRequests.ChatRoomsBase;
+
+    protected static ITestAuth Auth => GatewayHeaderAuth.Instance;
 
     protected TestUser CreateUserForTest(string testMethodName, long index = 1) =>
-        InMemoryUser.CreateUser(ChatTestAuthHelpers.BuildNickname(testMethodName, index));
+        InMemoryUser.CreateUser(TestUserIdentity.BuildNickname(testMethodName, index));
 
     protected void LoginAs(TestUser user) => GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 
     protected void AcceptFriendship(TestUser requester, TestUser addressee) =>
         InMemoryUser.AddFriendship(requester.Id, addressee.Id);
 
-    protected async Task<ChatRoomGetResponseDto> GetOrCreateDirectRoomAsync(
+    protected Task<ChatRoomGetResponseDto> GetOrCreateDirectRoomAsync(
         TestUser asUser,
-        long otherUserId)
-    {
-        LoginAs(asUser);
-        var res = await Client.PostAsJsonAsync(
-            $"{ChatRoomsBase}/direct",
-            new ChatRoomDirectCreateRequestDto { OtherUserId = otherUserId },
-            TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
-        return (await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken))!;
-    }
+        long otherUserId) =>
+        ChatApiTestHelpers.GetOrCreateDirectRoomAsync(Client, asUser.Id, otherUserId, Auth);
 
-    protected async Task<ChatRoomGetResponseDto> CreateMultiRoomAsync(
+    protected Task<ChatRoomGetResponseDto> CreateMultiRoomAsync(
         TestUser creator,
         IReadOnlyList<long> otherParticipantIds,
-        string? title = null)
-    {
-        LoginAs(creator);
-        var res = await Client.PostAsJsonAsync(
-            $"{ChatRoomsBase}/multi",
-            new ChatRoomMultiCreateRequestDto
-            {
-                Title = title,
-                ParticipantUserIds = otherParticipantIds,
-            },
-            TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        return (await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken))!;
-    }
+        string? title = null) =>
+        ChatApiTestHelpers.CreateMultiRoomAsync(Client, creator.Id, otherParticipantIds, Auth, title);
 
-    protected async Task<ChatRoomGetResponseDto> CreatePlatformGroupChatRoomAsync(
+    protected Task<ChatRoomGetResponseDto> CreatePlatformGroupChatRoomAsync(
         TestUser creator,
         long platformGroupId,
         IReadOnlyList<long> otherParticipantIds,
-        string? title = null)
-    {
-        LoginAs(creator);
-        var res = await Client.PostAsJsonAsync(
-            $"/api/groups/{platformGroupId}/chat-rooms",
-            new ChatRoomPlatformGroupCreateRequestDto
-            {
-                Title = title,
-                ParticipantUserIds = otherParticipantIds,
-            },
-            TestContext.Current.CancellationToken);
-        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-        return (await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken))!;
-    }
+        string? title = null) =>
+        ChatApiTestHelpers.CreatePlatformGroupChatRoomAsync(
+            Client, creator.Id, platformGroupId, otherParticipantIds, Auth, title);
 
     protected (TestUser Owner, TestUser Member, long GroupId) CreateGroupWithMember(
         TestUser owner,
@@ -85,7 +58,7 @@ public abstract class ChatIntegrationTestBase(
 
     protected async Task<List<ChatRoomSummaryGetResponseDto>?> ListMyRoomsAsync()
     {
-        var res = await Client.GetAsync(ChatRoomsBase, TestContext.Current.CancellationToken);
+        var res = await ChatScenarioRequests.GetRoomsAsync(Client);
         if (res.StatusCode == HttpStatusCode.NoContent) return null;
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         return (await res.Content.ReadFromJsonAsync<List<ChatRoomSummaryGetResponseDto>>(TestContext.Current.CancellationToken))!;
@@ -93,38 +66,29 @@ public abstract class ChatIntegrationTestBase(
 
     protected async Task<ChatRoomGetResponseDto> GetRoomAsync(long roomId)
     {
-        var res = await Client.GetAsync($"{ChatRoomsBase}/{roomId}", TestContext.Current.CancellationToken);
+        var res = await ChatScenarioRequests.GetRoomAsync(Client, roomId);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         return (await res.Content.ReadFromJsonAsync<ChatRoomGetResponseDto>(TestContext.Current.CancellationToken))!;
     }
 
     protected Task<HttpResponseMessage> LeaveRoomAsync(long roomId) =>
-        Client.DeleteAsync($"{ChatRoomsBase}/{roomId}/participants/me", TestContext.Current.CancellationToken);
+        ChatScenarioRequests.LeaveRoomAsync(Client, roomId);
 
     protected Task<HttpResponseMessage> PostMessageAsync(long roomId, string body) =>
-        Client.PostAsJsonAsync(
-            $"{ChatRoomsBase}/{roomId}/messages",
-            new ChatMessageCreateRequestDto { Body = body },
-            TestContext.Current.CancellationToken);
+        ChatScenarioRequests.PostMessageAsync(Client, roomId, body);
 
     protected Task<HttpResponseMessage> PatchMessageAsync(long roomId, long messageId, string body) =>
-        Client.PatchAsJsonAsync(
-            $"{ChatRoomsBase}/{roomId}/messages/{messageId}",
-            new ChatMessagePatchRequestDto { Body = body },
-            TestContext.Current.CancellationToken);
+        ChatScenarioRequests.PatchMessageAsync(Client, roomId, messageId, body);
 
     protected Task<HttpResponseMessage> DeleteMessageAsync(long roomId, long messageId) =>
-        Client.DeleteAsync($"{ChatRoomsBase}/{roomId}/messages/{messageId}", TestContext.Current.CancellationToken);
+        ChatScenarioRequests.DeleteMessageAsync(Client, roomId, messageId);
 
     protected Task<HttpResponseMessage> MarkMessagesSeenAsync(long roomId, params long[] messageIds) =>
-        Client.PostAsJsonAsync(
-            $"{ChatRoomsBase}/{roomId}/messages/seen",
-            new ChatMessageMarkSeenRequestDto { MessageIds = messageIds },
-            TestContext.Current.CancellationToken);
+        ChatScenarioRequests.MarkMessagesSeenAsync(Client, roomId, messageIds);
 
     protected async Task<List<ChatMessageGetResponseDto>> ListMessagesAsync(long roomId)
     {
-        var res = await Client.GetAsync($"{ChatRoomsBase}/{roomId}/messages", TestContext.Current.CancellationToken);
+        var res = await ChatScenarioRequests.ListMessagesAsync(Client, roomId);
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         return (await res.Content.ReadFromJsonAsync<List<ChatMessageGetResponseDto>>(TestContext.Current.CancellationToken))!;
     }

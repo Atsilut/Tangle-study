@@ -2,6 +2,7 @@ using Group.Db;
 using Group.Service;
 using Group.Tests.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Tangle.AspNetCore.Auth;
 
 namespace Group.Tests.Infrastructure;
 
@@ -15,7 +16,6 @@ internal static class GroupServiceTestFactory
         GroupJoinResolutionService GroupJoinResolutionService,
         GroupJoinService GroupJoinService,
         GroupBlacklistService GroupBlacklistService,
-        GroupBoardAccessService GroupBoardAccessService,
         GroupBoardService GroupBoardService,
         FakeGroupRepository GroupRepository,
         FakeGroupMemberRepository GroupMemberRepository,
@@ -37,6 +37,7 @@ internal static class GroupServiceTestFactory
         var groupBlacklistRepository = new FakeGroupBlacklistRepository();
         var groupBoardRepository = new FakeGroupBoardRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
+        var currentUser = new CurrentUserAccessor(http);
         var monolith = new InMemoryUserClient();
         var communityClient = new FakeCommunityClient();
         var locationClient = new FakeLocationClient();
@@ -57,13 +58,13 @@ internal static class GroupServiceTestFactory
             groupMemberRepository,
             new Lazy<GroupService>(() => groupService),
             monolith,
-            http);
+            currentUser);
 
-        var groupBoardAccessService = new GroupBoardAccessService(
+        groupBoardService = new GroupBoardService(
             groupBoardRepository,
             new Lazy<GroupService>(() => groupService),
             groupMembershipService,
-            http);
+            currentUser);
 
         groupBlacklistService = new GroupBlacklistService(
             groupBlacklistRepository,
@@ -72,7 +73,7 @@ internal static class GroupServiceTestFactory
             new Lazy<GroupJoinResolutionService>(() => groupJoinResolutionService),
             monolith,
             db,
-            http);
+            currentUser);
 
         groupApplicationService = new GroupApplicationService(
             groupApplicationRepository,
@@ -83,7 +84,7 @@ internal static class GroupServiceTestFactory
             groupBlacklistService,
             monolith,
             db,
-            http);
+            currentUser);
 
         groupInvitationService = new GroupInvitationService(
             groupInvitationRepository,
@@ -95,7 +96,7 @@ internal static class GroupServiceTestFactory
             monolith,
             monolith,
             db,
-            http);
+            currentUser);
 
         groupJoinResolutionService = new GroupJoinResolutionService(
             groupMembershipService,
@@ -110,21 +111,14 @@ internal static class GroupServiceTestFactory
             groupMembershipService,
             groupJoinResolutionService,
             groupBlacklistService,
-            http);
-
-        groupBoardService = new GroupBoardService(
-            groupBoardRepository,
-            new Lazy<GroupService>(() => groupService),
-            groupMembershipService,
-            groupBoardAccessService,
-            http);
+            currentUser);
 
         groupService = new GroupService(
             groupRepository,
             groupMembershipService,
             monolith,
             db,
-            http,
+            currentUser,
             new Lazy<GroupInvitationService>(() => groupInvitationService),
             new Lazy<GroupApplicationService>(() => groupApplicationService),
             new Lazy<GroupBlacklistService>(() => groupBlacklistService),
@@ -140,7 +134,6 @@ internal static class GroupServiceTestFactory
             groupJoinResolutionService,
             groupJoinService,
             groupBlacklistService,
-            groupBoardAccessService,
             groupBoardService,
             groupRepository,
             groupMemberRepository,

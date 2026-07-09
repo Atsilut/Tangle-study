@@ -257,7 +257,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         LoginAs(stranger);
 
         // Act
-        var res = await Client.GetAsync($"{"/api/groups"}/{groupId}/chat-rooms", TestContext.Current.CancellationToken);
+        var res = await Client.GetAsync($"/api/groups/{groupId}/chat-rooms", TestContext.Current.CancellationToken);
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NotFound);
@@ -380,7 +380,7 @@ public sealed class ChatRoomControllerIntegrationTests(PostgresTestcontainerFixt
         // Assert
         Assert.NotNull(rooms);
         var summary = Assert.Single(rooms, r => r.Id == room.Id);
-        Assert.Equal(new[] { userB.Nickname }, summary.OtherParticipantNicknames);
+        Assert.Equal([userB.Nickname], summary.OtherParticipantNicknames);
         Assert.NotNull(summary.LastMessage);
         Assert.Equal("Latest preview", summary.LastMessage.Body);
         Assert.Equal(userA.Nickname, summary.LastMessage.SenderNickname);

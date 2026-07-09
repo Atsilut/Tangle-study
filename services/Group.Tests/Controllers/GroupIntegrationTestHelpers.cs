@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
 using Group.Db;
 using Group.Dto;
 using Group.Entities;
@@ -8,12 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 using GroupInvitationEntity = Group.Entities.GroupInvitation;
 using GroupApplicationEntity = Group.Entities.GroupApplication;
 using GroupBoardEntity = Group.Entities.GroupBoard;
+using Tangle.TestSupport.Auth;
+using Group.Tests.Scenarios;
 
 namespace Group.Tests.Controllers;
 
 internal static class GroupIntegrationTestHelpers
 {
-    public const string GroupsBase = "/api/groups";
+    public const string GroupsBase = GroupScenarioRequests.GroupsBase;
 
     public static TestUser CreateUser(GroupWebApplicationFactory factory, string nickname, long index = 1)
     {
@@ -21,28 +21,14 @@ internal static class GroupIntegrationTestHelpers
         return new(factory.InMemoryUser.SeedUser(name), name);
     }
 
-    public static void LoginAs(HttpClient client, TestUser user) =>
-        GatewayTestAuthHelpers.LoginAs(client, user.Id);
-
-    public static async Task<GroupGetResponseDto> CreateGroupAsAsync(
+    public static Task<GroupGetResponseDto> CreateGroupAsAsync(
         HttpClient client,
         TestUser user,
         GroupVisibility visibility = GroupVisibility.Private,
         GroupJoinPolicy joinPolicy = GroupJoinPolicy.Requestable,
-        GroupInvitePolicy invitePolicy = GroupInvitePolicy.AdminsOnly)
-    {
-        LoginAs(client, user);
-        var res = await client.PostAsJsonAsync(GroupsBase, new GroupCreateRequestDto
-        {
-            Name = $"Group_{Guid.NewGuid():N}"[..20],
-            Description = "test group",
-            Visibility = visibility,
-            JoinPolicy = joinPolicy,
-            InvitePolicy = invitePolicy,
-        }, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
-        return (await res.Content.ReadFromJsonAsync<GroupGetResponseDto>(TestContext.Current.CancellationToken))!;
-    }
+        GroupInvitePolicy invitePolicy = GroupInvitePolicy.AdminsOnly) =>
+        GroupApiTestHelpers.CreateGroupAsync(
+            client, user.Id, GatewayHeaderAuth.Instance, visibility, joinPolicy, invitePolicy);
 
     public static void BlockUser(GroupWebApplicationFactory factory, long blockerUserId, long blockedUserId) =>
         factory.InMemoryUser.AddBlock(blockerUserId, blockedUserId);

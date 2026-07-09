@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
 using Social.Dto;
 using Social.Tests.Infrastructure;
-using Social.Dto;
 
 namespace Social.Tests.Controllers;
 

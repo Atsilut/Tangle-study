@@ -1,6 +1,6 @@
-using Social.Client;
-using Social.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Social.Client;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Social.Tests.Infrastructure;
 

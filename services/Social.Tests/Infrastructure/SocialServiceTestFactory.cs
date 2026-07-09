@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Social.Db;
 using Social.Service;
 using Social.Tests.Repositories;
-using Social.Service;
+using Tangle.AspNetCore.Auth;
 
 namespace Social.Tests.Infrastructure;
 
@@ -46,6 +46,7 @@ public sealed class SocialServiceTestFactory : IDisposable
     public static SocialServiceTestFactory Create(FakeHttpContextAccessor? http = null)
     {
         http ??= new FakeHttpContextAccessor("1");
+        var currentUser = new CurrentUserAccessor(http);
         var friendshipRepo = new FakeFriendshipRepository();
         var friendRequestRepo = new FakeFriendRequestRepository();
         var userBlockRepo = new FakeUserBlockRepository();
@@ -55,19 +56,19 @@ public sealed class SocialServiceTestFactory : IDisposable
             .Options);
 
         FriendRequestService friendRequestService = null!;
-        var friendshipService = new FriendshipService(friendshipRepo, monolith, http);
+        var friendshipService = new FriendshipService(friendshipRepo, monolith, currentUser);
         var userBlockService = new UserBlockService(
             userBlockRepo,
             new Lazy<FriendRequestService>(() => friendRequestService),
             monolith,
-            http);
+            currentUser);
         friendRequestService = new FriendRequestService(
             friendRequestRepo,
             friendshipService,
             monolith,
             userBlockService,
             db,
-            http,
+            currentUser,
             NullLogger<FriendRequestService>.Instance);
 
         return new SocialServiceTestFactory(

@@ -1,8 +1,8 @@
-using Location.Queue;
+using Tangle.AspNetCore.Queue;
 
 namespace Location.Tests.Infrastructure;
 
-internal sealed class FakeWorkQueue : IWorkQueue
+public sealed class FakeWorkQueue : IWorkQueue
 {
     private readonly List<EnqueuedJob> _jobs = [];
 
@@ -14,5 +14,5 @@ internal sealed class FakeWorkQueue : IWorkQueue
 
     public IReadOnlyList<EnqueuedJob> GetEnqueuedJobs() => _jobs;
 
-    internal sealed record EnqueuedJob(string StreamKey, object Payload);
+    public sealed record EnqueuedJob(string StreamKey, object Payload);
 }

@@ -1,9 +1,9 @@
 using Users.Service;
 using Users.Config;
 using Users.Db;
-using Users.Events;
 using Users.Infrastructure;
 using Users.Tests.Repositories;
+using Tangle.AspNetCore.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -26,6 +26,7 @@ internal static class DomainServiceTestFactory
     {
         var userRepository = new FakeUserRepository();
         var http = httpContextAccessor ?? new FakeHttpContextAccessor("1");
+        var currentUser = new CurrentUserAccessor(http);
         var distributedCache = new FakeDistributedCache();
         var nicknameCacheService = CreateNicknameCacheService(userRepository, distributedCache);
         var eventPublisher = new NullEventPublisher();
@@ -49,7 +50,7 @@ internal static class DomainServiceTestFactory
             locationClient,
             groupClient,
             socialClient,
-            http,
+            currentUser,
             nicknameCacheService,
             eventPublisher);
 

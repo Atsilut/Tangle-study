@@ -1,18 +1,16 @@
 using Media.Client;
 using Media.Db;
 using Media.Infrastructure;
-using Media.Queue;
-using Media.Security;
 using Media.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
+using Tangle.AspNetCore.Queue;
 
 namespace Media.Tests.Infrastructure;
 
@@ -20,15 +18,6 @@ public sealed class MediaWebApplicationFactory(
     string connectionString,
     string redisConnectionString) : WebApplicationFactory<Program>
 {
-    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
-    public const string TestJwtIssuer = "Tangle";
-    public const string TestJwtAudience = "TangleClient";
-    public const string TestWorkerCallbackSecret = "test-media-worker-secret";
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
-
-    private const string TestBlobConnectionString =
-        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
-
     private readonly string _connectionString = connectionString;
     private readonly string _redisConnectionString = redisConnectionString;
     private readonly FakeMediaStorage _fakeStorage = new();
@@ -37,41 +26,21 @@ public sealed class MediaWebApplicationFactory(
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment(Environments.Production);
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Media:ConnectionString", TestBlobConnectionString);
-        builder.UseSetting("Media:WorkerCallbackSecret", TestWorkerCallbackSecret);
-        builder.UseSetting("Media:InternalServiceSecret", TestInternalServiceSecret);
-        builder.UseSetting("Users:BaseUrl", "http://users.test");
-        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
-        builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
-        builder.UseSetting("ChatClient:BaseUrl", "http://chat.test");
-        builder.UseSetting("CommunityClient:BaseUrl", "http://community.test");
-        builder.UseSetting("ChatClient:InternalSecret", TestInternalServiceSecret);
-
-        builder.ConfigureAppConfiguration((_, config) =>
+        var additionalSettings = new Dictionary<string, string?>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Redis:ConnectionString"] = _redisConnectionString,
-                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Media:ConnectionString"] = TestBlobConnectionString,
-                ["Media:ContainerName"] = "tangle-media",
-                ["Media:WorkerCallbackSecret"] = TestWorkerCallbackSecret,
-                ["Media:InternalServiceSecret"] = TestInternalServiceSecret,
-                ["Users:BaseUrl"] = "http://users.test",
-                ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
-                ["ChatClient:BaseUrl"] = "http://chat.test",
-                ["CommunityClient:BaseUrl"] = "http://community.test",
-                ["ChatClient:InternalSecret"] = TestInternalServiceSecret,
-                ["Jwt:Secret"] = TestJwtSecret,
-                ["Jwt:Issuer"] = TestJwtIssuer,
-                ["Jwt:Audience"] = TestJwtAudience,
-                ["Metrics:RequireScrapeSecret"] = "false",
-            });
+            ["Media:ConnectionString"] = IntegrationTestConstants.TestBlobConnectionString,
+            ["Media:ContainerName"] = "tangle-media",
+            ["Media:WorkerCallbackSecret"] = IntegrationTestConstants.TestWorkerCallbackSecret,
+            ["CommunityClient:BaseUrl"] = "http://community.test",
+        };
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "ChatClient", "http://chat.test");
+
+        IntegrationTestConfiguration.Apply(builder, new IntegrationTestOptions
+        {
+            ConnectionString = _connectionString,
+            RedisConnectionString = _redisConnectionString,
+            Environment = Environments.Production,
+            AdditionalSettings = additionalSettings,
         });
 
         builder.ConfigureTestServices(services =>

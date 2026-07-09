@@ -1,12 +1,11 @@
-namespace Location.Tests.Infrastructure;
-
 using Location.Client;
 using Microsoft.Extensions.DependencyInjection;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+namespace Location.Tests.Infrastructure;
+
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<LocationWebApplicationFactory, Program>
 {
-    protected LocationWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected FakeSocialClient FakeSocial => Factory.FakeSocial;
@@ -16,14 +15,14 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
         RedisTestcontainerFixture redis)
+        : base(
+            () => new LocationWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString),
+            factory => _ = factory.Services.GetRequiredService<IUserClient>())
     {
         Redis = redis;
-        Factory = new LocationWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString);
-        Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask ResetStateAsync()
     {
         await Factory.ClearAllLocationDataAsync();
         InMemoryUser.Reset();
@@ -31,13 +30,5 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         FakeCommunity.Reset();
         FakeGroup.Reset();
         GatewayTestAuthHelpers.ClearAuth(Client);
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

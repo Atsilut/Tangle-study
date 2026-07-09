@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
 using Users.Dto;
 using Users.Tests.Infrastructure;
 
@@ -15,7 +16,7 @@ public sealed class GatewayIdentityIntegrationTests(
     public async Task ProtectedEndpoint_Returns401_WhenGatewaySecretWrong()
     {
         const string testMethodName = nameof(ProtectedEndpoint_Returns401_WhenGatewaySecretWrong);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.ClearAuth(Client);
         Client.DefaultRequestHeaders.Add("X-Gateway-Secret", "wrong-gateway-secret");
         Client.DefaultRequestHeaders.Add("X-User-Id", user.Id.ToString());
@@ -32,7 +33,7 @@ public sealed class GatewayIdentityIntegrationTests(
     public async Task ProtectedEndpoint_Returns401_WhenUserIdMissing()
     {
         const string testMethodName = nameof(ProtectedEndpoint_Returns401_WhenUserIdMissing);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.ClearAuth(Client);
         Client.DefaultRequestHeaders.Add("X-Gateway-Secret", GatewayTestAuthHelpers.TestGatewaySecret);
 
@@ -48,8 +49,8 @@ public sealed class GatewayIdentityIntegrationTests(
     public async Task ProtectedEndpoint_Returns401_WhenUserWasDeleted()
     {
         const string testMethodName = nameof(ProtectedEndpoint_Returns401_WhenUserWasDeleted);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
-        await IntegrationTestAuthHelpers.LoginAsAsync(Client, user);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        await UsersTestAuthHelpers.LoginAsAsync(Client, user);
         var delete = await Client.DeleteAsync($"/api/users/{user.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 

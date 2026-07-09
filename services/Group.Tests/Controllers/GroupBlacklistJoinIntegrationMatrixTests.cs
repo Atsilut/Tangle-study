@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Entities;
 using Group.Dto;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -27,7 +28,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
         GroupExpectedOutcome expected)
     {
         // Arrange
-        var scenario = CreateScenario($"blacklist_{Guid.NewGuid():N}"[..8]);
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,$"blacklist_{Guid.NewGuid():N}"[..8]);
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: true);
 
         if (action == BlacklistAdminAction.Add)
@@ -41,7 +42,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
 
             // Assert
             if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.Created);
-            else await IntegrationAssertions.AssertStatusAsync(res, OutcomeStatus(expected));
+            else await IntegrationAssertions.AssertStatusAsync(res, MatrixOutcomeAssertions.ToStatusCode(expected));
             return;
         }
 
@@ -54,14 +55,14 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
 
         // Assert
         if (expected == GroupExpectedOutcome.Ok) await IntegrationAssertions.AssertStatusAsync(removeRes, HttpStatusCode.NoContent);
-        else await IntegrationAssertions.AssertStatusAsync(removeRes, OutcomeStatus(expected));
+        else await IntegrationAssertions.AssertStatusAsync(removeRes, MatrixOutcomeAssertions.ToStatusCode(expected));
     }
 
     [Fact]
     public async Task Join_WhenBlacklisted_Returns400()
     {
         // Arrange
-        var scenario = CreateScenario("blj01");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"blj01");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Open);
@@ -79,7 +80,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
     public async Task Blacklist_Add_KicksExistingMember()
     {
         // Arrange
-        var scenario = CreateScenario("blj06");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"blj06");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.Open);
@@ -98,7 +99,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
     public async Task AcceptInvitation_AfterBlacklist_Returns404()
     {
         // Arrange
-        var scenario = CreateScenario("blj04");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"blj04");
         var group = await scenario.SetupGroupAsync(
             GroupVisibility.Public,
             joinPolicy: GroupJoinPolicy.InvitationOnly);
@@ -118,7 +119,7 @@ public sealed class GroupBlacklistJoinIntegrationMatrixTests(PostgresTestcontain
     public async Task Blacklist_Add_WhenSelf_Returns400()
     {
         // Arrange
-        var scenario = CreateScenario("bla04");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"bla04");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private);
         scenario.LoginAs(GroupActorRole.Owner);
 

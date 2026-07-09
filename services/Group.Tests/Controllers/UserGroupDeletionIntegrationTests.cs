@@ -1,6 +1,8 @@
 using System.Net;
 using Group.Entities;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
+using Tangle.TestSupport.Integration;
 
 namespace Group.Tests.Controllers;
 
@@ -11,7 +13,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
     public async Task DeleteUser_AsSoleGroupOwner_DeletesGroup()
     {
         // Arrange
-        var scenario = CreateScenario("user_del_sole");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"user_del_sole");
         var group = await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, scenario.Owner);
 
         // Act
@@ -23,14 +25,14 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
 
         scenario.LoginAs(GroupActorRole.Stranger);
         var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
-        await AssertGroupNotFoundAsync(getGroup);
+        await IntegrationAssertions.AssertProblemDetailAsync(getGroup, HttpStatusCode.NotFound, "Group not found");
     }
 
     [Fact]
     public async Task DeleteUser_AsGroupOwnerWithAdmin_TransfersOwnership()
     {
         // Arrange
-        var scenario = CreateScenario("user_del_xfer");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"user_del_xfer");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: true, includeMember: false);
 
         // Act
@@ -40,7 +42,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         // Assert
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
-        GroupIntegrationTestHelpers.LoginAs(Client, scenario.Admin);
+        GatewayTestAuthHelpers.LoginAs(Client, scenario.Admin.Id);
         var members = await scenario.GetMembersAsync(group.Id);
         Assert.DoesNotContain(members, m => m.UserId == scenario.Owner.Id);
         var owner = Assert.Single(members, m => m.Role == GroupRole.Owner);
@@ -51,7 +53,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
     public async Task DeleteUser_AsMember_RemovesMembershipOnly()
     {
         // Arrange
-        var scenario = CreateScenario("user_del_member");
+        var scenario = GroupIntegrationScenario.Create(Client, Factory,"user_del_member");
         var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: true);
 
         // Act
@@ -61,7 +63,7 @@ public sealed class UserGroupDeletionIntegrationTests(PostgresTestcontainerFixtu
         // Assert
         await IntegrationAssertions.AssertStatusAsync(delete, HttpStatusCode.NoContent);
 
-        GroupIntegrationTestHelpers.LoginAs(Client, scenario.Owner);
+        GatewayTestAuthHelpers.LoginAs(Client, scenario.Owner.Id);
         await scenario.AssertMemberAbsentAsync(group.Id, scenario.Member.Id);
         var getGroup = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getGroup, HttpStatusCode.OK);

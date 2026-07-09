@@ -1,6 +1,6 @@
 using System.Net;
-using Gateway.Telemetry;
 using Gateway.Tests.Infrastructure;
+using Tangle.AspNetCore.Telemetry;
 
 namespace Gateway.Tests.Controllers;
 

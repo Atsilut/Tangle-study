@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Social.Dto;
 using Social.Tests.Infrastructure;
-using Social.Dto;
 
 namespace Social.Tests.Controllers;
 

@@ -1,4 +1,5 @@
 using Location.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
 
 namespace Location.Tests.Controllers;
 
@@ -7,11 +8,8 @@ public abstract class LocationIntegrationTestBase(
     RedisTestcontainerFixture redis)
     : IntegrationTestBase(postgres, redis)
 {
-    protected TestUser CreateUserForTest(string testMethodName, long index = 1)
-    {
-        var user = InMemoryUser.CreateUser($"{testMethodName}User{index}");
-        return user;
-    }
+    protected TestUser CreateUserForTest(string testMethodName, long index = 1) =>
+        InMemoryUser.CreateUser(TestUserIdentity.BuildNickname(testMethodName, index));
 
     protected void LoginAs(TestUser user) => GatewayTestAuthHelpers.LoginAs(Client, user.Id);
 

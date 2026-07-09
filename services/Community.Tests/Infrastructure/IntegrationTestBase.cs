@@ -6,37 +6,29 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Community.Tests.Infrastructure;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<CommunityWebApplicationFactory, Program>
 {
-    protected CommunityWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected InMemoryUserClient InMemoryUser => Factory.InMemoryUser;
     protected InMemoryGroupClient GroupAccess => Factory.GroupAccess;
     protected FakeMediaClient FakeMedia => Factory.FakeMediaClient;
     protected FakeLocationClient FakeLocation => Factory.FakeLocationClient;
 
     protected IntegrationTestBase(PostgresTestcontainerFixture postgres)
+        : base(
+            () => new CommunityWebApplicationFactory(postgres.ConnectionString),
+            factory => _ = factory.Services.GetRequiredService<IUserClient>())
     {
-        Factory = new CommunityWebApplicationFactory(postgres.ConnectionString);
-        Client = Factory.CreateClient();
-        _ = Factory.Services.GetRequiredService<IUserClient>();
     }
 
-    public async ValueTask InitializeAsync()
+    protected override async ValueTask ResetStateAsync()
     {
         await Factory.ClearAllCommunityDataAsync();
         InMemoryUser.Reset();
         GroupAccess.Reset();
         FakeMedia.Reset();
         FakeLocation.Reset();
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
+        GatewayTestAuthHelpers.ClearAuth(Client);
     }
 
     protected async Task<Post?> FindPostEntityAsync(long postId)

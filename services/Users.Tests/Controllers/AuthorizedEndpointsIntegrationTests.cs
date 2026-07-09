@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
 using Users.Domain;
 using Users.Dto;
 using Users.Tests.Infrastructure;

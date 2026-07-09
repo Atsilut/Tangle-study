@@ -1,18 +1,17 @@
 using Chat.Client;
-using Chat.Config;
 using Chat.Db;
 using Chat.Events;
 using Chat.Infrastructure;
-using Chat.Queue;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using StackExchange.Redis;
+using Tangle.AspNetCore.Queue;
 
 namespace Chat.Tests.Infrastructure;
 
@@ -20,61 +19,28 @@ public sealed class ChatWebApplicationFactory(
     string connectionString,
     string redisConnectionString) : WebApplicationFactory<Program>
 {
-    public const string TestJwtSecret = "integration-test-jwt-secret-at-least-32-characters-long";
-    public const string TestJwtIssuer = "Tangle";
-    public const string TestJwtAudience = "TangleClient";
-    public const string TestInternalServiceSecret = "test-internal-service-secret";
-
     private readonly string _connectionString = connectionString;
     private readonly string _redisConnectionString = redisConnectionString;
-    private readonly InMemoryUserClient _monolithAccess = new(new FakeHttpContextAccessor("1"));
     private readonly FakeMediaClient _fakeMediaClient = new();
 
-    public InMemoryUserClient InMemoryUser => _monolithAccess;
+    public InMemoryUserClient InMemoryUser =>
+        Services.GetRequiredService<InMemoryUserClient>();
+
     public FakeMediaClient FakeMediaClient => _fakeMediaClient;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Docker");
-        builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-        builder.UseSetting("Users:BaseUrl", "http://users.test");
-        builder.UseSetting("Users:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GatewayIdentity:Secret", GatewayTestAuthHelpers.TestGatewaySecret);
-        builder.UseSetting("SocialClient:BaseUrl", "http://social.test");
-        builder.UseSetting("SocialClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("GroupClient:BaseUrl", "http://group.test");
-        builder.UseSetting("GroupClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("MediaClient:BaseUrl", "http://media.test");
-        builder.UseSetting("MediaClient:InternalSecret", TestInternalServiceSecret);
-        builder.UseSetting("InternalAccess:Secret", TestInternalServiceSecret);
-        builder.UseSetting("Redis:ConnectionString", _redisConnectionString);
-        builder.UseSetting("Jwt:Secret", TestJwtSecret);
-        builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
-        builder.UseSetting("Jwt:Audience", TestJwtAudience);
+        var additionalSettings = new Dictionary<string, string?>();
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "SocialClient", "http://social.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "GroupClient", "http://group.test");
+        IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "MediaClient", "http://media.test");
 
-        builder.ConfigureAppConfiguration((_, config) =>
+        IntegrationTestConfiguration.Apply(builder, new IntegrationTestOptions
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _connectionString,
-                ["Redis:ConnectionString"] = _redisConnectionString,
-                ["Redis:WorkQueueStreamPrefix"] = "tangle:queue:",
-                ["Redis:SignalRChannelPrefix"] = "tangle:signalr:",
-                ["Users:BaseUrl"] = "http://users.test",
-                ["Users:InternalSecret"] = TestInternalServiceSecret,
-                ["GatewayIdentity:Secret"] = GatewayTestAuthHelpers.TestGatewaySecret,
-                ["SocialClient:BaseUrl"] = "http://social.test",
-                ["SocialClient:InternalSecret"] = TestInternalServiceSecret,
-                ["GroupClient:BaseUrl"] = "http://group.test",
-                ["GroupClient:InternalSecret"] = TestInternalServiceSecret,
-                ["MediaClient:BaseUrl"] = "http://media.test",
-                ["MediaClient:InternalSecret"] = TestInternalServiceSecret,
-                ["InternalAccess:Secret"] = TestInternalServiceSecret,
-                ["Jwt:Secret"] = TestJwtSecret,
-                ["Jwt:Issuer"] = TestJwtIssuer,
-                ["Jwt:Audience"] = TestJwtAudience,
-                ["Metrics:RequireScrapeSecret"] = "false",
-            });
+            ConnectionString = _connectionString,
+            RedisConnectionString = _redisConnectionString,
+            Environment = Environments.Production,
+            AdditionalSettings = additionalSettings,
         });
 
         builder.ConfigureTestServices(services =>
@@ -82,9 +48,11 @@ public sealed class ChatWebApplicationFactory(
             services.RemoveService<IUserClient>();
             services.RemoveService<ISocialClient>();
             services.RemoveService<IGroupClient>();
-            services.AddSingleton<IUserClient>(_monolithAccess);
-            services.AddSingleton<ISocialClient>(_monolithAccess);
-            services.AddSingleton<IGroupClient>(_monolithAccess);
+            services.AddSingleton<InMemoryUserClient>(sp =>
+                new InMemoryUserClient(sp.GetRequiredService<IHttpContextAccessor>()));
+            services.AddSingleton<IUserClient>(sp => sp.GetRequiredService<InMemoryUserClient>());
+            services.AddSingleton<ISocialClient>(sp => sp.GetRequiredService<InMemoryUserClient>());
+            services.AddSingleton<IGroupClient>(sp => sp.GetRequiredService<InMemoryUserClient>());
 
             services.RemoveService<IMediaClient>();
             services.AddSingleton<IMediaClient>(_fakeMediaClient);
@@ -118,7 +86,16 @@ public sealed class ChatWebApplicationFactory(
     {
         if (disposing)
         {
-            _monolithAccess.Reset();
+            try
+            {
+                if (Server is not null)
+                    InMemoryUser.Reset();
+            }
+            catch (InvalidOperationException)
+            {
+                // Factory was never started.
+            }
+
             try
             {
                 using var connection = new NpgsqlConnection(_connectionString);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
 using Users.Domain;
 using Users.Dto;
 using Users.Tests.Infrastructure;
@@ -69,7 +70,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     public async Task EnsureUserExists_Returns204_WhenUserExists()
     {
         const string testMethodName = nameof(EnsureUserExists_Returns204_WhenUserExists);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(
@@ -84,7 +85,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     public async Task EnsureUsersExist_Returns400_WhenAnyUserMissing()
     {
         const string testMethodName = nameof(EnsureUsersExist_Returns400_WhenAnyUserMissing);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
@@ -99,7 +100,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     public async Task GetNicknames_ReturnsDeletedUserFallback_ForMissingIds()
     {
         const string testMethodName = nameof(GetNicknames_ReturnsDeletedUserFallback_ForMissingIds);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
@@ -133,7 +134,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     public async Task GetUserIdByNickname_ReturnsUserId_WhenFound()
     {
         const string testMethodName = nameof(GetUserIdByNickname_ReturnsUserId_WhenFound);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsJsonAsync(
@@ -152,7 +153,7 @@ public sealed class InternalUsersControllerIntegrationTests(
     public async Task GetFriendsListVisibility_ReturnsSetting()
     {
         const string testMethodName = nameof(GetFriendsListVisibility_ReturnsSetting);
-        var user = await IntegrationTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
+        var user = await UsersTestAuthHelpers.CreateUserForTestAsync(Client, testMethodName);
         GatewayTestAuthHelpers.LoginAsInternal(Client);
 
         var res = await Client.PostAsync(

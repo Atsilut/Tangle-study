@@ -19,10 +19,10 @@ public sealed class GatewayWebApplicationFactory(
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Gateway:Secret"] = "test-gateway-secret",
-                ["Jwt:Secret"] = "integration-test-jwt-secret-at-least-32-characters-long",
-                ["Jwt:Issuer"] = "Tangle",
-                ["Jwt:Audience"] = "TangleClient",
+                ["Gateway:Secret"] = TestWebHostConfiguration.GatewaySecret,
+                ["Jwt:Secret"] = TestWebHostConfiguration.JwtSecret,
+                ["Jwt:Issuer"] = TestWebHostConfiguration.JwtIssuer,
+                ["Jwt:Audience"] = TestWebHostConfiguration.JwtAudience,
                 ["Metrics:RequireScrapeSecret"] = _metricsRequireScrapeSecret ? "true" : "false",
                 ["Metrics:ScrapeSecret"] = _metricsScrapeSecret ?? "",
             });

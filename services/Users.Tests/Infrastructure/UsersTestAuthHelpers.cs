@@ -1,20 +1,22 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using Tangle.TestSupport.Auth;
+using Tangle.TestSupport.Integration;
 using Users.Dto;
 
 namespace Users.Tests.Infrastructure;
 
-internal static class IntegrationTestAuthHelpers
+public static class UsersTestAuthHelpers
 {
     public const string DefaultPassword = "testtest123!";
 
     private static readonly ConcurrentDictionary<long, string> TestEmailsByUserId = new();
 
-    internal static void RegisterTestEmail(long userId, string email) =>
+    public static void RegisterTestEmail(long userId, string email) =>
         TestEmailsByUserId[userId] = email;
 
-    internal static string GetTestEmail(long userId) =>
+    public static string GetTestEmail(long userId) =>
         TestEmailsByUserId.GetValueOrDefault(userId)
         ?? throw new InvalidOperationException(
             $"No test email registered for user id {userId}. Create the user via {nameof(CreateUserForTestAsync)} first.");
@@ -27,7 +29,7 @@ internal static class IntegrationTestAuthHelpers
     {
         password ??= DefaultPassword;
         var email = testMethodName + index.ToString() + "@test.com";
-        var nickname = $"{testMethodName}User" + index.ToString();
+        var nickname = TestUserIdentity.BuildNickname(testMethodName, index);
         var req = new UserCreateRequestDto
         {
             Email = email,
@@ -44,7 +46,7 @@ internal static class IntegrationTestAuthHelpers
         return profile;
     }
 
-    public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user, string? password = null)
+    public static Task LoginAsAsync(HttpClient client, UserGetResponseDto user)
     {
         GatewayTestAuthHelpers.LoginAs(client, user.Id);
         return Task.CompletedTask;

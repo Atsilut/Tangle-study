@@ -15,7 +15,7 @@ public sealed class LoginControllerIntegrationTests(
     RedisTestcontainerFixture redis)
     : IntegrationTestBase(postgres, redis)
 {
-    private readonly string testUserPassword = IntegrationTestAuthHelpers.DefaultPassword;
+    private readonly string testUserPassword = UsersTestAuthHelpers.DefaultPassword;
     private readonly string testUserNickname = "old";
 
     public UserCreateRequestDto CreateUserRequest(
@@ -38,7 +38,7 @@ public sealed class LoginControllerIntegrationTests(
         var getAll = await Client.GetAsync("/api/users", TestContext.Current.CancellationToken);
         var all = await getAll.Content.ReadFromJsonAsync<List<UserGetResponseDto>>(TestContext.Current.CancellationToken);
         var profile = all!.First(u => u.Nickname == req.Nickname);
-        IntegrationTestAuthHelpers.RegisterTestEmail(profile.Id, req.Email);
+        UsersTestAuthHelpers.RegisterTestEmail(profile.Id, req.Email);
         return profile;
     }
 
@@ -59,7 +59,7 @@ public sealed class LoginControllerIntegrationTests(
     {
         // Arrange
         var created = await CreateAndGetUser();
-        var duplicateReq = CreateUserRequest(email: IntegrationTestAuthHelpers.GetTestEmail(created.Id));
+        var duplicateReq = CreateUserRequest(email: UsersTestAuthHelpers.GetTestEmail(created.Id));
 
         // Act
         var res = await Client.PostAsJsonAsync("/api/join", duplicateReq, TestContext.Current.CancellationToken);
@@ -135,7 +135,7 @@ public sealed class LoginControllerIntegrationTests(
         var created = await CreateAndGetUser();
         var req = new LoginRequestDto
         {
-            Email = IntegrationTestAuthHelpers.GetTestEmail(created.Id),
+            Email = UsersTestAuthHelpers.GetTestEmail(created.Id),
             Password = testUserPassword
         };
 
@@ -150,7 +150,7 @@ public sealed class LoginControllerIntegrationTests(
         Assert.False(string.IsNullOrWhiteSpace(loginResult.AccessToken));
 
         var handler = new JwtSecurityTokenHandler();
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(UsersWebApplicationFactory.TestJwtSecret));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(IntegrationTestConstants.TestJwtSecret));
         var principal = handler.ValidateToken(
             loginResult.AccessToken,
             new TokenValidationParameters
@@ -177,7 +177,7 @@ public sealed class LoginControllerIntegrationTests(
         const string wrongPassword = "wrongpassword789!";
         var req = new LoginRequestDto
         {
-            Email = IntegrationTestAuthHelpers.GetTestEmail(created.Id),
+            Email = UsersTestAuthHelpers.GetTestEmail(created.Id),
             Password = wrongPassword
         };
 

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Group.Dto;
 using Group.Entities;
 using Group.Tests.Infrastructure;
+using Tangle.TestSupport.Auth;
 
 namespace Group.Tests.Controllers;
 
@@ -83,7 +84,7 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
             owner,
             GroupVisibility.Public,
             GroupJoinPolicy.Open);
-        GroupIntegrationTestHelpers.LoginAs(Client, owner);
+        GatewayTestAuthHelpers.LoginAs(Client, owner.Id);
         var boardRes = await Client.PostAsJsonAsync(
             $"/api/groups/{group.Id}/boards",
             new GroupBoardCreateRequestDto

@@ -10,8 +10,8 @@ public sealed class MapPinServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var user = ServiceTestHelpers.CreateUser(graph.InMemoryUser);
-        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        var user = graph.InMemoryUser.CreateUser("user");
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(user.Id);
 
         var dto = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
@@ -28,15 +28,15 @@ public sealed class MapPinServiceUnitTests
     {
         var http = new FakeHttpContextAccessor("1");
         var graph = LocationServiceTestFactory.Create(http);
-        var owner = ServiceTestHelpers.CreateUser(graph.InMemoryUser, "owner");
-        var other = ServiceTestHelpers.CreateUser(graph.InMemoryUser, "other");
-        http.HttpContext = ServiceTestHelpers.ContextFor(owner.Id);
+        var owner = graph.InMemoryUser.CreateUser("owner");
+        var other = graph.InMemoryUser.CreateUser("other");
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(owner.Id);
         var created = await graph.MapPinService.CreateMapPinAsync(new MapPinCreateRequestDto
         {
             Latitude = 37.5665m,
             Longitude = 126.9780m,
         });
-        http.HttpContext = ServiceTestHelpers.ContextFor(other.Id);
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(other.Id);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             graph.MapPinService.DeleteMapPinByIdAsync(created.Id));

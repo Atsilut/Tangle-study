@@ -1,5 +1,6 @@
 using System.Net;
 using Chat.Tests.Infrastructure;
+using Tangle.TestSupport.Integration;
 
 namespace Chat.Tests.Controllers;
 
@@ -43,15 +44,8 @@ public abstract class ChatIntegrationMatrixTestBase(
     RedisTestcontainerFixture redis)
     : ChatIntegrationTestBase(postgres, redis)
 {
-    protected static HttpStatusCode OutcomeStatus(ChatExpectedOutcome expected) => expected switch
-    {
-        ChatExpectedOutcome.Ok => HttpStatusCode.OK,
-        ChatExpectedOutcome.Unauthorized => HttpStatusCode.Unauthorized,
-        ChatExpectedOutcome.NotFound => HttpStatusCode.NotFound,
-        ChatExpectedOutcome.BadRequest => HttpStatusCode.BadRequest,
-        ChatExpectedOutcome.Conflict => HttpStatusCode.Conflict,
-        _ => throw new ArgumentOutOfRangeException(nameof(expected), expected, null),
-    };
+    protected static HttpStatusCode OutcomeStatus(ChatExpectedOutcome expected) =>
+        MatrixOutcomeAssertions.ToStatusCode(expected);
 
     protected static Task AssertUnauthorizedAsync(HttpResponseMessage res) =>
         IntegrationAssertions.AssertProblemDetailAsync(res, HttpStatusCode.Unauthorized, "Unauthorized access");

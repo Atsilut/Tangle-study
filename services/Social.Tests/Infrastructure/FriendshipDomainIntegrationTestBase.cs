@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Social.Client;
 using Social.Db;
 using Social.Dto;
+using Tangle.TestSupport.Auth;
 
 namespace Social.Tests.Infrastructure;
 
@@ -19,7 +20,7 @@ public abstract class FriendshipDomainIntegrationTestBase(PostgresTestcontainerF
         string testMethodName,
         long index = 1,
         FriendsListVisibility visibility = FriendsListVisibility.Private) =>
-        InMemoryUser.SeedUser($"{testMethodName}User{index}", visibility: visibility);
+        InMemoryUser.SeedUser(TestUserIdentity.BuildNickname(testMethodName, index), visibility: visibility);
 
     protected void LoginAs(long userId) => GatewayTestAuthHelpers.LoginAs(Client, userId);
 

@@ -1,5 +1,5 @@
 using Community.Client;
-using Community.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Community.Tests.Infrastructure;
 

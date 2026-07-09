@@ -7,11 +7,3 @@ public sealed class MediaIntegrationTestCollection :
 {
     public const string Name = "MediaIntegrationTests";
 }
-
-[CollectionDefinition(Name, DisableParallelization = true)]
-public sealed class MediaRedisIntegrationTestCollection :
-    ICollectionFixture<PostgresTestcontainerFixture>,
-    ICollectionFixture<RedisTestcontainerFixture>
-{
-    public const string Name = "MediaRedisIntegrationTests";
-}

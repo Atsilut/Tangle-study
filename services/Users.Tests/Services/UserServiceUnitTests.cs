@@ -1,8 +1,8 @@
 ﻿using Users.Domain;
 using Users.Dto;
-using Users.Exceptions;
 using Users.Tests.Infrastructure;
-using Users.Tests.Repositories;
+using Tangle.AspNetCore.Exceptions;
+using Tangle.TestSupport.Integration;
 
 namespace Users.Tests.Services;
 
@@ -40,7 +40,7 @@ public sealed class UserServiceUnitTests
         var graph = DomainServiceTestFactory.Create(http);
         var user = new User("a@a.com", "password", "old");
         await graph.UserRepository.CreateUserAsync(user);
-        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(user.Id);
 
         // Act
         var res = await graph.UserService.UpdateUserDetailAsync(new UserPatchRequestDto { Id = user.Id, Nickname = "new" });
@@ -60,7 +60,7 @@ public sealed class UserServiceUnitTests
         var other = new User("b@b.com", "password", "other");
         await graph.UserRepository.CreateUserAsync(user);
         await graph.UserRepository.CreateUserAsync(other);
-        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(user.Id);
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -75,7 +75,7 @@ public sealed class UserServiceUnitTests
         var graph = DomainServiceTestFactory.Create(http);
         var user = new User("a@a.com", "password", "nick");
         await graph.UserRepository.CreateUserAsync(user);
-        http.HttpContext = ServiceTestHelpers.ContextFor(user.Id);
+        http.HttpContext = FakeHttpContextAccessor.ContextFor(user.Id);
         graph.CommunityClient.DetachFailure = new InvalidOperationException("detach failed");
 
         // Act & Assert

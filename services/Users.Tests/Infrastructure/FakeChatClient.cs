@@ -1,4 +1,3 @@
-
 using Users.Client;
 
 namespace Users.Tests.Infrastructure;

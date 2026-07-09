@@ -1,6 +1,5 @@
 using Social.Dto;
 using Social.Tests.Infrastructure;
-using Social.Dto;
 
 namespace Social.Tests.Services;
 

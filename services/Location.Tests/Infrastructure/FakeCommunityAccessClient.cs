@@ -1,6 +1,6 @@
 using Location.Client;
-using Location.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Tangle.AspNetCore.Exceptions;
 
 namespace Location.Tests.Infrastructure;
 

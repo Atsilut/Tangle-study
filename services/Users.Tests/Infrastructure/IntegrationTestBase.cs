@@ -1,27 +1,17 @@
 namespace Users.Tests.Infrastructure;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase
+    : Tangle.TestSupport.Integration.IntegrationTestBase<UsersWebApplicationFactory, UsersProgram>
 {
-    protected UsersWebApplicationFactory Factory { get; }
-    protected HttpClient Client { get; }
     protected RedisTestcontainerFixture Redis { get; }
 
     protected IntegrationTestBase(
         PostgresTestcontainerFixture postgres,
         RedisTestcontainerFixture redis)
+        : base(() => new UsersWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString))
     {
         Redis = redis;
-        Factory = new UsersWebApplicationFactory(postgres.ConnectionString, redis.ConnectionString);
-        Client = Factory.CreateClient();
     }
 
-    public async ValueTask InitializeAsync() => await Factory.ClearAllUsersAsync();
-
-    public ValueTask DisposeAsync()
-    {
-        Client.Dispose();
-        Factory.Dispose();
-        GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
-    }
+    protected override async ValueTask ResetStateAsync() => await Factory.ClearAllUsersAsync();
 }

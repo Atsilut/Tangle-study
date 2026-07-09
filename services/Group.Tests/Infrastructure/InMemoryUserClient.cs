@@ -1,5 +1,5 @@
 using Group.Client;
-using Group.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Microsoft.AspNetCore.Http;
 
 namespace Group.Tests.Infrastructure;

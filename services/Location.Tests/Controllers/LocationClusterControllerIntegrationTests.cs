@@ -1,5 +1,4 @@
 using System.Net;
-using Location.Dto;
 using Location.Tests.Infrastructure;
 
 namespace Location.Tests.Controllers;
