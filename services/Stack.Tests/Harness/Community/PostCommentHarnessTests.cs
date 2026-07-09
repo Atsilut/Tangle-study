@@ -1,7 +1,5 @@
 using Stack.Tests.Infrastructure;
-using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Harness;
-using Users.Dto;
 
 namespace Stack.Tests.Harness.Community;
 
@@ -28,5 +26,20 @@ public sealed class PostCommentHarnessTests : HarnessTestBase
         Assert.Equal(comment.Content, saved.Content);
         Assert.Equal(post.Id, saved.PostId);
         Assert.Equal(author.Id, saved.AuthorId);
+    }
+
+    [Fact]
+    public async Task ListPosts_ExcludesBlockedAuthor_ThroughRealSocial()
+    {
+        const string testMethodName = nameof(ListPosts_ExcludesBlockedAuthor_ThroughRealSocial);
+
+        var author = await HarnessAuthHelpers.CreateUserForTestAsync(Client, UniqueTestPrefix(testMethodName), index: 1);
+        var viewer = await HarnessAuthHelpers.CreateUserForTestAsync(Client, UniqueTestPrefix(testMethodName), index: 2);
+
+        var post = await CommunityHarnessHelpers.CreatePostAsync(Client, author, "Blocked author post", "Body");
+        await SocialHarnessHelpers.BlockUserAsync(Client, viewer, author.Id);
+
+        var posts = await CommunityHarnessHelpers.ListPostsAsync(Client, viewer);
+        Assert.DoesNotContain(posts, p => p.Id == post.Id);
     }
 }

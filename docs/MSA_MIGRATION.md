@@ -60,7 +60,7 @@ Tier 4 (needs compose-build)
 ./scripts/ci/build-workers-release.sh
 ./scripts/ci/compose-build-stack.sh    # optional: saves harness-stack.tar
 ./scripts/ci/run-stack-harness.sh      # full stack harness (HARNESS_MODULES=all)
-./scripts/ci/run-stack-harness.sh        # media-only shorthand (HARNESS_MODULES=media)
+./scripts/ci/run-media-harness.sh      # media-only shorthand (HARNESS_MODULES=media)
 ./scripts/ci/docker-test.sh            # after dotnet-publish; add --no-build to match CI
 ```
 

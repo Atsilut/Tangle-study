@@ -51,7 +51,7 @@ module_needs() {
       echo "${BASE_SERVICES[*]} social group"
       ;;
     community)
-      echo "${BASE_SERVICES[*]} community"
+      echo "${BASE_SERVICES[*]} social community"
       ;;
     media)
       echo "${BASE_SERVICES[*]} azurite media rust-worker-media"
@@ -170,7 +170,7 @@ stack_tests_need_rebuild() {
 
   while IFS= read -r -d '' cs_file; do
     [[ "$cs_file" -nt "$dll" ]] && return 0
-  done < <(find "${ROOT}/services/Stack.Tests" "${ROOT}/services/TestSupport" -name '*.cs' -print0)
+  done < <(find "${ROOT}/services/Stack.Tests" "${ROOT}/services/TestSupport" "${ROOT}/services/TestSupport.Scenarios" -name '*.cs' -print0)
 
   return 1
 }
@@ -230,10 +230,36 @@ start_harness_stack() {
   fi
   if [[ ${#worker_services[@]} -gt 0 ]]; then
     docker compose "${COMPOSE_ARGS[@]}" up -d --no-build "${worker_services[@]}"
+    wait_for_worker_metrics "${worker_services[@]}"
   fi
   if printf '%s\n' "${services[@]}" | grep -qx nginx; then
     docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait nginx
   fi
+}
+
+# Workers expose Prometheus on :9090 but have no in-image healthcheck tooling.
+# Probe via gateway (wget) so harness tests do not race worker startup.
+wait_for_worker_metrics() {
+  local workers=("$@")
+  local worker attempt
+  local max_attempts=36
+
+  [[ ${#workers[@]} -gt 0 ]] || return 0
+  log_step "WAIT FOR WORKER METRICS"
+
+  for worker in "${workers[@]}"; do
+    for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+      if docker compose "${COMPOSE_ARGS[@]}" exec -T gateway \
+        wget -q -O /dev/null "http://${worker}:9090/metrics" 2>/dev/null; then
+        log_info "${worker} metrics ready"
+        break
+      fi
+      if [[ "$attempt" -eq "$max_attempts" ]]; then
+        fail "${worker} metrics not ready after ${max_attempts} attempts"
+      fi
+      sleep 2
+    done
+  done
 }
 
 cleanup() {

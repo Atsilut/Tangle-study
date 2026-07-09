@@ -87,6 +87,8 @@ jobs:
               - 'Directory.Build.props'
               - '.github/workflows/**'
               - 'infra/azure/parameters.prod.json'
+              - 'services/TestSupport/**'
+              - 'services/TestSupport.Scenarios/**'
             web:
               - 'clients/web/**'
             rust:
@@ -95,6 +97,7 @@ jobs:
               - 'services/Gateway/**'
               - 'services/Users/**'
               - 'services/TestSupport/**'
+              - 'services/TestSupport.Scenarios/**'
               - 'services/Stack.Tests/Fixtures/Harness/**'
               - 'services/Stack.Tests/**'
               - 'services/Media/**'
@@ -170,6 +173,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -270,6 +275,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -369,6 +376,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -401,6 +410,8 @@ jobs:
             services/Social.Tests/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Tangle.AspNetCore/bin
             services/Tangle.AspNetCore/obj
           key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile') }}
@@ -473,6 +484,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -574,6 +587,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -675,6 +690,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -776,6 +793,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -877,6 +896,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -977,6 +998,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
@@ -1198,6 +1221,8 @@ jobs:
             services/Tangle.AspNetCore/obj
             services/TestSupport/bin
             services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
             services/Users/bin
             services/Users/obj
             services/Users.Tests/bin
