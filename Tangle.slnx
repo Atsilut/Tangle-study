@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/infra/" />
   <Folder Name="/services/">
+  <Project Path="services/Tangle.AspNetCore/Tangle.AspNetCore.csproj" />
   <Project Path="services/TestSupport/TestSupport.csproj" />
   <Project Path="services/Gateway/Gateway.csproj" />
     <Project Path="services/Users/Users.csproj" />
