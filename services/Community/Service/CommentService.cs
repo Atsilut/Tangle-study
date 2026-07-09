@@ -2,9 +2,11 @@ using Community.Client;
 using Community.Db;
 using Community.Dto;
 using Community.Entities;
-using Community.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Community.Infrastructure;
 using Community.Repository;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Db;
 
 namespace Community.Service;
 
@@ -12,7 +14,7 @@ namespace Community.Service;
 public class CommentService(
     ICommentRepository repo,
     CommunityDbContext db,
-    IHttpContextAccessor httpContextAccessor,
+    CurrentUserAccessor currentUser,
     PostService postService,
     IUserClient userClient,
     ISocialClient socialClient,
@@ -22,42 +24,28 @@ public class CommentService(
     private readonly ICommentRepository _repo = repo;
     private readonly CommunityDbContext _db = db;
     private readonly IMediaClient _mediaClient = mediaClient;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
     private readonly PostService _postService = postService;
     private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
-    private long? TryGetViewerUserId()
-    {
-        var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
-        return long.TryParse(sub, out var id) ? id : null;
-    }
+    private Task<bool> IsAuthorBlockedByViewerAsync(long authorUserId, CancellationToken cancellationToken = default) =>
+        MutualBlockFilter.IsAuthorBlockedByViewerAsync(
+            _currentUser.TryGetViewerUserId(),
+            authorUserId,
+            (viewerId, authorIds, ct) => _socialClient.GetMutuallyBlockedUserIdsAsync(viewerId, authorIds, ct),
+            cancellationToken);
 
-    private async Task<bool> IsAuthorBlockedByViewerAsync(long authorUserId)
-    {
-        var viewerUserId = TryGetViewerUserId();
-        if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
+    private Task<List<Comment>> FilterCommentsByBlockAsync(IReadOnlyList<Comment> comments, CancellationToken cancellationToken = default) =>
+        MutualBlockFilter.FilterByMutualBlockAsync(
+            _currentUser.TryGetViewerUserId(),
+            comments,
+            c => c.AuthorUserId,
+            (viewerId, authorIds, ct) => _socialClient.GetMutuallyBlockedUserIdsAsync(viewerId, authorIds, ct),
+            cancellationToken);
 
-        var blockedIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
-        return blockedIds.Contains(authorUserId);
-    }
-
-    private async Task<List<Comment>> FilterCommentsByBlockAsync(IReadOnlyList<Comment> comments)
-    {
-        var viewerUserId = TryGetViewerUserId();
-        if (viewerUserId is null || comments.Count == 0) return [.. comments];
-
-        var blockedAuthorIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
-            viewerUserId.Value,
-            comments.Select(c => c.AuthorUserId).Distinct().ToList());
-        if (blockedAuthorIds.Count == 0) return [.. comments];
-
-        return [.. comments.Where(c => !blockedAuthorIds.Contains(c.AuthorUserId))];
-    }
-
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     private async Task<Comment> GetCommentOrThrowAsync(
         long id,
@@ -175,7 +163,7 @@ public class CommentService(
         var postIds = comments.Where(c => c.PostId is not null).Select(c => c.PostId!.Value).Distinct().ToList();
         var viewablePostIds = postIds.Count == 0
             ? []
-            : await _postService.GetViewablePostIdsAsync(postIds, TryGetViewerUserId());
+            : await _postService.GetViewablePostIdsAsync(postIds, _currentUser.TryGetViewerUserId());
 
         comments = [.. comments.Where(c => c.PostId is null || viewablePostIds.Contains(c.PostId.Value))];
         if (comments.Count == 0) return null;

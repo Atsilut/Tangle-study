@@ -1,5 +1,3 @@
-using Users.Client;
-
 namespace Users.Client;
 
 public interface IMediaClient

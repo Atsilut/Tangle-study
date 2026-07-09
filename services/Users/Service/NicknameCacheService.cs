@@ -2,7 +2,6 @@ using Users.Repository;
 using Users.Config;
 using Users.Infrastructure;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 

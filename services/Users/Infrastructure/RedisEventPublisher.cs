@@ -1,7 +1,7 @@
 using System.Text.Json;
 using StackExchange.Redis;
 
-namespace Users.Events;
+namespace Users.Infrastructure;
 
 public sealed class RedisEventPublisher(
     IConnectionMultiplexer connectionMultiplexer,

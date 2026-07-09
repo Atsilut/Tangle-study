@@ -1,7 +1,7 @@
 using Location.Dto;
 using Location.Security;
 using Location.Service;
-using Microsoft.AspNetCore.Authorization;
+using Tangle.AspNetCore.Security;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 

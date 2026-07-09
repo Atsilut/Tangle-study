@@ -1,6 +1,8 @@
+using Tangle.AspNetCore.Queue;
+
 namespace Users.Config;
 
-public class RedisOptions
+public class RedisOptions : IRedisWorkQueueOptions
 {
     public const string SectionName = "Redis";
 

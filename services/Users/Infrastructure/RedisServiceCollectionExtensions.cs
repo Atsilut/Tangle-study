@@ -1,5 +1,4 @@
 using Users.Config;
-using Users.Events;
 using StackExchange.Redis;
 
 namespace Users.Infrastructure;

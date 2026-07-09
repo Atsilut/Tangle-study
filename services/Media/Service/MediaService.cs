@@ -3,10 +3,12 @@ using Media.Dto;
 using Media.Repository;
 using Media.Storage;
 using Media.Config;
-using Media.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Media.Infrastructure;
 using Media.Queue;
 using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Queue;
 using Media.Entities;
 
 namespace Media.Service;
@@ -21,7 +23,7 @@ public sealed class MediaService(
     IChatAccessClient chatAccess,
     IWorkQueue workQueue,
     IOptions<MediaOptions> mediaOptions,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private static readonly TimeSpan PresignedUploadExpiry = TimeSpan.FromHours(1);
 
@@ -33,10 +35,9 @@ public sealed class MediaService(
     private readonly IChatAccessClient _chatAccess = chatAccess;
     private readonly IWorkQueue _workQueue = workQueue;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     public async Task<MediaAssetGetResponseDto> GetMediaAssetByIdAsync(long id)
     {

@@ -4,12 +4,15 @@ using Chat.Db;
 using Chat.Dto;
 using Chat.Entities;
 using Chat.Events;
-using Chat.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Chat.Infrastructure;
 using Chat.Queue;
+using Tangle.AspNetCore.Queue;
 using Chat.Realtime;
 using Chat.Repository;
+using Tangle.AspNetCore.Auth;
 using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Db;
 
 namespace Chat.Service;
 
@@ -23,7 +26,7 @@ public class ChatMessageService(
     IChatRealtimeNotifier realtime,
     IEventPublisher eventPublisher,
     IWorkQueue workQueue,
-    IHttpContextAccessor httpContextAccessor,
+    CurrentUserAccessor currentUser,
     IOptions<ChatMessagePolicyOptions> chatPolicy)
 {
     public const int DefaultPageLimit = 50;
@@ -37,11 +40,10 @@ public class ChatMessageService(
     private readonly IChatRealtimeNotifier _realtime = realtime;
     private readonly IEventPublisher _eventPublisher = eventPublisher;
     private readonly IWorkQueue _workQueue = workQueue;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
     private readonly ChatMessagePolicyOptions _policy = chatPolicy.Value;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     public async Task<List<ChatMessageGetResponseDto>?> GetMessagesForRoomAsync(
         long roomId,

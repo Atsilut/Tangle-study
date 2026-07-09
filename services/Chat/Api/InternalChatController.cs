@@ -1,4 +1,4 @@
-using Chat.Security;
+using Tangle.AspNetCore.Security;
 using Chat.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

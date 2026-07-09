@@ -4,11 +4,13 @@ using Group.Repository;
 
 using Group.Client;
 using Group.Db;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using GroupEntity = Group.Entities.Group;
+using Tangle.AspNetCore.Db;
 
 namespace Group.Service
 {
@@ -23,7 +25,7 @@ namespace Group.Service
         IUserClient userClient,
         ISocialClient socialClient,
         GroupDbContext db,
-        IHttpContextAccessor httpContextAccessor)
+        CurrentUserAccessor currentUser)
 
     {
         private readonly IGroupInvitationRepository _repo = repo;
@@ -35,7 +37,7 @@ namespace Group.Service
         private readonly IUserClient _userClient = userClient;
         private readonly ISocialClient _socialClient = socialClient;
         private readonly GroupDbContext _db = db;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
 
         private async Task<bool> BlockExistsBetweenUsersAsync(long userId, long otherUserId) =>
             await _socialClient.IsBlockedByAsync(userId, otherUserId)
@@ -46,8 +48,7 @@ namespace Group.Service
             if (await BlockExistsBetweenUsersAsync(userId, otherUserId)) throw new ArgumentException("Cannot join the group while a block exists between you and this user.");
         }
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         private async Task<GroupInvitation> GetIncomingInvitationForInviteeOrThrowAsync(
             long id, long inviteeId, bool requirePending)

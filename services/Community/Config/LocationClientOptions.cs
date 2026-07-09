@@ -1,10 +1,8 @@
+using Tangle.AspNetCore.Config;
+
 namespace Community.Config;
 
-public sealed class LocationClientOptions
+public sealed class LocationClientOptions : InternalServiceClientOptions
 {
     public const string SectionName = "LocationClient";
-
-    public string BaseUrl { get; set; } = string.Empty;
-
-    public string InternalSecret { get; set; } = string.Empty;
 }

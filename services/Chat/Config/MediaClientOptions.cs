@@ -1,10 +1,9 @@
+using Tangle.AspNetCore.Config;
+
 namespace Chat.Config;
 
-public class MediaClientOptions
+public class MediaClientOptions : InternalServiceClientOptions
 {
     public const string SectionName = "MediaClient";
 
-    public string BaseUrl { get; set; } = string.Empty;
-
-    public string InternalSecret { get; set; } = string.Empty;
 }

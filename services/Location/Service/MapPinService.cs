@@ -2,7 +2,8 @@ using Location.Client;
 using Location.Entities;
 using Location.Dto;
 using Location.Repository;
-using Location.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Location.Infrastructure;
 
 namespace Location.Service;
@@ -13,23 +14,20 @@ public class MapPinService(
     IUserClient userClient,
     LocationAccessService access,
     Lazy<LocationClusterService> clusterService,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly IMapPinRepository _repo = repo;
     private readonly IUserClient _userClient = userClient;
     private readonly LocationAccessService _access = access;
     private readonly Lazy<LocationClusterService> _clusterService = clusterService;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
     public async Task<MapPinGetResponseDto> CreateMapPinAsync(MapPinCreateRequestDto request)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         await _userClient.EnsureUserExistsAsync(userId);
         ValidateBounds(request.Latitude, request.Longitude);
-        await _access.EnsureCanCreateMapPinAsync(userId, request.PostId);
+        await _access.EnsureCanCreateMapPinAsync(request.PostId);
 
         var pin = new MapPin(userId, request.Latitude, request.Longitude, request.PostId);
         await _repo.CreateMapPinAsync(pin);
@@ -72,7 +70,7 @@ public class MapPinService(
 
     public async Task DeleteMapPinByIdAsync(long id)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         var pin = await _repo.GetMapPinByIdAsync(id) ?? throw new EntityNotFoundException("Map pin not found");
         _access.EnsureCanDeleteMapPin(pin, userId);
         await _repo.DeleteMapPinAsync(pin);

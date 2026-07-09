@@ -1,4 +1,4 @@
-namespace Users.Events;
+namespace Users.Infrastructure;
 
 public static class RedisEventChannels
 {

@@ -41,7 +41,7 @@ public class UserBlockRepository(SocialDbContext context) : IUserBlockRepository
             .Distinct()
             .ToListAsync();
 
-        return blockedIds.ToHashSet();
+        return [.. blockedIds];
     }
 
     public Task<UserBlock?> GetUserBlockByIdAsync(long id) =>

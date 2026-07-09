@@ -1,10 +1,9 @@
+using Tangle.AspNetCore.Config;
+
 namespace Users.Config;
 
-public class ChatClientOptions
+public class ChatClientOptions : InternalServiceClientOptions
 {
     public const string SectionName = "ChatClient";
 
-    public string BaseUrl { get; set; } = string.Empty;
-
-    public string InternalSecret { get; set; } = string.Empty;
 }

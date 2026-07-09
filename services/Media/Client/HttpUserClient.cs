@@ -1,52 +1,15 @@
 using Media.Config;
-using Media.Exceptions;
 using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Http;
 
 namespace Media.Client;
 
 internal sealed class HttpUserClient(
     IHttpClientFactory httpClientFactory,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<UsersOptions> options) : IUserClient
+    IOptions<UsersOptions> options)
+    : InternalHttpClientBase(httpClientFactory, httpContextAccessor, options.Value, nameof(HttpUserClient)), IUserClient
 {
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly UsersOptions _options = options.Value;
-
     public Task EnsureUserExistsAsync(long userId, CancellationToken cancellationToken = default) =>
-        PostAccessCheckAsync($"internal/users/{userId}/exists", cancellationToken);
-
-    private async Task PostAccessCheckAsync(string relativePath, CancellationToken cancellationToken)
-    {
-        var client = _httpClientFactory.CreateClient(nameof(HttpUserClient));
-        using var request = new HttpRequestMessage(HttpMethod.Post, relativePath);
-
-        var authorization = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
-        if (!string.IsNullOrWhiteSpace(authorization))
-            request.Headers.TryAddWithoutValidation("Authorization", authorization);
-
-        if (!string.IsNullOrWhiteSpace(_options.InternalSecret))
-            request.Headers.TryAddWithoutValidation("X-Internal-Secret", _options.InternalSecret);
-
-        using var response = await client.SendAsync(request, cancellationToken);
-        if (response.IsSuccessStatusCode) return;
-
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            throw new EntityNotFoundException(await ReadBodyAsync(response, cancellationToken));
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            throw new UnauthorizedAccessException(await ReadBodyAsync(response, cancellationToken));
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-            throw new AccessForbiddenException(await ReadBodyAsync(response, cancellationToken));
-
-        throw new InvalidOperationException(
-            $"Users access check failed ({(int)response.StatusCode}): {await ReadBodyAsync(response, cancellationToken)}");
-    }
-
-    private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "Access denied" : body;
-    }
+        PostNoContentAsync($"internal/users/{userId}/exists", cancellationToken);
 }

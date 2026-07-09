@@ -1,3 +1,4 @@
+using Tangle.AspNetCore.Infrastructure;
 using System.Reflection;
 
 namespace Chat.Infrastructure;

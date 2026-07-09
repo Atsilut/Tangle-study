@@ -1,10 +1,8 @@
+using Tangle.AspNetCore.Config;
+
 namespace Community.Config;
 
-public sealed class GroupClientOptions
+public sealed class GroupClientOptions : InternalServiceClientOptions
 {
     public const string SectionName = "GroupClient";
-
-    public string BaseUrl { get; set; } = string.Empty;
-
-    public string InternalSecret { get; set; } = string.Empty;
 }

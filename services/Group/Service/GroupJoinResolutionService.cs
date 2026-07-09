@@ -1,6 +1,7 @@
 using Group.Entities;
 using Group.Db;
 using Group.Infrastructure;
+using Tangle.AspNetCore.Db;
 
 namespace Group.Service
 {

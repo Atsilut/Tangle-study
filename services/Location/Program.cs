@@ -1,44 +1,26 @@
 using Location.Config;
 using Location.Db;
-using Location.Exceptions;
 using Location.Infrastructure;
 using Location.Realtime;
-using Location.Security;
 using Location.Service;
-using Location.Telemetry;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi;
 using Prometheus;
 using System.Threading.RateLimiting;
+using Tangle.AspNetCore.Db;
+using Tangle.AspNetCore.Hosting;
+using Location.Security;
 
 if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 {
-    var exitCode = await DatabaseMigrationRunner.RunAsync(args);
+    var exitCode = await DatabaseMigrationRunner.RunAsync<LocationDbContext>(args);
     Environment.Exit(exitCode);
 }
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddTangleAzureMonitor();
-
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.EnableAnnotations();
-    options.SchemaFilter<SwaggerDefaultValueSchemaFilter>();
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Tangle Location API",
-    });
-});
+builder.AddTangleServiceDefaults("Tangle Location API");
 
 builder.Services.AddCustomDependencies();
 
@@ -46,29 +28,12 @@ builder.Configuration
     .AddYamlFile("location-config.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
 builder.Services.Configure<LocationSafetyOptions>(builder.Configuration.GetSection(LocationSafetyOptions.SectionName));
 builder.Services.Configure<LocationClusterOptions>(builder.Configuration.GetSection(LocationClusterOptions.SectionName));
 builder.Services.Configure<PlacesOptions>(builder.Configuration.GetSection(PlacesOptions.SectionName));
-builder.Services.Configure<InternalAccessOptions>(builder.Configuration.GetSection(InternalAccessOptions.SectionName));
 builder.Services.Configure<WorkerCallbackOptions>(builder.Configuration.GetSection(WorkerCallbackOptions.SectionName));
-builder.Services.Configure<GatewayIdentityOptions>(builder.Configuration.GetSection(GatewayIdentityOptions.SectionName));
-builder.Services.AddScoped<InternalAccessAuthorizationFilter>();
 builder.Services.AddScoped<WorkerCallbackAuthorizationFilter>();
-
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = GatewayIdentityAuthenticationHandler.SchemeName;
-        options.DefaultChallengeScheme = GatewayIdentityAuthenticationHandler.SchemeName;
-    })
-    .AddScheme<AuthenticationSchemeOptions, GatewayIdentityAuthenticationHandler>(
-        GatewayIdentityAuthenticationHandler.SchemeName,
-        _ => { });
-
-builder.Services.AddAuthorization();
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleUsersAccess(builder.Configuration);
@@ -144,7 +109,6 @@ healthChecksBuilder.ForwardToPrometheus();
 
 var app = builder.Build();
 
-
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 DependencyInjection.PrintLogs(logger);
 
@@ -152,13 +116,6 @@ logger.LogInformation("Redis configured (SignalR backplane, work queue, distribu
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Tangle Location API v1");
-        options.RoutePrefix = "api";
-    });
-
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<LocationDbContext>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -171,16 +128,11 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
     db.Database.Migrate();
 }
 
-app.UseRouting();
-app.UseHttpMetrics();
-app.UseExceptionHandler();
+app.UseTangleServicePipeline("Tangle Location API");
 app.UseRateLimiter();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<MetricsScrapeAuthMiddleware>();
-app.MapControllers();
+app.MapTangleServiceEndpoints();
 app.MapHub<LocationHub>("/hubs/location");
-app.MapHealthChecks("/health");
-app.MapMetrics();
 
 app.Run();
+
+public partial class Program { }

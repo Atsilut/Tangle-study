@@ -5,6 +5,7 @@ using Location.Repository;
 using Location.Infrastructure;
 using Location.Queue;
 using Microsoft.Extensions.Caching.Distributed;
+using Tangle.AspNetCore.Queue;
 
 namespace Location.Service;
 

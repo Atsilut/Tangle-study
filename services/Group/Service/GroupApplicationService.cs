@@ -3,10 +3,12 @@ using Group.Dto;
 using Group.Repository;
 using Group.Client;
 using Group.Db;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Tangle.AspNetCore.Db;
 
 namespace Group.Service
 {
@@ -20,7 +22,7 @@ namespace Group.Service
         GroupBlacklistService blacklistService,
         IUserClient userClient,
         GroupDbContext db,
-        IHttpContextAccessor httpContextAccessor)
+        CurrentUserAccessor currentUser)
     {
         private readonly IGroupApplicationRepository _repo = repo;
         private readonly Lazy<GroupInvitationService> _groupInvitationService = groupInvitationService;
@@ -30,10 +32,9 @@ namespace Group.Service
         private readonly GroupBlacklistService _blacklistService = blacklistService;
         private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
             _repo.GetPendingForUserAsync(groupId, applicantId);

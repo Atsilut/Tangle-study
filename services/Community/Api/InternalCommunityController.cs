@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Community.Security;
+using Tangle.AspNetCore.Security;
 using Community.Service;
 
 namespace Community.Api;

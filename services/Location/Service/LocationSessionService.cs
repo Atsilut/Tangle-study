@@ -4,7 +4,8 @@ using Location.Dto;
 using Location.Realtime;
 using Location.Repository;
 using Location.Storage;
-using Location.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Location.Infrastructure;
 
 namespace Location.Service;
@@ -18,7 +19,7 @@ public class LocationSessionService(
     LiveLocationRedisStore liveStore,
     ILocationRealtimeNotifier realtime,
     LocationSafetyAlertService safetyAlerts,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly ILocationSessionRepository _repo = repo;
     private readonly IUserClient _userClient = userClient;
@@ -27,11 +28,11 @@ public class LocationSessionService(
     private readonly LiveLocationRedisStore _liveStore = liveStore;
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly LocationSafetyAlertService _safetyAlerts = safetyAlerts;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
     public async Task<LocationSessionGetResponseDto> StartSessionAsync(LocationSessionCreateRequestDto request)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         await _userClient.EnsureUserExistsAsync(userId);
         ValidateCoordinates(request.Latitude, request.Longitude);
         await _groupClient.EnsureGroupMemberAsync(request.GroupId, userId, "Group not found");
@@ -47,7 +48,7 @@ public class LocationSessionService(
 
     public async Task<LocationSessionGetResponseDto?> GetMyActiveSessionAsync(long groupId)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         await _groupClient.EnsureGroupMemberAsync(groupId, userId, "Group not found");
 
         var session = await _repo.GetActiveSessionForUserInGroupAsync(userId, groupId);
@@ -65,7 +66,7 @@ public class LocationSessionService(
 
     public async Task<List<LiveLocationGetResponseDto>?> GetActiveGroupLocationsAsync(long groupId)
     {
-        var viewerId = GetUserIdFromLogin();
+        var viewerId = _currentUser.GetUserIdFromLogin();
         await _groupClient.EnsureGroupMemberAsync(groupId, viewerId, "Group not found");
 
         var sessions = await _repo.GetActiveSessionsForGroupAsync(groupId);
@@ -108,14 +109,14 @@ public class LocationSessionService(
 
     public async Task<List<GroupMemberLocationStatusDto>> GetGroupMemberSharingStatusAsync(long groupId)
     {
-        var viewerId = GetUserIdFromLogin();
+        var viewerId = _currentUser.GetUserIdFromLogin();
         var members = await _groupClient.GetGroupMembersForMemberAsync(groupId);
         var otherMembers = members.Where(m => m.UserId != viewerId).ToList();
         if (otherMembers.Count == 0) return [];
 
         var blockedMemberIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
             viewerId,
-            otherMembers.Select(m => m.UserId).ToList());
+            [.. otherMembers.Select(m => m.UserId)]);
         var visibleMembers = otherMembers.Where(m => !blockedMemberIds.Contains(m.UserId)).ToList();
         if (visibleMembers.Count == 0) return [];
 
@@ -150,17 +151,16 @@ public class LocationSessionService(
                 live?.UpdatedAt));
         }
 
-        return result
+        return [.. result
             .OrderByDescending(m => m.IsSharing)
-            .ThenBy(m => m.UserNickname, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ThenBy(m => m.UserNickname, StringComparer.OrdinalIgnoreCase)];
     }
 
     public async Task<LocationSessionGetResponseDto> UpdatePositionAsync(
         long sessionId,
         LocationPositionUpdateRequestDto request)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         var session = await GetActiveSessionOwnedByUserOrThrowAsync(sessionId, userId);
         ValidateCoordinates(request.Latitude, request.Longitude);
 
@@ -182,7 +182,7 @@ public class LocationSessionService(
 
     public async Task StopSessionAsync(long sessionId)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         var session = await GetActiveSessionOwnedByUserOrThrowAsync(sessionId, userId);
         await EndSessionAsync(session);
     }
@@ -319,9 +319,6 @@ public class LocationSessionService(
             session.StartedAt,
             snapshot.UpdatedAt);
     }
-
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
 
     private static void ValidateCoordinates(decimal latitude, decimal longitude) =>
         LocationCoordinateValidation.Validate(latitude, longitude);

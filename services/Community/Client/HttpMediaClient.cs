@@ -1,19 +1,17 @@
-using System.Net.Http.Json;
-using Microsoft.Extensions.Options;
 using Community.Config;
+using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Http;
 
 namespace Community.Client;
 
-internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOptions<MediaClientOptions> options)
-    : IMediaClient
+internal sealed class HttpMediaClient(
+    IHttpClientFactory httpClientFactory,
+    IHttpContextAccessor httpContextAccessor,
+    IOptions<MediaClientOptions> options)
+    : InternalHttpClientBase(httpClientFactory, httpContextAccessor, options.Value, nameof(HttpMediaClient)), IMediaClient
 {
-    public const string InternalSecretHeaderName = "X-Internal-Secret";
-
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly MediaClientOptions _options = options.Value;
-
     public Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds) =>
-        PostNoContentAsync("internal/media/link/post", new { postId, uploaderUserId, mediaAssetIds });
+        PostNoContentAsync("internal/media/link/post", content: new { postId, uploaderUserId, mediaAssetIds });
 
     public Task PatchPostMediaAsync(
         long postId,
@@ -22,7 +20,7 @@ internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOpt
         IReadOnlyList<long>? removeMediaAssetIds) =>
         PostNoContentAsync(
             "internal/media/link/post/patch",
-            new { postId, uploaderUserId, addMediaAssetIds, removeMediaAssetIds });
+            content: new { postId, uploaderUserId, addMediaAssetIds, removeMediaAssetIds });
 
     public Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId)
     {
@@ -30,7 +28,7 @@ internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOpt
 
         return PostNoContentAsync(
             "internal/media/link/comment",
-            new { commentId, uploaderUserId, mediaAssetId });
+            content: new { commentId, uploaderUserId, mediaAssetId });
     }
 
     public async Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(
@@ -55,55 +53,17 @@ internal sealed class HttpMediaClient(IHttpClientFactory httpClientFactory, IOpt
         IReadOnlyCollection<long> commentIds) =>
         await PostJsonAsync<Dictionary<long, MediaAssetGetResponseDto?>>(
             "internal/media/batch/by-comment-ids",
-            new { commentIds }) ?? new Dictionary<long, MediaAssetGetResponseDto?>();
+            new { commentIds }) ?? [];
 
     public Task DeleteBlobStorageForPostAsync(long postId) =>
         DeleteNoContentAsync($"internal/media/for-post/{postId}");
 
     public Task DeleteBlobStorageForPostsAsync(IReadOnlyCollection<long> postIds) =>
-        DeleteWithBodyAsync("internal/media/for-posts", new { postIds });
+        DeleteNoContentAsync("internal/media/for-posts", content: new { postIds });
 
     public Task DeleteBlobStorageForCommentAsync(long commentId) =>
         DeleteNoContentAsync($"internal/media/for-comment/{commentId}");
 
     public Task DeleteBlobStorageForCommentsAsync(IReadOnlyCollection<long> commentIds) =>
-        DeleteWithBodyAsync("internal/media/for-comments", new { commentIds });
-
-    private async Task PostNoContentAsync(string relativePath, object body)
-    {
-        using var response = await SendAsync(HttpMethod.Post, relativePath, body);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task<T?> PostJsonAsync<T>(string relativePath, object body)
-    {
-        using var response = await SendAsync(HttpMethod.Post, relativePath, body);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<T>();
-    }
-
-    private async Task DeleteNoContentAsync(string relativePath)
-    {
-        using var response = await SendAsync(HttpMethod.Delete, relativePath, body: null);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task DeleteWithBodyAsync(string relativePath, object body)
-    {
-        using var response = await SendAsync(HttpMethod.Delete, relativePath, body);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string relativePath, object? body)
-    {
-        var client = _httpClientFactory.CreateClient(nameof(HttpMediaClient));
-        using var request = new HttpRequestMessage(method, relativePath);
-        if (body is not null)
-            request.Content = JsonContent.Create(body);
-
-        if (!string.IsNullOrWhiteSpace(_options.InternalSecret))
-            request.Headers.TryAddWithoutValidation(InternalSecretHeaderName, _options.InternalSecret);
-
-        return await client.SendAsync(request);
-    }
+        DeleteNoContentAsync("internal/media/for-comments", content: new { commentIds });
 }

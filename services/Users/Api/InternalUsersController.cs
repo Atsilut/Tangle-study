@@ -1,6 +1,6 @@
 using Users.Service;
 using Users.Dto;
-using Users.Security;
+using Tangle.AspNetCore.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Users.Api;

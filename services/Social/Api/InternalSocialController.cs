@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Social.Db;
-using Social.Security;
+using Tangle.AspNetCore.Security;
 using Social.Service;
+using Tangle.AspNetCore.Db;
 
 namespace Social.Api;
 

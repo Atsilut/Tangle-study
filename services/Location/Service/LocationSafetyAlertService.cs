@@ -5,7 +5,8 @@ using Location.Dto;
 using Location.Realtime;
 using Location.Repository;
 using Location.Storage;
-using Location.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Location.Infrastructure;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,7 @@ public class LocationSafetyAlertService(
     ILocationRealtimeNotifier realtime,
     IDistributedCache cache,
     IOptions<LocationSafetyOptions> options,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private const string StaleAlertSentKeyPrefix = "location:safety:stale:";
     private const string SosCooldownKeyPrefix = "location:safety:sos:";
@@ -35,14 +36,14 @@ public class LocationSafetyAlertService(
     private readonly ILocationRealtimeNotifier _realtime = realtime;
     private readonly IDistributedCache _cache = cache;
     private readonly LocationSafetyOptions _options = options.Value;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
     public Task EnsureCanJoinGroupAlertsAsync(long groupId, long userId) =>
         _groupClient.EnsureGroupMemberAsync(groupId, userId, "Group not found");
 
     public async Task<LocationSafetyAlertDto> TriggerSosAsync(long sessionId)
     {
-        var userId = GetUserIdFromLogin();
+        var userId = _currentUser.GetUserIdFromLogin();
         var session = await GetActiveSessionOwnedByUserOrThrowAsync(sessionId, userId);
         await EnsureSosCooldownAllowsAsync(session.Id);
 
@@ -159,7 +160,7 @@ public class LocationSafetyAlertService(
         if (candidateIds.Count == 0) return [];
 
         var blockedWithSubject = await _socialClient.GetMutuallyBlockedUserIdsAsync(subjectUserId, candidateIds);
-        return candidateIds.Where(id => !blockedWithSubject.Contains(id)).ToList();
+        return [.. candidateIds.Where(id => !blockedWithSubject.Contains(id))];
     }
 
     private async Task<string> GetNicknameAsync(long userId) =>
@@ -177,6 +178,4 @@ public class LocationSafetyAlertService(
         return session;
     }
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
 }

@@ -1,7 +1,6 @@
 using Media.Entities;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
-using System.IO;
 
 namespace Media.Dto;
 

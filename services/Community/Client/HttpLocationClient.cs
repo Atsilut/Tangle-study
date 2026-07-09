@@ -1,22 +1,16 @@
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.Extensions.Options;
 using Community.Config;
 using Community.Dto;
+using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Http;
 
 namespace Community.Client;
 
 internal sealed class HttpLocationClient(
     IHttpClientFactory httpClientFactory,
-    IOptions<LocationClientOptions> options) : ILocationClient
+    IHttpContextAccessor httpContextAccessor,
+    IOptions<LocationClientOptions> options)
+    : InternalHttpClientBase(httpClientFactory, httpContextAccessor, options.Value, nameof(HttpLocationClient)), ILocationClient
 {
-    public const string InternalSecretHeaderName = "X-Internal-Secret";
-
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly LocationClientOptions _options = options.Value;
-
     public Task UpsertLocationForPostAsync(
         long postId,
         long userId,
@@ -47,46 +41,15 @@ internal sealed class HttpLocationClient(
         var ids = postIds.Distinct().ToArray();
         if (ids.Length == 0) return new Dictionary<long, PostLocationGetResponseDto>();
 
-        var client = _httpClientFactory.CreateClient(nameof(HttpLocationClient));
-        using var request = new HttpRequestMessage(HttpMethod.Post, "internal/location/posts/locations-by-ids")
-        {
-            Content = JsonContent.Create(new { postIds = ids }, options: SerializerOptions),
-        };
-        AddInternalSecret(request);
-
-        using var response = await client.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<LocationPostLocationsResponse>(SerializerOptions, cancellationToken)
+        var payload = await PostJsonAsync<LocationPostLocationsResponse>(
+            "internal/location/posts/locations-by-ids",
+            new { postIds = ids },
+            cancellationToken)
             ?? throw new InvalidOperationException("Location locations response was empty.");
 
         return payload.Locations.ToDictionary(
             entry => entry.PostId,
             entry => new PostLocationGetResponseDto(entry.Latitude, entry.Longitude));
-    }
-
-    private Task PostNoContentAsync(string relativePath, CancellationToken cancellationToken) =>
-        PostNoContentAsync(relativePath, content: null, cancellationToken);
-
-    private async Task PostNoContentAsync(
-        string relativePath,
-        object? content,
-        CancellationToken cancellationToken)
-    {
-        var client = _httpClientFactory.CreateClient(nameof(HttpLocationClient));
-        using var request = new HttpRequestMessage(HttpMethod.Post, relativePath);
-        if (content is not null)
-            request.Content = JsonContent.Create(content, options: SerializerOptions);
-        AddInternalSecret(request);
-
-        using var response = await client.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private void AddInternalSecret(HttpRequestMessage request)
-    {
-        if (!string.IsNullOrWhiteSpace(_options.InternalSecret))
-            request.Headers.TryAddWithoutValidation(InternalSecretHeaderName, _options.InternalSecret);
     }
 
     private sealed record LocationPostLocationsResponse(IReadOnlyList<LocationPostLocationEntry> Locations);

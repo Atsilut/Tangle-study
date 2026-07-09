@@ -2,9 +2,11 @@ using Community.Client;
 using Community.Db;
 using Community.Dto;
 using Community.Entities;
-using Community.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Community.Infrastructure;
 using Community.Repository;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Db;
 
 namespace Community.Service;
 
@@ -15,7 +17,7 @@ public class PostService(
     Lazy<CommentService> commentService,
     IMediaClient mediaClient,
     ILocationClient locationClient,
-    IHttpContextAccessor httpContextAccessor,
+    CurrentUserAccessor currentUser,
     IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient)
@@ -25,39 +27,29 @@ public class PostService(
     private readonly Lazy<CommentService> _commentService = commentService;
     private readonly IMediaClient _mediaClient = mediaClient;
     private readonly ILocationClient _locationClient = locationClient;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
     private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
 
-    private long? TryGetViewerUserId()
-    {
-        var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
-        return long.TryParse(sub, out var id) ? id : null;
-    }
+    private Task<List<Post>> FilterPostsByBlockAsync(long? viewerUserId, List<Post> posts, CancellationToken cancellationToken = default) =>
+        MutualBlockFilter.FilterByMutualBlockAsync(
+            viewerUserId,
+            posts,
+            p => p.AuthorUserId,
+            (viewerId, authorIds, ct) => _socialClient.GetMutuallyBlockedUserIdsAsync(viewerId, authorIds, ct),
+            cancellationToken);
 
-    private async Task<List<Post>> FilterPostsByBlockAsync(long? viewerUserId, List<Post> posts)
-    {
-        if (viewerUserId is null || posts.Count == 0) return posts;
+    private Task<bool> IsAuthorBlockedByViewerAsync(long? viewerUserId, long authorUserId, CancellationToken cancellationToken = default) =>
+        MutualBlockFilter.IsAuthorBlockedByViewerAsync(
+            viewerUserId,
+            authorUserId,
+            (viewerId, authorIds, ct) => _socialClient.GetMutuallyBlockedUserIdsAsync(viewerId, authorIds, ct),
+            cancellationToken);
 
-        var blockedAuthorIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(
-            viewerUserId.Value,
-            posts.Select(p => p.AuthorUserId).Distinct().ToList());
-        if (blockedAuthorIds.Count == 0) return posts;
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
-        return [.. posts.Where(p => !blockedAuthorIds.Contains(p.AuthorUserId))];
-    }
-
-    private async Task<bool> IsAuthorBlockedByViewerAsync(long? viewerUserId, long authorUserId)
-    {
-        if (viewerUserId is null || viewerUserId.Value == authorUserId) return false;
-
-        var blockedIds = await _socialClient.GetMutuallyBlockedUserIdsAsync(viewerUserId.Value, [authorUserId]);
-        return blockedIds.Contains(authorUserId);
-    }
-
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long? TryGetViewerUserId() => _currentUser.TryGetViewerUserId();
 
     public async Task EnsurePostExistsAsync(long id, string notFoundMessage = "Post not found", int statusCode = StatusCodes.Status404NotFound)
     {
@@ -191,7 +183,7 @@ public class PostService(
             ? []
             : await _socialClient.GetMutuallyBlockedUserIdsAsync(
                 viewerUserId.Value,
-                posts.Select(p => p.AuthorUserId).Distinct().ToList());
+                [.. posts.Select(p => p.AuthorUserId).Distinct()]);
 
         var boardKeys = posts
             .Where(p => p.GroupId is not null && p.GroupBoardId is not null)

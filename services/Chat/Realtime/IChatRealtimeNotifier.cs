@@ -1,5 +1,4 @@
 using Chat.Dto;
-using Microsoft.AspNetCore.SignalR;
 
 namespace Chat.Realtime;
 

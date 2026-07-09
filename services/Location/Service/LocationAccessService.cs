@@ -1,6 +1,7 @@
 using Location.Client;
 using Location.Entities;
-using Location.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Location.Infrastructure;
 
 namespace Location.Service;
@@ -10,20 +11,16 @@ public class LocationAccessService(
     IUserClient userClient,
     ISocialClient socialClient,
     ICommunityAccessClient communityAccess,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly ICommunityAccessClient _communityAccess = communityAccess;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
-    public long? TryGetViewerUserId()
-    {
-        var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
-        return long.TryParse(sub, out var id) ? id : null;
-    }
+    public long? TryGetViewerUserId() => _currentUser.TryGetViewerUserId();
 
-    public async Task EnsureCanCreateMapPinAsync(long userId, long? postId)
+    public async Task EnsureCanCreateMapPinAsync(long? postId)
     {
         if (!postId.HasValue) return;
 

@@ -1,10 +1,8 @@
+using Tangle.AspNetCore.Config;
+
 namespace Community.Config;
 
-public sealed class SocialClientOptions
+public sealed class SocialClientOptions : InternalServiceClientOptions
 {
     public const string SectionName = "SocialClient";
-
-    public string BaseUrl { get; set; } = string.Empty;
-
-    public string InternalSecret { get; set; } = string.Empty;
 }

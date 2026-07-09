@@ -2,10 +2,12 @@ using Chat.Client;
 using Chat.Db;
 using Chat.Dto;
 using Chat.Entities;
-using Chat.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Chat.Infrastructure;
 using Chat.Repository;
+using Tangle.AspNetCore.Auth;
 using Microsoft.EntityFrameworkCore;
+using Tangle.AspNetCore.Db;
 
 namespace Chat.Service;
 
@@ -16,17 +18,16 @@ public class ChatRoomService(
     IUserClient userClient,
     Lazy<ChatMessageService> chatMessageService,
     ChatDbContext db,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly IChatRoomRepository _repo = repo;
     private readonly ChatRoomAccessService _access = access;
     private readonly IUserClient _userClient = userClient;
     private readonly Lazy<ChatMessageService> _chatMessageService = chatMessageService;
     private readonly ChatDbContext _db = db;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     public async Task<ChatRoomGetResponseDto> GetOrCreateDirectRoomAsync(ChatRoomDirectCreateRequestDto request)
     {

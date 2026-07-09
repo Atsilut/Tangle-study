@@ -3,9 +3,11 @@ using Group.Entities;
 using Group.Dto;
 using Group.Repository;
 using Group.Db;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
 using GroupEntity = Group.Entities.Group;
+using Tangle.AspNetCore.Db;
 
 namespace Group.Service
 {
@@ -15,7 +17,7 @@ namespace Group.Service
         GroupMembershipService membership,
         IUserClient userClient,
         GroupDbContext db,
-        IHttpContextAccessor httpContextAccessor,
+        CurrentUserAccessor currentUser,
         Lazy<GroupInvitationService> invitationService,
         Lazy<GroupApplicationService> applicationService,
         Lazy<GroupBlacklistService> blacklistService,
@@ -27,7 +29,7 @@ namespace Group.Service
         private readonly GroupMembershipService _membership = membership;
         private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
         private readonly Lazy<GroupInvitationService> _invitationService = invitationService;
         private readonly Lazy<GroupApplicationService> _applicationService = applicationService;
         private readonly Lazy<GroupBlacklistService> _blacklistService = blacklistService;
@@ -35,8 +37,7 @@ namespace Group.Service
         private readonly ICommunityClient _communityClient = communityClient;
         private readonly ILocationClient _locationClient = locationClient;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public async Task<GroupEntity> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found") =>
             await _repo.GetGroupByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);

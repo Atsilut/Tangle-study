@@ -1,6 +1,7 @@
 using Media.Config;
-using Media.Queue;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Tangle.AspNetCore.Queue;
 
 namespace Media.Infrastructure;
 
@@ -19,6 +20,7 @@ public static class RedisServiceCollectionExtensions
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(redisConfiguration));
+        services.AddSingleton<IRedisWorkQueueOptions>(sp => sp.GetRequiredService<IOptions<RedisOptions>>().Value);
         services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
 
         return services;

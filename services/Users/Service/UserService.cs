@@ -3,10 +3,10 @@ using Users.Domain;
 using Users.Dto;
 using Users.Repository;
 using Users.Db;
-using Users.Events;
-using Users.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Users.Infrastructure;
-using Microsoft.AspNetCore.Http;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Db;
 
 namespace Users.Service
 {
@@ -20,7 +20,7 @@ namespace Users.Service
         ILocationClient locationClient,
         IGroupClient groupClient,
         ISocialClient socialClient,
-        IHttpContextAccessor httpContextAccessor,
+        CurrentUserAccessor currentUser,
         NicknameCacheService nicknameCacheService,
         IEventPublisher eventPublisher)
 
@@ -33,12 +33,11 @@ namespace Users.Service
         private readonly ILocationClient _locationClient = locationClient;
         private readonly IGroupClient _groupClient = groupClient;
         private readonly ISocialClient _socialClient = socialClient;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
         private readonly NicknameCacheService _nicknameCacheService = nicknameCacheService;
         private readonly IEventPublisher _eventPublisher = eventPublisher;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public async Task EnsureUserExistsAsync(long id, string notFoundMessage = "User not found", int statusCode = StatusCodes.Status404NotFound)
         {
@@ -86,11 +85,7 @@ namespace Users.Service
         public Task<IReadOnlyDictionary<long, string>> GetNicknamesByUserIdsAsync(IEnumerable<long> userIds) =>
             _nicknameCacheService.GetNicknamesByUserIdsAsync(userIds);
 
-        private long? TryGetUserIdFromLogin()
-        {
-            var sub = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
-            return long.TryParse(sub, out var id) ? id : null;
-        }
+        private long? TryGetUserIdFromLogin() => _currentUser.TryGetUserIdFromLogin();
 
         private static UserGetResponseDto MapToDto(User user, bool includeEmail) => new(
             Id: user.Id,
@@ -166,10 +161,7 @@ namespace Users.Service
             await _socialClient.DetachUserOnDeletionAsync(id);
             await _locationClient.DetachUserOnDeletionAsync(id);
 
-            await _db.ExecuteInTransactionAsync(async () =>
-            {
-                await _repo.DeleteUserAsync(userFromLogin);
-            });
+            await _db.ExecuteInTransactionAsync(async () => await _repo.DeleteUserAsync(userFromLogin));
 
             await _nicknameCacheService.InvalidateUserNicknameAsync(id);
             await _eventPublisher.PublishAsync(

@@ -1,7 +1,7 @@
 using Location.Config;
-using Location.Queue;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Tangle.AspNetCore.Queue;
 using SignalRRedisOptions = Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisOptions;
 
 namespace Location.Infrastructure;
@@ -28,6 +28,7 @@ public static class RedisServiceCollectionExtensions
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(redisConfiguration));
+        services.AddSingleton<IRedisWorkQueueOptions>(sp => sp.GetRequiredService<IOptions<RedisOptions>>().Value);
         services.AddSingleton<IWorkQueue, RedisStreamWorkQueue>();
 
         services.AddSingleton<IPostConfigureOptions<SignalRRedisOptions>>(

@@ -1,6 +1,6 @@
 using Chat.Client;
 using Chat.Entities;
-using Chat.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Chat.Infrastructure;
 
 namespace Chat.Service;

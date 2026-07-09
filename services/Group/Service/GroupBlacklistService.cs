@@ -3,8 +3,10 @@ using Group.Dto;
 using Group.Repository;
 using Group.Client;
 using Group.Db;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
+using Tangle.AspNetCore.Db;
 
 namespace Group.Service
 {
@@ -16,7 +18,7 @@ namespace Group.Service
         Lazy<GroupJoinResolutionService> joinResolution,
         IUserClient userClient,
         GroupDbContext db,
-        IHttpContextAccessor httpContextAccessor)
+        CurrentUserAccessor currentUser)
     {
         private readonly IGroupBlacklistRepository _repo = repo;
         private readonly Lazy<GroupService> _groupService = groupService;
@@ -24,10 +26,9 @@ namespace Group.Service
         private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
         private readonly IUserClient _userClient = userClient;
         private readonly GroupDbContext _db = db;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public Task<bool> IsBlacklistedAsync(long groupId, long userId) =>
             _repo.ExistsAsync(groupId, userId);

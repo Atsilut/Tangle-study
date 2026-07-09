@@ -2,7 +2,6 @@ using System.Text.Json;
 using Location.Config;
 using Location.Infrastructure;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 

@@ -1,7 +1,6 @@
-using Microsoft.Extensions.Hosting;
 using StackExchange.Redis;
 
-namespace Users.Events;
+namespace Users.Infrastructure;
 
 /// <summary>
 /// Subscribes to Redis pub/sub channels for logging (and future cross-service handlers).
@@ -23,7 +22,7 @@ public sealed partial class RedisEventSubscriberHostedService(
         {
             try
             {
-                await SubscribeAsync(stoppingToken);
+                await SubscribeAsync();
                 _subscribed = true;
                 LogRedisEventSubscriberStarted(_logger);
                 await Task.Delay(Timeout.Infinite, stoppingToken);
@@ -58,7 +57,7 @@ public sealed partial class RedisEventSubscriberHostedService(
         await base.StopAsync(cancellationToken);
     }
 
-    private async Task SubscribeAsync(CancellationToken cancellationToken)
+    private async Task SubscribeAsync()
     {
         var subscriber = _connectionMultiplexer.GetSubscriber();
         await subscriber.SubscribeAsync(

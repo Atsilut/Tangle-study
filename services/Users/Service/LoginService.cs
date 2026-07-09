@@ -1,9 +1,10 @@
 ﻿using Users.Domain;
 using Users.Dto;
 using Users.Repository;
-using Users.Exceptions;
-using Users.Infrastructure;
 using Users.Security;
+using Tangle.AspNetCore.Exceptions;
+using Users.Infrastructure;
+using Tangle.AspNetCore.Security;
 
 namespace Users.Service
 {

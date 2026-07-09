@@ -1,5 +1,5 @@
-using Group.Entities;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
 
 namespace Group.Service
@@ -11,17 +11,16 @@ namespace Group.Service
         GroupMembershipService membershipService,
         GroupJoinResolutionService joinResolution,
         GroupBlacklistService blacklistService,
-        IHttpContextAccessor httpContextAccessor)
+        CurrentUserAccessor currentUser)
     {
         private readonly Lazy<GroupService> _groupService = groupService;
         private readonly GroupInvitationService _groupInvitationService = groupInvitationService;
         private readonly GroupMembershipService _membershipService = membershipService;
         private readonly GroupJoinResolutionService _joinResolution = joinResolution;
         private readonly GroupBlacklistService _blacklistService = blacklistService;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public async Task JoinAsync(long groupId)
         {

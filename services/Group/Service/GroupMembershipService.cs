@@ -2,7 +2,8 @@ using Group.Entities;
 using Group.Dto;
 using Group.Repository;
 using Group.Client;
-using Group.Exceptions;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
 using Group.Infrastructure;
 
 namespace Group.Service
@@ -12,15 +13,14 @@ namespace Group.Service
         IGroupMemberRepository repo,
         Lazy<GroupService> groupService,
         IUserClient userClient,
-        IHttpContextAccessor httpContextAccessor)
+        CurrentUserAccessor currentUser)
     {
         private readonly IGroupMemberRepository _repo = repo;
         private readonly Lazy<GroupService> _groupService = groupService;
         private readonly IUserClient _userClient = userClient;
-        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
 
-        private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? throw new UnauthorizedAccessException("Unauthorized access"));
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
         public Task<GroupMember?> GetMemberAsync(long groupId, long userId) =>
             _repo.GetMemberAsync(groupId, userId);
@@ -47,7 +47,7 @@ namespace Group.Service
         public async Task<IReadOnlyList<long>> GetMemberUserIdsAsync(long groupId)
         {
             var members = await _repo.GetMembersByGroupAsync(groupId);
-            return members.Select(m => m.UserId).Distinct().ToList();
+            return [.. members.Select(m => m.UserId).Distinct()];
         }
 
         public async Task<List<GroupMemberGetResponseDto>> GetMembersForMemberAsync(long groupId, long callerId)

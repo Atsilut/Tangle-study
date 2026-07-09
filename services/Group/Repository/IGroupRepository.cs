@@ -1,4 +1,3 @@
-using Group.Entities;
 using GroupEntity = Group.Entities.Group;
 
 namespace Group.Repository

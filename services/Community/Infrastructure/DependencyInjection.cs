@@ -1,3 +1,4 @@
+using Tangle.AspNetCore.Infrastructure;
 using System.Reflection;
 
 namespace Community.Infrastructure;
@@ -14,7 +15,7 @@ public static partial class DependencyInjection
 
     public static IServiceCollection AddCustomDependencies(this IServiceCollection services)
     {
-        services.AddTransient(typeof(Lazy<>), typeof(LazyService<>));
+        services.AddTransient(typeof(Lazy<>), typeof(Tangle.AspNetCore.Infrastructure.LazyService<>));
 
         var assembly = Assembly.GetExecutingAssembly();
 

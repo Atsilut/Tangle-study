@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Group.Security;
+using Tangle.AspNetCore.Security;
 using Group.Service;
 
 namespace Group.Api;
@@ -11,7 +11,7 @@ namespace Group.Api;
 public sealed class InternalGroupController(
     GroupService groupService,
     GroupMembershipService groupMembershipService,
-    GroupBoardAccessService groupBoardAccessService) : ControllerBase
+    GroupBoardService groupBoardService) : ControllerBase
 {
     [HttpPost("{groupId:long}/exists")]
     public async Task<IActionResult> EnsureGroupExists([FromRoute] long groupId)
@@ -56,14 +56,14 @@ public sealed class InternalGroupController(
     [HttpPost("{groupId:long}/boards/{boardId:long}/validate-view")]
     public async Task<IActionResult> ValidateBoardView([FromRoute] long groupId, [FromRoute] long boardId)
     {
-        await groupBoardAccessService.EnsureCanViewBoardAsync(groupId, boardId);
+        await groupBoardService.EnsureCanViewBoardAsync(groupId, boardId);
         return NoContent();
     }
 
     [HttpPost("{groupId:long}/boards/{boardId:long}/validate-write")]
     public async Task<IActionResult> ValidateBoardWrite([FromRoute] long groupId, [FromRoute] long boardId)
     {
-        await groupBoardAccessService.EnsureCanWritePostAsync(groupId, boardId);
+        await groupBoardService.EnsureCanWritePostAsync(groupId, boardId);
         return NoContent();
     }
 
@@ -72,7 +72,7 @@ public sealed class InternalGroupController(
         [FromBody] InternalGroupViewableBoardsRequestDto request)
     {
         var keys = request.Boards.Select(b => (b.GroupId, b.BoardId)).ToList();
-        var viewable = await groupBoardAccessService.ResolveViewableBoardKeysAsync(keys);
+        var viewable = await groupBoardService.ResolveViewableBoardKeysAsync(keys);
         return Ok(new InternalGroupViewableBoardsResponseDto(
             [.. viewable.Select(k => new InternalGroupBoardKeyDto(k.GroupId, k.BoardId))]));
     }

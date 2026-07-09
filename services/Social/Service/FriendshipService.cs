@@ -1,9 +1,10 @@
 using Social.Client;
-using Social.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Social.Entities;
 using Social.Dto;
 using Social.Repository;
 using Social.Infrastructure;
+using Tangle.AspNetCore.Auth;
 
 namespace Social.Service;
 
@@ -11,14 +12,13 @@ namespace Social.Service;
 public class FriendshipService(
     IFriendshipRepository repo,
     IUserClient userClient,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly IFriendshipRepository _repo = repo;
     private readonly IUserClient _userClient = userClient;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     private async Task<Friendship> GetFriendshipOrThrowAsync(long id) =>
         await _repo.GetFriendshipByIdAsync(id) ?? throw new EntityNotFoundException("Friendship not found");

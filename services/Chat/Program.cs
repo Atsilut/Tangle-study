@@ -1,39 +1,23 @@
 using Chat.Config;
 using Chat.Db;
-using Chat.Exceptions;
 using Chat.Infrastructure;
 using Chat.Realtime;
-using Chat.Security;
-using Chat.Telemetry;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
 using Prometheus;
+using Tangle.AspNetCore.Config;
+using Tangle.AspNetCore.Db;
+using Tangle.AspNetCore.Hosting;
+using Tangle.AspNetCore.OpenApi;
 
 if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 {
-    var exitCode = await DatabaseMigrationRunner.RunAsync(args);
+    var exitCode = await DatabaseMigrationRunner.RunAsync<ChatDbContext>(args);
     Environment.Exit(exitCode);
 }
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddTangleAzureMonitor();
-
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.EnableAnnotations();
-    options.SchemaFilter<SwaggerDefaultValueSchemaFilter>();
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Version = "v1",
-        Title = "Tangle Chat API",
-    });
-});
+builder.AddTangleServiceDefaults("Tangle Chat API");
 
 builder.Services.AddCustomDependencies();
 
@@ -41,26 +25,9 @@ builder.Configuration
     .AddYamlFile("chat-config.yml", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
 builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisOptions.SectionName));
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
-builder.Services.Configure<InternalAccessOptions>(builder.Configuration.GetSection(InternalAccessOptions.SectionName));
-builder.Services.Configure<GatewayIdentityOptions>(builder.Configuration.GetSection(GatewayIdentityOptions.SectionName));
-builder.Services.AddScoped<InternalAccessAuthorizationFilter>();
-
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = GatewayIdentityAuthenticationHandler.SchemeName;
-        options.DefaultChallengeScheme = GatewayIdentityAuthenticationHandler.SchemeName;
-    })
-    .AddScheme<AuthenticationSchemeOptions, GatewayIdentityAuthenticationHandler>(
-        GatewayIdentityAuthenticationHandler.SchemeName,
-        _ => { });
-
-builder.Services.AddAuthorization();
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddTangleRedis(builder.Configuration);
 builder.Services.AddTangleUsersAccess(builder.Configuration);
 builder.Services.AddTangleSocialClient(builder.Configuration);
@@ -95,13 +62,6 @@ logger.LogInformation("Redis configured (SignalR backplane, work queue, pub/sub)
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Tangle Chat API v1");
-        options.RoutePrefix = "api";
-    });
-
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -114,15 +74,10 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
     db.Database.Migrate();
 }
 
-app.UseRouting();
-app.UseHttpMetrics();
-app.UseExceptionHandler();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<MetricsScrapeAuthMiddleware>();
-app.MapControllers();
+app.UseTangleServicePipeline("Tangle Chat API");
+app.MapTangleServiceEndpoints();
 app.MapHub<ChatHub>("/hubs/chat");
-app.MapHealthChecks("/health");
-app.MapMetrics();
 
 app.Run();
+
+public partial class Program { }

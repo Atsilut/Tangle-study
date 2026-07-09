@@ -1,8 +1,9 @@
 using Media.Dto;
-using Media.Service;
 using Media.Security;
+using Media.Service;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Tangle.AspNetCore.Security;
 
 namespace Media.Api;
 
@@ -24,7 +25,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("link/post")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> LinkPost([FromBody] LinkPostMediaRequestDto request)
     {
         await _service.LinkToPostAsync(request.PostId, request.UploaderUserId, request.MediaAssetIds);
@@ -32,7 +33,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("link/post/patch")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> PatchPostMedia([FromBody] PatchPostMediaRequestDto request)
     {
         await _service.PatchPostMediaAsync(
@@ -44,7 +45,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("link/comment")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> LinkComment([FromBody] LinkCommentMediaRequestDto request)
     {
         await _service.LinkToCommentAsync(request.CommentId, request.UploaderUserId, request.MediaAssetId);
@@ -52,7 +53,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("link/chat-message")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> LinkChatMessage([FromBody] LinkChatMessageMediaRequestDto request)
     {
         await _service.LinkToChatMessageAsync(
@@ -63,25 +64,25 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("batch/by-post-ids")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<ActionResult<Dictionary<long, List<MediaAssetGetResponseDto>>>> GetByPostIds(
         [FromBody] BatchPostIdsRequestDto request) =>
         Ok(await _service.GetMediaByPostIdsAsync(request.PostIds));
 
     [HttpPost("batch/by-comment-ids")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<ActionResult<Dictionary<long, MediaAssetGetResponseDto?>>> GetByCommentIds(
         [FromBody] BatchCommentIdsRequestDto request) =>
         Ok(await _service.GetMediaByCommentIdsAsync(request.CommentIds));
 
     [HttpPost("batch/by-chat-message-ids")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<ActionResult<Dictionary<long, MediaAssetGetResponseDto?>>> GetByChatMessageIds(
         [FromBody] BatchChatMessageIdsRequestDto request) =>
         Ok(await _service.GetMediaByChatMessageIdsAsync(request.ChatMessageIds));
 
     [HttpDelete("for-post/{postId:long}")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DeleteForPost([FromRoute] long postId)
     {
         await _service.DeleteBlobStorageForPostAsync(postId);
@@ -89,7 +90,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpDelete("for-posts")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DeleteForPosts([FromBody] DeletePostsMediaRequestDto request)
     {
         await _service.DeleteBlobStorageForPostsAsync(request.PostIds);
@@ -97,7 +98,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpDelete("for-comment/{commentId:long}")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DeleteForComment([FromRoute] long commentId)
     {
         await _service.DeleteBlobStorageForCommentAsync(commentId);
@@ -105,7 +106,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpDelete("for-comments")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DeleteForComments([FromBody] DeleteCommentsMediaRequestDto request)
     {
         await _service.DeleteBlobStorageForCommentsAsync(request.CommentIds);
@@ -113,7 +114,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpDelete("for-chat-message/{chatMessageId:long}")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DeleteForChatMessage([FromRoute] long chatMessageId)
     {
         await _service.DeleteBlobStorageForChatMessageAsync(chatMessageId);
@@ -121,7 +122,7 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     }
 
     [HttpPost("detach-uploader/{userId:long}")]
-    [ServiceFilter(typeof(InternalServiceAuthorizationFilter))]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DetachUploader([FromRoute] long userId)
     {
         await _service.DetachUploaderFromDeletedUserAsync(userId);

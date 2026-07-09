@@ -2,12 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Social.Client;
 using Social.Db;
-using Social.Exceptions;
+using Tangle.AspNetCore.Exceptions;
 using Social.Entities;
 using Social.Dto;
 using Social.Repository;
 using Social.Infrastructure;
-using Social.Service;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Db;
 
 namespace Social.Service;
 
@@ -18,7 +19,7 @@ public partial class FriendRequestService(
     IUserClient userClient,
     UserBlockService userBlockService,
     SocialDbContext db,
-    IHttpContextAccessor httpContextAccessor,
+    CurrentUserAccessor currentUser,
     ILogger<FriendRequestService> logger)
 {
     private readonly IFriendRequestRepository _repo = requestRepo;
@@ -26,11 +27,10 @@ public partial class FriendRequestService(
     private readonly IUserClient _userClient = userClient;
     private readonly UserBlockService _userBlockService = userBlockService;
     private readonly SocialDbContext _db = db;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
     private readonly ILogger<FriendRequestService> _logger = logger;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     public async Task<SendFriendRequestOutcome> SendRequestAsync(FriendRequestCreateRequestDto request)
     {

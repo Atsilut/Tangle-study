@@ -1,10 +1,10 @@
 using Social.Client;
-using Social.Exceptions;
-using Social.Service;
+using Tangle.AspNetCore.Exceptions;
 using Social.Infrastructure;
 using Social.Entities;
 using Social.Dto;
 using Social.Repository;
+using Tangle.AspNetCore.Auth;
 
 namespace Social.Service;
 
@@ -13,15 +13,14 @@ public class UserBlockService(
     IUserBlockRepository repo,
     Lazy<FriendRequestService> friendRequestService,
     IUserClient userClient,
-    IHttpContextAccessor httpContextAccessor)
+    CurrentUserAccessor currentUser)
 {
     private readonly IUserBlockRepository _repo = repo;
     private readonly Lazy<FriendRequestService> _friendRequestService = friendRequestService;
     private readonly IUserClient _userClient = userClient;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly CurrentUserAccessor _currentUser = currentUser;
 
-    private long GetUserIdFromLogin() => long.Parse(_httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("Unauthorized access"));
+    private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
     private async Task<UserBlock> GetBlockOrThrowAsync(long id) =>
         await _repo.GetUserBlockByIdAsync(id) ?? throw new EntityNotFoundException("Block not found");
