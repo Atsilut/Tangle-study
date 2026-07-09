@@ -150,7 +150,7 @@ Client → nginx → gateway → media-service (presigned URL) → object storag
 
 ## Internal service authentication
 
-Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — e.g. `InternalAccess:Secret` (Chat, Location, Users), `Media:InternalServiceSecret` (Media), and matching client options on callers (`MediaClient:InternalSecret`, `Users:InternalSecret`, `ChatClient:InternalSecret`, `LocationClient:InternalSecret`).
+Service-to-service routes under `/internal/*` (except worker callbacks) use the shared header **`X-Internal-Secret`**. Configure the same value on both sides — `InternalAccess:Secret` on each service, and matching client options on callers (`MediaClient:InternalSecret`, `Users:InternalSecret`, `ChatClient:InternalSecret`, `LocationClient:InternalSecret`).
 
 Worker callbacks use separate secrets: `X-Worker-Callback-Secret` on media and location processed routes — see [MEDIA.md](../services/Media/MEDIA.md).
 

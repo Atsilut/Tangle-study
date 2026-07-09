@@ -22,7 +22,7 @@ Gateway YARP routes by path prefix to users, media, chat, location, community, g
 
 **Workers:** `API_BASE_URL=http://media:8080` on `rust-worker-media`, `http://chat:8080` on `rust-worker-chat`, `http://location:8080` on `rust-worker-location`.
 
-**Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-media-harness.sh` (starts gateway + users + media).
+**Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-stack-harness.sh` (module-filtered full stack).
 
 **Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Users/Media/Chat/Location/Community/Group/Social unit and integration suites.
 
@@ -222,7 +222,7 @@ The `services/Api/` project and `tangle-study-api` image were removed from the r
 | `WORKER_CALLBACK_SECRET`     | `Media__WorkerCallbackSecret`      | Yes      | Shared with `worker-media` for `PATCH /internal/media/.../processed` |
 | `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes  | Shared Neon; media uses `media` schema — run Media EF migrate job   |
 | `METRICS_SCRAPE_SECRET`      | `Metrics__ScrapeSecret`            | Yes      | When `Metrics:RequireScrapeSecret` is true                            |
-| `INTERNAL_SERVICE_SECRET` (new) | `Media__InternalServiceSecret` | Yes   | Monolith → media `X-Internal-Secret`; same value on Api `InternalAccess__Secret` / `MediaClient__InternalSecret` |
+| `INTERNAL_SERVICE_SECRET` | `InternalAccess__Secret` | Yes | Shared `X-Internal-Secret` for `/internal/*`; same value on callers (`MediaClient__InternalSecret`, etc.) |
 
 Non-secrets at deploy time:
 

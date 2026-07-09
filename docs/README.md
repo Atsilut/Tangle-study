@@ -52,6 +52,7 @@ See [README.md](../README.md#development-phases) for the full phased roadmap (Ph
 | Web client | [clients/web/README.md](../clients/web/README.md) | React SPA, Nginx proxy, feature slices |
 | Monitoring | [infra/README.md](../infra/README.md) | Prometheus, Grafana, alerts, scrape auth |
 | Stack E2E | [Stack.Tests](../services/Stack.Tests/) | Cross-service harness (`Category=Harness`) |
+| Test placement | [MSA_MIGRATION.md — Matrix vs harness](MSA_MIGRATION.md#matrix-vs-harness-where-tests-belong) | Module integration vs `Stack.Tests` rubric |
 
 ## Quick links
 

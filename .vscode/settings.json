@@ -13,5 +13,6 @@
   "terminal.integrated.env.osx": {
     "DOTNET_ROOT": "/usr/local/share/dotnet",
     "PATH": "/usr/local/share/dotnet:${env:PATH}"
-  }
+  },
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

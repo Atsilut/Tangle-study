@@ -40,7 +40,7 @@ Tier 3 (needs dotnet-build, rust, users-tests, media-tests, chat-tests, location
   compose-build  → compose-build-stack.sh → harness-stack.tar artifact
 
 Tier 4 (needs compose-build)
-  harness-media  → load stack tar, compose up --no-build, Stack.Tests Category=Harness E2E
+  harness-stack  → load stack tar, compose up --no-build, Stack.Tests Category=Harness E2E
 ```
 
 | Job | Produces | Harness reuses? |
@@ -49,7 +49,7 @@ Tier 4 (needs compose-build)
 | `rust` | `workers/target/release/*` | Yes — worker runtime images |
 | `users-tests` / `media-tests` / `chat-tests` / `location-tests` / `community-tests` / `group-tests` / `social-tests` | Pass/fail | Gate only |
 | `compose-build` | `gateway`, `users`, `media`, `nginx`, `rust-worker-media`, `harness` images + tar | Yes — harness loads tar |
-| `harness-media` | E2E pass/fail | — |
+| `harness-stack` | E2E pass/fail | — |
 
 **PR path filters:** integration jobs run when their service paths change; Gateway/Users changes (`dotnet-api`) also trigger downstream service test jobs that depend on identity/routing. Harness stack build runs when harness-related paths change (or on every push to `main`/`develop`).
 
@@ -59,7 +59,8 @@ Tier 4 (needs compose-build)
 ./scripts/ci/dotnet-publish.sh
 ./scripts/ci/build-workers-release.sh
 ./scripts/ci/compose-build-stack.sh    # optional: saves harness-stack.tar
-./scripts/ci/run-media-harness.sh      # full pipeline end-to-end
+./scripts/ci/run-stack-harness.sh      # full stack harness (HARNESS_MODULES=all)
+./scripts/ci/run-stack-harness.sh        # media-only shorthand (HARNESS_MODULES=media)
 ./scripts/ci/docker-test.sh            # after dotnet-publish; add --no-build to match CI
 ```
 
@@ -71,7 +72,7 @@ Tier 4 (needs compose-build)
 
 1. Add `services/{Service}/Dockerfile.runtime` + publish output in `dotnet-publish.sh`
 2. Add `{Service}.Tests` job (or extend path filters on `media-tests`-style job)
-3. Include service image in `compose-build-stack.sh` / `harness-stack.tar` when harness needs it
+3. Include service (+ worker) image in `compose-build-stack.sh` / `load-compose-stack.sh` / `harness-stack.tar` (all domain services + chat/location/media workers are already included for `HARNESS_MODULES=all`)
 4. Add GHCR image to `azure-cd-build-push.sh` + `parameters.prod.json` when Azure ships
 
 ---
@@ -111,7 +112,31 @@ Use this loop on **`develop`** for each extraction. Step 1 (media) followed it e
 | Project | Owns |
 |---------|------|
 | `{Service}.Tests` | Service routes, limits, worker callbacks, internal APIs |
-| `Stack.Tests` | Stack harness E2E only (`Category=Harness`) |
+| `Stack.Tests` | Cross-stack harness E2E (`Category=Harness`, `HarnessModule` per domain) |
+
+### Matrix vs harness (where tests belong)
+
+Use this rubric when adding or moving integration coverage:
+
+| Question | If **yes** → Harness | If **no** → Module integration |
+|----------|----------------------|--------------------------------|
+| Must traffic go through **gateway/nginx** with real JWT? | Harness | Module (fake `X-User-Id` headers OK) |
+| Must **SignalR** traverse edge proxy + Redis backplane? | Harness | Module (HTTP-only or skip hub) |
+| Must a **rust-worker** process the job (ffmpeg, cluster, etc.)? | Harness | Module (simulate `PATCH /internal/...` or assert enqueue only) |
+| Must a **real peer service** answer HTTP (Social blocks Group invite, Users nickname → Chat)? | Harness smoke | Module (`InMemoryUserClient` / `Fake*Client`) |
+| Is it a **TheoryData matrix** over roles/policies/outcomes? | **Always module** | — |
+| Is it an **internal API** on the same service? | **Always module** | — |
+
+**Hybrid pattern:** keep the fast contract in `{Service}.Tests`; add one harness smoke for the full production path (e.g. Media: `CompleteUpload_Enqueues…` in module + `ImageUpload_ProcessesToReady` in harness; Chat: `ChatRoomAccessIntegrationMatrixTests` in module + `ChatRealtimeHarnessTests` in harness).
+
+**Audit summary (complex tests — no further moves planned)**
+
+| Layer | Examples | Why they stay |
+|-------|----------|---------------|
+| **Module** | Group join/access/blacklist/invite matrices; Chat room access + nickname (in-memory user); Social friend/block matrices; Location session/internal/cluster API; Media integration (fake storage + simulated worker); Users nickname Redis pub/sub | Postgres + `WebApplicationFactory` + fakes; breadth and speed |
+| **Harness** | `MediaPipelineHarnessTests`, `ChatRealtimeHarnessTests`, `LocationRealtimeHarnessTests`, per-module gateway smokes; cross-service smokes (Group×Social block, Users nickname→Chat, location cluster worker) | Real nginx JWT, SignalR, workers, inter-service HTTP |
+
+Matrices provide breadth and speed; harness provides depth on production wiring. See [README.md](../README.md#tests-docker-compose) for local commands.
 
 ---
 
@@ -208,7 +233,7 @@ docker compose --profile workers --profile monitoring up --build
 ./scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
 
 # Media harness E2E (runtime images via docker-compose.runtime.yml)
-./scripts/ci/run-media-harness.sh
+./scripts/ci/run-stack-harness.sh
 ```
 
 ---
@@ -383,7 +408,7 @@ users ──I*Client──► community, media, chat, group, social, location (u
 | Monolith (`services/Api/`) removed from repo | Done |
 | Monolith removed from default compose / solution | Done |
 | Local Prometheus/Grafana scrape targets | Done (users, media, chat, location, community, group, social) |
-| Media harness through gateway | Done (`run-media-harness.sh` starts gateway + users) |
+| Stack harness through gateway | Done (`run-stack-harness.sh` starts full module-filtered stack) |
 
 ### Still open (before `main` cutover)
 

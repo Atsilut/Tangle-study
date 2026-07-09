@@ -458,7 +458,7 @@ Integration tests and harness E2E both use Docker Compose, but they work differe
 | Suite | Needs `docker compose up`? | What it does |
 |-------|------------------------------|--------------|
 | **Integration** (Users, Media, Chat, Location, Community, Group, Social) | **No** | `test` service runs `dotnet test` in a container with the host Docker socket; Testcontainers starts its own Postgres/Redis |
-| **Harness E2E** (`Category=Harness`) | **No** (script starts stack) | `run-media-harness.sh` builds stack images, runs `compose up`, then runs harness tests against nginx |
+| **Harness E2E** (`Category=Harness`) | **No** (script starts stack) | `run-stack-harness.sh` builds stack images, runs `compose up`, then runs harness tests against nginx (`HARNESS_MODULES` filter) |
 | **Dev stack** (`docker compose up`) | N/A | Manual API/web testing — not a substitute for the test suites above |
 
 Use `scripts/ci/docker-test.sh` or `--profile test` for integration tests. Do **not** use `docker-dotnet.sh` / `sdk` — the `test` service mounts `/var/run/docker.sock` for Testcontainers.
@@ -521,20 +521,25 @@ chmod +x scripts/run-all-tests.sh
 ./scripts/run-all-tests.sh -- --filter "FullyQualifiedName~MetricsIntegrationTests"
 ```
 
-#### Media harness E2E
+#### Stack harness E2E
 
-Starts its own Compose stack (gateway, users, media, nginx, workers, Azurite) — you do **not** need `docker compose up` running first:
+Starts its own Compose stack (gateway, domain services, nginx, workers) — you do **not** need `docker compose up` running first:
 
 ```bash
-chmod +x scripts/ci/run-media-harness.sh
+chmod +x scripts/ci/run-stack-harness.sh
 
+# All modules (CI default)
+HARNESS_MODULES=all ./scripts/ci/run-stack-harness.sh
+
+# Media only
 ./scripts/ci/run-media-harness.sh
 ```
 
 #### Notes
 
 - The compose `db` service is **not** required for integration tests (Testcontainers provides Postgres).
-- Harness E2E (`Category=Harness` in `Stack.Tests`) runs only through `run-media-harness.sh`; `Stack.Tests` is built inside that script when needed.
+- Harness E2E (`Category=Harness` in `Stack.Tests`) runs only through `run-stack-harness.sh`; filter with `HARNESS_MODULES` (`users`, `social`, `group`, `community`, `media`, `chat`, `location`, `all`).
+- **Matrix vs harness:** TheoryData matrices and internal-API tests stay in `{Service}.Tests`; gateway JWT, SignalR via nginx, rust-workers, and real cross-service HTTP belong in `Stack.Tests`. See [docs/MSA_MIGRATION.md — Matrix vs harness](docs/MSA_MIGRATION.md#matrix-vs-harness-where-tests-belong).
 - Service integration tests disable Redis in-process by default; realtime tests use a Testcontainers Redis — see [REDIS.md](docs/REDIS.md).
 
 ### Rust workers (optional, `workers` profile)
@@ -577,12 +582,11 @@ docker compose --profile monitoring --profile workers up --build
 
 ### Harness tests (optional, `harness` profile)
 
-End-to-end tests that run inside Compose against nginx (auth via gateway/users, uploads via media-service). Prefer `./scripts/ci/run-media-harness.sh` — it builds images, starts the stack, and sets harness env vars. Manual equivalent:
+End-to-end tests that run inside Compose against nginx (real JWT via gateway/users, cross-service flows). Prefer `./scripts/ci/run-stack-harness.sh` — it builds images, starts the stack, and sets harness env vars:
 
 ```bash
-./scripts/ci/dotnet-publish.sh
-docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml up -d --wait db redis azurite gateway users media rust-worker-media nginx
-docker compose --profile harness -f docker-compose.yml -f docker-compose.harness.yml run --rm harness
+HARNESS_MODULES=all ./scripts/ci/run-stack-harness.sh
+HARNESS_MODULES=chat ./scripts/ci/run-stack-harness.sh
 ```
 
 ### Cleanup local SDK artifacts

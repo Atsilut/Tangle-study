@@ -67,15 +67,22 @@ The Rust workers implement `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dis
 
 Prometheus scrape config: [`infra/prometheus/prometheus.yml`](../infra/prometheus/prometheus.yml). Grafana dashboard: [infra/README.md](../infra/README.md).
 
-## End-to-end harness (`media.uploaded`)
+## End-to-end harness (`Stack.Tests`)
 
-Automated cross-language smoke (gateway + users + media + Azurite + `rust-worker-media`, no fakes):
+Automated cross-stack smoke through nginx → gateway (real JWT, SignalR, workers):
 
 ```bash
-./scripts/ci/run-media-harness.sh
+# All modules
+HARNESS_MODULES=all ./scripts/ci/run-stack-harness.sh
+
+# Single module
+HARNESS_MODULES=media ./scripts/ci/run-stack-harness.sh
+HARNESS_MODULES=chat ./scripts/ci/run-stack-harness.sh
 ```
 
-Runs opt-in xUnit tests (`Category=Harness` in `Stack.Tests`) against a live Compose stack. Validates upload-init → blob PUT → complete → worker ffmpeg → `PATCH /internal/media/{id}/processed` → asset `Ready`. Fast integration tests in `Media.Tests` use `FakeMediaStorage` and a simulated callback.
+`run-media-harness.sh` is a thin wrapper for `HARNESS_MODULES=media`.
+
+Runs opt-in xUnit tests (`Category=Harness` in `Stack.Tests`) against a live Compose stack. Media harness validates upload-init → blob PUT → complete → worker ffmpeg → asset `Ready`. Fast integration tests in `*.Tests` use in-process factories and fakes.
 
 ## Relation to pub/sub and SignalR
 
