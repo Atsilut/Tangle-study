@@ -1,6 +1,6 @@
 ---
 description: Bash script, CD workflow, and deploy JSON formatting conventions
-globs: scripts/**/*.sh,.github/workflows/ci-v1.yml,.github/workflows/cd-v1.yml,infra/azure/parameters*.json
+globs: scripts/**/*.sh,.github/workflows/ci-v2.yml,.github/workflows/cd-v1.yml,infra/azure/parameters*.json
 alwaysApply: false
 ---
 
@@ -57,7 +57,7 @@ Set `LOG_PREFIX` **before** sourcing `common.sh`.
 
 Keep `#!/bin/sh`, POSIX-only, no bash `common.sh`. English comments, `set -e`, minimal headers.
 
-## CI and CD workflows ([`ci-v1.yml`](.github/workflows/ci-v1.yml), [`cd-v1.yml`](.github/workflows/cd-v1.yml))
+## CI and CD workflows ([`ci-v2.yml`](.github/workflows/ci-v2.yml), [`cd-v1.yml`](.github/workflows/cd-v1.yml))
 
 Shared conventions:
 

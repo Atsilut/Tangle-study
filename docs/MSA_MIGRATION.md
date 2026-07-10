@@ -26,13 +26,13 @@ OpenAPI/Swagger for all domain services is **v2.0.0** (document name `v2`), set 
 | HTTP routes | Unversioned (`/api/posts`, …) | No breaking contract change for clients |
 | OpenAPI / Swagger | **v2.0.0** | Per-service docs at `/api` in dev/Docker |
 | Redis queue/event payloads | `SchemaVersion = 1` | Unchanged — bump only when payload shape breaks |
-| CI/CD workflows (`ci-v1.yml`) | Pipeline v1 | Unrelated to API semver |
+| CI/CD workflows (`ci-v2.yml`) | Pipeline v2 | Unrelated to API semver |
 
 Path-based versioning (`/api/v2/*`) is not planned unless a future release requires side-by-side contracts.
 
 ---
 
-## CI ladder (`ci-v1.yml`)
+## CI ladder (`ci-v2.yml`)
 
 Build once, test many times — harness reuses compiled artifacts instead of rebuilding inside the harness job.
 
