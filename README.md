@@ -123,7 +123,7 @@ Service boundaries and MSA migration plan: [docs/SERVICE_BOUNDARIES.md](docs/SER
 
 * **GitHub Actions**
 
-  * CI on pull requests and pushes to `main` / `develop` — [`.github/workflows/ci-v1.yml`](.github/workflows/ci-v1.yml)
+  * CI on pull requests and pushes to `main` / `develop` — [`.github/workflows/ci-v2.yml`](.github/workflows/ci-v2.yml)
   * Jobs: .NET build, Rust tests, web lint/test/build, service integration tests (Testcontainers), media harness E2E (Compose + Azurite)
   * Local parity: `./scripts/run-all-tests.sh` (integration + harness + Rust + web; add `--skip-harness` for faster runs)
 
@@ -463,7 +463,7 @@ Integration tests and harness E2E both use Docker Compose, but they work differe
 
 Use `scripts/ci/docker-test.sh` or `--profile test` for integration tests. Do **not** use `docker-dotnet.sh` / `sdk` — the `test` service mounts `/var/run/docker.sock` for Testcontainers.
 
-**CI parity:** [`.github/workflows/ci-v1.yml`](.github/workflows/ci-v1.yml).
+**CI parity:** [`.github/workflows/ci-v2.yml`](.github/workflows/ci-v2.yml).
 
 #### Quick start — integration tests only
 

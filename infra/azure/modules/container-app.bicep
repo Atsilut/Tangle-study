@@ -11,15 +11,20 @@ param minReplicas int = 1
 param maxReplicas int = 3
 param cpu string = '0.5'
 param memory string = '1Gi'
-param envVars array = []
-@description('Secret refs: { name, envName, value? }. Omit value for CD-injected secrets.')
+param env object = {}
+@description('Secret refs: { name, envName }. Values come from secretValues by name.')
 param secretEnvVars array = []
+@description('Map of secret name → value (deduped).')
+@secure()
+param secretValues object = {}
 param registryLoginServer string = ''
 param registryUsername string = ''
 @secure()
 param registryPassword string = ''
 @description('HTTP path for liveness/readiness. Leave empty to skip probes (placeholder images).')
 param healthCheckPath string = ''
+@description('Extra env vars merged after env (e.g. computed blob endpoint).')
+param extraEnvVars array = []
 param tags object = {}
 
 var hasRegistry = !empty(registryLoginServer) && !empty(registryUsername) && !empty(registryPassword)
@@ -54,9 +59,17 @@ var registrySecrets = hasRegistry ? [
   }
 ] : []
 
-var appSecretDefinitions = [for item in secretEnvVars: {
-  name: item.name
-  value: item.?value ?? 'pending-deploy'
+var envVars = [for item in items(env): {
+  name: item.key
+  value: string(item.value)
+}]
+
+var allSecretNames = [for item in secretEnvVars: item.name]
+var uniqueSecretNames = empty(allSecretNames) ? [] : union(allSecretNames, allSecretNames)
+
+var appSecretDefinitions = [for secretName in uniqueSecretNames: {
+  name: secretName
+  value: secretValues[?secretName] ?? 'pending-deploy'
 }]
 
 var secretEnvMappings = [for item in secretEnvVars: {
@@ -100,7 +113,7 @@ resource app 'Microsoft.App/containerApps@2026-01-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: concat(envVars, secretEnvMappings)
+          env: concat(envVars, extraEnvVars, secretEnvMappings)
           probes: probes
         }
       ]

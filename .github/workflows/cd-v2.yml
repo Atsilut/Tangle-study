@@ -25,7 +25,7 @@ jobs:
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     environment: prod
 
     if: >
@@ -90,7 +90,7 @@ jobs:
         run: bash scripts/cd/azure-cd-build-push.sh
 
       ############################################
-      # 4. IMAGE PROPAGATION WAIT
+      # 5. IMAGE PROPAGATION WAIT
       ############################################
       - name: Wait for GHCR image propagation
         env:
@@ -99,7 +99,7 @@ jobs:
         run: bash scripts/cd/azure-cd-wait-image.sh
 
       ############################################
-      # 5. AZURE LOGIN
+      # 6. AZURE LOGIN
       ############################################
       - name: Azure login (OIDC)
         uses: azure/login@v3
@@ -109,36 +109,32 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       ############################################
-      # 6. SECRETS
+      # 7. BICEP DEPLOY
       ############################################
-      - name: Inject secrets
+      - name: Deploy infrastructure and apps (Bicep)
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+          USE_PLACEHOLDER_IMAGES: "false"
+          POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
           BLOB_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           WORKER_CALLBACK_SECRET: ${{ secrets.WORKER_CALLBACK_SECRET }}
           METRICS_SCRAPE_SECRET: ${{ secrets.METRICS_SCRAPE_SECRET }}
-          POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          GATEWAY_SECRET: ${{ secrets.GATEWAY_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
           APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
           PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
-        run: bash scripts/cd/azure-cd-inject-secrets.sh
-
-      ############################################
-      # 7. DEPLOY IMAGES
-      ############################################
-      - name: Deploy images on container apps
-        env:
-          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
-          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+          GHCR_REGISTRY_USERNAME: ${{ secrets.GHCR_REGISTRY_USERNAME }}
+          GHCR_REGISTRY_PASSWORD: ${{ secrets.GHCR_REGISTRY_PASSWORD }}
           JWT_EXPIRY_MINUTES: ${{ vars.JWT_EXPIRY_MINUTES }}
-        run: bash scripts/cd/azure-cd-deploy-image.sh
+        run: bash scripts/cd/azure-cd-deploy-bicep.sh
 
       ############################################
       # 8. MIGRATION
       ############################################
-      - name: Run EF migrate
+      - name: Run EF migrate jobs
         if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}

@@ -425,7 +425,7 @@ probe_web_api_health_via_exec() {
     else
       cat "$output_file" >&2
     fi
-    log_warn "ACA cross-app HTTP routing is per caller — re-run scripts/cd/azure-cd-deploy-image.sh or scripts/cd/azure-cd-smoke.sh to verify TANGLE_API_UPSTREAM." >&2
+    log_warn "ACA cross-app HTTP routing is per caller — re-run scripts/cd/azure-cd-deploy-bicep.sh or scripts/cd/azure-cd-smoke.sh to verify TANGLE_API_UPSTREAM." >&2
     log_warn "nginx proxy_set_header Host must match the upstream hostname (see infra/nginx/docker-entrypoint.sh)." >&2
     rm -f "$output_file"
     return 1
