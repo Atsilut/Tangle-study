@@ -216,16 +216,16 @@ infra/azure/monitoring/
 | `grafana:3000` (host) | `tangle-study-grafana` (external FQDN) |
 | `postgres-exporter` → compose `db` | `tangle-study-postgres-exporter` → **Neon** |
 | `redis-exporter` → compose `redis` | `tangle-study-redis-exporter` → internal Redis |
-| `api:8080/metrics` | `tangle-study-api/metrics` (short name; ACA ingress port 80) |
+| `gateway` / services `:8080/metrics` | `tangle-study-gateway` / `tangle-study-<service>/metrics` (short name; ACA ingress port 80) |
 | `rust-worker-*:9090/metrics` | `tangle-study-worker-*` (short name; ACA ingress port 80) |
 
 CD ([`scripts/cd/azure-cd-build-push.sh`](../scripts/cd/azure-cd-build-push.sh)) builds and pushes
-`tangle-study-prometheus` and `tangle-study-grafana` alongside api/web/worker. Deploy
-([`azure-cd-deploy-image.sh`](../scripts/cd/azure-cd-deploy-image.sh)) sets GHCR images plus runtime
-env from [`azure-aca-urls.sh`](../scripts/cd/libs/azure-aca-urls.sh) (e.g. `PROMETHEUS_URL=http://tangle-study-prometheus`,
+`tangle-study-prometheus` and `tangle-study-grafana` alongside gateway/services/web/workers. Deploy
+([`azure-cd-deploy-bicep.sh`](../scripts/cd/azure-cd-deploy-bicep.sh)) applies images and env from
+[`parameters.prod.json`](azure/parameters.prod.json) (e.g. `PROMETHEUS_URL=http://tangle-study-prometheus`,
 `REDIS_URL=redis://tangle-study-redis`).
 Secrets: `METRICS_SCRAPE_SECRET`, `GRAFANA_ADMIN_PASSWORD`, and Neon `POSTGRES_CONNECTION_STRING`
-(postgres-exporter DSN derived at inject time). See [infra/azure/README.md](azure/README.md#monitoring-on-aca).
+(postgres-exporter DSN derived at Bicep deploy time). See [infra/azure/README.md](azure/README.md#monitoring-on-aca).
 
 Grafana login on Azure: `admin` / `GRAFANA_ADMIN_PASSWORD`. Resolve URL:
 

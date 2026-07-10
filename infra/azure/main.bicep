@@ -23,21 +23,51 @@ param registryUsername string = ''
 @secure()
 param registryPassword string = ''
 
-param redisImage string = 'redis:8-alpine'
+@description('Pinned infra image tags (postgres, redis, exporters, upstream prometheus/grafana).')
+param infra object = {}
 
-param prometheusImage string = 'prom/prometheus:v3.12.0'
+@description('Pinned build-base image tags (dotnet, node, nginx, rust, debian). Kept for parameters.prod.json single source of truth; unused by Bicep runtime.')
+#disable-next-line no-unused-params
+param buildImages object = {}
 
-param grafanaImage string = 'grafana/grafana:13.0.2'
+@description('Container Apps map from parameters.prod.json (single source of truth).')
+param containerApps object = {}
 
-param postgresExporterImage string = 'prometheuscommunity/postgres-exporter:v0.19.1'
+@description('EF migrate jobs from parameters.prod.json.')
+param migrateJobs array = []
 
-param redisExporterImage string = 'oliver006/redis_exporter:v1.86.0'
+@secure()
+param postgresConnectionString string = ''
 
-param monitoringMinReplicas int = 1
+@secure()
+param postgresExporterDsn string = ''
 
-param apiMinReplicas int = 1
-param webMinReplicas int = 1
-param workerMinReplicas int = 0
+@secure()
+param blobConnectionString string = ''
+
+@secure()
+param jwtSecret string = ''
+
+@secure()
+param workerCallbackSecret string = ''
+
+@secure()
+param metricsScrapeSecret string = ''
+
+@secure()
+param placesApiKey string = ''
+
+@secure()
+param applicationInsightsConnectionString string = ''
+
+@secure()
+param grafanaAdminPassword string = ''
+
+@secure()
+param gatewaySecret string = ''
+
+@secure()
+param internalServiceSecret string = ''
 
 param tags object = {
   project: 'tangle-study'
@@ -46,27 +76,36 @@ param tags object = {
 
 var namePrefix = '${baseName}${environment}'
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
-var apiImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-api:${imageTag}'
-var webImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-web:${imageTag}'
-var workerChatImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-chat:${imageTag}'
-var workerMediaImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-media:${imageTag}'
-var workerLocationImage = usePlaceholderImages ? placeholderImage : '${containerRegistry}/tangle-study-worker-location:${imageTag}'
-var resolvedPrometheusImage = usePlaceholderImages ? prometheusImage : '${containerRegistry}/tangle-study-prometheus:${imageTag}'
-var resolvedGrafanaImage = usePlaceholderImages ? grafanaImage : '${containerRegistry}/tangle-study-grafana:${imageTag}'
 
-var workerMetricsSecretEnvVars = [
-  { name: 'metrics-secret', envName: 'METRICS_SCRAPE_SECRET' }
+// Secret name → value map for containerApps.secretEnvVars and migrate jobs.
+var secretValues = {
+  'postgres-conn': postgresConnectionString
+  'postgres-dsn': postgresExporterDsn
+  'blob-conn': blobConnectionString
+  'jwt-secret': jwtSecret
+  'worker-callback': workerCallbackSecret
+  'metrics-secret': metricsScrapeSecret
+  'places-api-key': placesApiKey
+  'appinsights-conn': applicationInsightsConnectionString
+  'grafana-admin-password': grafanaAdminPassword
+  'gateway-secret': gatewaySecret
+  'internal-service-secret': internalServiceSecret
+}
+
+var customImageTypes = [
+  'gateway'
+  'users'
+  'media'
+  'chat'
+  'location'
+  'community'
+  'group'
+  'social'
+  'web'
+  'worker'
 ]
 
-var apiSecretEnvVars = [
-  { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection' }
-  { name: 'blob-conn', envName: 'Media__ConnectionString' }
-  { name: 'jwt-secret', envName: 'Jwt__Secret' }
-  { name: 'worker-callback', envName: 'Media__WorkerCallbackSecret' }
-  { name: 'metrics-secret', envName: 'Metrics__ScrapeSecret' }
-  { name: 'places-api-key', envName: 'Places__ApiKey' }
-  { name: 'appinsights-conn', envName: 'APPLICATIONINSIGHTS_CONNECTION_STRING' }
-]
+var appEntries = items(containerApps)
 
 module logAnalytics 'modules/log-analytics.bicep' = {
   name: 'log-analytics'
@@ -108,29 +147,16 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-// Redis TCP ingress: short app name within the CAE (port 6379 implicit).
-var redisInternalHost = 'tangle-study-redis'
-var redisConnectionString = redisInternalHost
-var redisUrl = 'redis://${redisInternalHost}'
-var apiAppHost = 'tangle-study-api'
-
-// ACA HTTP ingress: short app names route on port 80 (ingress front door), not
-// the container targetPort. Do not append :8080 — callers time out on pod IP.
-// NOTE: Bootstrap-only (azure-deploy-infra.sh). CD reads TANGLE_API_UPSTREAM
-// from parameters.prod.json; keep both in sync.
-var apiAppUpstream = apiAppHost
-var apiAppBaseUrl = 'http://${apiAppHost}'
-var prometheusInternalUrl = 'http://tangle-study-prometheus'
-
-module redis 'modules/infra-container.bicep' = {
+// Redis is infrastructure (TCP ingress); always provisioned when present in containerApps.
+module redis 'modules/infra-container.bicep' = if (contains(containerApps, 'tangle-study-redis')) {
   name: 'infra-redis'
   params: {
     name: 'tangle-study-redis'
     location: location
     managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: redisImage
-    minReplicas: 1
-    maxReplicas: 1
+    containerImage: infra.?redis.?image ?? 'redis:8-alpine'
+    minReplicas: containerApps['tangle-study-redis'].?minReplicas ?? 1
+    maxReplicas: containerApps['tangle-study-redis'].?maxReplicas ?? 1
     tcpProbePort: 6379
     tags: tags
     envVars: []
@@ -138,288 +164,83 @@ module redis 'modules/infra-container.bicep' = {
   }
 }
 
-module api 'modules/container-app.bicep' = {
-  name: 'container-app-api'
-  params: {
-    name: 'tangle-study-api'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: apiImage
-    targetPort: usePlaceholderImages ? 80 : 8080
-    enableIngress: true
-    externalIngress: false
-    minReplicas: apiMinReplicas
-    maxReplicas: 3
-    healthCheckPath: usePlaceholderImages ? '' : '/health'
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
-      { name: 'ASPNETCORE_URLS', value: 'http://+:8080' }
-      { name: 'Redis__Enabled', value: 'true' }
-      { name: 'Redis__ConnectionString', value: redisConnectionString }
-      { name: 'Media__ContainerName', value: storage.outputs.containerName }
-      { name: 'Media__PublicBlobEndpoint', value: storage.outputs.blobEndpoint }
-      { name: 'Metrics__RequireScrapeSecret', value: 'true' }
-    ]
-    secretEnvVars: apiSecretEnvVars
+module apps 'modules/container-app.bicep' = [
+  for item in appEntries: if (item.value.type != 'redis') {
+    name: 'app-${item.key}'
+    params: {
+      name: item.key
+      location: location
+      managedEnvironmentId: containerAppsEnv.outputs.id
+      containerImage: !empty(item.value.?image)
+        ? (usePlaceholderImages && contains(customImageTypes, item.value.type)
+            ? placeholderImage
+            : (usePlaceholderImages && item.value.type == 'prometheus'
+                ? infra.prometheus.image
+                : (usePlaceholderImages && item.value.type == 'grafana'
+                    ? infra.grafana.image
+                    : '${containerRegistry}/${item.value.image}:${imageTag}')))
+        : (!empty(item.value.?infraImage)
+            ? infra[item.value.infraImage].image
+            : placeholderImage)
+      targetPort: usePlaceholderImages && contains(customImageTypes, item.value.type)
+        ? 80
+        : (item.value.?targetPort ?? 8080)
+      enableIngress: true
+      externalIngress: item.value.?externalIngress ?? false
+      ingressTransport: item.value.?ingressTransport ?? 'auto'
+      minReplicas: item.value.?minReplicas ?? 1
+      maxReplicas: item.value.?maxReplicas ?? 3
+      healthCheckPath: usePlaceholderImages && contains(customImageTypes, item.value.type)
+        ? ''
+        : (item.value.?healthCheckPath ?? '')
+      registryLoginServer: !empty(item.value.?image) ? 'ghcr.io' : ''
+      registryUsername: registryUsername
+      registryPassword: registryPassword
+      tags: tags
+      env: item.value.?env ?? {}
+      secretEnvVars: item.value.?secretEnvVars ?? []
+      secretValues: secretValues
+      extraEnvVars: item.value.type == 'media' ? [
+        { name: 'Media__PublicBlobEndpoint', value: storage.outputs.blobEndpoint }
+        { name: 'Media__ContainerName', value: storage.outputs.containerName }
+      ] : []
+    }
   }
-}
+]
 
-module web 'modules/container-app.bicep' = {
-  name: 'container-app-web'
-  params: {
-    name: 'tangle-study-web'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: webImage
-    targetPort: 80
-    enableIngress: true
-    externalIngress: true
-    ingressTransport: 'auto'
-    minReplicas: webMinReplicas
-    maxReplicas: 3
-    healthCheckPath: ''
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'TANGLE_API_UPSTREAM', value: apiAppUpstream }
-    ]
-    secretEnvVars: []
+module migrate 'modules/migrate-job.bicep' = [
+  for job in migrateJobs: {
+    name: 'migrate-${job.name}'
+    params: {
+      name: job.name
+      location: location
+      managedEnvironmentId: containerAppsEnv.outputs.id
+      containerImage: usePlaceholderImages
+        ? placeholderImage
+        : '${containerRegistry}/${job.image}:${imageTag}'
+      registryLoginServer: 'ghcr.io'
+      registryUsername: registryUsername
+      registryPassword: registryPassword
+      tags: tags
+      command: job.command
+      env: {
+        ASPNETCORE_ENVIRONMENT: 'Production'
+      }
+      secretEnvVars: [
+        {
+          name: 'postgres-conn'
+          envName: 'ConnectionStrings__DefaultConnection'
+        }
+      ]
+      secretValues: secretValues
+    }
   }
-}
+]
 
-module workerChat 'modules/container-app.bicep' = {
-  name: 'container-app-worker-chat'
-  params: {
-    name: 'tangle-study-worker-chat'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerChatImage
-    targetPort: 9090
-    enableIngress: true
-    externalIngress: false
-    minReplicas: workerMinReplicas
-    maxReplicas: 2
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'REDIS_URL', value: redisUrl }
-      { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
-      { name: 'WORKER_STREAM_KEY', value: 'chat.message.created' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
-      { name: 'WORKER_METRICS_PORT', value: '9090' }
-      { name: 'RUST_LOG', value: 'info' }
-    ]
-    secretEnvVars: workerMetricsSecretEnvVars
-  }
-}
-
-module workerMedia 'modules/container-app.bicep' = {
-  name: 'container-app-worker-media'
-  params: {
-    name: 'tangle-study-worker-media'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerMediaImage
-    targetPort: 9090
-    enableIngress: true
-    externalIngress: false
-    minReplicas: workerMinReplicas
-    maxReplicas: 2
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'REDIS_URL', value: redisUrl }
-      { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
-      { name: 'WORKER_STREAM_KEY', value: 'media.uploaded' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
-      { name: 'API_BASE_URL', value: apiAppBaseUrl }
-      { name: 'MEDIA_CONTAINER_NAME', value: storage.outputs.containerName }
-      { name: 'WORKER_METRICS_PORT', value: '9090' }
-      { name: 'RUST_LOG', value: 'info' }
-    ]
-    secretEnvVars: concat(workerMetricsSecretEnvVars, [
-      { name: 'blob-conn', envName: 'AZURE_STORAGE_CONNECTION_STRING' }
-      { name: 'worker-callback', envName: 'WORKER_CALLBACK_SECRET' }
-    ])
-  }
-}
-
-module workerLocation 'modules/container-app.bicep' = {
-  name: 'container-app-worker-location'
-  params: {
-    name: 'tangle-study-worker-location'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: workerLocationImage
-    targetPort: 9090
-    enableIngress: true
-    externalIngress: false
-    minReplicas: workerMinReplicas
-    maxReplicas: 2
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'REDIS_URL', value: redisUrl }
-      { name: 'WORKER_STREAM_PREFIX', value: 'tangle:queue:' }
-      { name: 'WORKER_STREAM_KEY', value: 'location.cluster' }
-      { name: 'WORKER_CONSUMER_GROUP', value: 'tangle-study-workers' }
-      { name: 'API_BASE_URL', value: apiAppBaseUrl }
-      { name: 'WORKER_METRICS_PORT', value: '9090' }
-      { name: 'RUST_LOG', value: 'info' }
-    ]
-    secretEnvVars: workerMetricsSecretEnvVars
-  }
-}
-
-module postgresExporter 'modules/container-app.bicep' = {
-  name: 'container-app-postgres-exporter'
-  params: {
-    name: 'tangle-study-postgres-exporter'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: postgresExporterImage
-    targetPort: 9187
-    enableIngress: true
-    externalIngress: false
-    minReplicas: monitoringMinReplicas
-    maxReplicas: 1
-    healthCheckPath: ''
-    registryLoginServer: ''
-    registryUsername: ''
-    registryPassword: ''
-    tags: tags
-    envVars: []
-    secretEnvVars: [
-      { name: 'postgres-dsn', envName: 'DATA_SOURCE_NAME' }
-    ]
-  }
-}
-
-module redisExporter 'modules/container-app.bicep' = {
-  name: 'container-app-redis-exporter'
-  params: {
-    name: 'tangle-study-redis-exporter'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: redisExporterImage
-    targetPort: 9121
-    enableIngress: true
-    externalIngress: false
-    minReplicas: monitoringMinReplicas
-    maxReplicas: 1
-    healthCheckPath: ''
-    registryLoginServer: ''
-    registryUsername: ''
-    registryPassword: ''
-    tags: tags
-    envVars: [
-      { name: 'REDIS_ADDR', value: redisInternalHost }
-    ]
-    secretEnvVars: []
-  }
-}
-
-module prometheus 'modules/container-app.bicep' = {
-  name: 'container-app-prometheus'
-  params: {
-    name: 'tangle-study-prometheus'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: resolvedPrometheusImage
-    targetPort: 9090
-    enableIngress: true
-    externalIngress: false
-    minReplicas: monitoringMinReplicas
-    maxReplicas: 1
-    healthCheckPath: ''
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: []
-    secretEnvVars: [
-      { name: 'metrics-secret', envName: 'METRICS_SCRAPE_SECRET' }
-    ]
-  }
-}
-
-module grafana 'modules/container-app.bicep' = {
-  name: 'container-app-grafana'
-  params: {
-    name: 'tangle-study-grafana'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: resolvedGrafanaImage
-    targetPort: 3000
-    enableIngress: true
-    externalIngress: true
-    minReplicas: monitoringMinReplicas
-    maxReplicas: 1
-    healthCheckPath: ''
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'GF_SECURITY_ADMIN_USER', value: 'admin' }
-      { name: 'GF_USERS_ALLOW_SIGN_UP', value: 'false' }
-      { name: 'PROMETHEUS_URL', value: prometheusInternalUrl }
-    ]
-    secretEnvVars: [
-      { name: 'grafana-admin-password', envName: 'GF_SECURITY_ADMIN_PASSWORD' }
-    ]
-  }
-}
-
-module migrateJob 'modules/migrate-job.bicep' = {
-  name: 'migrate-job'
-  params: {
-    name: 'tangle-study-migrate'
-    location: location
-    managedEnvironmentId: containerAppsEnv.outputs.id
-    containerImage: apiImage
-    registryLoginServer: 'ghcr.io'
-    registryUsername: registryUsername
-    registryPassword: registryPassword
-    tags: tags
-    envVars: [
-      { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
-    ]
-    secretEnvVars: [
-      { name: 'postgres-conn', envName: 'ConnectionStrings__DefaultConnection' }
-    ]
-  }
-}
-
-output webUrl string = 'https://${web.outputs.fqdn}'
-output grafanaUrl string = 'https://${grafana.outputs.fqdn}'
-output prometheusInternalUrl string = prometheusInternalUrl
-output redisAppName string = redis.outputs.name
+output prometheusInternalUrl string = 'http://tangle-study-prometheus'
+output redisAppName string = contains(containerApps, 'tangle-study-redis') ? 'tangle-study-redis' : ''
 output blobEndpoint string = storage.outputs.blobEndpoint
 output appInsightsConnectionString string = appInsights.outputs.connectionString
 output containerAppsEnvironmentId string = containerAppsEnv.outputs.id
-output migrateJobName string = migrateJob.outputs.name
-output containerAppNames object = {
-  api: api.outputs.name
-  web: web.outputs.name
-  redis: redis.outputs.name
-  workerChat: workerChat.outputs.name
-  workerMedia: workerMedia.outputs.name
-  workerLocation: workerLocation.outputs.name
-  postgresExporter: postgresExporter.outputs.name
-  redisExporter: redisExporter.outputs.name
-  prometheus: prometheus.outputs.name
-  grafana: grafana.outputs.name
-}
+output migrateJobNames array = [for job in migrateJobs: job.name]
+output containerAppNames array = [for item in appEntries: item.key]
