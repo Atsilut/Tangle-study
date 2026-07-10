@@ -12,6 +12,9 @@ namespace Tangle.AspNetCore.Hosting;
 
 public static class TangleWebApplicationBuilderExtensions
 {
+    private const string SwaggerDocumentName = "v2";
+    private const string ApiVersion = "v2.0.0";
+
     public static WebApplicationBuilder AddTangleServiceDefaults(
         this WebApplicationBuilder builder,
         string swaggerTitle)
@@ -26,9 +29,9 @@ public static class TangleWebApplicationBuilderExtensions
         {
             options.EnableAnnotations();
             options.SchemaFilter<SwaggerDefaultValueSchemaFilter>();
-            options.SwaggerDoc("v1", new OpenApiInfo
+            options.SwaggerDoc(SwaggerDocumentName, new OpenApiInfo
             {
-                Version = "v1",
+                Version = ApiVersion,
                 Title = swaggerTitle,
             });
         });
@@ -62,7 +65,7 @@ public static class TangleWebApplicationBuilderExtensions
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{swaggerTitle} v1");
+                options.SwaggerEndpoint($"/swagger/{SwaggerDocumentName}/swagger.json", $"{swaggerTitle} {ApiVersion}");
                 options.RoutePrefix = "api";
             });
         }
