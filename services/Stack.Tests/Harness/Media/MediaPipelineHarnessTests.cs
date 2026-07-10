@@ -24,7 +24,10 @@ public sealed class MediaPipelineHarnessTests : HarnessTestBase
             fixtureFileName: "sample.jpg",
             mimeType: "image/jpeg",
             context: MediaIntendedContext.Post,
-            processingTimeout: TimeSpan.FromSeconds(60));
+            // worker-media bounds a single attempt to 45s (JOB_TIMEOUT) and can retry
+            // after a short backoff, so a lone slow/cold-start attempt plus one retry
+            // can approach ~90s; keep this comfortably above that instead of 60s.
+            processingTimeout: TimeSpan.FromSeconds(90));
 
         Assert.Equal(MediaProcessingStatus.Ready, asset.ProcessingStatus);
         Assert.NotNull(asset.StoredSizeBytes);

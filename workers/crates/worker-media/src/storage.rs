@@ -1,14 +1,19 @@
 use std::path::Path;
+use std::time::Duration;
 
-use anyhow::{Context, Result};
-use azure_storage::ConnectionString;
+use anyhow::{bail, Context, Result};
 use azure_storage::CloudLocation;
+use azure_storage::ConnectionString;
 use azure_storage_blobs::prelude::*;
 use futures::stream::StreamExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// Azure block blob max is 4000 MiB; 4 MiB keeps memory bounded while limiting round trips.
 const UPLOAD_BLOCK_SIZE: usize = 4 * 1024 * 1024;
+
+/// Wall-clock bound for a single blob download/upload. Azure SDK retries alone can hang
+/// indefinitely against a wedged Azurite/network path.
+const BLOB_IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct BlobStorage {
     container_client: ContainerClient,
@@ -43,6 +48,18 @@ impl BlobStorage {
     }
 
     pub async fn download_to_file(&self, object_key: &str, path: &Path) -> Result<()> {
+        match tokio::time::timeout(BLOB_IO_TIMEOUT, self.download_to_file_inner(object_key, path))
+            .await
+        {
+            Ok(result) => result,
+            Err(_) => bail!(
+                "blob download timed out after {}s for {object_key}",
+                BLOB_IO_TIMEOUT.as_secs()
+            ),
+        }
+    }
+
+    async fn download_to_file_inner(&self, object_key: &str, path: &Path) -> Result<()> {
         let blob_client = self.container_client.blob_client(object_key);
         let mut stream = blob_client.get().into_stream();
         let mut file = tokio::fs::File::create(path)
@@ -64,6 +81,26 @@ impl BlobStorage {
     }
 
     pub async fn upload_file(&self, object_key: &str, path: &Path, content_type: &str) -> Result<()> {
+        match tokio::time::timeout(
+            BLOB_IO_TIMEOUT,
+            self.upload_file_inner(object_key, path, content_type),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_) => bail!(
+                "blob upload timed out after {}s for {object_key}",
+                BLOB_IO_TIMEOUT.as_secs()
+            ),
+        }
+    }
+
+    async fn upload_file_inner(
+        &self,
+        object_key: &str,
+        path: &Path,
+        content_type: &str,
+    ) -> Result<()> {
         let blob_client = self.container_client.blob_client(object_key);
         let mut file = tokio::fs::File::open(path)
             .await
