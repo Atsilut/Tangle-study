@@ -52,6 +52,8 @@ public static class CommunityApiTestHelpers
     {
         await auth.AuthenticateAsync(client, asUserId, TestContext.Current.CancellationToken);
         var res = await client.GetAsync(PostsBase, TestContext.Current.CancellationToken);
+        if (res.StatusCode == HttpStatusCode.NoContent)
+            return [];
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.OK);
         return (await res.Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!;
     }

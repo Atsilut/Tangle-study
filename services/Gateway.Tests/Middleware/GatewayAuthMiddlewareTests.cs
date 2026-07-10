@@ -105,6 +105,40 @@ public sealed class GatewayAuthMiddlewareTests
     }
 
     [Fact]
+    public async Task Invoke_ForwardsIdentityOnAnonymousReadPath_WhenBearerTokenValid()
+    {
+        const long userId = 77;
+        var context = CreateContext("/api/posts", "GET");
+        context.Request.Headers.Authorization = $"Bearer {TestJwtFactory.CreateToken(userId)}";
+        string? forwardedUserId = null;
+        string? forwardedSecret = null;
+
+        await CreateMiddleware(ctx =>
+        {
+            forwardedUserId = ctx.Request.Headers["X-User-Id"].ToString();
+            forwardedSecret = ctx.Request.Headers["X-Gateway-Secret"].ToString();
+            ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+            return Task.CompletedTask;
+        }).InvokeAsync(context);
+
+        Assert.Equal(userId.ToString(), forwardedUserId);
+        Assert.Equal(TestWebHostConfiguration.GatewaySecret, forwardedSecret);
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invoke_Returns401_WhenAnonymousReadPathReceivesInvalidToken()
+    {
+        var context = CreateContext("/api/posts", "GET");
+        context.Request.Headers.Authorization = "Bearer not-a-valid-jwt";
+
+        await CreateMiddleware(_ => Task.CompletedTask).InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+        Assert.False(context.Request.Headers.ContainsKey("X-User-Id"));
+    }
+
+    [Fact]
     public async Task Invoke_StripsIncomingIdentityHeaders_BeforeAnonymousPassThrough()
     {
         var context = CreateContext("/api/posts", "GET");

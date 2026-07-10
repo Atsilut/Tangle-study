@@ -43,42 +43,49 @@ public sealed class GatewayAuthMiddleware(
         context.Request.Headers.Remove("X-User-Id");
         context.Request.Headers.Remove("X-Gateway-Secret");
 
-        if (IsAnonymous(context.Request))
+        var token = ExtractBearerToken(context.Request);
+        if (string.IsNullOrWhiteSpace(token))
         {
-            await _next(context);
+            if (IsAnonymous(context.Request))
+            {
+                await _next(context);
+                return;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
 
-        var token = ExtractBearerToken(context.Request);
-        if (string.IsNullOrWhiteSpace(token))
+        if (!TryValidateTokenAndInjectIdentity(context, token))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
 
+        await _next(context);
+    }
+
+    private bool TryValidateTokenAndInjectIdentity(HttpContext context, string token)
+    {
         try
         {
             var principal = new JwtSecurityTokenHandler().ValidateToken(token, _validationParameters, out _);
             var userId = principal.FindFirst("sub")?.Value
                 ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrWhiteSpace(userId))
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return;
-            }
+                return false;
 
             context.Request.Headers["X-User-Id"] = userId;
             if (!string.IsNullOrWhiteSpace(_gatewayOptions.Secret))
                 context.Request.Headers["X-Gateway-Secret"] = _gatewayOptions.Secret;
+
+            return true;
         }
         catch (Exception ex) when (ex is SecurityTokenException or ArgumentException)
         {
             // Malformed tokens throw SecurityTokenMalformedException (ArgumentException), not SecurityTokenException.
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
+            return false;
         }
-
-        await _next(context);
     }
 
     private static bool IsAnonymous(HttpRequest request)
