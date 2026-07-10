@@ -94,8 +94,10 @@ async fn read_and_process_batch(
     http: Option<&reqwest::Client>,
     handler: &dyn StreamHandler,
 ) -> Result<()> {
-    read_new_messages(read_conn, admin_conn, config, http, handler).await?;
+    // Reclaim before reading new work so a previously hung delivery can recover
+    // even when the next XREADGROUP also returns quickly with more jobs.
     reclaim_pending_retries(admin_conn, config, http, handler).await?;
+    read_new_messages(read_conn, admin_conn, config, http, handler).await?;
     metrics::refresh_queue_gauges(admin_conn, config).await?;
     Ok(())
 }
