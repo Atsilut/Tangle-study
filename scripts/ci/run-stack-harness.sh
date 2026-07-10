@@ -199,6 +199,9 @@ configure_media_blob_endpoint() {
   local nginx_ip="$1"
   export HARNESS_PUBLIC_BLOB_ENDPOINT="http://${nginx_ip}"
   log_step "CONFIGURE MEDIA BLOB ENDPOINT (${HARNESS_PUBLIC_BLOB_ENDPOINT})"
+  # Recreate media so SAS URLs rewrite to the nginx proxy. Must happen before
+  # rust-worker-media starts — recreating media after the worker is up races
+  # callbacks and leaves intermittent Processing hangs in CI.
   docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --no-deps --force-recreate --wait media
 }
 
@@ -211,12 +214,19 @@ start_harness_stack() {
 
   local -a core_services=()
   local -a worker_services=()
+  local wants_nginx=0
+  local wants_media=0
   for svc in "${services[@]}"; do
-  case "$svc" in
+    case "$svc" in
       rust-worker-*)
         worker_services+=("$svc")
         ;;
       nginx)
+        wants_nginx=1
+        ;;
+      media)
+        wants_media=1
+        core_services+=("$svc")
         ;;
       *)
         core_services+=("$svc")
@@ -228,12 +238,21 @@ start_harness_stack() {
   if [[ ${#core_services[@]} -gt 0 ]]; then
     docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait "${core_services[@]}"
   fi
-  if [[ ${#worker_services[@]} -gt 0 ]]; then
-    docker compose "${COMPOSE_ARGS[@]}" up -d --no-build "${worker_services[@]}"
-    wait_for_worker_metrics "${worker_services[@]}"
+  # Nginx before workers so PublicBlobEndpoint can be applied, then media is
+  # stable before rust-worker-media connects to it.
+  # --no-deps is required: docker-compose.harness.yml lists rust-worker-* under
+  # nginx depends_on, which would otherwise start workers before media recreate.
+  if [[ "$wants_nginx" -eq 1 ]]; then
+    docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --no-deps --wait nginx
+    if [[ "$wants_media" -eq 1 ]]; then
+      local nginx_ip
+      nginx_ip="$(resolve_container_ip nginx)"
+      configure_media_blob_endpoint "$nginx_ip"
+    fi
   fi
-  if printf '%s\n' "${services[@]}" | grep -qx nginx; then
-    docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --wait nginx
+  if [[ ${#worker_services[@]} -gt 0 ]]; then
+    docker compose "${COMPOSE_ARGS[@]}" up -d --no-build --no-deps "${worker_services[@]}"
+    wait_for_worker_metrics "${worker_services[@]}"
   fi
 }
 
@@ -299,9 +318,7 @@ nginx_ip=""
 if docker compose "${COMPOSE_ARGS[@]}" ps -q nginx >/dev/null 2>&1; then
   nginx_ip="$(resolve_container_ip nginx)"
   export TANGLE_HARNESS_API_BASE_URL="http://${nginx_ip}"
-  if printf '%s\n' "$(collect_services_for_modules "$HARNESS_MODULES")" | grep -qx media; then
-    configure_media_blob_endpoint "$nginx_ip"
-  fi
+  # PublicBlobEndpoint is applied inside start_harness_stack (before workers).
 else
   fail "nginx is required for harness tests but is not part of the selected module stack"
 fi

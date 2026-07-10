@@ -79,12 +79,6 @@ services:
       location:
         condition: service_healthy
         required: false
-      rust-worker-media:
-        condition: service_started
-        required: false
-      rust-worker-chat:
-        condition: service_started
-        required: false
-      rust-worker-location:
-        condition: service_started
-        required: false
+      # rust-worker-* intentionally omitted: run-stack-harness.sh starts workers
+      # only after PublicBlobEndpoint is applied (media recreate). Listing them
+      # here made `up nginx` start workers first and race media callbacks.
