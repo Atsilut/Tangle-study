@@ -9,16 +9,19 @@ source "$ROOT/scripts/shared/common.sh"
 require_env CONTAINER_REGISTRY
 require_env IMAGE_TAG
 
+PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
+[[ -f "$PARAM_FILE" ]] || fail "missing parameter file: $PARAM_FILE"
+
 log_step "GHCR CONSISTENCY GATE"
 
-IMAGES=(
-  tangle-study-web
-  tangle-study-worker-media
-  tangle-study-worker-chat
-  tangle-study-worker-location
-  tangle-study-prometheus
-  tangle-study-grafana
-)
+mapfile -t IMAGES < <(jq -r '
+  .parameters.containerApps.value
+  | to_entries[]
+  | select(.value.image != null)
+  | .value.image
+' "$PARAM_FILE")
+
+[[ ${#IMAGES[@]} -gt 0 ]] || fail "no containerApps with image found in $PARAM_FILE"
 
 wait_image() {
   local image="$1"

@@ -50,6 +50,14 @@ bash "$ROOT/scripts/ci/dotnet-publish.sh"
 log_step "BUILD IMAGES"
 
 IMAGES=(
+  tangle-study-gateway
+  tangle-study-users
+  tangle-study-media
+  tangle-study-chat
+  tangle-study-location
+  tangle-study-community
+  tangle-study-group
+  tangle-study-social
   tangle-study-web
   tangle-study-worker-media
   tangle-study-worker-chat
@@ -59,6 +67,14 @@ IMAGES=(
 )
 
 declare -A DOCKERFILE_MAP=(
+  [tangle-study-gateway]="services/Gateway/Dockerfile.runtime"
+  [tangle-study-users]="services/Users/Dockerfile.runtime"
+  [tangle-study-media]="services/Media/Dockerfile.runtime"
+  [tangle-study-chat]="services/Chat/Dockerfile.runtime"
+  [tangle-study-location]="services/Location/Dockerfile.runtime"
+  [tangle-study-community]="services/Community/Dockerfile.runtime"
+  [tangle-study-group]="services/Group/Dockerfile.runtime"
+  [tangle-study-social]="services/Social/Dockerfile.runtime"
   [tangle-study-web]="clients/web/Dockerfile"
   [tangle-study-worker-media]="workers/docker/Dockerfile.runtime.media"
   [tangle-study-worker-chat]="workers/docker/Dockerfile.runtime.chat"
@@ -72,6 +88,9 @@ set_build_args() {
   BUILD_ARGS=()
 
   case "$image" in
+    tangle-study-gateway|tangle-study-users|tangle-study-media|tangle-study-chat|tangle-study-location|tangle-study-community|tangle-study-group|tangle-study-social)
+      BUILD_ARGS+=("--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
+      ;;
     tangle-study-web)
       BUILD_ARGS+=(
         "--build-arg" "NODE_IMAGE=$NODE_IMG"

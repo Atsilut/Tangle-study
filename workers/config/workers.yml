@@ -5,7 +5,7 @@
 #
 # Local Docker Compose values: workers/config/compose-workers.yml (included by docker-compose.yml).
 # Secrets (WORKER_CALLBACK_SECRET, AZURE_STORAGE_CONNECTION_STRING) are never committed for prod;
-# Azure CD injects them via scripts/cd/azure-cd-inject-secrets.sh.
+# Azure CD passes them as Bicep @secure() params via scripts/cd/azure-cd-deploy-bicep.sh.
 
 version: 1
 
