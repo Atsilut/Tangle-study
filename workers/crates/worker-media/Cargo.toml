@@ -10,6 +10,9 @@ publish.workspace = true
 name = "worker-media"
 path = "src/main.rs"
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 worker-core = { path = "../worker-core" }
 anyhow = "1.0"

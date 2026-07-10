@@ -1,19 +1,7 @@
-mod api_callback;
-mod config;
-mod encode_plan;
-mod handler;
-mod job;
-mod message;
-mod processing;
-mod probe;
-mod storage;
-mod stream_handler;
-
 use anyhow::Context;
 use worker_core::runtime;
-
-use crate::config::MediaConfig;
-use crate::stream_handler::MediaStreamHandler;
+use worker_media::config::MediaConfig;
+use worker_media::stream_handler::MediaStreamHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
