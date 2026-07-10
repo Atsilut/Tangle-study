@@ -1,10 +1,10 @@
 # Deployment
 
-Azure Container Apps deployment. Secrets are injected from **GitHub Environment secrets** at deploy time via [`cd-v1.yml`](../.github/workflows/cd-v1.yml).
+Azure Container Apps deployment. Secrets are passed as Bicep `@secure()` parameters from **GitHub Environment secrets** at deploy time via [`cd-v2.yml`](../.github/workflows/cd-v2.yml). App topology and env live in [`parameters.prod.json`](../infra/azure/parameters.prod.json).
 
 **Local development** uses Docker Compose with the **gateway-centric stack** (gateway, users, and all domain services). See [README](../README.md) and [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
-> **Note:** `services/Api/` (legacy monolith) was removed from the repo. Azure Bicep, parameters, migrate job, and several CD scripts still reference `tangle-study-api` until gateway/users + domain Container Apps cutover. CD image build no longer produces `tangle-study-api`.
+> **Note:** `services/Api/` (legacy monolith) was removed. Production CD deploys gateway + domain services from `parameters.prod.json`. Delete orphaned `tangle-study-api` / `tangle-study-migrate` resources after the first MSA cutover if they still exist in the resource group.
 
 ---
 
@@ -71,11 +71,12 @@ Study-friendly stack — **no managed Redis or ACR** on Azure (no useful free ti
 
 | Compose (local)                      | Azure                                       |
 | ------------------------------------ | ------------------------------------------- |
-| `api`                                | `tangle-study-api` Container App (monolith)   |
-| `media`                              | **Not deployed yet** — still in monolith on Azure |
+| `gateway`                            | `tangle-study-gateway` Container App        |
+| `users` / `media` / `chat` / …       | `tangle-study-<service>` Container Apps     |
 | `nginx` / web                        | `tangle-study-web` Container App            |
 | `db`                                 | **Neon** (external Postgres)                |
 | `redis`                              | `tangle-study-redis` Container App          |
+| `rust-worker-*`                      | `tangle-study-worker-*` Container Apps      |
 | `prometheus` / `grafana` / exporters | Monitoring Container Apps on ACA            |
 | `azurite`                            | Storage account (blob)                      |
 | Built images                         | **GHCR** (`ghcr.io/<org>/tangle-study/...`) |
@@ -148,16 +149,15 @@ Create a Neon project + database and set `POSTGRES_CONNECTION_STRING` in GitHub.
 
 ### 4. CD pipeline
 
-After CI passes on `main`, [cd-v1.yml](../.github/workflows/cd-v1.yml):
+After CI passes on `main`, [cd-v2.yml](../.github/workflows/cd-v2.yml):
 
-1. Compiles once (`dotnet-publish.sh`, `build-workers-release.sh`), then builds and pushes runtime images to GHCR: `tangle-study-api`, `tangle-study-web`, `tangle-study-worker-media`, `tangle-study-worker-chat`, `tangle-study-worker-location`, plus monitoring images (`[azure-cd-build-push.sh](../scripts/cd/azure-cd-build-push.sh)`)
+1. Compiles once (`dotnet-publish.sh`, `build-workers-release.sh`), then builds and pushes runtime images to GHCR: gateway, users, media, chat, location, community, group, social, web, workers, plus monitoring (`[azure-cd-build-push.sh](../scripts/cd/azure-cd-build-push.sh)`)
 2. Waits for GHCR image propagation (`[azure-cd-wait-image.sh](../scripts/cd/azure-cd-wait-image.sh)`)
-3. Injects secrets into Container Apps (Neon, monitoring, JWT, blob, etc.) (`[azure-cd-inject-secrets.sh](../scripts/cd/azure-cd-inject-secrets.sh)`)
-4. Updates app images and env from `[parameters.prod.json](../infra/azure/parameters.prod.json)` (`[azure-cd-deploy-image.sh](../scripts/cd/azure-cd-deploy-image.sh)`) — includes `TANGLE_API_UPSTREAM` for web
-5. Runs `tangle-study-migrate` job (`[azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`)
-6. Smoke tests (`/health` proxied to API + SPA shell) (`[azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)`)
+3. Runs Bicep (`[azure-cd-deploy-bicep.sh](../scripts/cd/azure-cd-deploy-bicep.sh)`) with `@parameters.prod.json`, `imageTag=<sha>`, and secure secrets — provisions/updates all Container Apps and migrate jobs
+4. Runs per-service migrate jobs (`[azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`)
+5. Smoke tests (`/health` proxied to gateway + SPA shell) (`[azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)`)
 
-Manual deploy: **Actions → CD-v1 → Run workflow** (uses `prod` environment).
+Manual deploy: **Actions → Deploy → Run workflow** (uses `prod` environment).
 
 Optional: add **required reviewers** on the `prod` environment in GitHub for approval gates.
 
@@ -194,49 +194,35 @@ Store these on GitHub Environment `production`. The deploy workflow maps each se
 
 ### Legacy monolith API (removed)
 
-The `services/Api/` project and `tangle-study-api` image were removed from the repo. Azure Bicep/parameters below still describe the old monolith deploy — update during gateway/users ACA cutover. Until then, treat this section as historical.
+The `services/Api/` project and `tangle-study-api` image were removed from the repo. Production CD (`cd-v2.yml`) deploys the MSA Container Apps from [`parameters.prod.json`](../infra/azure/parameters.prod.json).
 
+### Shared secrets (MSA)
 
 | GitHub secret                              | Container App env var                                                         | Required | Notes                                                                                                                 |
 | ------------------------------------------ | ----------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `BLOB_CONNECTION_STRING`                   | `Media__ConnectionString`                                                     | Yes      | Azure Storage account connection string                                                                               |
-| `JWT_SECRET`                               | `Jwt__Secret`                                                                 | Yes      | Min 32 chars; overrides `security.yml` placeholder                                                                    |
-| `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes`                                                          | No       | Token lifetime in minutes; default `15` from `[parameters.prod.json](../infra/azure/parameters.prod.json)` when unset |
-| `WORKER_CALLBACK_SECRET`                   | `Media__WorkerCallbackSecret`                                                 | Yes      | Shared with media worker for internal callbacks                                                                       |
-| `INTERNAL_SERVICE_SECRET` (planned)        | `InternalAccess__Secret` (Api), `MediaClient__InternalSecret` (Api)           | When media on ACA | Monolith ↔ media `X-Internal-Secret`; already set in Compose dev |
-| `METRICS_SCRAPE_SECRET`                    | `Metrics__ScrapeSecret` (API), `METRICS_SCRAPE_SECRET` (Prometheus + workers) | Yes      | Required when `Metrics:RequireScrapeSecret` is true                                                                   |
-| `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (API + migrate)                        | Yes      | Neon Npgsql connection string from console                                                                            |
+| `BLOB_CONNECTION_STRING`                   | `Media__ConnectionString` (media), `AZURE_STORAGE_CONNECTION_STRING` (worker-media) | Yes | Azure Storage account connection string                                                                               |
+| `JWT_SECRET`                               | `Jwt__Secret` (users)                                                         | Yes      | Min 32 chars; overrides `security.yml` placeholder                                                                    |
+| `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes` (users)                                                  | No       | Default `15` from `[parameters.prod.json](../infra/azure/parameters.prod.json)` when unset |
+| `WORKER_CALLBACK_SECRET`                   | `Media__WorkerCallbackSecret`, `WorkerCallback__Secret`, `WORKER_CALLBACK_SECRET` | Yes | Shared with media/location workers for internal callbacks                                                       |
+| `GATEWAY_SECRET`                           | `Gateway__Secret` (gateway), `GatewayIdentity__Secret` (services)             | Yes      | Trusted `X-Gateway-Secret` between gateway and services                                                               |
+| `INTERNAL_SERVICE_SECRET`                  | `InternalAccess__Secret` + `*Client__InternalSecret` / `Users__InternalSecret` | Yes | Shared `X-Internal-Secret` for `/internal/*` service-to-service calls                                              |
+| `METRICS_SCRAPE_SECRET`                    | `Metrics__ScrapeSecret` / `METRICS_SCRAPE_SECRET`                             | Yes      | Required when `Metrics:RequireScrapeSecret` is true                                                                   |
+| `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (DB services + migrate jobs)           | Yes      | Neon Npgsql connection string from console                                                                            |
 | `GRAFANA_ADMIN_PASSWORD`                   | `GF_SECURITY_ADMIN_PASSWORD` (Grafana)                                        | Yes      | External Grafana Container App admin password                                                                         |
-| `PLACES_API_KEY`                           | `Places__ApiKey`                                                              | No       | Google Places / Geocoding; leave empty to disable search                                                              |
+| `PLACES_API_KEY`                           | `Places__ApiKey` (location)                                                   | No       | Google Places / Geocoding; leave empty to disable search                                                              |
 
 ### Media (`services/Media`)
 
-**Compose:** deployed by default (see [Local Compose (media extracted)](#local-compose-media-extracted)).
+**Compose + Azure:** deployed via `parameters.prod.json` → `tangle-study-media` (and `tangle-study-migrate-media`). Secrets are listed under [Shared secrets (MSA)](#shared-secrets-msa). Non-secret wiring:
 
-**Azure:** not in Bicep/CD yet. When added, map secrets and wire strangler routing:
+| Source | Container App env var | Example |
+|--------|----------------------|---------|
+| Bicep storage output | `Media__PublicBlobEndpoint` | `https://….blob.core.windows.net/` |
+| Bicep storage output | `Media__ContainerName` | `tangle-media` |
+| `parameters.prod.json` | `Redis__ConnectionString` | `tangle-study-redis` |
+| `parameters.prod.json` | `Users__BaseUrl` | `http://tangle-study-users` |
 
-| GitHub secret                | Container App env var              | Required | Notes                                                                 |
-| ---------------------------- | ---------------------------------- | -------- | --------------------------------------------------------------------- |
-| `JWT_SECRET`                 | `Jwt__Secret`                      | Yes      | **Same value as monolith** — validates tokens issued by Api login     |
-| `BLOB_CONNECTION_STRING`     | `Media__ConnectionString`          | Yes      | Azure Storage account connection string                               |
-| `WORKER_CALLBACK_SECRET`     | `Media__WorkerCallbackSecret`      | Yes      | Shared with `worker-media` for `PATCH /internal/media/.../processed` |
-| `POSTGRES_CONNECTION_STRING` | `ConnectionStrings__DefaultConnection` | Yes  | Shared Neon; media uses `media` schema — run Media EF migrate job   |
-| `METRICS_SCRAPE_SECRET`      | `Metrics__ScrapeSecret`            | Yes      | When `Metrics:RequireScrapeSecret` is true                            |
-| `INTERNAL_SERVICE_SECRET` | `InternalAccess__Secret` | Yes | Shared `X-Internal-Secret` for `/internal/*`; same value on callers (`MediaClient__InternalSecret`, etc.) |
-
-Non-secrets at deploy time:
-
-| Variable / Bicep output      | Container App env var       | Example                                       |
-| ---------------------------- | --------------------------- | --------------------------------------------- |
-| —                            | `Monolith__BaseUrl`         | `http://tangle-study-api` (ACA short name)    |
-| `MEDIA_PUBLIC_BLOB_ENDPOINT` | `Media__PublicBlobEndpoint` | `https://tanglestaging.blob.core.windows.net` |
-| —                            | `Redis__ConnectionString`   | `tangle-study-redis` (ACA short name)         |
-
-Queue stream prefix comes from each service's `*-config.yml` (`Redis:WorkQueueStreamPrefix`); override with `Redis__WorkQueueStreamPrefix` if needed.
-
-**Web nginx (Azure cutover):** point `nginx.production.conf` at gateway/users + domain Container Apps (local Compose uses a single gateway upstream). Until then, production keeps serving `/api/*` from the monolith.
-
-**Worker:** change `API_BASE_URL` on `tangle-study-worker-media` from `http://tangle-study-api` to `http://tangle-study-media` when the media Container App exists.
+Worker media uses `API_BASE_URL=http://tangle-study-media` from `parameters.prod.json`. Web nginx proxies to `tangle-study-gateway`.
 
 Non-secrets (`Jwt:Issuer`, `Jwt:Audience`, limits, queue stream prefix) stay in Gateway/Users `security.yml` and each service's `*-config.yml` baked into the image.
 
@@ -268,7 +254,7 @@ Non-secret config can be GitHub **variables** or Bicep parameters:
 
 | Variable | Env var               | Default            | Notes                                                          |
 | -------- | --------------------- | ------------------ | -------------------------------------------------------------- |
-| —        | `TANGLE_API_UPSTREAM` | `tangle-study-api` | Internal API short name (ACA HTTP ingress port 80; no `:8080`) |
+| —        | `TANGLE_API_UPSTREAM` | `tangle-study-gateway` | Internal gateway short name (ACA HTTP ingress port 80; no `:8080`) |
 
 
 Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azure (no Azurite proxy). See `[infra/nginx/nginx.production.conf](../infra/nginx/nginx.production.conf)`.
@@ -283,14 +269,14 @@ Build the web image with `--build-arg NGINX_CONF=nginx.production.conf` for Azur
 | `METRICS_SCRAPE_SECRET`  | `METRICS_SCRAPE_SECRET`           | Yes                      | Protects `/metrics`; Prometheus sends `X-Metrics-Secret` |
 
 
-Redis URL and API base URL are set at CD deploy time. **Today (Azure):** `API_BASE_URL=http://tangle-study-api` for media and location workers (monolith still owns those callbacks on Azure). **After ACA cutover:** media worker uses `http://tangle-study-media`; location worker uses `http://tangle-study-location`; chat worker uses `http://tangle-study-chat`.
+Redis URL and service base URLs are set in `parameters.prod.json` and applied by Bicep. Workers use `API_BASE_URL=http://tangle-study-<service>` (media → media, location → location, chat → chat).
 
 Per-worker settings in `[parameters.prod.json](../infra/azure/parameters.prod.json)`:
 
 
 | Variable               | Env var                | Example                                                      |
 | ---------------------- | ---------------------- | ------------------------------------------------------------ |
-| `API_BASE_URL`         | `API_BASE_URL`         | Compose: `http://media:8080` (media worker). Azure today: `http://tangle-study-api`; target: `http://tangle-study-media` |
+| `API_BASE_URL`         | `API_BASE_URL`         | Compose: `http://media:8080` (media worker). Azure: `http://tangle-study-media` |
 | `WORKER_STREAM_KEY`    | `WORKER_STREAM_KEY`    | `media.uploaded`, `chat.message.created`, `location.cluster` |
 | `MEDIA_CONTAINER_NAME` | `MEDIA_CONTAINER_NAME` | `tangle-media`                                               |
 
@@ -301,7 +287,7 @@ Per-worker settings in `[parameters.prod.json](../infra/azure/parameters.prod.js
 
 ## Database migrations
 
-Production and staging **do not** apply migrations on service startup. Migrations run via `./scripts/migrate.sh` (local) or the Azure migrate job (stale — still references removed `tangle-study-api` image until cutover).
+Production and staging **do not** apply migrations on service startup. Migrations run via `./scripts/migrate.sh` (local) or the per-service Azure migrate jobs listed in `parameters.prod.json` → `migrateJobs` (`azure-cd-migrate.sh`).
 
 ### Command (local)
 
@@ -328,16 +314,16 @@ ConnectionStrings__DefaultConnection="$POSTGRES_CONNECTION_STRING" \
 
 ### CD step (Container Apps Job)
 
-The deploy workflow runs migrations automatically **after** images are deployed (the job needs the new API image on GHCR and the migrate job updated first):
+The deploy workflow runs migrations automatically **after** Bicep applies the new images (each migrate job needs its service image on GHCR):
 
-1. Build and push images to GHCR (API image tag matches app deploy).
-2. Inject secrets and deploy all Container App images from `[parameters.prod.json](../infra/azure/parameters.prod.json)` — including the API revision and the migrate job image (`[azure-cd-deploy-image.sh](../scripts/cd/azure-cd-deploy-image.sh)`).
-3. Start `tangle-study-migrate` (`[azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`); proceed only if execution status is `Succeeded`.
+1. Build and push images to GHCR (service image tags match app deploy).
+2. Run Bicep from `[parameters.prod.json](../infra/azure/parameters.prod.json)` (`[azure-cd-deploy-bicep.sh](../scripts/cd/azure-cd-deploy-bicep.sh)`) — apps, secrets, and migrate job images.
+3. Start each job in `migrateJobs` (`[azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`); proceed only if every execution status is `Succeeded`.
 4. Smoke test via web ingress (`[azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)`).
 
 Skip on manual runs: **Deploy → Run workflow → Skip EF migrate job**.
 
-Development/Docker still auto-migrate on API startup for local convenience.
+Development/Docker still auto-migrate on service startup for local convenience.
 
 ---
 
@@ -358,8 +344,8 @@ Container Apps platform logs go to the same Log Analytics workspace.
 Bicep deploys a **monitoring stack** on Container Apps (Compose parity). **CD** builds custom
 GHCR images (`tangle-study-prometheus`, `tangle-study-grafana`) that bundle provisioning from
 `[infra/grafana/provisioning/](../infra/grafana/provisioning/)` and ACA scrape entrypoints from
-`[infra/azure/monitoring/](../infra/azure/monitoring/)`. Deploy injects cross-app URLs from
-`[azure-aca-urls.sh](../scripts/cd/libs/azure-aca-urls.sh)` via `[azure-cd-deploy-image.sh](../scripts/cd/azure-cd-deploy-image.sh)`
+`[infra/azure/monitoring/](../infra/azure/monitoring/)`. Cross-app URLs come from
+`[parameters.prod.json](../infra/azure/parameters.prod.json)` via `[azure-cd-deploy-bicep.sh](../scripts/cd/azure-cd-deploy-bicep.sh)`
 (e.g. `PROMETHEUS_URL=http://tangle-study-prometheus`, `REDIS_URL=redis://tangle-study-redis`).
 HTTP short app names must omit `targetPort` ([ACA short names](../infra/azure/README.md#aca-short-names-do-not-append-targetport)).
 
@@ -385,7 +371,7 @@ Local Prometheus/Grafana under `[infra/](../infra/)` remain for Docker Compose (
 
 ### Post-deploy smoke tests
 
-After migrate, [cd-v1.yml](../.github/workflows/cd-v1.yml) runs `[scripts/cd/azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)`:
+After migrate, [cd-v2.yml](../.github/workflows/cd-v2.yml) runs `[scripts/cd/azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)`:
 
 1. Waits for **API and web** Container App revisions to reach `healthState=Healthy`
 2. `GET https://<tangle-study-web-fqdn>/` — SPA shell loads
@@ -532,22 +518,25 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
    or
    (`sslmode=verify-ca` or `verify-full` also accepted.)
 2. Confirm the connection string format (Npgsql or URI) matches Neon console output before setting the GitHub secret.
-3. Re-inject and re-run migrate:
+3. Re-run Bicep deploy (with corrected secrets) and migrate:
   ```bash
    AZURE_RESOURCE_GROUP=tangle-study-prod \
+   IMAGE_TAG='...' \
    POSTGRES_CONNECTION_STRING='...' \
    BLOB_CONNECTION_STRING='...' \
    JWT_SECRET='...' \
    WORKER_CALLBACK_SECRET='...' \
    METRICS_SCRAPE_SECRET='...' \
    GRAFANA_ADMIN_PASSWORD='...' \
-     bash scripts/cd/azure-cd-inject-secrets.sh
+   GATEWAY_SECRET='...' \
+   INTERNAL_SERVICE_SECRET='...' \
+     bash scripts/cd/azure-cd-deploy-bicep.sh
 
    AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-migrate.sh
   ```
-   Or trigger **Actions → CD-v1 → Run workflow**.
+   Or trigger **Actions → Deploy → Run workflow**.
 
-CD now rejects malformed strings in `[scripts/cd/azure-cd-inject-secrets.sh](../scripts/cd/azure-cd-inject-secrets.sh)` before injecting secrets. Migrate job logs are dumped automatically on failure in `[scripts/cd/azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`.
+`[azure-cd-deploy-bicep.sh](../scripts/cd/azure-cd-deploy-bicep.sh)` derives the postgres-exporter DSN and rejects empty required secrets. Migrate job logs are dumped automatically on failure in `[scripts/cd/azure-cd-migrate.sh](../scripts/cd/azure-cd-migrate.sh)`.
 
 If the password appeared in Log Analytics, rotate it in the Neon console.
 
@@ -559,43 +548,43 @@ If the password appeared in Log Analytics, rotate it in the Neon console.
 
 **Symptom:** API logs show `StackExchange.Redis.ConnectionMultiplexer.Connect` failure at startup; revision crash-loops (older builds) or `/health` reports Redis **Unhealthy**.
 
-**Cause:** The Redis **container can be healthy** while **cross-app TCP** from `tangle-study-api` to `tangle-study-redis` fails. Common reasons:
+**Cause:** The Redis **container can be healthy** while **cross-app TCP** from a service (e.g. `tangle-study-users`) to `tangle-study-redis` fails. Common reasons:
 
 - `tangle-study-redis` deployed **without internal TCP ingress**
 - Ingress metadata looks correct but ACA Envoy routing is **stale** (same class as historical Postgres TCP issues)
 
-The API connection string uses the **short app name** `tangle-study-redis` (port 6379 implicit; set by CD).
+Service connection strings use the **short app name** `tangle-study-redis` (port 6379 implicit; set in `parameters.prod.json`).
 
-**Fix:** Verify Redis ingress and API env, then re-deploy and re-run smoke:
+**Fix:** Verify Redis ingress and service env, then re-deploy and re-run smoke:
 
 ```bash
 az containerapp show -n tangle-study-redis -g tangle-study-prod \
   --query "properties.configuration.ingress.{transport:transport,targetPort:targetPort,fqdn:fqdn}" -o yaml
 
-az containerapp show -n tangle-study-api -g tangle-study-prod \
+az containerapp show -n tangle-study-users -g tangle-study-prod \
   --query "properties.template.containers[0].env[?name=='Redis__ConnectionString']" -o yaml
 
-AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-deploy-image.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod IMAGE_TAG='...' bash scripts/cd/azure-cd-deploy-bicep.sh
 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 Manual cross-app probe from your laptop (use short name `tangle-study-redis`):
 
 ```bash
-az containerapp exec -n tangle-study-api -g tangle-study-prod \
-  --container tangle-study-api \
+az containerapp exec -n tangle-study-users -g tangle-study-prod \
+  --container tangle-study-users \
   --command "timeout 5 bash -c 'echo > /dev/tcp/tangle-study-redis/6379' && echo OK || echo FAIL"
 ```
 
 From CI or a non-interactive shell, wrap exec:
 
 ```bash
-script -q -c "az containerapp exec -n tangle-study-api -g tangle-study-prod \
-  --container tangle-study-api \
+script -q -c "az containerapp exec -n tangle-study-users -g tangle-study-prod \
+  --container tangle-study-users \
   --command \"timeout 5 bash -c 'echo > /dev/tcp/tangle-study-redis/6379' && echo OK || echo FAIL\"" /dev/null
 ```
 
-`Redis__ConnectionString` includes StackExchange.Redis options (`abortConnect=false`, connect timeouts). The API sets `AbortOnConnectFail=false` so a transient Redis blip does not crash-loop; `/health` shows **Unhealthy** until Redis is reachable.
+`Redis__ConnectionString` includes StackExchange.Redis options (`abortConnect=false`, connect timeouts). Services set `AbortOnConnectFail=false` so a transient Redis blip does not crash-loop; `/health` shows **Unhealthy** until Redis is reachable.
 
 Fresh infra deploys pick up TCP ingress from `[infra/azure/modules/infra-container.bicep](../infra/azure/modules/infra-container.bicep)` when `tcpProbePort` is set (6379 for Redis).
 
@@ -688,27 +677,27 @@ SMOKE_SKIP_API_WAIT=1 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-
 
 **Symptom:** `[azure-cd-smoke.sh](../scripts/cd/azure-cd-smoke.sh)` fails; web nginx logs show `GET /health HTTP/1.1" 404`.
 
-**Cause:** Web nginx proxies `/health` to the internal API (`TANGLE_API_UPSTREAM`, default `tangle-study-api`). ACA HTTP ingress listens on port 80 for short app names — do **not** append `:8080` (connects to pod IP and times out). Infra deployed with **placeholder images** may also drift `targetPort` until CD reconciles env from `[parameters.prod.json](../infra/azure/parameters.prod.json)`.
+**Cause:** Web nginx proxies `/health` to the gateway (`TANGLE_API_UPSTREAM`, `tangle-study-gateway`). ACA HTTP ingress listens on port 80 for short app names — do **not** append `:8080` (connects to pod IP and times out). Infra deployed with **placeholder images** may also drift `targetPort` until CD reconciles env from `[parameters.prod.json](../infra/azure/parameters.prod.json)`.
 
-**Fix:** Re-run deploy-image to reconcile `TANGLE_API_UPSTREAM` from `[parameters.prod.json](../infra/azure/parameters.prod.json)`, then smoke:
+**Fix:** Re-run Bicep deploy to reconcile `TANGLE_API_UPSTREAM` from `[parameters.prod.json](../infra/azure/parameters.prod.json)`, then smoke:
 
 ```bash
-AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-deploy-image.sh
+AZURE_RESOURCE_GROUP=tangle-study-prod IMAGE_TAG='...' bash scripts/cd/azure-cd-deploy-bicep.sh
 AZURE_RESOURCE_GROUP=tangle-study-prod ./scripts/cd/azure-cd-smoke.sh
 ```
 
 Verify:
 
 ```bash
-az containerapp show -n tangle-study-api -g tangle-study-prod \
-  --query "properties.configuration.ingress.targetPort" -o tsv   # expect 8080
+az containerapp show -n tangle-study-web -g tangle-study-prod \
+  --query "properties.configuration.ingress.targetPort" -o tsv   # expect 80
 
 az containerapp show -n tangle-study-web -g tangle-study-prod \
   --query "properties.template.containers[0].env[?name=='TANGLE_API_UPSTREAM']" -o yaml
-# expect value: tangle-study-api
+# expect value: tangle-study-gateway
 ```
 
-If `/health` still fails with **503** or `Unhealthy`, the API is up but a dependency check failed (Postgres, Redis) — check `tangle-study-api` logs.
+If `/health` still fails with **503** or `Unhealthy`, the gateway is up but a dependency check failed (Postgres, Redis) — check `tangle-study-gateway` / `tangle-study-users` logs.
 
 ---
 

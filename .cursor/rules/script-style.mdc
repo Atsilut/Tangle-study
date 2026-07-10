@@ -1,12 +1,12 @@
 ---
 description: Bash script, CD workflow, and deploy JSON formatting conventions
-globs: scripts/**/*.sh,.github/workflows/ci-v2.yml,.github/workflows/cd-v1.yml,infra/azure/parameters*.json
+globs: scripts/**/*.sh,.github/workflows/ci-v2.yml,.github/workflows/cd-v2.yml,infra/azure/parameters*.json
 alwaysApply: false
 ---
 
 # Script, CI/CD workflow, and deploy JSON style
 
-Reference entrypoint: [`scripts/cd/azure-cd-inject-secrets.sh`](scripts/cd/azure-cd-inject-secrets.sh).
+Reference entrypoint: [`scripts/cd/azure-cd-deploy-bicep.sh`](scripts/cd/azure-cd-deploy-bicep.sh).
 
 ## Bash entrypoints (`scripts/**/*.sh`)
 
@@ -39,8 +39,7 @@ log_step "SECTION NAME IN ALL CAPS"
 | Scripts | Prefix |
 |---------|--------|
 | CD build / wait / migrate / smoke | `[DEPLOY][BUILD]`, `[DEPLOY][IMAGE]`, `[DEPLOY][MIGRATE]`, `[DEPLOY][SMOKE]` |
-| CD deploy / secrets | `[DEPLOY]` |
-| Infra Bicep deploy | `[DEPLOY][INFRA]` |
+| Infra / CD Bicep deploy | `[DEPLOY][INFRA]` |
 | CI tests / harness / versions | `[CI][TEST]`, `[CI][HARNESS]`, `[CI][VERSIONS]`, `[CI][CACHE]` |
 | Dev / local tooling | `[DEV]`, `[DOTNET]`, `[MIGRATE]`, `[TEST]` |
 
@@ -57,7 +56,7 @@ Set `LOG_PREFIX` **before** sourcing `common.sh`.
 
 Keep `#!/bin/sh`, POSIX-only, no bash `common.sh`. English comments, `set -e`, minimal headers.
 
-## CI and CD workflows ([`ci-v2.yml`](.github/workflows/ci-v2.yml), [`cd-v1.yml`](.github/workflows/cd-v1.yml))
+## CI and CD workflows ([`ci-v2.yml`](.github/workflows/ci-v2.yml), [`cd-v2.yml`](.github/workflows/cd-v2.yml))
 
 Shared conventions:
 

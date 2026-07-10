@@ -81,7 +81,7 @@ Tier 4 (needs compose-build)
 
 **Runtime images:** CI/CD and harness use `docker-compose.runtime.yml` (slim Dockerfiles COPY prebuilt binaries). Local `docker compose up --build` still uses multi-stage Dockerfiles for ad-hoc dev.
 
-**CD** mirrors CI compile step: `azure-cd-build-push.sh` runs `dotnet-publish.sh` + `build-workers-release.sh`, then pushes runtime images (web, workers, monitoring). **`tangle-study-api` removed from repo** — Azure Bicep/parameters still reference it until cutover.
+**CD** mirrors CI compile step: `azure-cd-build-push.sh` runs `dotnet-publish.sh` + `build-workers-release.sh`, then pushes runtime images (gateway, users, media, chat, location, community, group, social, web, workers, monitoring). Azure Bicep loops `parameters.prod.json` → `containerApps` / `migrateJobs` on every deploy (`cd-v2.yml`).
 
 ### Adding the next service
 
@@ -187,9 +187,9 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 
 | Item | Notes |
 |------|-------|
-| Azure media Container App | CD + Bicep/parameters |
-| `nginx.production.conf` media upstream | Strangler for prod |
-| Worker `API_BASE_URL` on Azure | Point at media-service, not monolith |
+| First prod CD cutover | Run `cd-v2.yml` once with `GATEWAY_SECRET` + `INTERNAL_SERVICE_SECRET` set; delete orphaned `tangle-study-api` / `tangle-study-migrate` if present |
+
+Azure Container Apps for media, chat, location, community, group, social, users, and gateway are defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) and provisioned by Bicep on every CD run. Worker `API_BASE_URL` values point at the matching service short names. `nginx.production.conf` upstream is `tangle-study-gateway` via web env.
 
 **Dev data:** uploads live in `media."MediaAssets"`. Legacy `public."MediaAssets"` is gone — reset the Compose DB volume if you need a clean slate.
 
@@ -222,13 +222,9 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | Monolith cleanup (`Domain/Chat`, public chat tables) | Done |
 | `Chat.Tests` + monolith boundary tests (historical) | Done |
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure chat Container App | CD + Bicep/parameters |
-| `nginx.production.conf` chat upstream | Strangler for prod |
-| Worker `API_BASE_URL` on Azure | Point at chat-service, not monolith |
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
 
 **Dev data:** chat rows live in `chat` schema. Legacy `public."Chat*"` tables are dropped by `RemoveMonolithChatTables` — reset the Compose DB volume if you need a clean slate.
 
@@ -278,13 +274,9 @@ Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `loc
 | Monolith cleanup (`Domain/Location`, public location tables) | Done |
 | `Location.Tests` + monolith boundary tests (historical) | Done |
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure location Container App | CD + Bicep/parameters |
-| `nginx.production.conf` location upstream | Strangler for prod |
-| Worker `API_BASE_URL` on Azure | Point at location-service, not monolith |
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
 
 **Dev data:** pins and sessions live in `location` schema. Legacy `public."MapPins"` / `public."LocationSessions"` are dropped by `RemoveMonolithLocationTables` — reset the Compose DB volume if you need a clean slate.
 
@@ -322,12 +314,9 @@ community ──ILocationClient──► location
 
 Postgres: `community` schema (`Posts`, `Comments`). Legacy `public."Posts"` / `public."Comments"` dropped by `RemoveMonolithCommunityTables`.
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure community Container App | CD + Bicep/parameters |
-| `nginx.production.conf` community upstream | Strangler for prod |
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
 
 ## Step 5 — group-service (`develop`: done)
 
@@ -348,12 +337,9 @@ group ──ILocationClient──► location (end-sessions)
 
 Postgres: `group` schema. Legacy `public` group tables dropped by `RemoveMonolithGroupTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [GROUP.md](../services/Group/GROUP.md).
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure group Container App | CD + Bicep/parameters |
-| `nginx.production.conf` group upstream | Strangler for prod |
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
 
 ## Step 6 — social-service (friendships + user-blocks) (`develop`: done)
 
@@ -370,14 +356,11 @@ social ──IUserClient──► users (users, nicknames, friends-list visibili
 
 Postgres: `social` schema (`Friendships`, `FriendRequests`, `UserBlocks`). Legacy `public` social tables dropped by `RemoveMonolithSocialTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [SOCIAL.md](../services/Social/SOCIAL.md).
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure social Container App | CD + Bicep/parameters |
-| `nginx.production.conf` social upstream | Strangler for prod |
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
 
-## Step 7 — users-service + gateway (`develop`: Compose done; Azure open)
+## Step 7 — users-service + gateway (`develop`: Compose done; Azure in parameters)
 
 Users and gateway are **separate deployables** (not combined). Users owns identity; gateway owns routing and JWT validation. **Compose dev stack is complete**; Azure/CD and `nginx.production.conf` remain open.
 
@@ -425,15 +408,9 @@ users ──I*Client──► community, media, chat, group, social, location (u
 | Local Prometheus/Grafana scrape targets | Done (users, media, chat, location, community, group, social) |
 | Stack harness through gateway | Done (`run-stack-harness.sh` starts full module-filtered stack) |
 
-### Still open (before `main` cutover)
+### Azure cutover
 
-| Item | Notes |
-|------|-------|
-| Azure users + gateway Container Apps | CD + Bicep/parameters |
-| `nginx.production.conf` gateway upstream | Strangler for prod |
-| Azure domain Container Apps (media, chat, location, community, group, social) | CD + Bicep/parameters per service |
-
-Azure/nginx.production cutover deferred. See [Strangler edge](#strangler-edge) below.
+Users + gateway Container Apps, YARP cluster addresses, and web → `tangle-study-gateway` upstream are in [`parameters.prod.json`](../infra/azure/parameters.prod.json). Domain services and workers are co-deployed by the same Bicep pass. See [Step 1 — Still open](#still-open-before-main-cutover).
 
 ---
 
@@ -442,6 +419,6 @@ Azure/nginx.production cutover deferred. See [Strangler edge](#strangler-edge) b
 | Environment | Edge | Routing |
 |-------------|------|---------|
 | **Compose (`develop`)** | `infra/nginx/nginx.conf` | All `/api/*`, `/hubs/*`, `/internal/*` → `gateway:8080`; gateway YARP routes to users, media, chat, location, community, group, social |
-| **Azure (`main`)** | `infra/nginx/nginx.production.conf` | Still monolith-only until cutover |
+| **Azure (`main`)** | `infra/nginx/nginx.production.conf` | All `/api/*`, `/hubs/*`, `/health` → `tangle-study-gateway` (via `TANGLE_API_UPSTREAM`) |
 
 Gateway validates JWT once; services receive identity via `X-User-Id` (trusted gateway secret). Login/JWT issuance stays on users-service.
