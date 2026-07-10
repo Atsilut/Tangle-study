@@ -140,10 +140,16 @@ pub fn record_job_processed(stream_key: &str, outcome: JobOutcome) {
 
 pub async fn refresh_queue_gauges(conn: &mut ConnectionManager, config: &Config) -> Result<()> {
     let stream = config.full_stream_key();
-    let pending: redis::streams::StreamPendingReply = conn
+    let pending: redis::streams::StreamPendingReply = match conn
         .xpending(&stream, &config.stream.consumer_group)
         .await
-        .with_context(|| format!("XPENDING summary on stream {stream}"))?;
+    {
+        Ok(pending) => pending,
+        Err(err) if crate::error::is_transient_redis_error(&err) => return Ok(()),
+        Err(err) => {
+            return Err(err).with_context(|| format!("XPENDING summary on stream {stream}"));
+        }
+    };
 
     gauge!(
         "tangle_worker_pending_messages",
@@ -152,10 +158,13 @@ pub async fn refresh_queue_gauges(conn: &mut ConnectionManager, config: &Config)
     .set(pending.count() as f64);
 
     let dlq_stream = config.dlq_stream_key();
-    let dlq_length: usize = conn
-        .xlen(&dlq_stream)
-        .await
-        .with_context(|| format!("XLEN on stream {dlq_stream}"))?;
+    let dlq_length: usize = match conn.xlen(&dlq_stream).await {
+        Ok(length) => length,
+        Err(err) if crate::error::is_transient_redis_error(&err) => return Ok(()),
+        Err(err) => {
+            return Err(err).with_context(|| format!("XLEN on stream {dlq_stream}"));
+        }
+    };
 
     gauge!(
         "tangle_worker_dlq_length",

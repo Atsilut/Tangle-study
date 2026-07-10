@@ -1,6 +1,26 @@
 use std::error::Error as StdError;
 use std::fmt;
 
+use redis::RedisError;
+
+/// Transient Redis client errors that should not crash the consumer loop.
+///
+/// Includes blocking-read idle timeouts and stale connections (e.g. after long
+/// handler work while the shared connection sat idle).
+pub fn is_transient_redis_error(err: &RedisError) -> bool {
+    let message = err.to_string().to_ascii_lowercase();
+    message.contains("timed out")
+        || message.contains("broken pipe")
+        || message.contains("connection reset")
+        || message.contains("connection refused")
+        || message.contains("connection aborted")
+}
+
+/// Backward-compatible alias for callers that only handled idle read timeouts.
+pub fn is_redis_timeout(err: &RedisError) -> bool {
+    is_transient_redis_error(err)
+}
+
 /// Marker for poison-pill stream entries that should be acked, not retried.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MalformedJob;
@@ -44,6 +64,34 @@ pub fn wrap_malformed(err: impl Into<anyhow::Error>) -> anyhow::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_redis_timeout_detects_idle_read_timeouts() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::TimedOut, "timed out");
+        let err: RedisError = io_err.into();
+        assert!(is_redis_timeout(&err));
+    }
+
+    #[test]
+    fn is_transient_redis_error_detects_broken_pipe() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, "broken pipe");
+        let err: RedisError = io_err.into();
+        assert!(is_transient_redis_error(&err));
+    }
+
+    #[test]
+    fn is_transient_redis_error_detects_connection_reset() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "connection reset");
+        let err: RedisError = io_err.into();
+        assert!(is_transient_redis_error(&err));
+    }
+
+    #[test]
+    fn is_transient_redis_error_rejects_unrelated_errors() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::InvalidData, "bad data");
+        let err: RedisError = io_err.into();
+        assert!(!is_transient_redis_error(&err));
+    }
 
     #[test]
     fn is_malformed_detects_marker_in_chain() {

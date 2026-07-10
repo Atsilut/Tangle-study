@@ -20,7 +20,7 @@ pub async fn bootstrap(worker_name: &str, config: Config, handler: &dyn StreamHa
     telemetry::init(&config).context("initialize telemetry")?;
 
     let client = Client::open(config.stream.redis_url.as_str()).context("open redis client")?;
-    let mut connection = ConnectionManager::new(client)
+    let mut connection = ConnectionManager::new(client.clone())
         .await
         .context("connect to redis")?;
     let pong: String = redis::cmd("PING")
@@ -46,6 +46,6 @@ pub async fn bootstrap(worker_name: &str, config: Config, handler: &dyn StreamHa
             "starting {worker_name}"
         );
 
-        consumer::run(config, connection, handler).await
+        consumer::run(config, client, handler).await
     }
 }
