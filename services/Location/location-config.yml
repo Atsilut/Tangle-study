@@ -1,0 +1,18 @@
+# Service config baked into the image. CD may replace this file or override via env (Redis__WorkQueueStreamPrefix).
+Redis:
+  InstanceName: "tangle:"
+  WorkQueueStreamPrefix: "tangle:queue:"
+  SignalRChannelPrefix: "tangle:signalr:"
+
+LocationSafety:
+  StalePositionMinutes: 3
+  LivePositionTtlMinutes: 5
+  MonitorIntervalSeconds: 60
+  SosCooldownSeconds: 60
+
+LocationCluster:
+  RateLimitPerMinute: 120
+
+Places:
+  Enabled: false
+  RateLimitPerMinute: 30

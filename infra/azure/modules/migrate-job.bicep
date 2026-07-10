@@ -5,8 +5,12 @@ param managedEnvironmentId string
 param containerImage string
 param cpu string = '0.5'
 param memory string = '1Gi'
-param envVars array = []
+param env object = {}
 param secretEnvVars array = []
+@secure()
+param secretValues object = {}
+@description('Container command, e.g. ["dotnet", "Users.dll", "--migrate"].')
+param command array = ['dotnet', 'Users.dll', '--migrate']
 param registryLoginServer string = ''
 param registryUsername string = ''
 @secure()
@@ -22,9 +26,17 @@ var registrySecrets = hasRegistry ? [
   }
 ] : []
 
-var appSecretDefinitions = [for item in secretEnvVars: {
-  name: item.name
-  value: item.?value ?? 'pending-deploy'
+var envVars = [for item in items(env): {
+  name: item.key
+  value: string(item.value)
+}]
+
+var allSecretNames = [for item in secretEnvVars: item.name]
+var uniqueSecretNames = empty(allSecretNames) ? [] : union(allSecretNames, allSecretNames)
+
+var appSecretDefinitions = [for secretName in uniqueSecretNames: {
+  name: secretName
+  value: secretValues[?secretName] ?? 'pending-deploy'
 }]
 
 var secretEnvMappings = [for item in secretEnvVars: {
@@ -61,11 +73,7 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
             memory: memory
           }
           env: concat(envVars, secretEnvMappings)
-          command: [
-            'dotnet'
-            'Api.dll'
-            '--migrate'
-          ]
+          command: command
         }
       ]
     }

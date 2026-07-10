@@ -10,6 +10,7 @@ import {
   stopLocationSession,
   triggerLocationSos,
   updateLocationSessionPosition,
+  CLUSTERS_PENDING,
   MIN_CLUSTER_ZOOM,
   MAX_CLUSTER_ZOOM,
   type LocationPositionUpdateRequest,
@@ -35,6 +36,10 @@ export const locationKeys = {
     [...locationKeys.all, 'sessions', 'members', groupId] as const,
 }
 
+const CLUSTER_PENDING_POLL_MS = 2000
+/** Stop polling after ~30s if the worker never fills the cache. */
+const CLUSTER_PENDING_MAX_POLLS = 15
+
 export function useMapClusters(bounds: MapBounds | null, zoom: number | null) {
   const clusterZoom =
     zoom != null
@@ -46,8 +51,13 @@ export function useMapClusters(bounds: MapBounds | null, zoom: number | null) {
     queryFn: () => getMapClustersInBounds(bounds as MapBounds, clusterZoom as number),
     enabled: bounds != null && clusterZoom != null,
     staleTime: 30_000,
-    refetchInterval: (query) =>
-      query.state.fetchStatus === 'idle' && (query.state.data?.length ?? 0) === 0 ? 2000 : false,
+    // Poll only while API returns 204 (pending). Empty 200 [] means done — do not loop.
+    refetchInterval: (query) => {
+      if (query.state.fetchStatus !== 'idle') return false
+      if (query.state.data !== CLUSTERS_PENDING) return false
+      if (query.state.dataUpdateCount >= CLUSTER_PENDING_MAX_POLLS) return false
+      return CLUSTER_PENDING_POLL_MS
+    },
     placeholderData: (previous) => previous,
   })
 }

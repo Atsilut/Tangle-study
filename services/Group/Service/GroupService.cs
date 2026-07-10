@@ -1,0 +1,196 @@
+using Group.Client;
+using Group.Entities;
+using Group.Dto;
+using Group.Repository;
+using Group.Db;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
+using Group.Infrastructure;
+using GroupEntity = Group.Entities.Group;
+using Tangle.AspNetCore.Db;
+
+namespace Group.Service
+{
+    [Service]
+    public class GroupService(
+        IGroupRepository repo,
+        GroupMembershipService membership,
+        IUserClient userClient,
+        GroupDbContext db,
+        CurrentUserAccessor currentUser,
+        Lazy<GroupInvitationService> invitationService,
+        Lazy<GroupApplicationService> applicationService,
+        Lazy<GroupBlacklistService> blacklistService,
+        Lazy<GroupBoardService> boardService,
+        ICommunityClient communityClient,
+        ILocationClient locationClient)
+    {
+        private readonly IGroupRepository _repo = repo;
+        private readonly GroupMembershipService _membership = membership;
+        private readonly IUserClient _userClient = userClient;
+        private readonly GroupDbContext _db = db;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
+        private readonly Lazy<GroupInvitationService> _invitationService = invitationService;
+        private readonly Lazy<GroupApplicationService> _applicationService = applicationService;
+        private readonly Lazy<GroupBlacklistService> _blacklistService = blacklistService;
+        private readonly Lazy<GroupBoardService> _boardService = boardService;
+        private readonly ICommunityClient _communityClient = communityClient;
+        private readonly ILocationClient _locationClient = locationClient;
+
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
+
+        public async Task<GroupEntity> GetGroupOrThrowAsync(long id, string notFoundMessage = "Group not found") =>
+            await _repo.GetGroupByIdAsync(id) ?? throw new EntityNotFoundException(notFoundMessage);
+
+        public Task<IReadOnlyDictionary<long, string>> GetGroupNamesByIdsAsync(IEnumerable<long> ids) =>
+            _repo.GetGroupNamesByIdsAsync(ids);
+
+        public async Task EnsureGroupExistsAsync(long id, string notFoundMessage = "Group not found", int statusCode = StatusCodes.Status404NotFound)
+        {
+            if (!await _repo.ExistsGroupByIdAsync(id)) throw new EntityNotFoundException(notFoundMessage, statusCode);
+        }
+
+        public async Task<GroupGetResponseDto> CreateGroupAsync(GroupCreateRequestDto request)
+        {
+            var creatorId = GetUserIdFromLogin();
+            await _userClient.EnsureUserExistsAsync(creatorId, "Authentication failed", StatusCodes.Status400BadRequest);
+
+            var group = new GroupEntity(
+                request.Name,
+                request.Description,
+                request.Visibility,
+                request.JoinPolicy ?? GroupJoinPolicy.Requestable,
+                request.InvitePolicy ?? GroupInvitePolicy.AdminsOnly);
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _repo.CreateGroupAsync(group);
+                await _membership.AddMemberInternalAsync(group.Id, creatorId, GroupRole.Owner);
+            });
+
+            return MapToDto(group, 1);
+        }
+
+        public async Task<GroupGetResponseDto> GetGroupAsync(long id)
+        {
+            var group = await GetGroupOrThrowAsync(id);
+            var memberCount = await _membership.CountMembersAsync(id);
+            var userId = GetUserIdFromLogin();
+
+            if (group.Visibility == GroupVisibility.Private
+                && !await _membership.IsMemberAsync(id, userId))
+                return MapToLimitedDto(group, memberCount);
+
+            return MapToDto(group, memberCount);
+        }
+
+        public async Task<List<GroupGetResponseDto>?> ListDiscoverableGroupsAsync()
+        {
+            var groups = await _repo.GetPublicGroupsAsync();
+            if (groups.Count == 0) return null;
+            return await MapManyToDtosAsync(groups);
+        }
+
+        public async Task<List<GroupGetResponseDto>?> ListMyGroupsAsync()
+        {
+            var userId = GetUserIdFromLogin();
+            var memberships = await _membership.GetMembershipsByUserAsync(userId);
+            if (memberships.Count == 0) return null;
+
+            var groups = await _repo.GetGroupsByIdsAsync([.. memberships.Select(m => m.GroupId)]);
+            if (groups.Count == 0) return null;
+            return await MapManyToDtosAsync(groups);
+        }
+
+        public async Task<GroupGetResponseDto> UpdateGroupAsync(GroupPatchRequestDto request)
+        {
+            var callerId = GetUserIdFromLogin();
+            await _membership.EnsureAdminOrOwnerAsync(request.Id, callerId);
+
+            var group = await GetGroupOrThrowAsync(request.Id);
+            group.UpdateDetails(
+                request.Name,
+                request.Description,
+                request.Visibility,
+                request.JoinPolicy,
+                request.InvitePolicy);
+            await _repo.UpdateGroupAsync(group);
+
+            var memberCount = await _membership.CountMembersAsync(group.Id);
+            return MapToDto(group, memberCount);
+        }
+
+        public async Task<GroupGetResponseDto> TransferOwnershipAsync(GroupTransferOwnershipRequestDto request)
+        {
+            var callerId = GetUserIdFromLogin();
+            var ownerMember = await _membership.EnsureOwnerAsync(request.Id, callerId);
+            if (request.NewOwnerUserId == callerId) throw new ArgumentException("You already own this group.");
+
+            var newOwner = await _membership.GetMemberAsync(request.Id, request.NewOwnerUserId)
+                ?? throw new ArgumentException("Target user is not a member of this group.");
+
+            var group = await GetGroupOrThrowAsync(request.Id);
+            await _db.ExecuteInTransactionAsync(async () => await _membership.TransferOwnershipInternalAsync(request.Id, ownerMember, newOwner));
+
+            var memberCount = await _membership.CountMembersAsync(request.Id);
+            return MapToDto(group, memberCount);
+        }
+
+        public async Task DeleteGroupAsync(long id)
+        {
+            var callerId = GetUserIdFromLogin();
+            await _membership.EnsureOwnerAsync(id, callerId);
+
+            await DeleteGroupInternalAsync(id);
+        }
+
+        public async Task DeleteGroupInternalAsync(long groupId)
+        {
+            // Outbound HTTP cannot participate in the group DB transaction — run first so a
+            // failed remote cleanup does not leave group rows deleted while posts/sessions remain.
+            await _communityClient.DeleteAllByGroupAsync(groupId);
+            await _locationClient.EndSessionsForGroupAsync(groupId);
+
+            await _db.ExecuteInTransactionAsync(async () =>
+            {
+                await _invitationService.Value.DeleteAllByGroupAsync(groupId);
+                await _applicationService.Value.DeleteAllByGroupAsync(groupId);
+                await _blacklistService.Value.DeleteAllByGroupAsync(groupId);
+                await _boardService.Value.DeleteAllByGroupAsync(groupId);
+                await _membership.RemoveAllByGroupAsync(groupId);
+                var group = await GetGroupOrThrowAsync(groupId);
+                await _repo.DeleteGroupAsync(group);
+            });
+        }
+
+        private async Task<List<GroupGetResponseDto>> MapManyToDtosAsync(IReadOnlyList<GroupEntity> groups)
+        {
+            var groupIds = groups.Select(g => g.Id).ToList();
+            var memberCounts = await _membership.GetMemberCountsByGroupIdsAsync(groupIds);
+            return [.. groups.Select(g => MapToDto(g, memberCounts.GetValueOrDefault(g.Id, 0)))];
+        }
+
+        private static GroupGetResponseDto MapToDto(GroupEntity group, int memberCount) => new(
+            Id: group.Id,
+            Name: group.Name,
+            Description: group.Description,
+            Visibility: group.Visibility,
+            JoinPolicy: group.JoinPolicy,
+            InvitePolicy: group.InvitePolicy,
+            MemberCount: memberCount,
+            CreatedAt: group.CreatedAt,
+            UpdatedAt: group.UpdatedAt,
+            IsLimitedProfile: false);
+
+        private static GroupGetResponseDto MapToLimitedDto(GroupEntity group, int memberCount) => new(
+            Id: group.Id,
+            Name: group.Name,
+            Description: string.Empty,
+            Visibility: group.Visibility,
+            JoinPolicy: group.JoinPolicy,
+            InvitePolicy: group.InvitePolicy,
+            MemberCount: memberCount,
+            CreatedAt: default,
+            UpdatedAt: default,
+            IsLimitedProfile: true);
+    }
+}

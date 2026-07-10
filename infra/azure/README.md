@@ -2,6 +2,8 @@
 
 Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / low-cost** setup.
 
+**Single source of truth:** [`parameters.prod.json`](parameters.prod.json) defines every Container App (image, env, secret refs, ingress, replicas) and every EF migrate job. [`main.bicep`](main.bicep) loops over that map; CD ([`cd-v2.yml`](../../.github/workflows/cd-v2.yml)) runs Bicep on every deploy.
+
 ## What we avoid (no free tier)
 
 | Service | Alternative |
@@ -24,25 +26,34 @@ Bicep templates for Tangle on **Azure Container Apps**, tuned for a **study / lo
 
 ```
 infra/azure/
-  main.bicep                 # Per-environment stack
+  main.bicep                 # Data-driven stack (loops containerApps + migrateJobs)
   parameters.dev.json        # Optional local experiments (tangle-study-dev)
-  parameters.prod.json       # Production (tangle-study-prod) — CD target
+  parameters.prod.json       # Production (tangle-study-prod) — CD target / SSoT
   monitoring/
-    prometheus/              # Custom GHCR image (ACA scrape config)
+    prometheus/              # Custom GHCR image (ACA scrape config for MSA services)
     grafana/                 # Custom GHCR image (bundles infra/grafana provisioning)
   modules/
     infra-container.bicep    # Redis (internal TCP ingress on :6379)
     storage.bicep            # Blob only
     app-insights.bicep       # Application Insights (linked to Log Analytics)
-    container-app.bicep      # API, web, workers, monitoring (GHCR pull)
-    migrate-job.bicep
+    container-app.bicep      # Gateway, services, web, workers, monitoring (GHCR pull)
+    migrate-job.bicep        # Per-service EF migrate jobs
     ...
 ```
 
 ## Manual deploy (production)
 
+Pass the same secure values CD uses (or leave them empty for placeholder-only bootstrap):
+
 ```bash
-chmod +x scripts/azure-deploy-infra.sh
+POSTGRES_CONNECTION_STRING='...' \
+BLOB_CONNECTION_STRING='...' \
+JWT_SECRET='...' \
+WORKER_CALLBACK_SECRET='...' \
+METRICS_SCRAPE_SECRET='...' \
+GRAFANA_ADMIN_PASSWORD='...' \
+GATEWAY_SECRET='...' \
+INTERNAL_SERVICE_SECRET='...' \
 ./scripts/azure-deploy-infra.sh prod
 ```
 
@@ -60,178 +71,113 @@ Public GHCR images need **no** registry username/password on Container Apps.
 
 CD builds and pushes:
 
-- `ghcr.io/<org>/tangle-study/tangle-study-api:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-gateway:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-users:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-media:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-chat:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-location:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-community:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-group:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-social:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-web:<tag>`
-- `ghcr.io/<org>/tangle-study/tangle-study-worker:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-media:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-chat:<tag>`
+- `ghcr.io/<org>/tangle-study/tangle-study-worker-location:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-prometheus:<tag>`
 - `ghcr.io/<org>/tangle-study/tangle-study-grafana:<tag>`
 
-Exporter images (`postgres-exporter`, `redis-exporter`) use public Docker Hub tags from `docker/versions.prod.env` via Bicep parameters.
+Exporter images (`postgres-exporter`, `redis-exporter`) use public Docker Hub tags from `parameters.prod.json` → `infra`.
 
 Set `containerRegistry` in `parameters.prod.json` to match your org.
 
 `usePlaceholderImages: true` allows infra deploy before custom images exist —
-it swaps `api`/`web`/`worker` images for a public placeholder and sets
+it swaps gateway/service/web/worker images for a public placeholder and sets
 `targetPort: 80` (matching the placeholder's exposed port) instead of the
-real app port (`8080`). Prometheus/Grafana always use their upstream images
-regardless of this flag.
+real app port (`8080`). Prometheus/Grafana use their upstream images when
+this flag is true.
 
-**This is a one-time bootstrap switch, not a steady-state setting.** It only
-matters for the manual `azure-deploy-infra.sh` path (see
-[CD vs manual deploy](#cd-vs-manual-deploy) below) — once the stack has been
-bootstrapped and real images exist in GHCR, set it to `false` and leave it
-there. Routine CD deploys never read this flag at all.
+**Bootstrap switch only.** CD (`cd-v2.yml`) always passes `usePlaceholderImages=false`
+after pushing real images. Manual `azure-deploy-infra.sh` defaults to `true`.
 
 ## Internal networking
 
-Cross-app URLs in CD use **ACA short Container App names** (no `targetPort`, no internal FQDN). Centralized in [`scripts/cd/libs/azure-aca-urls.sh`](../../scripts/cd/libs/azure-aca-urls.sh) and injected by [`azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh).
+Cross-app URLs live in [`parameters.prod.json`](parameters.prod.json) as ACA **short Container App names** (no `targetPort`, no internal FQDN). Bicep applies them on every deploy.
 
 ### ACA short names: do not append `targetPort`
 
 Within a Container Apps Environment, HTTP ingress apps can be reached by **short app name**
-(e.g. `tangle-study-api`). This behaves differently from Docker Compose, where `api:8080`
+(e.g. `tangle-study-gateway`). This behaves differently from Docker Compose, where `gateway:8080`
 works because the service listens on that port directly.
 
 On ACA, the short name resolves to the **ingress front door** (port **80**), which forwards
-to the container's `targetPort` (8080 for our API). If you append `:8080` to the short name,
+to the container's `targetPort` (8080 for .NET services). If you append `:8080` to the short name,
 the client connects to the **pod IP on port 8080** instead of the ingress — and that port is
 not exposed on the pod network, so the connection **times out**.
 
 | Caller URL | Result |
 |------------|--------|
-| `http://tangle-study-api/health` | Works — ingress :80 → container :8080 |
-| `http://tangle-study-api:8080/health` | **Timeout** — hits pod IP :8080 directly |
-| `https://tangle-study-api.internal.<domain>/health` | Works — internal FQDN on :443 |
+| `http://tangle-study-gateway/health` | Works — ingress :80 → container :8080 |
+| `http://tangle-study-gateway:8080/health` | **Timeout** — hits pod IP :8080 directly |
+| `https://tangle-study-gateway.internal.<domain>/health` | Works — internal FQDN on :443 |
 
-**Symptoms when misconfigured** (`TANGLE_API_UPSTREAM=tangle-study-api:8080`):
-
-- Direct curl from web container to `http://tangle-study-api/health` → **200 Healthy**
-- Curl through nginx (`http://127.0.0.1/health`) → **504 Gateway Timeout**
-- Public smoke test (`https://<web-fqdn>/health`) → **504**
-- Nginx error log: `upstream timed out ... while connecting to upstream` to `100.100.x.x:8080`
-
-**Correct config:** set `TANGLE_API_UPSTREAM` to the short name **only** (no port):
+**Correct web config** (in `parameters.prod.json`):
 
 ```json
-"TANGLE_API_UPSTREAM": "tangle-study-api",
-"TANGLE_API_HOST": "tangle-study-api"
+"TANGLE_API_UPSTREAM": "tangle-study-gateway",
+"TANGLE_API_HOST": "tangle-study-gateway"
 ```
 
 Nginx renders this at container start ([`infra/nginx/docker-entrypoint.sh`](../nginx/docker-entrypoint.sh)).
-Changing the env var requires a **new web revision** — a running container keeps the old
-upstream until redeployed.
-
-**Verify from the web container** (after exec):
-
-```bash
-# Wrong upstream still baked in?
-grep -A1 'upstream tangle_api' /etc/nginx/conf.d/default.conf
-
-# Direct to API (bypasses nginx) — should work either way
-curl -sf http://tangle-study-api/health
-
-# Through nginx — fails until upstream omits :8080
-curl -sv http://127.0.0.1/health
-```
-
-**Fix in prod:**
-
-```bash
-az containerapp update -n tangle-study-web -g tangle-study-prod \
-  --set-env-vars TANGLE_API_UPSTREAM=tangle-study-api TANGLE_API_HOST=tangle-study-api
-```
-
-Or re-run CD [`scripts/cd/azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh), which reads
-[`parameters.prod.json`](parameters.prod.json).
-
-For **HTTP ingress** apps (API, Prometheus, workers, exporters, web→API), use the short Container App name
-**without a port** (e.g. `tangle-study-api`, `http://tangle-study-prometheus`). Internal FQDNs on :443 also work but CD does not use them.
 
 | App | Hostname (within environment) |
 |-----|------------------------------|
 | Postgres | **Neon** (external; not in ACA) |
 | Redis | `tangle-study-redis` (TCP; port 6379 implicit) |
-| API | `tangle-study-api` (HTTP ingress short name; port 80 implicit) |
-| Prometheus | `tangle-study-prometheus` (HTTP ingress short name) |
+| Gateway | `tangle-study-gateway` (HTTP ingress; web upstream) |
+| Users / Media / Chat / Location / Community / Group / Social | `tangle-study-<service>` |
+| Prometheus | `tangle-study-prometheus` |
 | Workers / exporters | `tangle-study-worker-*`, `tangle-study-postgres-exporter`, `tangle-study-redis-exporter` |
-| Web | public FQDN → proxies to API |
+| Web | public FQDN → proxies to gateway |
 | Grafana | public FQDN (external ingress) |
 
-Postgres connection string is injected by CD from GitHub secret `POSTGRES_CONNECTION_STRING` (API + migrate job). Postgres-exporter gets a derived `postgresql://` DSN for Neon. Redis host/URL is set at CD deploy (`Redis__ConnectionString=tangle-study-redis`, `REDIS_URL=redis://tangle-study-redis`, `REDIS_ADDR=tangle-study-redis`).
+Postgres connection string is a secure Bicep param from GitHub secret `POSTGRES_CONNECTION_STRING` (all DB services + migrate jobs). Postgres-exporter gets a derived `postgresql://` DSN. Redis short names are set in `parameters.prod.json`.
 
 ## CD vs manual deploy
 
-Two independent deploy paths exist, and they do **not** share state at
-runtime — keeping this straight matters, because an env var set by one path
-is invisible to the other.
+Both paths run the **same** `main.bicep` against `parameters.prod.json`. Secrets are `@secure()` Bicep params (never stored in the JSON file).
 
-- **Manual (`azure-deploy-infra.sh` → `main.bicep`)**: one-time bootstrap.
-  Provisions the Container Apps Environment, Redis, storage, monitoring,
-  and seeds the *initial* container env vars/secrets (including a computed
-  `TANGLE_API_UPSTREAM` for web, based on `usePlaceholderImages`). This is
-  meant for first-time setup or infra-only changes (module edits), and is
-  not re-run automatically by CD.
-- **CD (`main` branch / Deploy workflow → `scripts/cd/azure-cd-deploy-image.sh`)**:
-  the routine deploy path. Builds and pushes GHCR images, waits for
-  propagation, then calls `az containerapp update --set-env-vars` per app
-  using **`parameters.prod.json` → `containerApps.<name>.env` as the single
-  source of truth**. It does **not** re-run Bicep, so any env var that only
-  exists in `main.bicep` — and isn't also listed in
-  `parameters.prod.json` — will never be updated by CD and can silently
-  drift from what Bicep would compute (this bit us once with
-  `TANGLE_API_UPSTREAM` pointing at the wrong port after switching
-  `usePlaceholderImages`).
+- **Manual (`azure-deploy-infra.sh`)**: bootstrap or infra-only experiments. Defaults `usePlaceholderImages=true`. Pass secure env vars when you want real secret values.
+- **CD (`cd-v2.yml` → [`azure-cd-deploy-bicep.sh`](../../scripts/cd/azure-cd-deploy-bicep.sh))**: routine path. Builds/pushes GHCR images, then `az deployment group create` with `imageTag=<sha>`, `usePlaceholderImages=false`, and GitHub Environment secrets. Then runs per-service migrate jobs and smoke tests.
 
-**Practical rule:** if a container app's env var can change (ports,
-hostnames, feature flags), define it explicitly in `parameters.prod.json`'s
-`containerApps` block, not just in `main.bicep`. Treat `main.bicep`'s
-computed env values (like `apiAppUpstream`) as bootstrap defaults only —
-`parameters.prod.json` overrides them on every subsequent CD run.
-
-Because CD never re-runs Bicep, a full clean deploy through CD alone is
-always safe with `usePlaceholderImages: false` — CD builds and pushes real
-images before touching any Container App, regardless of what that flag says.
-The flag only matters if you're re-running the manual bootstrap script.
+**Practical rule:** add or change an app only in `parameters.prod.json` (`containerApps` / `migrateJobs`). Do not hardcode new apps in `main.bicep`.
 
 ## Monitoring on ACA
 
 | Container App | Ingress | Notes |
 |---------------|---------|-------|
-| `tangle-study-postgres-exporter` | internal :9187 | Scrapes Neon (`DATA_SOURCE_NAME` from CD) |
+| `tangle-study-postgres-exporter` | internal :9187 | Scrapes Neon (`DATA_SOURCE_NAME` from Bicep) |
 | `tangle-study-redis-exporter` | internal :9121 | Scrapes internal Redis |
-| `tangle-study-prometheus` | internal | Custom GHCR image; scrapes API, workers, exporters (short names) |
+| `tangle-study-prometheus` | internal | Custom GHCR image; scrapes gateway + 7 services + workers + exporters |
 | `tangle-study-grafana` | **external** :3000 | Custom GHCR image; login `admin` / `GRAFANA_ADMIN_PASSWORD` |
 
 **CD path:** [`scripts/cd/azure-cd-build-push.sh`](../../scripts/cd/azure-cd-build-push.sh) builds
-`tangle-study-prometheus` and `tangle-study-grafana` from [`monitoring/`](monitoring/) (bundles
-[`infra/grafana/provisioning/`](../grafana/provisioning/) and recording rules). Deploy sets image +
-env from [`parameters.prod.json`](parameters.prod.json); [`azure-cd-deploy-image.sh`](../../scripts/cd/azure-cd-deploy-image.sh)
-injects cross-app URLs from [`azure-aca-urls.sh`](../../scripts/cd/libs/azure-aca-urls.sh) (e.g.
-`PROMETHEUS_URL=http://tangle-study-prometheus`, `REDIS_URL=redis://tangle-study-redis`). Do **not** deploy vanilla `prom/prometheus` or `grafana/grafana` — they skip the ACA entrypoints and provisioning.
+`tangle-study-prometheus` and `tangle-study-grafana` from [`monitoring/`](monitoring/).
+Do **not** deploy vanilla `prom/prometheus` or `grafana/grafana` — they skip the ACA entrypoints and provisioning.
 
 Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../grafana/provisioning/). See [infra/README.md](../README.md) for metric and alert details. Short names must omit `targetPort` — see [ACA short names](#aca-short-names-do-not-append-targetport).
 
 ## After Bicep deploy
 
-> **Clean deploy order matters.** For a brand-new stack, run the manual
-> `azure-deploy-infra.sh` bootstrap once (with `usePlaceholderImages: true`
-> only if GHCR images don't exist yet) to create the Container Apps
-> Environment, Redis, storage, and monitoring shells. After that, all
-> routine deploys — including future clean redeploys of app containers —
-> go through the **Deploy** GitHub Actions workflow, which builds and
-> pushes GHCR images first and then updates each Container App directly
-> from `parameters.prod.json` (see [CD vs manual deploy](#cd-vs-manual-deploy)).
-> The manual script is not part of this routine loop and should not need
-> to be re-run unless infra itself (Bicep modules) changes.
+> For a brand-new stack, run `azure-deploy-infra.sh prod` once (placeholders OK if GHCR images do not exist yet). After that, routine deploys go through **Deploy** (`cd-v2.yml`), which builds images then re-runs Bicep from `parameters.prod.json`.
 
 1. Create a Neon project and database; copy the Npgsql connection string.
 2. Copy storage account connection string → GitHub secret `BLOB_CONNECTION_STRING`.
-3. Set GitHub Environment **`prod`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_CONNECTION_STRING` and `GRAFANA_ADMIN_PASSWORD`.
-4. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and updates Container Apps.
-5. Migrate runs automatically via `scripts/cd/azure-cd-migrate.sh` in the deploy workflow.
-6. Smoke tests run via `scripts/cd/azure-cd-smoke.sh` (`/health` + SPA shell).
+3. Set GitHub Environment **`prod`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_CONNECTION_STRING`, `GATEWAY_SECRET`, `INTERNAL_SERVICE_SECRET`, and `GRAFANA_ADMIN_PASSWORD`.
+4. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and runs Bicep.
+5. Migrate runs automatically via `scripts/cd/azure-cd-migrate.sh` (one job per DB-owning service).
+6. Smoke tests run via `scripts/cd/azure-cd-smoke.sh` (`/health` via web → gateway + SPA shell).
 
-If upgrading from an older stack with `tangle-study-postgres`, delete the orphaned Container App and `postgres-data` file share after redeploying Bicep.
+If upgrading from an older stack with `tangle-study-api` / `tangle-study-migrate`, delete those orphaned resources after the MSA cutover deploy.
 
 ## Resource groups
 
@@ -242,16 +188,16 @@ If upgrading from an older stack with `tangle-study-postgres`, delete the orphan
 
 ## Redis on ACA (trade-offs)
 
-API and workers are **stateless**; Redis holds shared ephemeral state (cache, SignalR backplane, Streams, live positions). This is the correct pattern for multi-replica ACA.
+API services and workers are **stateless**; Redis holds shared ephemeral state (cache, SignalR backplane, Streams, live positions). This is the correct pattern for multi-replica ACA.
 
 | Risk | Impact |
 |------|--------|
 | No persistence volume on ACA Redis | Restart wipes cache/streams/live positions; Neon is source of truth |
-| Single replica SPOF | Redis down → API `/health` fails, queues/SignalR stop |
+| Single replica SPOF | Redis down → health checks / queues / SignalR stop |
 | Workers scale to 0 | Streams backlog while cold; data lost only if Redis also restarts |
 | No TLS on internal Redis | OK within CAE; revisit if moving to managed Redis |
 
-Scale-to-zero workers (`workerMinReplicas: 0`) save cost; Redis and monitoring stay at `minReplicas: 1`.
+Scale-to-zero workers (`minReplicas: 0` in `parameters.prod.json`) save cost; Redis and monitoring stay at `minReplicas: 1`.
 
 ## Why not Postgres on ACA
 
@@ -269,6 +215,6 @@ Azure Container Apps is a good fit for **stateless** app containers. The first p
 
 For a learning deployment with no data-migration requirement, **Neon** (free tier, SSL, no ACA networking) replaces self-hosted Postgres. Redis remains on ACA because it holds **ephemeral** state only; Postgres is the **source of truth** and belongs in managed storage.
 
-**Current wiring:** GitHub secret `POSTGRES_CONNECTION_STRING` → CD inject into API and migrate job; `tangle-study-postgres-exporter` scrapes Neon via a derived DSN (see [Monitoring on ACA](#monitoring-on-aca) above).
+**Current wiring:** GitHub secret `POSTGRES_CONNECTION_STRING` → Bicep secure param into all DB services and migrate jobs; `tangle-study-postgres-exporter` scrapes Neon via a derived DSN (see [Monitoring on ACA](#monitoring-on-aca) above).
 
 **Upgrading from an old stack:** delete orphaned `tangle-study-postgres` Container App and `postgres-data` file share after redeploying Bicep (see [After Bicep deploy](#after-bicep-deploy)).

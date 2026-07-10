@@ -4,6 +4,7 @@ set -euo pipefail
 export DOCKER_BUILDKIT=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
 LOG_PREFIX="[DEPLOY][BUILD]"
 # shellcheck source=scripts/shared/common.sh
 source "$ROOT/scripts/shared/common.sh"
@@ -13,6 +14,7 @@ require_env IMAGE_TAG
 
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 NGINX_PROD_CONF="infra/nginx/nginx.production.conf"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker/versions.prod.env}"
 
 [[ -f "$PARAM_FILE" ]] || fail "missing parameter file: $PARAM_FILE"
 
@@ -35,20 +37,48 @@ PROMETHEUS_IMG="$(param_infra_image prometheus)"
 GRAFANA_IMG="$(param_infra_image grafana)"
 
 ############################################
+log_step "RENDER PINNED VERSIONS"
+bash "$ROOT/scripts/ci/render-versions-env.sh" "$COMPOSE_ENV_FILE"
+
+############################################
+log_step "COMPILE ARTIFACTS"
+export COMPOSE_ENV_FILE
+SKIP_TESTS=1 bash "$ROOT/scripts/ci/build-workers-release.sh"
+bash "$ROOT/scripts/ci/dotnet-publish.sh"
+
+############################################
 log_step "BUILD IMAGES"
 
 IMAGES=(
-  tangle-study-api
+  tangle-study-gateway
+  tangle-study-users
+  tangle-study-media
+  tangle-study-chat
+  tangle-study-location
+  tangle-study-community
+  tangle-study-group
+  tangle-study-social
   tangle-study-web
-  tangle-study-worker
+  tangle-study-worker-media
+  tangle-study-worker-chat
+  tangle-study-worker-location
   tangle-study-prometheus
   tangle-study-grafana
 )
 
 declare -A DOCKERFILE_MAP=(
-  [tangle-study-api]="services/Api/Dockerfile"
+  [tangle-study-gateway]="services/Gateway/Dockerfile.runtime"
+  [tangle-study-users]="services/Users/Dockerfile.runtime"
+  [tangle-study-media]="services/Media/Dockerfile.runtime"
+  [tangle-study-chat]="services/Chat/Dockerfile.runtime"
+  [tangle-study-location]="services/Location/Dockerfile.runtime"
+  [tangle-study-community]="services/Community/Dockerfile.runtime"
+  [tangle-study-group]="services/Group/Dockerfile.runtime"
+  [tangle-study-social]="services/Social/Dockerfile.runtime"
   [tangle-study-web]="clients/web/Dockerfile"
-  [tangle-study-worker]="workers/rust-worker/Dockerfile"
+  [tangle-study-worker-media]="workers/docker/Dockerfile.runtime.media"
+  [tangle-study-worker-chat]="workers/docker/Dockerfile.runtime.chat"
+  [tangle-study-worker-location]="workers/docker/Dockerfile.runtime.location"
   [tangle-study-prometheus]="infra/azure/monitoring/prometheus/Dockerfile"
   [tangle-study-grafana]="infra/azure/monitoring/grafana/Dockerfile"
 )
@@ -58,8 +88,8 @@ set_build_args() {
   BUILD_ARGS=()
 
   case "$image" in
-    tangle-study-api)
-      BUILD_ARGS+=("--build-arg" "DOTNET_SDK_IMAGE=$DOTNET_SDK" "--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
+    tangle-study-gateway|tangle-study-users|tangle-study-media|tangle-study-chat|tangle-study-location|tangle-study-community|tangle-study-group|tangle-study-social)
+      BUILD_ARGS+=("--build-arg" "DOTNET_ASPNET_IMAGE=$DOTNET_ASPNET")
       ;;
     tangle-study-web)
       BUILD_ARGS+=(
@@ -68,8 +98,8 @@ set_build_args() {
         "--build-arg" "NGINX_CONF=$NGINX_PROD_CONF"
       )
       ;;
-    tangle-study-worker)
-      BUILD_ARGS+=("--build-arg" "RUST_IMAGE=$RUST_IMG" "--build-arg" "DEBIAN_IMAGE=$DEBIAN_IMG")
+    tangle-study-worker-media|tangle-study-worker-chat|tangle-study-worker-location)
+      BUILD_ARGS+=("--build-arg" "DEBIAN_IMAGE=$DEBIAN_IMG")
       ;;
     tangle-study-prometheus)
       BUILD_ARGS+=("--build-arg" "PROMETHEUS_IMAGE=$PROMETHEUS_IMG")

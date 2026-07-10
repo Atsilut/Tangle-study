@@ -1,0 +1,41 @@
+namespace Tangle.TestSupport.Auth;
+
+public static class GatewayTestAuthHelpers
+{
+    public const string TestGatewaySecret = TestWebHostConfiguration.GatewaySecret;
+    public const string TestInternalServiceSecret = TestWebHostConfiguration.InternalServiceSecret;
+
+    public static void LoginAs(HttpClient client, long userId)
+    {
+        client.DefaultRequestHeaders.Remove("X-Internal-Secret");
+        client.DefaultRequestHeaders.Remove("Authorization");
+        client.DefaultRequestHeaders.Remove("X-User-Id");
+        client.DefaultRequestHeaders.Remove("X-Gateway-Secret");
+        client.DefaultRequestHeaders.Add("X-Gateway-Secret", TestGatewaySecret);
+        client.DefaultRequestHeaders.Add("X-User-Id", userId.ToString());
+    }
+
+    public static void LoginAsInternal(HttpClient client, long? userId = null)
+    {
+        client.DefaultRequestHeaders.Remove("Authorization");
+        client.DefaultRequestHeaders.Remove("X-Gateway-Secret");
+        client.DefaultRequestHeaders.Remove("X-User-Id");
+        client.DefaultRequestHeaders.Remove("X-Internal-Secret");
+
+        if (userId is not null)
+        {
+            client.DefaultRequestHeaders.Add("X-Gateway-Secret", TestGatewaySecret);
+            client.DefaultRequestHeaders.Add("X-User-Id", userId.Value.ToString());
+        }
+
+        client.DefaultRequestHeaders.Add("X-Internal-Secret", TestInternalServiceSecret);
+    }
+
+    public static void ClearAuth(HttpClient client)
+    {
+        client.DefaultRequestHeaders.Authorization = null;
+        client.DefaultRequestHeaders.Remove("X-Internal-Secret");
+        client.DefaultRequestHeaders.Remove("X-Gateway-Secret");
+        client.DefaultRequestHeaders.Remove("X-User-Id");
+    }
+}

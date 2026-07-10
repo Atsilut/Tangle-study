@@ -9,9 +9,72 @@ scrape_config_files:
   - /etc/prometheus/scrape/*.yml
 
 scrape_configs:
-  - job_name: api
+  - job_name: gateway
     static_configs:
-      - targets: ["api:8080"]
+      - targets: ["gateway:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: users
+    static_configs:
+      - targets: ["users:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: media
+    static_configs:
+      - targets: ["media:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: chat
+    static_configs:
+      - targets: ["chat:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: location
+    static_configs:
+      - targets: ["location:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: community
+    static_configs:
+      - targets: ["community:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: group
+    static_configs:
+      - targets: ["group:8080"]
+    metrics_path: /metrics
+    http_headers:
+      X-Metrics-Secret:
+        values:
+          - dev-metrics-secret
+
+  - job_name: social
+    static_configs:
+      - targets: ["social:8080"]
     metrics_path: /metrics
     http_headers:
       X-Metrics-Secret:

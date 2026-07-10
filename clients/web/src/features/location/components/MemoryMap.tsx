@@ -15,11 +15,12 @@ import { Button } from '@/components/ui'
 import { getErrorMessage } from '@/lib/apiError'
 import { maplibregl } from '@/lib/maplibreSetup'
 import { useAuthStore } from '@/stores/authStore'
-import type { MapBounds, MapCluster, MapPin } from '../api'
-import { MIN_PIN_FETCH_ZOOM, sanitizeBoundsForQuery } from '../api'
+import type { MapBounds, MapPin } from '../api'
+import { CLUSTERS_PENDING, MIN_PIN_FETCH_ZOOM, sanitizeBoundsForQuery } from '../api'
 import { useCreateMapPin, useMapClusters, useMapPins, usePlaceReverse } from '../hooks'
 import { useLiveGroupLocations } from '../useLiveGroupLocations'
 import { useMyGeolocation } from '../useMyGeolocation'
+import { ClusterMarker } from './ClusterMarker'
 import { MyLocationMarker } from './MyLocationMarker'
 import { LiveGroupLocationMarker } from './LiveGroupLocationMarker'
 import { OSM_RASTER_STYLE, OSM_TILE_MAX_ZOOM } from '../mapStyle'
@@ -36,7 +37,6 @@ const INITIAL_VIEW = {
 const FLY_TO_ZOOM = 14
 const BOUNDS_DEBOUNCE_MS = 300
 const PINS_LAYER_ID = 'memory-map-pins'
-const CLUSTERS_LAYER_ID = 'memory-map-clusters'
 const CLUSTER_CLICK_ZOOM_STEP = 2
 const LOCATE_ZOOM = 14
 
@@ -75,25 +75,6 @@ function pinsToGeoJson(pins: MapPin[]): FeatureCollection<Point> {
   }
 }
 
-function clustersToGeoJson(clusters: MapCluster[]): FeatureCollection<Point> {
-  return {
-    type: 'FeatureCollection',
-    features: clusters.map((cluster, index) => ({
-      type: 'Feature',
-      id: `cluster-${index}`,
-      properties: {
-        clusterId: index,
-        pinCount: cluster.pinCount,
-        kind: 'cluster',
-      },
-      geometry: {
-        type: 'Point',
-        coordinates: [cluster.longitude, cluster.latitude],
-      },
-    })),
-  }
-}
-
 export interface MemoryMapProps {
   flyToPlace?: Place | null
   groupId?: number | null
@@ -114,21 +95,22 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: pins = [], isFetching, isError, error, refetch } = useMapPins(bounds)
   const {
-    data: clusters = [],
-    isFetching: isFetchingClusters,
+    data: clustersResult,
+    isFetching: isFetchingClustersQuery,
     isError: isClusterError,
     error: clusterError,
     refetch: refetchClusters,
   } = useMapClusters(clusterBounds, mapZoom)
+  const clustersPending = clustersResult === CLUSTERS_PENDING
+  const isFetchingClusters = isFetchingClustersQuery || clustersPending
   const visiblePins = useMemo(() => (bounds == null ? [] : pins), [bounds, pins])
-  const visibleClusters = useMemo(
-    () => (clusterBounds == null ? [] : clusters),
-    [clusterBounds, clusters],
-  )
+  const visibleClusters = useMemo(() => {
+    if (clusterBounds == null) return []
+    if (clustersResult === CLUSTERS_PENDING || clustersResult == null) return []
+    return clustersResult
+  }, [clusterBounds, clustersResult])
   const pinsGeoJson = useMemo(() => pinsToGeoJson(visiblePins), [visiblePins])
-  const clustersGeoJson = useMemo(() => clustersToGeoJson(visibleClusters), [visibleClusters])
   const showPinLayer = bounds != null
-  const showClusterLayer = clusterBounds != null
   const createPin = useCreateMapPin()
   const liveLocations = useLiveGroupLocations(groupId, isAuthenticated && groupId != null)
   const { position: myPosition, error: myLocationError, refresh: refreshMyLocation } =
@@ -222,25 +204,23 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
     }
   }, [myPosition, refreshMyLocation])
 
+  const handleClusterClick = useCallback(
+    (longitude: number, latitude: number) => {
+      setSelectedPin(null)
+      setSelectedLive(null)
+      setShowMyLocationPopup(false)
+      mapRef.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: Math.min(mapZoom + CLUSTER_CLICK_ZOOM_STEP, MIN_PIN_FETCH_ZOOM),
+        duration: 800,
+      })
+    },
+    [mapZoom],
+  )
+
   const handleMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
       const feature = event.features?.[0]
-      if (feature?.properties?.kind === 'cluster') {
-        const clusterId = Number(feature.properties.clusterId)
-        const cluster = visibleClusters[clusterId]
-        if (cluster) {
-          setSelectedPin(null)
-          setSelectedLive(null)
-          setShowMyLocationPopup(false)
-          mapRef.current?.flyTo({
-            center: [cluster.longitude, cluster.latitude],
-            zoom: Math.min(mapZoom + CLUSTER_CLICK_ZOOM_STEP, MIN_PIN_FETCH_ZOOM),
-            duration: 800,
-          })
-        }
-        return
-      }
-
       if (feature?.properties?.id != null) {
         const pinId = Number(feature.properties.id)
         setSelectedLive(null)
@@ -252,7 +232,7 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
       setSelectedLive(null)
       setShowMyLocationPopup(false)
     },
-    [mapZoom, visibleClusters, visiblePins],
+    [visiblePins],
   )
 
   useEffect(() => {
@@ -303,7 +283,7 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
             minZoom={2}
             maxZoom={OSM_TILE_MAX_ZOOM}
             attributionControl={false}
-            interactiveLayerIds={[CLUSTERS_LAYER_ID, PINS_LAYER_ID]}
+            interactiveLayerIds={[PINS_LAYER_ID]}
             style={{ width: '100%', height: '100%' }}
             onLoad={syncBounds}
             onMoveEnd={scheduleBoundsSync}
@@ -312,13 +292,7 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
               handleDropPin(event.lngLat.lat, event.lngLat.lng)
             }}
             onMouseEnter={(event) => {
-              if (
-                event.features?.some(
-                  (feature) =>
-                    feature.layer.id === PINS_LAYER_ID ||
-                    feature.layer.id === CLUSTERS_LAYER_ID,
-                )
-              ) {
+              if (event.features?.some((feature) => feature.layer.id === PINS_LAYER_ID)) {
                 event.target.getCanvas().style.cursor = 'pointer'
               }
             }}
@@ -333,28 +307,26 @@ export function MemoryMap({ flyToPlace = null, groupId = null }: MemoryMapProps)
             }}
           >
             <NavigationControl position="top-right" />
-            {showClusterLayer && (
-              <Source id="memory-map-clusters" type="geojson" data={clustersGeoJson}>
-                <Layer
-                  id={CLUSTERS_LAYER_ID}
-                  type="circle"
-                  paint={{
-                    'circle-radius': [
-                      'step',
-                      ['get', 'pinCount'],
-                      14,
-                      10,
-                      18,
-                      50,
-                      24,
-                    ],
-                    'circle-color': '#1d4ed8',
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff',
-                  }}
-                />
-              </Source>
-            )}
+            {visibleClusters.map((cluster, index) => (
+              <Marker
+                key={`cluster-${index}-${cluster.samplePinId ?? cluster.latitude}`}
+                longitude={cluster.longitude}
+                latitude={cluster.latitude}
+                anchor="center"
+                onClick={(event) => {
+                  event.originalEvent.stopPropagation()
+                  handleClusterClick(cluster.longitude, cluster.latitude)
+                }}
+              >
+                <button
+                  type="button"
+                  className="cursor-pointer border-0 bg-transparent p-0"
+                  aria-label={`${cluster.pinCount} pins — zoom in`}
+                >
+                  <ClusterMarker pinCount={cluster.pinCount} />
+                </button>
+              </Marker>
+            ))}
             {showPinLayer && (
               <Source id="memory-map-pins" type="geojson" data={pinsGeoJson}>
                 <Layer

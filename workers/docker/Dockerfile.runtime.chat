@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1
+# Runtime image — requires scripts/ci/build-workers-release.sh (workers/target/release/worker-chat)
+
+ARG DEBIAN_IMAGE=debian:bookworm-slim
+
+FROM ${DEBIAN_IMAGE}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+EXPOSE 9090
+COPY workers/target/release/worker-chat /app/worker-chat
+ENTRYPOINT ["/app/worker-chat"]

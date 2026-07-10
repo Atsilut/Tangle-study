@@ -34,19 +34,19 @@ run_rust() {
   log_step "RUST WORKER UNIT TESTS"
   docker run --rm \
     -v "${DOCKER_ROOT}:/src" \
-    -w /src/workers/rust-worker \
+    -w /src/workers \
     "$RUST_IMAGE" \
-    cargo test
+    cargo test --workspace
 }
 
 run_api() {
-  log_step "API INTEGRATION TESTS"
-  "$ROOT/scripts/ci/docker-test.sh" "$@"
+  log_step "INTEGRATION TESTS (Api, Media, Chat, Location, Community, Group, Social)"
+  bash "$ROOT/scripts/ci/docker-test.sh" "$@"
 }
 
 run_harness() {
-  log_step "MEDIA HARNESS E2E"
-  "$ROOT/scripts/ci/run-media-harness.sh"
+  log_step "STACK HARNESS E2E"
+  HARNESS_MODULES="${HARNESS_MODULES:-all}" bash "$ROOT/scripts/ci/run-stack-harness.sh"
 }
 
 run_web() {
@@ -64,15 +64,15 @@ Usage: ./scripts/run-all-tests.sh [options] [-- api-test-args...]
 
 Runs, in order:
   1. Rust worker unit tests (cargo test in Docker)
-  2. API integration tests (scripts/ci/docker-test.sh / Testcontainers)
-  3. Media harness E2E (scripts/ci/run-media-harness.sh)
+  2. Integration tests — Api + Media + Chat + Location + Community + Group + Social (scripts/ci/docker-test.sh / Testcontainers)
+  3. Stack harness E2E (scripts/ci/run-stack-harness.sh, HARNESS_MODULES=all)
   4. Web client tests (Vitest in Docker)
 
 Options:
   --parallel-frontend   Run Rust and web tests concurrently, then API and harness
   --skip-rust           Skip Rust unit tests
   --skip-api            Skip API integration tests
-  --skip-harness        Skip media harness E2E
+  --skip-harness        Skip stack harness E2E
   --skip-web            Skip web (Vitest) tests
   -h, --help            Show this help
 

@@ -1,0 +1,259 @@
+using Group.Entities;
+using Group.Dto;
+using Group.Repository;
+using Group.Client;
+using Group.Db;
+using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Exceptions;
+using Group.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using Tangle.AspNetCore.Db;
+
+namespace Group.Service
+{
+    [Service]
+    public class GroupApplicationService(
+        IGroupApplicationRepository repo,
+        Lazy<GroupInvitationService> groupInvitationService,
+        Lazy<GroupService> groupService,
+        GroupMembershipService membershipService,
+        Lazy<GroupJoinResolutionService> joinResolution,
+        GroupBlacklistService blacklistService,
+        IUserClient userClient,
+        GroupDbContext db,
+        CurrentUserAccessor currentUser)
+    {
+        private readonly IGroupApplicationRepository _repo = repo;
+        private readonly Lazy<GroupInvitationService> _groupInvitationService = groupInvitationService;
+        private readonly Lazy<GroupService> _groupService = groupService;
+        private readonly GroupMembershipService _membershipService = membershipService;
+        private readonly Lazy<GroupJoinResolutionService> _joinResolution = joinResolution;
+        private readonly GroupBlacklistService _blacklistService = blacklistService;
+        private readonly IUserClient _userClient = userClient;
+        private readonly GroupDbContext _db = db;
+        private readonly CurrentUserAccessor _currentUser = currentUser;
+
+        private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
+
+        public Task<GroupApplication?> GetPendingForUserAsync(long groupId, long applicantId) =>
+            _repo.GetPendingForUserAsync(groupId, applicantId);
+
+        public Task DeleteAllForUserAndGroupAsync(long groupId, long userId) =>
+            _repo.DeleteAllForUserAndGroupAsync(groupId, userId);
+
+        public async Task<GroupApplicationResult> ApplyAsync(long groupId)
+        {
+            var applicantId = GetUserIdFromLogin();
+            var group = await _groupService.Value.GetGroupOrThrowAsync(groupId);
+
+            GroupJoinPolicyRules.EnsureCanApply(group.JoinPolicy);
+
+            if (await _membershipService.IsMemberAsync(groupId, applicantId)) throw new EntityAlreadyExistsException("You are already a member of this group.");
+
+            await _blacklistService.EnsureNotBlacklistedAsync(groupId, applicantId);
+
+            var existingApplication = await _repo.GetForUserAsync(groupId, applicantId);
+            if (existingApplication is not null)
+                return new GroupApplicationResult(
+                    GroupApplicationOutcome.GroupApplicationCreated,
+                    await MapToDtoAsync(existingApplication, applicantId));
+
+            var pendingInvitation = await _groupInvitationService.Value.GetPendingForUserAsync(groupId, applicantId);
+            if (pendingInvitation is not null)
+            {
+                await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
+                return new GroupApplicationResult(GroupApplicationOutcome.GroupMembershipCreatedFromReciprocalInvitation, null);
+            }
+
+            try
+            {
+                await CreateApplicationInTransactionAsync(groupId, applicantId);
+            }
+            catch (DbUpdateException ex) when (IsGroupApplicationUniqueViolation(ex))
+            {
+                // Concurrent apply; resolve using the row that won the race.
+            }
+
+            return await ResolveApplyOutcomeAsync(groupId, applicantId);
+        }
+
+        private Task CreateApplicationInTransactionAsync(long groupId, long applicantId)
+        {
+            return _db.ExecuteInTransactionAsync(async () =>
+            {
+                if (await _repo.GetForUserAsync(groupId, applicantId) is not null) return;
+
+                await _repo.CreateApplicationAsync(new GroupApplication(groupId, applicantId));
+            });
+        }
+
+        private async Task<GroupApplicationResult> ResolveApplyOutcomeAsync(long groupId, long applicantId)
+        {
+            var pendingInvitation = await _groupInvitationService.Value.GetPendingForUserAsync(groupId, applicantId);
+            if (pendingInvitation is not null)
+            {
+                await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(groupId, applicantId);
+                return new GroupApplicationResult(GroupApplicationOutcome.GroupMembershipCreatedFromReciprocalInvitation, null);
+            }
+
+            var application = await _repo.GetForUserAsync(groupId, applicantId)
+                ?? throw new InvalidOperationException("Group application was not created.");
+            return new GroupApplicationResult(
+                GroupApplicationOutcome.GroupApplicationCreated,
+                await MapToDtoAsync(application, applicantId));
+        }
+
+        private static bool IsGroupApplicationUniqueViolation(DbUpdateException exception) =>
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
+        public async Task IgnoreAsync(long applicationId)
+        {
+            var callerId = GetUserIdFromLogin();
+            var application = await _repo.GetByIdAsync(applicationId)
+                ?? throw new EntityNotFoundException("Application not found");
+            await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
+            if (!application.IsPending) return;
+            application.Ignore();
+            await _repo.UpdateApplicationAsync(application);
+        }
+
+        public async Task ApproveAsync(long applicationId)
+        {
+            var callerId = GetUserIdFromLogin();
+            var application = await _repo.GetByIdAsync(applicationId)
+                ?? throw new EntityNotFoundException("Application not found");
+            await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
+
+            if (await _membershipService.IsMemberAsync(application.GroupId, application.ApplicantId)) return;
+
+            await _blacklistService.EnsureNotBlacklistedAsync(application.GroupId, application.ApplicantId);
+            await _joinResolution.Value.CreateMembershipFromJoinRequestsAsync(application.GroupId, application.ApplicantId);
+        }
+
+        public async Task RejectAsync(long applicationId)
+        {
+            var callerId = GetUserIdFromLogin();
+            var application = await _repo.GetByIdAsync(applicationId)
+                ?? throw new EntityNotFoundException("Application not found");
+            await _membershipService.EnsureAdminOrOwnerAsync(application.GroupId, callerId);
+
+            await _repo.DeleteApplicationAsync(application);
+        }
+
+        public async Task CancelAsync(long applicationId)
+        {
+            var userId = GetUserIdFromLogin();
+            var application = await _repo.GetByIdAsync(applicationId)
+                ?? throw new EntityNotFoundException("Application not found");
+            if (application.ApplicantId != userId) throw new UnauthorizedAccessException("Only the applicant can cancel this application.");
+            if (!application.IsPending) throw new ArgumentException("Invalid application.");
+
+            await _repo.DeleteApplicationAsync(application);
+        }
+
+        public async Task<List<GroupApplicationGetResponseDto>> GetPendingByGroupAsync(long groupId)
+        {
+            var callerId = GetUserIdFromLogin();
+            await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
+
+            var applications = await _repo.GetPendingByGroupAsync(groupId);
+            return await MapApplicationsForReviewerAsync(applications);
+        }
+
+        public async Task<List<GroupApplicationGetResponseDto>?> GetIgnoredByGroupAsync(long groupId)
+        {
+            var callerId = GetUserIdFromLogin();
+            await _membershipService.EnsureAdminOrOwnerAsync(groupId, callerId);
+
+            var applications = await _repo.GetIgnoredByGroupAsync(groupId);
+            if (applications.Count == 0) return null;
+            return await MapApplicationsForReviewerAsync(applications);
+        }
+
+        public async Task<List<GroupApplicationGetResponseDto>?> GetMyApplicationsAsync()
+        {
+            var applicantId = GetUserIdFromLogin();
+            var pending = await _repo.GetPendingForApplicantAsync(applicantId);
+            var ignoredOutgoing = await _repo.GetIgnoredOutgoingForApplicantAsync(applicantId);
+            List<GroupApplication> applications = [.. pending, .. ignoredOutgoing];
+            if (applications.Count == 0) return null;
+            return await MapApplicationsForApplicantAsync(applications, applicantId);
+        }
+
+        public Task DeleteAllByGroupAsync(long groupId) => _repo.DeleteAllByGroupAsync(groupId);
+
+        public Task DeleteAllByUserAsync(long userId) => _repo.DeleteAllByUserAsync(userId);
+
+        private async Task<List<GroupApplicationGetResponseDto>> MapApplicationsForReviewerAsync(
+            IReadOnlyList<GroupApplication> applications)
+        {
+            if (applications.Count == 0) return [];
+
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync(applications.Select(a => a.ApplicantId));
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
+            return [.. applications
+                .Select(a => MapForReviewer(
+                    a,
+                    groupNames.GetValueOrDefault(a.GroupId, "Unknown group"),
+                    nicknames.GetValueOrDefault(a.ApplicantId, "Deleted User")))];
+        }
+
+        private async Task<List<GroupApplicationGetResponseDto>> MapApplicationsForApplicantAsync(
+            IReadOnlyList<GroupApplication> applications, long applicantId)
+        {
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([applicantId]);
+            var nickname = nicknames.GetValueOrDefault(applicantId, "Deleted User");
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync(applications.Select(a => a.GroupId));
+            return [.. applications.Select(a => MapForApplicant(
+                a,
+                applicantId,
+                nickname,
+                groupNames.GetValueOrDefault(a.GroupId, "Unknown group")))];
+        }
+
+        private async Task<GroupApplicationGetResponseDto> MapToDtoAsync(GroupApplication application, long viewerId)
+        {
+            var groupNames = await _groupService.Value.GetGroupNamesByIdsAsync([application.GroupId]);
+            var nicknames = await _userClient.GetNicknamesByUserIdsAsync([application.ApplicantId]);
+            var nickname = nicknames.GetValueOrDefault(application.ApplicantId, "Deleted User");
+            return MapForApplicant(
+                application,
+                viewerId,
+                nickname,
+                groupNames.GetValueOrDefault(application.GroupId, "Unknown group"));
+        }
+
+        private static GroupApplicationGetResponseDto MapForReviewer(
+            GroupApplication application,
+            string groupName,
+            string applicantNickname) => new(
+            Id: application.Id,
+            GroupId: application.GroupId,
+            GroupName: groupName,
+            ApplicantId: application.ApplicantId,
+            ApplicantNickname: applicantNickname,
+            IsPending: application.IsPending,
+            IsIncoming: true,
+            CreatedAt: application.CreatedAt,
+            UpdatedAt: application.UpdatedAt);
+
+        private static GroupApplicationGetResponseDto MapForApplicant(
+            GroupApplication application,
+            long viewerId,
+            string applicantNickname,
+            string groupName) => new(
+            Id: application.Id,
+            GroupId: application.GroupId,
+            GroupName: groupName,
+            ApplicantId: application.ApplicantId,
+            ApplicantNickname: applicantNickname,
+            IsPending: AppearsPendingForViewer(application, viewerId),
+            IsIncoming: false,
+            CreatedAt: application.CreatedAt,
+            UpdatedAt: application.UpdatedAt);
+
+        private static bool AppearsPendingForViewer(GroupApplication application, long viewerId) =>
+            application.IsPending || application.ApplicantId == viewerId;
+    }
+}

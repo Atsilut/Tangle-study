@@ -137,9 +137,20 @@ function buildMapClusterBoundsQuery(bounds: MapBounds, zoom: number): string {
   return params.toString()
 }
 
-// GET /api/location/clusters?bbox&zoom -> 200 list | 204 empty (worker may still be computing)
-export function getMapClustersInBounds(bounds: MapBounds, zoom: number): Promise<MapCluster[]> {
-  return getList<MapCluster>(`/location/clusters?${buildMapClusterBoundsQuery(bounds, zoom)}`)
+/** Sentinel: API returned 204 — worker is still computing clusters. */
+export const CLUSTERS_PENDING = 'pending' as const
+export type MapClustersResult = MapCluster[] | typeof CLUSTERS_PENDING
+
+// GET /api/location/clusters?bbox&zoom -> 200 list (incl. empty) | 204 pending (worker computing)
+export async function getMapClustersInBounds(
+  bounds: MapBounds,
+  zoom: number,
+): Promise<MapClustersResult> {
+  const res = await api.get<MapCluster[] | ''>(
+    `/location/clusters?${buildMapClusterBoundsQuery(bounds, zoom)}`,
+  )
+  if (res.status === 204) return CLUSTERS_PENDING
+  return (res.data as MapCluster[]) ?? []
 }
 
 // POST /api/location/pins (JWT) -> 201 with pin body

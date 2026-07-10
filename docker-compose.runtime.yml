@@ -1,0 +1,82 @@
+# Runtime-only service images for CI harness and CD parity.
+# Requires: scripts/ci/dotnet-publish.sh + scripts/ci/build-workers-release.sh
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: services/Gateway/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  users:
+    build:
+      context: .
+      dockerfile: services/Users/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  media:
+    build:
+      context: .
+      dockerfile: services/Media/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  chat:
+    build:
+      context: .
+      dockerfile: services/Chat/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  location:
+    build:
+      context: .
+      dockerfile: services/Location/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  community:
+    build:
+      context: .
+      dockerfile: services/Community/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  group:
+    build:
+      context: .
+      dockerfile: services/Group/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  social:
+    build:
+      context: .
+      dockerfile: services/Social/Dockerfile.runtime
+      args:
+        DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
+
+  rust-worker-chat:
+    image: ${WORKER_CHAT_IMAGE:-tangle-study-worker-chat:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.chat
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
+
+  rust-worker-location:
+    image: ${WORKER_LOCATION_IMAGE:-tangle-study-worker-location:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.location
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}
+
+  rust-worker-media:
+    image: ${WORKER_MEDIA_IMAGE:-tangle-study-worker-media:local}
+    build:
+      context: .
+      dockerfile: workers/docker/Dockerfile.runtime.media
+      args:
+        DEBIAN_IMAGE: ${DEBIAN_IMAGE:-debian:bookworm-slim}

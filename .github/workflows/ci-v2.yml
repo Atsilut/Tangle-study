@@ -1,0 +1,1399 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  COMPOSE_ENV_FILE: docker/versions.prod.env
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      dotnet-api: ${{ steps.filter.outputs.dotnet-api }}
+      dotnet-media: ${{ steps.filter.outputs.dotnet-media }}
+      dotnet-chat: ${{ steps.filter.outputs.dotnet-chat }}
+      dotnet-location: ${{ steps.filter.outputs.dotnet-location }}
+      dotnet-community: ${{ steps.filter.outputs.dotnet-community }}
+      dotnet-group: ${{ steps.filter.outputs.dotnet-group }}
+      dotnet-social: ${{ steps.filter.outputs.dotnet-social }}
+      dotnet-shared: ${{ steps.filter.outputs.dotnet-shared }}
+      web: ${{ steps.filter.outputs.web }}
+      rust: ${{ steps.filter.outputs.rust }}
+      harness: ${{ steps.filter.outputs.harness }}
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. PATH FILTER
+      ############################################
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            dotnet-api:
+              - 'services/Gateway/**'
+              - 'services/Gateway.Tests/**'
+              - 'services/Users/**'
+              - 'services/Users.Tests/**'
+            dotnet-media:
+              - 'services/Media/**'
+              - 'services/Media.Tests/**'
+            dotnet-chat:
+              - 'services/Chat/**'
+              - 'services/Chat.Tests/**'
+            dotnet-location:
+              - 'services/Location/**'
+              - 'services/Location.Tests/**'
+            dotnet-community:
+              - 'services/Community/**'
+              - 'services/Community.Tests/**'
+            dotnet-group:
+              - 'services/Group/**'
+              - 'services/Group.Tests/**'
+            dotnet-social:
+              - 'services/Social/**'
+              - 'services/Social.Tests/**'
+            dotnet-shared:
+              - 'docker/Dockerfile.sdk'
+              - 'docker-compose.yml'
+              - 'docker-compose.runtime.yml'
+              - 'docker-compose.harness.yml'
+              - 'docker/versions.prod.env'
+              - 'scripts/ci/**'
+              - 'scripts/shared/**'
+              - 'Tangle.slnx'
+              - 'Directory.Build.props'
+              - '.github/workflows/**'
+              - 'infra/azure/parameters.prod.json'
+              - 'services/Tangle.AspNetCore/**'
+              - 'services/TestSupport/**'
+              - 'services/TestSupport.Scenarios/**'
+            web:
+              - 'clients/web/**'
+            rust:
+              - 'workers/**'
+            harness:
+              - 'services/Gateway/**'
+              - 'services/Users/**'
+              - 'services/Tangle.AspNetCore/**'
+              - 'services/TestSupport/**'
+              - 'services/TestSupport.Scenarios/**'
+              - 'services/Stack.Tests/Fixtures/Harness/**'
+              - 'services/Stack.Tests/**'
+              - 'services/Media/**'
+              - 'services/Chat/**'
+              - 'services/Location/**'
+              - 'services/Community/**'
+              - 'services/Group/**'
+              - 'services/Social/**'
+              - 'infra/nginx/**'
+              - 'workers/**'
+              - 'clients/web/Dockerfile'
+              - 'docker-compose.harness.yml'
+              - 'docker-compose.runtime.yml'
+              - 'docker-compose.yml'
+              - 'scripts/ci/run-stack-harness.sh'
+              - 'scripts/ci/run-media-harness.sh'
+              - 'scripts/ci/compose-build-stack.sh'
+              - 'scripts/ci/load-compose-stack.sh'
+              - 'scripts/ci/**'
+
+  dotnet-build:
+    name: .NET publish and test build
+    needs: [changes]
+    if: |
+      always() &&
+      needs.changes.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-media == 'true' ||
+        needs.changes.outputs.dotnet-chat == 'true' ||
+        needs.changes.outputs.dotnet-location == 'true' ||
+        needs.changes.outputs.dotnet-community == 'true' ||
+        needs.changes.outputs.dotnet-group == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. DOTNET PUBLISH
+      ############################################
+      - name: Publish Gateway, Users, Media, Chat, Location, Community, Group, and Social; build test projects
+        run: |
+          mkdir -p .ci-cache/nuget .ci-cache/publish
+          bash scripts/ci/dotnet-publish.sh
+
+  users-tests:
+    name: Users integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. USERS INTEGRATION TESTS
+      ############################################
+      - name: Run Users integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Users.Tests/Users.Tests.csproj -c Release --no-build
+
+  gateway-tests:
+    name: Gateway integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. GATEWAY INTEGRATION TESTS
+      ############################################
+      - name: Run Gateway integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Gateway.Tests/Gateway.Tests.csproj -c Release --no-build
+
+  media-tests:
+    name: Media integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-media == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. MEDIA INTEGRATION TESTS
+      ############################################
+      - name: Run Media integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Media.Tests/Media.Tests.csproj -c Release --no-build
+
+  chat-tests:
+    name: Chat integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-chat == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. CHAT INTEGRATION TESTS
+      ############################################
+      - name: Run Chat integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Chat.Tests/Chat.Tests.csproj -c Release --no-build
+
+  location-tests:
+    name: Location integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-location == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. LOCATION INTEGRATION TESTS
+      ############################################
+      - name: Run Location integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Location.Tests/Location.Tests.csproj -c Release --no-build
+
+  community-tests:
+    name: Community integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-community == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. COMMUNITY INTEGRATION TESTS
+      ############################################
+      - name: Run Community integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Community.Tests/Community.Tests.csproj -c Release --no-build
+
+  group-tests:
+    name: Group integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-group == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. GROUP INTEGRATION TESTS
+      ############################################
+      - name: Run Group integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Group.Tests/Group.Tests.csproj -c Release --no-build
+
+  social-tests:
+    name: Social integration tests
+    needs: [changes, dotnet-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.dotnet-social == 'true' ||
+        needs.changes.outputs.dotnet-api == 'true' ||
+        needs.changes.outputs.dotnet-shared == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. SOCIAL INTEGRATION TESTS
+      ############################################
+      - name: Run Social integration tests
+        run: |
+          mkdir -p .ci-cache/nuget
+          bash scripts/ci/docker-test.sh test services/Social.Tests/Social.Tests.csproj -c Release --no-build
+
+  rust:
+    name: Rust worker build and tests
+    needs: [changes]
+    if: |
+      always() &&
+      needs.changes.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.rust == 'true' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE CARGO
+      ############################################
+      - name: Cache Cargo build artifacts
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            workers/target
+          key: ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-${{ hashFiles('workers/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-
+            ${{ runner.os }}-cargo-
+
+      ############################################
+      # 4. RUST TESTS AND RELEASE BUILD
+      ############################################
+      - name: Run Rust worker tests and release build
+        run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git workers/target
+          bash scripts/ci/build-workers-release.sh
+
+  web:
+    name: Web lint, test, build
+    needs: [changes]
+    if: |
+      always() &&
+      needs.changes.result == 'success' && (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.web == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NPM
+      ############################################
+      - name: Cache npm and web test build
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/npm
+            clients/web/node_modules
+          key: ${{ runner.os }}-npm-${{ env.NODE_IMAGE }}-${{ hashFiles('clients/web/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ env.NODE_IMAGE }}-
+            ${{ runner.os }}-npm-
+
+      ############################################
+      # 4. WEB LINT, TEST, BUILD
+      ############################################
+      - name: Run web lint, test, and build
+        run: |
+          mkdir -p .ci-cache/npm
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e npm_config_cache=/npm-cache \
+            -v "${{ github.workspace }}:/src" \
+            -v "${{ github.workspace }}/.ci-cache/npm:/npm-cache" \
+            -w /src/clients/web \
+            "${{ env.NODE_IMAGE }}" \
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm run build"
+          bash scripts/ci/libs/ci-cache.sh
+
+  compose-build:
+    name: Build harness stack images
+    needs: [changes, dotnet-build, rust, users-tests, gateway-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' &&
+      (needs.rust.result == 'success' || needs.rust.result == 'skipped') &&
+      (needs.users-tests.result == 'success' || needs.users-tests.result == 'skipped') &&
+      (needs.gateway-tests.result == 'success' || needs.gateway-tests.result == 'skipped') &&
+      (needs.media-tests.result == 'success' || needs.media-tests.result == 'skipped') &&
+      (needs.chat-tests.result == 'success' || needs.chat-tests.result == 'skipped') &&
+      (needs.location-tests.result == 'success' || needs.location-tests.result == 'skipped') &&
+      (needs.community-tests.result == 'success' || needs.community-tests.result == 'skipped') &&
+      (needs.group-tests.result == 'success' || needs.group-tests.result == 'skipped') &&
+      (needs.social-tests.result == 'success' || needs.social-tests.result == 'skipped') &&
+      (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. CACHE CARGO
+      ############################################
+      - name: Cache Cargo build artifacts
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            workers/target
+          key: ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-${{ hashFiles('workers/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ env.RUST_IMAGE }}-
+            ${{ runner.os }}-cargo-
+
+      ############################################
+      # 5. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 6. COMPOSE BUILD STACK
+      ############################################
+      - name: Build and save harness stack images
+        run: |
+          mkdir -p .ci-cache/nuget .ci-cache/publish .ci-cache/cargo/registry .ci-cache/cargo/git workers/target
+          bash scripts/ci/compose-build-stack.sh
+
+      ############################################
+      # 7. UPLOAD STACK ARTIFACT
+      ############################################
+      - name: Upload harness stack artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: harness-stack
+          path: harness-stack.tar
+          retention-days: 1
+
+  harness-stack:
+    name: Stack harness E2E
+    needs: [changes, dotnet-build, compose-build]
+    if: |
+      always() &&
+      needs.dotnet-build.result == 'success' &&
+      needs.compose-build.result == 'success' &&
+      (
+        github.event_name != 'pull_request' ||
+        needs.changes.outputs.harness == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+
+      ############################################
+      # 0. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      ############################################
+      # 1. RENDER VERSIONS
+      ############################################
+      - name: Render pinned container versions
+        run: bash scripts/ci/render-versions-env.sh "${{ env.COMPOSE_ENV_FILE }}"
+
+      ############################################
+      # 2. LOAD VERSIONS
+      ############################################
+      - name: Load pinned container versions
+        run: grep -E '^[A-Z_]+=' "${{ env.COMPOSE_ENV_FILE }}" >> "$GITHUB_ENV"
+
+      ############################################
+      # 3. CACHE NUGET
+      ############################################
+      - name: Cache NuGet and .NET build outputs
+        uses: actions/cache@v6
+        with:
+          path: |
+            .ci-cache/nuget
+            .ci-cache/publish
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+          key: ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-${{ hashFiles('**/*.csproj', 'services/**/*.cs', 'services/**/*.yml', 'services/**/Dockerfile', 'docker/Dockerfile.sdk', 'services/Stack.Tests/Fixtures/Harness/**', 'infra/nginx/**', 'clients/web/Dockerfile', 'scripts/ci/**') }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
+            ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 4. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 5. DOWNLOAD STACK ARTIFACT
+      ############################################
+      - name: Download harness stack artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: harness-stack
+
+      ############################################
+      # 6. STACK HARNESS E2E
+      ############################################
+      - name: Run stack harness E2E
+        run: |
+          mkdir -p .ci-cache/nuget
+          SKIP_PUBLISH=1 SKIP_WORKERS=1 SKIP_COMPOSE_BUILD=1 HARNESS_MODULES=all bash scripts/ci/run-stack-harness.sh
+
+  ci-gate:
+    name: CI
+    needs: [changes, dotnet-build, users-tests, gateway-tests, media-tests, chat-tests, location-tests, community-tests, group-tests, social-tests, rust, web, compose-build, harness-stack]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+
+      ############################################
+      # 0. CI GATE
+      ############################################
+      - name: Fail if any job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "========================================"
+          echo "[CI][FAILURE] One or more jobs failed or were cancelled"
+          echo "========================================"
+          echo "changes:        ${{ needs.changes.result }}"
+          echo "dotnet-build:   ${{ needs.dotnet-build.result }}"
+          echo "users-tests:    ${{ needs.users-tests.result }}"
+          echo "gateway-tests:  ${{ needs.gateway-tests.result }}"
+          echo "media-tests:    ${{ needs.media-tests.result }}"
+          echo "chat-tests:     ${{ needs.chat-tests.result }}"
+          echo "location-tests: ${{ needs.location-tests.result }}"
+          echo "community-tests:${{ needs.community-tests.result }}"
+          echo "group-tests:    ${{ needs.group-tests.result }}"
+          echo "social-tests:   ${{ needs.social-tests.result }}"
+          echo "rust:           ${{ needs.rust.result }}"
+          echo "web:            ${{ needs.web.result }}"
+          echo "compose-build:  ${{ needs.compose-build.result }}"
+          echo "harness-stack:  ${{ needs.harness-stack.result }}"
+          exit 1

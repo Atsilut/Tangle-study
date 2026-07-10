@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Tangle.TestSupport.Scenarios</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Exclude TestSupport's xunit.v3 buildTransitive targets so this stays a library. -->
+    <ProjectReference Include="..\TestSupport\TestSupport.csproj">
+      <ExcludeAssets>build;buildTransitive;analyzers</ExcludeAssets>
+    </ProjectReference>
+    <!-- PrivateAssets keeps service Program types from flowing into *.Tests (CS0433). -->
+    <ProjectReference Include="..\Chat\Chat.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\Community\Community.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\Group\Group.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\Social\Social.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.2" />
+    <PackageReference Include="xunit.v3.assert" Version="3.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Tangle.TestSupport.Auth" />
+    <Using Include="Tangle.TestSupport.Integration" />
+  </ItemGroup>
+
+</Project>

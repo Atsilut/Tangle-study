@@ -1,7 +1,84 @@
-# Harness runs tests inside Compose; API is reached at http://api:8080 (no host port required).
+# Harness runs tests inside Compose; API is reached via nginx → gateway.
 services:
-  api:
+  gateway:
     ports: !reset []
+    depends_on: !override
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
+
+  users:
+    ports: !reset []
+    depends_on: !override
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  social:
+    ports: !reset []
+
+  group:
+    ports: !reset []
+
+  community:
+    ports: !reset []
+
+  chat:
+    ports: !reset []
+
+  location:
+    ports: !reset []
+
+  media:
     environment:
-      # SAS URLs must target azurite:10000 in-network; rewriting the host breaks the signature.
-      Media__PublicBlobEndpoint: ""
+      # Set by run-stack-harness.sh after nginx is up (SAS URLs proxied via /devstoreaccount1).
+      Media__PublicBlobEndpoint: ${HARNESS_PUBLIC_BLOB_ENDPOINT:-}
+
+  nginx:
+    build:
+      args:
+        NGINX_CONF: infra/nginx/nginx.harness.conf
+    depends_on: !override
+      gateway:
+        condition: service_healthy
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
+      # rust-worker-* intentionally omitted: run-stack-harness.sh starts workers
+      # only after PublicBlobEndpoint is applied (media recreate). Listing them
+      # here made `up nginx` start workers first and race media callbacks.

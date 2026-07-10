@@ -13,7 +13,7 @@ COPY clients/web/ ./
 RUN npm run build
 
 FROM ${NGINX_IMAGE} AS final
-RUN apk add --no-cache gettext
+RUN apk add --no-cache gettext wget
 
 ARG NGINX_CONF=infra/nginx/nginx.conf
 COPY ${NGINX_CONF} /etc/nginx/templates/default.conf.template

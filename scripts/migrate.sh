@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply EF Core migrations against the configured database.
+# Apply EF Core migrations for all domain services against the configured database.
 #
 # Local (Compose db):
 #   ./scripts/migrate.sh
@@ -21,21 +21,44 @@ source "$ROOT/scripts/shared/compose-env.sh"
 
 MODE="${1:-local}"
 
+MIGRATE_PROJECTS=(
+  services/Users/Users.csproj
+  services/Media/Media.csproj
+  services/Chat/Chat.csproj
+  services/Location/Location.csproj
+  services/Community/Community.csproj
+  services/Group/Group.csproj
+  services/Social/Social.csproj
+)
+
+run_service_migrate() {
+  local project="$1"
+  local service_name
+  service_name="$(basename "$(dirname "$project")")"
+  log_step "MIGRATE ${service_name}"
+
+  if [[ "$MODE" == "--production" ]]; then
+    tangle_compose --profile tools run --rm --no-deps \
+      -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}" \
+      -e "ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}" \
+      sdk dotnet run --project "$project" -c Release -- --migrate
+  else
+    tangle_compose --profile tools run --rm --no-deps \
+      sdk dotnet run --project "$project" -c Release -- --migrate
+  fi
+}
+
 if [[ "$MODE" == "--production" ]]; then
   require_env ConnectionStrings__DefaultConnection
-
   log_step "PRODUCTION MIGRATE"
-  tangle_compose build api
-  tangle_compose run --rm --no-deps \
-    -e ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}" \
-    -e "ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}" \
-    api dotnet Api.dll --migrate
 elif [[ "$MODE" == "local" ]]; then
   log_step "LOCAL MIGRATE"
-  tangle_compose build api
-  tangle_compose run --rm --no-deps api dotnet Api.dll --migrate
 else
   fail "usage: $0 [local|--production]"
 fi
+
+for project in "${MIGRATE_PROJECTS[@]}"; do
+  run_service_migrate "$project"
+done
 
 log_info "migration completed"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
+  "contentVersion": "1.3.0.0",
   "parameters": {
     "environment": {
       "value": "dev"
@@ -8,29 +8,75 @@
     "containerRegistry": {
       "value": "ghcr.io/atsilut/tangle-study"
     },
-    "usePlaceholderImages": {
-      "value": true
-    },
     "imageTag": {
       "value": "latest"
     },
-    "redisImage": {
-      "value": "redis:8.8.0-alpine"
+    "usePlaceholderImages": {
+      "value": true
     },
-    "prometheusImage": {
-      "value": "prom/prometheus:v3.12.0"
+    "infra": {
+      "value": {
+        "postgres": {
+          "image": "postgres:18.4"
+        },
+        "redis": {
+          "image": "redis:8.8.0-alpine"
+        },
+        "azurite": {
+          "image": "mcr.microsoft.com/azure-storage/azurite:3.35.0"
+        },
+        "prometheus": {
+          "image": "prom/prometheus:v3.12.0"
+        },
+        "grafana": {
+          "image": "grafana/grafana:13.0.2"
+        },
+        "postgresExporter": {
+          "image": "prometheuscommunity/postgres-exporter:v0.19.1"
+        },
+        "redisExporter": {
+          "image": "oliver006/redis_exporter:v1.86.0"
+        }
+      }
     },
-    "grafanaImage": {
-      "value": "grafana/grafana:13.0.2"
+    "buildImages": {
+      "value": {
+        "dotnetSdk": "mcr.microsoft.com/dotnet/sdk:10.0",
+        "dotnetAspnet": "mcr.microsoft.com/dotnet/aspnet:10.0",
+        "node": "node:26.3.1-bookworm-slim",
+        "nginx": "nginx:1.31.1-alpine",
+        "rust": "rust:1.96.0-bookworm",
+        "debian": "debian:bookworm-slim"
+      }
     },
-    "postgresExporterImage": {
-      "value": "prometheuscommunity/postgres-exporter:v0.19.1"
+    "migrateJobs": {
+      "value": []
     },
-    "redisExporterImage": {
-      "value": "oliver006/redis_exporter:v1.86.0"
-    },
-    "monitoringMinReplicas": {
-      "value": 1
+    "containerApps": {
+      "value": {
+        "tangle-study-redis": {
+          "type": "redis",
+          "infraImage": "redis",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [],
+          "env": {}
+        },
+        "tangle-study-web": {
+          "type": "web",
+          "image": "tangle-study-web",
+          "externalIngress": true,
+          "targetPort": 80,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [],
+          "env": {
+            "TANGLE_API_UPSTREAM": "tangle-study-gateway",
+            "TANGLE_API_HOST": "tangle-study-gateway"
+          }
+        }
+      }
     }
   }
 }

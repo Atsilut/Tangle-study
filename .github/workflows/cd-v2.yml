@@ -1,0 +1,160 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      skip_migrate:
+        type: boolean
+        default: false
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: prod
+
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+
+    steps:
+
+      ############################################
+      # 0. RESOLVE TARGET
+      ############################################
+      - name: Resolve deploy meta
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          registry="${{ vars.CONTAINER_REGISTRY }}"
+
+          if [[ -z "$registry" ]]; then
+            registry="ghcr.io/${owner}/tangle-study"
+          fi
+
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+
+      ############################################
+      # 1. CHECKOUT
+      ############################################
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.meta.outputs.sha }}
+
+      ############################################
+      # 2. GHCR LOGIN
+      ############################################
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      ############################################
+      # 3. DOCKER BUILDX
+      ############################################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      ############################################
+      # 4. BUILD & PUSH IMAGES
+      ############################################
+      - name: Build & push images
+        env:
+          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+        run: bash scripts/cd/azure-cd-build-push.sh
+
+      ############################################
+      # 5. IMAGE PROPAGATION WAIT
+      ############################################
+      - name: Wait for GHCR image propagation
+        env:
+          CONTAINER_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+        run: bash scripts/cd/azure-cd-wait-image.sh
+
+      ############################################
+      # 6. AZURE LOGIN
+      ############################################
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      ############################################
+      # 7. BICEP DEPLOY
+      ############################################
+      - name: Deploy infrastructure and apps (Bicep)
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          IMAGE_TAG: ${{ steps.meta.outputs.sha }}
+          USE_PLACEHOLDER_IMAGES: "false"
+          POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
+          BLOB_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          WORKER_CALLBACK_SECRET: ${{ secrets.WORKER_CALLBACK_SECRET }}
+          METRICS_SCRAPE_SECRET: ${{ secrets.METRICS_SCRAPE_SECRET }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          GATEWAY_SECRET: ${{ secrets.GATEWAY_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          PLACES_API_KEY: ${{ secrets.PLACES_API_KEY }}
+          GHCR_REGISTRY_USERNAME: ${{ secrets.GHCR_REGISTRY_USERNAME }}
+          GHCR_REGISTRY_PASSWORD: ${{ secrets.GHCR_REGISTRY_PASSWORD }}
+          JWT_EXPIRY_MINUTES: ${{ vars.JWT_EXPIRY_MINUTES }}
+        run: bash scripts/cd/azure-cd-deploy-bicep.sh
+
+      ############################################
+      # 8. MIGRATION
+      ############################################
+      - name: Run EF migrate jobs
+        if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: bash scripts/cd/azure-cd-migrate.sh
+
+      ############################################
+      # 9. SMOKE TESTS
+      ############################################
+      - name: Smoke tests
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: bash scripts/cd/azure-cd-smoke.sh
+
+      ############################################
+      # 10. SUMMARY
+      ############################################
+      - name: Deploy summary
+        run: |
+          echo "========================================"
+          echo "[DEPLOY][SUCCESS]"
+          echo "========================================"
+          echo "registry=${{ steps.meta.outputs.registry }}"
+          echo "tag=${{ steps.meta.outputs.sha }}"

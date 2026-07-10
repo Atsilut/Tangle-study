@@ -15,6 +15,55 @@ source "$ROOT/scripts/ci/libs/ci-cache.sh"
 source "$ROOT/scripts/ci/libs/versions-prod-env.sh"
 load_versions_prod_env "$ROOT"
 
+if [[ " $* " == *" --no-build "* ]]; then
+  require_test_build_output() {
+    local proj="$1"
+    local dll="$2"
+    [[ -f "${ROOT}/services/${proj}/bin/Release/net10.0/${dll}" ]] \
+      || fail "missing services/${proj}/bin/Release/net10.0/${dll} — run ./scripts/ci/dotnet-publish.sh first"
+  }
+
+  case " $* " in
+    *Users.Tests*)
+      require_test_build_output "Users.Tests" "Users.Tests.dll"
+      ;;
+    *Stack.Tests*)
+      require_test_build_output "Stack.Tests" "Stack.Tests.dll"
+      ;;
+    *Media.Tests*)
+      require_test_build_output "Media.Tests" "Media.Tests.dll"
+      ;;
+    *Chat.Tests*)
+      require_test_build_output "Chat.Tests" "Chat.Tests.dll"
+      ;;
+    *Location.Tests*)
+      require_test_build_output "Location.Tests" "Location.Tests.dll"
+      ;;
+    *Community.Tests*)
+      require_test_build_output "Community.Tests" "Community.Tests.dll"
+      ;;
+    *Group.Tests*)
+      require_test_build_output "Group.Tests" "Group.Tests.dll"
+      ;;
+    *Social.Tests*)
+      require_test_build_output "Social.Tests" "Social.Tests.dll"
+      ;;
+    *Gateway.Tests*)
+      require_test_build_output "Gateway.Tests" "Gateway.Tests.dll"
+      ;;
+    *)
+      require_test_build_output "Users.Tests" "Users.Tests.dll"
+      require_test_build_output "Media.Tests" "Media.Tests.dll"
+      require_test_build_output "Chat.Tests" "Chat.Tests.dll"
+      require_test_build_output "Location.Tests" "Location.Tests.dll"
+      require_test_build_output "Community.Tests" "Community.Tests.dll"
+      require_test_build_output "Group.Tests" "Group.Tests.dll"
+      require_test_build_output "Social.Tests" "Social.Tests.dll"
+      require_test_build_output "Gateway.Tests" "Gateway.Tests.dll"
+      ;;
+  esac
+fi
+
 log_step "BUILD SDK IMAGE"
 build_sdk_image tangle-study-sdk:local
 

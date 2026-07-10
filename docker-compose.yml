@@ -1,17 +1,18 @@
 name: tangle-study
 
 # Image tags: defaults are latest (dev). Pin with --env-file docker/versions.prod.env
+# Runtime/prebuilt CI images: add -f docker-compose.runtime.yml (see scripts/ci/run-media-harness.sh)
 # See docker/README.md.
 
 x-dotnet-build-args: &dotnet-build-args
   DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
 
-x-api-build-args: &api-build-args
+x-service-build-args: &service-build-args
   DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:latest}
   DOTNET_ASPNET_IMAGE: ${DOTNET_ASPNET_IMAGE:-mcr.microsoft.com/dotnet/aspnet:latest}
 
 x-web-build-args: &web-build-args
-  NODE_IMAGE: ${NODE_IMAGE:-node:bookworm-slim}
+  NODE_IMAGE: ${NODE_IMAGE:-node:26-bookworm-slim}
   NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
 
 x-rust-build-args: &rust-build-args
@@ -39,6 +40,30 @@ x-dotnet-test-env: &dotnet-test-env
   Redis__InstanceName: "tangle:"
   Redis__SignalRChannelPrefix: "tangle:signalr:"
   Redis__WorkQueueStreamPrefix: "tangle:queue:"
+
+# Rust worker env — keep in sync with workers/config/workers.yml
+x-worker-common: &worker-common
+  REDIS_URL: redis://redis:6379
+  WORKER_STREAM_PREFIX: "tangle:queue:"
+  WORKER_CONSUMER_GROUP: tangle-study-workers
+  WORKER_METRICS_PORT: "9090"
+  RUST_LOG: info
+
+x-worker-chat-env: &worker-chat-env
+  <<: *worker-common
+  API_BASE_URL: http://chat:8080
+
+x-worker-media-env: &worker-media-env
+  <<: *worker-common
+  API_BASE_URL: http://media:8080
+  WORKER_CALLBACK_SECRET: dev-media-worker-secret
+  AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+  MEDIA_CONTAINER_NAME: tangle-media
+
+x-worker-location-env: &worker-location-env
+  <<: *worker-common
+  API_BASE_URL: http://location:8080
+  WORKER_CALLBACK_SECRET: dev-worker-callback-secret
 
 services:
   redis:
@@ -83,21 +108,19 @@ services:
       retries: 10
       start_period: 10s
 
-  api:
+  media:
     build:
       context: .
-      dockerfile: services/Api/Dockerfile
-      args: *api-build-args
+      dockerfile: services/Media/Dockerfile
+      args: *service-build-args
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: http://+:8080
-      Redis__InstanceName: "tangle:"
-      Redis__SignalRChannelPrefix: "tangle:signalr:"
-      Redis__WorkQueueStreamPrefix: "tangle:queue:"
+      Redis__ConnectionString: "redis:6379"
       Metrics__RequireScrapeSecret: "true"
       Metrics__ScrapeSecret: "dev-metrics-secret"
-    ports:
-      - "5000:8080"
+    expose:
+      - "8080"
     depends_on:
       azurite:
         condition: service_started
@@ -113,8 +136,193 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # Nginx edge: reverse-proxies /api and /hubs (SignalR WebSocket) to the api
-  # service, and serves the built React SPA (built in clients/web/Dockerfile).
+  chat:
+    build:
+      context: .
+      dockerfile: services/Chat/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__ConnectionString: "redis:6379"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  location:
+    build:
+      context: .
+      dockerfile: services/Location/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__ConnectionString: "redis:6379"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+      WorkerCallback__Secret: "dev-worker-callback-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  community:
+    build:
+      context: .
+      dockerfile: services/Community/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  group:
+    build:
+      context: .
+      dockerfile: services/Group/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  social:
+    build:
+      context: .
+      dockerfile: services/Social/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  users:
+    build:
+      context: .
+      dockerfile: services/Users/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Redis__Enabled: "true"
+      Redis__ConnectionString: "redis:6379"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/Gateway/Dockerfile
+      args: *service-build-args
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      Gateway__Secret: "dev-gateway-secret"
+      Metrics__RequireScrapeSecret: "true"
+      Metrics__ScrapeSecret: "dev-metrics-secret"
+    expose:
+      - "8080"
+    depends_on:
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      chat:
+        condition: service_healthy
+      location:
+        condition: service_healthy
+      community:
+        condition: service_healthy
+      group:
+        condition: service_healthy
+      social:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+
+  # Nginx edge:
+  # serves the built React SPA (built in clients/web/Dockerfile).
   # In dev, the Vite dev server proxies here (VITE_PROXY_TARGET=http://localhost:8080).
   nginx:
     build:
@@ -124,11 +332,34 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      api:
-        condition: service_started
+      gateway:
+        condition: service_healthy
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      chat:
+        condition: service_healthy
+      location:
+        condition: service_healthy
+      community:
+        condition: service_healthy
+      group:
+        condition: service_healthy
+      social:
+        condition: service_healthy
       rust-worker-media:
         condition: service_started
         required: false
+      rust-worker-chat:
+        condition: service_started
+        required: false
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
     restart: unless-stopped
 
   prometheus:
@@ -148,14 +379,33 @@ services:
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
     depends_on:
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      chat:
+        condition: service_healthy
+      location:
+        condition: service_healthy
+      community:
+        condition: service_healthy
+      group:
+        condition: service_healthy
+      social:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
       postgres-exporter:
         condition: service_started
       redis-exporter:
         condition: service_started
-      rust-worker:
+      rust-worker-chat:
         condition: service_started
         required: false
       rust-worker-media:
+        condition: service_started
+        required: false
+      rust-worker-location:
         condition: service_started
         required: false
 
@@ -210,24 +460,20 @@ services:
       db:
         condition: service_healthy
 
-  rust-worker:
-    profiles: ["workers"]
+  rust-worker-chat:
+    profiles: ["workers", "harness"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.chat
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_TYPE: chat
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: chat.message.created
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-chat-env
     expose:
       - "9090"
     depends_on:
       redis:
+        condition: service_healthy
+      chat:
         condition: service_healthy
     restart: unless-stopped
 
@@ -235,54 +481,36 @@ services:
     profiles: ["workers", "harness"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.media
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_TYPE: media
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: media.uploaded
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://api:8080
-      WORKER_CALLBACK_SECRET: dev-media-worker-secret
-      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
-      MEDIA_CONTAINER_NAME: tangle-media
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-media-env
     expose:
       - "9090"
     depends_on:
       redis:
         condition: service_healthy
-      api:
-        condition: service_started
+      media:
+        condition: service_healthy
       azurite:
         condition: service_started
     restart: unless-stopped
 
   rust-worker-location:
-    profiles: ["workers"]
+    profiles: ["workers", "harness"]
     build:
       context: .
-      dockerfile: workers/rust-worker/Dockerfile
+      dockerfile: workers/docker/Dockerfile.location
       args: *rust-build-args
     environment:
-      REDIS_URL: redis://redis:6379
-      WORKER_TYPE: location
-      WORKER_STREAM_PREFIX: "tangle:queue:"
-      WORKER_STREAM_KEY: location.cluster
-      WORKER_CONSUMER_GROUP: tangle-study-workers
-      API_BASE_URL: http://api:8080
-      WORKER_CALLBACK_SECRET: dev-media-worker-secret
-      WORKER_METRICS_PORT: "9090"
-      RUST_LOG: info
+      <<: *worker-location-env
     expose:
       - "9090"
     depends_on:
       redis:
         condition: service_healthy
-      api:
-        condition: service_started
+      location:
+        condition: service_healthy
     restart: unless-stopped
 
   harness:
@@ -295,7 +523,7 @@ services:
     working_dir: /src
     environment:
       <<: *dotnet-env
-      TANGLE_HARNESS_API_BASE_URL: http://api:8080
+      TANGLE_HARNESS_API_BASE_URL: http://nginx
     volumes:
       - .:/src
     depends_on:
@@ -305,18 +533,49 @@ services:
         condition: service_healthy
       azurite:
         condition: service_started
-      api:
+        required: false
+      gateway:
         condition: service_healthy
+      users:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+        required: false
+      social:
+        condition: service_healthy
+        required: false
+      group:
+        condition: service_healthy
+        required: false
+      community:
+        condition: service_healthy
+        required: false
+      chat:
+        condition: service_healthy
+        required: false
+      location:
+        condition: service_healthy
+        required: false
+      nginx:
+        condition: service_started
       rust-worker-media:
         condition: service_started
+        required: false
+      rust-worker-chat:
+        condition: service_started
+        required: false
+      rust-worker-location:
+        condition: service_started
+        required: false
     command:
       [
         "test",
-        "services/Api.Tests/Api.Tests.csproj",
+        "services/Stack.Tests/Stack.Tests.csproj",
         "-c",
         "Release",
+        "--no-build",
         "--filter",
-        "Category=Harness",
+        "${HARNESS_FILTER:-Category=Harness}",
         "--verbosity",
         "minimal",
       ]
@@ -344,7 +603,7 @@ services:
     command:
       [
         "test",
-        "services/Api.Tests/Api.Tests.csproj",
+        "Tangle.slnx",
         "-c",
         "Release",
         "--filter",

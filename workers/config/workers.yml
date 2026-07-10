@@ -1,0 +1,102 @@
+# Canonical reference for Rust worker environment variables.
+#
+# Binaries read plain env vars (see worker-core StreamConfig / CallbackConfig).
+# Stream keys are fixed per worker crate; WORKER_STREAM_KEY is an optional override.
+#
+# Local Docker Compose values: workers/config/compose-workers.yml (included by docker-compose.yml).
+# Secrets (WORKER_CALLBACK_SECRET, AZURE_STORAGE_CONNECTION_STRING) are never committed for prod;
+# Azure CD passes them as Bicep @secure() params via scripts/cd/azure-cd-deploy-bicep.sh.
+
+version: 1
+
+# Shared by all workers (worker-core StreamConfig + CallbackConfig defaults).
+common:
+  stream:
+    REDIS_URL:
+      default: redis://127.0.0.1:6379
+      compose: redis://redis:6379
+      azure: redis://tangle-study-redis
+    WORKER_STREAM_PREFIX:
+      default: "tangle:queue:"
+    WORKER_CONSUMER_GROUP:
+      default: tangle-study-workers
+    WORKER_CONSUMER_NAME:
+      default: "tangle-worker-{hostname}-{pid}"
+      note: Auto-generated when unset.
+    WORKER_BLOCK_MS:
+      default: 5000
+    WORKER_BATCH_COUNT:
+      default: 10
+    WORKER_MAX_ATTEMPTS:
+      default: 5
+    WORKER_RETRY_BASE_MS:
+      default: 1000
+    WORKER_RETRY_MAX_MS:
+      default: 60000
+    WORKER_RETRY_JITTER_PCT:
+      default: 0.1
+    WORKER_DLQ_STREAM_SUFFIX:
+      default: ".dlq"
+    WORKER_REPLAY_COUNT:
+      default: 10
+    WORKER_REPLAY_DRY_RUN:
+      default: false
+    WORKER_REPLAY_DELETE:
+      default: true
+    WORKER_LOG_JSON:
+      default: false
+    WORKER_METRICS_PORT:
+      default: 9090
+  callback:
+    API_BASE_URL:
+      default: http://127.0.0.1:5000
+    WORKER_CALLBACK_SECRET:
+      default: ""
+      secret: true
+    WORKER_CALLBACK_TIMEOUT_MS:
+      default: 30000
+    WORKER_CALLBACK_CONNECT_TIMEOUT_MS:
+      default: 10000
+    WORKER_CALLBACK_MAX_RETRIES:
+      default: 3
+    WORKER_CALLBACK_RETRY_BASE_MS:
+      default: 500
+  logging:
+    RUST_LOG:
+      default: info
+      compose: info
+
+workers:
+  chat:
+    binary: worker-chat
+    compose_service: rust-worker-chat
+    stream_key: chat.message.created
+    requires_callback: false
+    compose:
+      API_BASE_URL: http://chat:8080
+
+  media:
+    binary: worker-media
+    compose_service: rust-worker-media
+    stream_key: media.uploaded
+    requires_callback: true
+    requires:
+      - AZURE_STORAGE_CONNECTION_STRING
+      - WORKER_CALLBACK_SECRET
+    compose:
+      API_BASE_URL: http://media:8080
+      WORKER_CALLBACK_SECRET: dev-media-worker-secret
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      MEDIA_CONTAINER_NAME: tangle-media
+    media:
+      MEDIA_CONTAINER_NAME:
+        default: tangle-media
+
+  location:
+    binary: worker-location
+    compose_service: rust-worker-location
+    stream_key: location.cluster
+    requires_callback: true
+    compose:
+      API_BASE_URL: http://location:8080
+      WORKER_CALLBACK_SECRET: dev-media-worker-secret

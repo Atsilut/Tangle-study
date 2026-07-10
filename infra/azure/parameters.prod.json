@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.2.0.0",
+  "contentVersion": "1.3.0.0",
   "parameters": {
     "environment": {
       "value": "prod"
@@ -12,16 +12,7 @@
       "value": "latest"
     },
     "usePlaceholderImages": {
-      "value": true
-    },
-    "apiMinReplicas": {
-      "value": 1
-    },
-    "webMinReplicas": {
-      "value": 1
-    },
-    "workerMinReplicas": {
-      "value": 0
+      "value": false
     },
     "infra": {
       "value": {
@@ -58,109 +49,440 @@
         "debian": "debian:bookworm-slim"
       }
     },
+    "migrateJobs": {
+      "value": [
+        {
+          "name": "tangle-study-migrate-users",
+          "image": "tangle-study-users",
+          "command": ["dotnet", "Users.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-media",
+          "image": "tangle-study-media",
+          "command": ["dotnet", "Media.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-chat",
+          "image": "tangle-study-chat",
+          "command": ["dotnet", "Chat.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-location",
+          "image": "tangle-study-location",
+          "command": ["dotnet", "Location.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-community",
+          "image": "tangle-study-community",
+          "command": ["dotnet", "Community.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-group",
+          "image": "tangle-study-group",
+          "command": ["dotnet", "Group.dll", "--migrate"]
+        },
+        {
+          "name": "tangle-study-migrate-social",
+          "image": "tangle-study-social",
+          "command": ["dotnet", "Social.dll", "--migrate"]
+        }
+      ]
+    },
     "containerApps": {
-      "tangle-study-api": {
-        "type": "api",
-        "image": "tangle-study-api",
-        "env": {
-          "ConnectionStrings__DefaultConnection": "secretref:postgres-conn",
-          "Media__ConnectionString": "secretref:blob-conn",
-          "Jwt__Secret": "secretref:jwt-secret",
-          "Jwt__ExpiryMinutes": "15",
-          "Media__WorkerCallbackSecret": "secretref:worker-callback",
-          "Metrics__ScrapeSecret": "secretref:metrics-secret",
-          "Places__ApiKey": "secretref:places-api-key",
-          "APPLICATIONINSIGHTS_CONNECTION_STRING": "secretref:appinsights-conn",
-          "ASPNETCORE_ENVIRONMENT": "Production",
-          "ASPNETCORE_URLS": "http://+:8080"
-        }
-      },
-      "tangle-study-web": {
-        "type": "web",
-        "image": "tangle-study-web",
-        "env": {
-          "ASPNETCORE_ENVIRONMENT": "Production",
-          "TANGLE_API_UPSTREAM": "tangle-study-api",
-          "TANGLE_API_HOST": "tangle-study-api"
-        }
-      },
-      "tangle-study-worker-chat": {
-        "type": "worker",
-        "worker": "chat",
-        "image": "tangle-study-worker",
-        "env": {
-          "WORKER_TYPE": "chat",
-          "WORKER_STREAM_KEY": "chat.message.created",
-          "WORKER_STREAM_PREFIX": "tangle:queue:",
-          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-          "WORKER_METRICS_PORT": "9090",
-          "RUST_LOG": "info",
-          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
-        }
-      },
-      "tangle-study-worker-location": {
-        "type": "worker",
-        "worker": "location",
-        "image": "tangle-study-worker",
-        "env": {
-          "WORKER_TYPE": "location",
-          "WORKER_STREAM_KEY": "location.cluster",
-          "WORKER_STREAM_PREFIX": "tangle:queue:",
-          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-          "WORKER_METRICS_PORT": "9090",
-          "RUST_LOG": "info",
-          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
-          "WORKER_CALLBACK_SECRET": "secretref:worker-callback"
-        }
-      },
-      "tangle-study-worker-media": {
-        "type": "worker",
-        "worker": "media",
-        "image": "tangle-study-worker",
-        "env": {
-          "WORKER_TYPE": "media",
-          "WORKER_STREAM_KEY": "media.uploaded",
-          "WORKER_STREAM_PREFIX": "tangle:queue:",
-          "WORKER_CONSUMER_GROUP": "tangle-study-workers",
-          "WORKER_METRICS_PORT": "9090",
-          "RUST_LOG": "info",
-          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret",
-          "WORKER_CALLBACK_SECRET": "secretref:worker-callback",
-          "AZURE_STORAGE_CONNECTION_STRING": "secretref:blob-conn",
-          "MEDIA_CONTAINER_NAME": "tangle-media"
-        }
-      },
-      "tangle-study-prometheus": {
-        "type": "prometheus",
-        "image": "tangle-study-prometheus",
-        "env": {
-          "METRICS_SCRAPE_SECRET": "secretref:metrics-secret"
-        }
-      },
-      "tangle-study-grafana": {
-        "type": "grafana",
-        "image": "tangle-study-grafana",
-        "env": {
-          "GF_SECURITY_ADMIN_USER": "admin",
-          "GF_USERS_ALLOW_SIGN_UP": "false",
-          "GF_SECURITY_ADMIN_PASSWORD": "secretref:grafana-admin-password"
-        }
-      },
-      "tangle-study-redis": {
-        "type": "redis",
-        "infraImage": "redis",
-        "env": {}
-      },
-      "tangle-study-redis-exporter": {
-        "type": "redis-exporter",
-        "infraImage": "redisExporter",
-        "env": {}
-      },
-      "tangle-study-postgres-exporter": {
-        "type": "postgres-exporter",
-        "infraImage": "postgresExporter",
-        "env": {
-          "DATA_SOURCE_NAME": "secretref:postgres-dsn"
+      "value": {
+        "tangle-study-gateway": {
+          "type": "gateway",
+          "image": "tangle-study-gateway",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "gateway-secret", "envName": "Gateway__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Metrics__RequireScrapeSecret": "true",
+            "ReverseProxy__Clusters__users__Destinations__d1__Address": "http://tangle-study-users/",
+            "ReverseProxy__Clusters__media__Destinations__d1__Address": "http://tangle-study-media/",
+            "ReverseProxy__Clusters__chat__Destinations__d1__Address": "http://tangle-study-chat/",
+            "ReverseProxy__Clusters__location__Destinations__d1__Address": "http://tangle-study-location/",
+            "ReverseProxy__Clusters__community__Destinations__d1__Address": "http://tangle-study-community/",
+            "ReverseProxy__Clusters__group__Destinations__d1__Address": "http://tangle-study-group/",
+            "ReverseProxy__Clusters__social__Destinations__d1__Address": "http://tangle-study-social/"
+          }
+        },
+        "tangle-study-users": {
+          "type": "users",
+          "image": "tangle-study-users",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "jwt-secret", "envName": "Jwt__Secret" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "ChatClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Redis__Enabled": "true",
+            "Redis__ConnectionString": "tangle-study-redis",
+            "Jwt__ExpiryMinutes": "15",
+            "Metrics__RequireScrapeSecret": "true",
+            "MediaClient__BaseUrl": "http://tangle-study-media",
+            "ChatClient__BaseUrl": "http://tangle-study-chat",
+            "LocationClient__BaseUrl": "http://tangle-study-location",
+            "CommunityClient__BaseUrl": "http://tangle-study-community",
+            "GroupClient__BaseUrl": "http://tangle-study-group",
+            "SocialClient__BaseUrl": "http://tangle-study-social"
+          }
+        },
+        "tangle-study-media": {
+          "type": "media",
+          "image": "tangle-study-media",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "blob-conn", "envName": "Media__ConnectionString" },
+            { "name": "worker-callback", "envName": "Media__WorkerCallbackSecret" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "ChatClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Redis__Enabled": "true",
+            "Redis__ConnectionString": "tangle-study-redis",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users",
+            "ChatClient__BaseUrl": "http://tangle-study-chat",
+            "CommunityClient__BaseUrl": "http://tangle-study-community"
+          }
+        },
+        "tangle-study-chat": {
+          "type": "chat",
+          "image": "tangle-study-chat",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Redis__Enabled": "true",
+            "Redis__ConnectionString": "tangle-study-redis",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users",
+            "SocialClient__BaseUrl": "http://tangle-study-social",
+            "GroupClient__BaseUrl": "http://tangle-study-group",
+            "MediaClient__BaseUrl": "http://tangle-study-media"
+          }
+        },
+        "tangle-study-location": {
+          "type": "location",
+          "image": "tangle-study-location",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "worker-callback", "envName": "WorkerCallback__Secret" },
+            { "name": "places-api-key", "envName": "Places__ApiKey" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Redis__Enabled": "true",
+            "Redis__ConnectionString": "tangle-study-redis",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users",
+            "SocialClient__BaseUrl": "http://tangle-study-social",
+            "GroupClient__BaseUrl": "http://tangle-study-group",
+            "CommunityClient__BaseUrl": "http://tangle-study-community"
+          }
+        },
+        "tangle-study-community": {
+          "type": "community",
+          "image": "tangle-study-community",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users",
+            "SocialClient__BaseUrl": "http://tangle-study-social",
+            "GroupClient__BaseUrl": "http://tangle-study-group",
+            "MediaClient__BaseUrl": "http://tangle-study-media",
+            "LocationClient__BaseUrl": "http://tangle-study-location"
+          }
+        },
+        "tangle-study-group": {
+          "type": "group",
+          "image": "tangle-study-group",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" },
+            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users",
+            "SocialClient__BaseUrl": "http://tangle-study-social",
+            "CommunityClient__BaseUrl": "http://tangle-study-community",
+            "LocationClient__BaseUrl": "http://tangle-study-location"
+          }
+        },
+        "tangle-study-social": {
+          "type": "social",
+          "image": "tangle-study-social",
+          "externalIngress": false,
+          "targetPort": 8080,
+          "healthCheckPath": "/health",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [
+            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
+            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
+            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
+            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
+            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
+            { "name": "internal-service-secret", "envName": "Users__InternalSecret" }
+          ],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "ASPNETCORE_URLS": "http://+:8080",
+            "Metrics__RequireScrapeSecret": "true",
+            "Users__BaseUrl": "http://tangle-study-users"
+          }
+        },
+        "tangle-study-web": {
+          "type": "web",
+          "image": "tangle-study-web",
+          "externalIngress": true,
+          "targetPort": 80,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 3,
+          "secretEnvVars": [],
+          "env": {
+            "ASPNETCORE_ENVIRONMENT": "Production",
+            "TANGLE_API_UPSTREAM": "tangle-study-gateway",
+            "TANGLE_API_HOST": "tangle-study-gateway"
+          }
+        },
+        "tangle-study-worker-chat": {
+          "type": "worker",
+          "worker": "chat",
+          "image": "tangle-study-worker-chat",
+          "externalIngress": false,
+          "targetPort": 9090,
+          "healthCheckPath": "",
+          "minReplicas": 0,
+          "maxReplicas": 2,
+          "secretEnvVars": [
+            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
+            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" }
+          ],
+          "env": {
+            "WORKER_TYPE": "chat",
+            "WORKER_STREAM_KEY": "chat.message.created",
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
+            "REDIS_URL": "redis://tangle-study-redis",
+            "API_BASE_URL": "http://tangle-study-chat"
+          }
+        },
+        "tangle-study-worker-location": {
+          "type": "worker",
+          "worker": "location",
+          "image": "tangle-study-worker-location",
+          "externalIngress": false,
+          "targetPort": 9090,
+          "healthCheckPath": "",
+          "minReplicas": 0,
+          "maxReplicas": 2,
+          "secretEnvVars": [
+            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
+            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" }
+          ],
+          "env": {
+            "WORKER_TYPE": "location",
+            "WORKER_STREAM_KEY": "location.cluster",
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
+            "REDIS_URL": "redis://tangle-study-redis",
+            "API_BASE_URL": "http://tangle-study-location"
+          }
+        },
+        "tangle-study-worker-media": {
+          "type": "worker",
+          "worker": "media",
+          "image": "tangle-study-worker-media",
+          "externalIngress": false,
+          "targetPort": 9090,
+          "healthCheckPath": "",
+          "minReplicas": 0,
+          "maxReplicas": 2,
+          "secretEnvVars": [
+            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
+            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" },
+            { "name": "blob-conn", "envName": "AZURE_STORAGE_CONNECTION_STRING" }
+          ],
+          "env": {
+            "WORKER_TYPE": "media",
+            "WORKER_STREAM_KEY": "media.uploaded",
+            "WORKER_STREAM_PREFIX": "tangle:queue:",
+            "WORKER_CONSUMER_GROUP": "tangle-study-workers",
+            "WORKER_METRICS_PORT": "9090",
+            "RUST_LOG": "info",
+            "REDIS_URL": "redis://tangle-study-redis",
+            "API_BASE_URL": "http://tangle-study-media",
+            "MEDIA_CONTAINER_NAME": "tangle-media"
+          }
+        },
+        "tangle-study-prometheus": {
+          "type": "prometheus",
+          "image": "tangle-study-prometheus",
+          "externalIngress": false,
+          "targetPort": 9090,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [
+            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" }
+          ],
+          "env": {}
+        },
+        "tangle-study-grafana": {
+          "type": "grafana",
+          "image": "tangle-study-grafana",
+          "externalIngress": true,
+          "targetPort": 3000,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [
+            { "name": "grafana-admin-password", "envName": "GF_SECURITY_ADMIN_PASSWORD" }
+          ],
+          "env": {
+            "GF_SECURITY_ADMIN_USER": "admin",
+            "GF_USERS_ALLOW_SIGN_UP": "false",
+            "PROMETHEUS_URL": "http://tangle-study-prometheus"
+          }
+        },
+        "tangle-study-redis": {
+          "type": "redis",
+          "infraImage": "redis",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [],
+          "env": {}
+        },
+        "tangle-study-redis-exporter": {
+          "type": "redis-exporter",
+          "infraImage": "redisExporter",
+          "externalIngress": false,
+          "targetPort": 9121,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [],
+          "env": {
+            "REDIS_ADDR": "tangle-study-redis"
+          }
+        },
+        "tangle-study-postgres-exporter": {
+          "type": "postgres-exporter",
+          "infraImage": "postgresExporter",
+          "externalIngress": false,
+          "targetPort": 9187,
+          "healthCheckPath": "",
+          "minReplicas": 1,
+          "maxReplicas": 1,
+          "secretEnvVars": [
+            { "name": "postgres-dsn", "envName": "DATA_SOURCE_NAME" }
+          ],
+          "env": {}
         }
       }
     }
