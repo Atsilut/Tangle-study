@@ -99,6 +99,7 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
+            { "name": "jwt-secret", "envName": "Jwt__Secret" },
             { "name": "gateway-secret", "envName": "Gateway__Secret" },
             { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
             { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" }
