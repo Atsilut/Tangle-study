@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-LOG_PREFIX="[CI][DOTNET]"
+LOG_PREFIX="${LOG_PREFIX:-[CI][DOTNET]}"
 # shellcheck source=scripts/shared/common.sh
 source "$ROOT/scripts/shared/common.sh"
 # shellcheck source=scripts/shared/compose-env.sh

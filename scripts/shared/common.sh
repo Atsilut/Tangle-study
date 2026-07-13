@@ -15,6 +15,23 @@ log_step()  { echo ""; echo "========================================"; echo "${
 log_warn()  { echo "${LOG_PREFIX}[WARN] $*"; }
 log_error() { echo "${LOG_PREFIX}[ERROR] $*" >&2; }
 
+# Collapsible subsection in GitHub Actions; plain divider locally.
+# Use for work inside a log_step — do not call log_step for every sub-task.
+log_group_start() {
+  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "::group::$*"
+  else
+    echo ""
+    echo "-------- $* --------"
+  fi
+}
+
+log_group_end() {
+  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "::endgroup::"
+  fi
+}
+
 fail() {
   log_error "$1"
   exit 1

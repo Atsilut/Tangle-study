@@ -38,13 +38,13 @@ GRAFANA_IMG="$(param_infra_image grafana)"
 
 ############################################
 log_step "RENDER PINNED VERSIONS"
-bash "$ROOT/scripts/ci/render-versions-env.sh" "$COMPOSE_ENV_FILE"
+LOG_PREFIX="$LOG_PREFIX" bash "$ROOT/scripts/ci/render-versions-env.sh" "$COMPOSE_ENV_FILE"
 
 ############################################
 log_step "COMPILE ARTIFACTS"
 export COMPOSE_ENV_FILE
-SKIP_TESTS=1 bash "$ROOT/scripts/ci/build-workers-release.sh"
-bash "$ROOT/scripts/ci/dotnet-publish.sh"
+LOG_PREFIX="$LOG_PREFIX" SKIP_TESTS=1 bash "$ROOT/scripts/ci/build-workers-release.sh"
+LOG_PREFIX="$LOG_PREFIX" bash "$ROOT/scripts/ci/dotnet-publish.sh"
 
 ############################################
 log_step "BUILD IMAGES"
@@ -115,32 +115,35 @@ build_push() {
   local dockerfile="${DOCKERFILE_MAP[$image]}"
   local tag="${CONTAINER_REGISTRY}/${image}:${IMAGE_TAG}"
 
-  log_step "START $image"
+  log_group_start "build ${image}"
 
   if [[ -z "$dockerfile" || ! -f "$dockerfile" ]]; then
     log_error "dockerfile missing or not mapped for: $image"
     ls -al "$(dirname "${dockerfile:-.}")" || true >&2
+    log_group_end
     fail "dockerfile missing or not mapped for: $image"
   fi
 
   set_build_args "$image"
 
-  log_info "running docker build for $image"
+  log_info "dockerfile=$dockerfile tag=$tag"
   if ! docker build \
       -f "$dockerfile" \
       "${BUILD_ARGS[@]}" \
       -t "$tag" \
       .; then
+    log_group_end
     fail "docker build failed for $image"
   fi
 
   log_info "pushing image to registry"
   docker push "$tag"
   log_info "success $image"
+  log_group_end
 }
 
 for img in "${IMAGES[@]}"; do
   build_push "$img"
 done
 
-log_step "DONE"
+log_step "BUILD & PUSH COMPLETE"

@@ -7,14 +7,22 @@ source "$_libs_dir/log-redact.sh"
 
 resolve_log_analytics_workspace_id() {
   local rg="$1"
-  local app_name="${2:-tangle-study-api}"
+  # Prefer gateway (MSA); fall back to web if gateway lookup fails.
+  local app_name="${2:-tangle-study-gateway}"
   local env_id env_name
 
   env_id="$(az containerapp show \
     --name "$app_name" \
     --resource-group "$rg" \
     --query properties.managedEnvironmentId \
-    --output tsv)"
+    --output tsv 2>/dev/null || true)"
+  if [[ -z "$env_id" && "$app_name" != "tangle-study-web" ]]; then
+    env_id="$(az containerapp show \
+      --name tangle-study-web \
+      --resource-group "$rg" \
+      --query properties.managedEnvironmentId \
+      --output tsv)"
+  fi
   env_name="${env_id##*/}"
   az containerapp env show \
     --name "$env_name" \

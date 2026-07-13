@@ -8,10 +8,8 @@ source "$ROOT/scripts/shared/common.sh"
 
 require_env AZURE_RESOURCE_GROUP
 
-log_step "SMOKE TESTS"
-
 ############################################
-log_step "RESOLVE WEB FQDN"
+log_step "SMOKE TESTS"
 
 WEB_FQDN=$(az containerapp show \
   --name tangle-study-web \
@@ -19,9 +17,6 @@ WEB_FQDN=$(az containerapp show \
   --query "properties.configuration.ingress.fqdn" -o tsv)
 
 log_info "web_fqdn=$WEB_FQDN"
-
-############################################
-log_step "WAIT FOR READINESS"
 
 for app in tangle-study-web; do
   az containerapp revision list --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -31,18 +26,12 @@ done
 
 log_info "container apps ready"
 
-############################################
-log_step "CHECK WEB ROOT"
-
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/")
 [[ "$HTTP_CODE" == "200" ]] || fail "web root returned $HTTP_CODE"
 log_info "web root: $HTTP_CODE OK"
-
-############################################
-log_step "CHECK API HEALTH"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${WEB_FQDN}/health")
 [[ "$HTTP_CODE" == "200" ]] || fail "api /health returned $HTTP_CODE"
 log_info "api /health: $HTTP_CODE OK"
 
-log_step "SMOKE TESTS PASSED"
+log_info "smoke tests passed"

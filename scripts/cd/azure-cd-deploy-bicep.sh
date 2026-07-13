@@ -89,6 +89,4 @@ az deployment group create \
   "${extra_params[@]}" \
   --output table
 
-############################################
-log_step "BICEP DEPLOY COMPLETE"
-log_info "status=completed imageTag=$IMAGE_TAG"
+log_info "bicep deploy completed imageTag=$IMAGE_TAG"

@@ -134,7 +134,7 @@ jobs:
       ############################################
       # 8. MIGRATION
       ############################################
-      - name: Run EF migrate jobs
+      - name: Migrate databases
         if: github.event_name == 'workflow_run' || inputs.skip_migrate != true
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
@@ -143,7 +143,7 @@ jobs:
       ############################################
       # 9. SMOKE TESTS
       ############################################
-      - name: Smoke tests
+      - name: Smoke test
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: bash scripts/cd/azure-cd-smoke.sh
@@ -158,3 +158,4 @@ jobs:
           echo "========================================"
           echo "registry=${{ steps.meta.outputs.registry }}"
           echo "tag=${{ steps.meta.outputs.sha }}"
+          echo "stages=build → wait-images → bicep → migrate → smoke"

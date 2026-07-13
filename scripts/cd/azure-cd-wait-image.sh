@@ -53,4 +53,4 @@ done
 
 [[ $gate_failed -eq 0 ]] || fail "one or more GHCR manifests not available"
 
-log_step "ALL IMAGES READY"
+log_info "all images ready"

@@ -8,7 +8,7 @@ set -euo pipefail
 #   scripts/ci/render-versions-env.sh docker/versions.prod.env
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-LOG_PREFIX="[CI][VERSIONS]"
+LOG_PREFIX="${LOG_PREFIX:-[CI][VERSIONS]}"
 # shellcheck source=scripts/shared/common.sh
 source "$ROOT/scripts/shared/common.sh"
 
