@@ -67,7 +67,25 @@ param grafanaAdminPassword string = ''
 param gatewaySecret string = ''
 
 @secure()
-param internalServiceSecret string = ''
+param usersInternalSecret string = ''
+
+@secure()
+param mediaInternalSecret string = ''
+
+@secure()
+param chatInternalSecret string = ''
+
+@secure()
+param locationInternalSecret string = ''
+
+@secure()
+param communityInternalSecret string = ''
+
+@secure()
+param groupInternalSecret string = ''
+
+@secure()
+param socialInternalSecret string = ''
 
 param tags object = {
   project: 'tangle-study'
@@ -89,7 +107,13 @@ var secretValues = {
   'appinsights-conn': applicationInsightsConnectionString
   'grafana-admin-password': grafanaAdminPassword
   'gateway-secret': gatewaySecret
-  'internal-service-secret': internalServiceSecret
+  'users-internal-secret': usersInternalSecret
+  'media-internal-secret': mediaInternalSecret
+  'chat-internal-secret': chatInternalSecret
+  'location-internal-secret': locationInternalSecret
+  'community-internal-secret': communityInternalSecret
+  'group-internal-secret': groupInternalSecret
+  'social-internal-secret': socialInternalSecret
 }
 
 var customImageTypes = [

@@ -10,7 +10,9 @@
 # Production (matches GitHub Environment `prod` / CD on main):
 #   POSTGRES_CONNECTION_STRING=... BLOB_CONNECTION_STRING=... JWT_SECRET=... \
 #   WORKER_CALLBACK_SECRET=... METRICS_SCRAPE_SECRET=... GRAFANA_ADMIN_PASSWORD=... \
-#   GATEWAY_SECRET=... INTERNAL_SERVICE_SECRET=... \
+#   GATEWAY_SECRET=... USERS_INTERNAL_SECRET=... MEDIA_INTERNAL_SECRET=... \
+#   CHAT_INTERNAL_SECRET=... LOCATION_INTERNAL_SECRET=... COMMUNITY_INTERNAL_SECRET=... \
+#   GROUP_INTERNAL_SECRET=... SOCIAL_INTERNAL_SECRET=... \
 #   ./scripts/azure-deploy-infra.sh prod
 #
 set -euo pipefail
@@ -49,7 +51,10 @@ Environment variables:
 Secure params (required for a usable stack; optional for placeholder-only bootstrap):
   POSTGRES_CONNECTION_STRING, BLOB_CONNECTION_STRING, JWT_SECRET,
   WORKER_CALLBACK_SECRET, METRICS_SCRAPE_SECRET, GRAFANA_ADMIN_PASSWORD,
-  GATEWAY_SECRET, INTERNAL_SERVICE_SECRET
+  GATEWAY_SECRET,
+  USERS_INTERNAL_SECRET, MEDIA_INTERNAL_SECRET, CHAT_INTERNAL_SECRET,
+  LOCATION_INTERNAL_SECRET, COMMUNITY_INTERNAL_SECRET, GROUP_INTERNAL_SECRET,
+  SOCIAL_INTERNAL_SECRET
   PLACES_API_KEY, APPLICATIONINSIGHTS_CONNECTION_STRING (optional)
 EOF
 }
@@ -78,7 +83,13 @@ deploy_env() {
     --parameters "applicationInsightsConnectionString=${APPLICATIONINSIGHTS_CONNECTION_STRING:-}"
     --parameters "grafanaAdminPassword=${GRAFANA_ADMIN_PASSWORD:-}"
     --parameters "gatewaySecret=${GATEWAY_SECRET:-}"
-    --parameters "internalServiceSecret=${INTERNAL_SERVICE_SECRET:-}"
+    --parameters "usersInternalSecret=${USERS_INTERNAL_SECRET:-}"
+    --parameters "mediaInternalSecret=${MEDIA_INTERNAL_SECRET:-}"
+    --parameters "chatInternalSecret=${CHAT_INTERNAL_SECRET:-}"
+    --parameters "locationInternalSecret=${LOCATION_INTERNAL_SECRET:-}"
+    --parameters "communityInternalSecret=${COMMUNITY_INTERNAL_SECRET:-}"
+    --parameters "groupInternalSecret=${GROUP_INTERNAL_SECRET:-}"
+    --parameters "socialInternalSecret=${SOCIAL_INTERNAL_SECRET:-}"
   )
 
   if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then
