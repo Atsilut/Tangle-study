@@ -51,6 +51,9 @@ if [[ " $* " == *" --no-build "* ]]; then
     *Gateway.Tests*)
       require_test_build_output "Gateway.Tests" "Gateway.Tests.dll"
       ;;
+    *Tangle.AspNetCore.Tests*)
+      require_test_build_output "Tangle.AspNetCore.Tests" "Tangle.AspNetCore.Tests.dll"
+      ;;
     *)
       require_test_build_output "Users.Tests" "Users.Tests.dll"
       require_test_build_output "Media.Tests" "Media.Tests.dll"
@@ -60,6 +63,7 @@ if [[ " $* " == *" --no-build "* ]]; then
       require_test_build_output "Group.Tests" "Group.Tests.dll"
       require_test_build_output "Social.Tests" "Social.Tests.dll"
       require_test_build_output "Gateway.Tests" "Gateway.Tests.dll"
+      require_test_build_output "Tangle.AspNetCore.Tests" "Tangle.AspNetCore.Tests.dll"
       ;;
   esac
 fi
