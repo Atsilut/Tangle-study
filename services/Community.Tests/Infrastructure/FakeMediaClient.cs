@@ -7,6 +7,7 @@ public sealed class FakeMediaClient : IMediaClient
     private long _nextId = 1;
     private readonly Dictionary<long, AssetState> _assets = [];
     private Exception? _linkFailure;
+    private Exception? _patchFailure;
     private Exception? _deletePostBlobFailure;
     private Exception? _deleteCommentBlobFailure;
 
@@ -20,11 +21,14 @@ public sealed class FakeMediaClient : IMediaClient
         _assets.Clear();
         _nextId = 1;
         _linkFailure = null;
+        _patchFailure = null;
         _deletePostBlobFailure = null;
         _deleteCommentBlobFailure = null;
     }
 
     public void FailNextLink(Exception exception) => _linkFailure = exception;
+
+    public void FailNextPatch(Exception exception) => _patchFailure = exception;
 
     public void FailNextDeleteBlobForPost(Exception exception) => _deletePostBlobFailure = exception;
 
@@ -99,6 +103,13 @@ public sealed class FakeMediaClient : IMediaClient
         IReadOnlyList<long>? addMediaAssetIds,
         IReadOnlyList<long>? removeMediaAssetIds)
     {
+        if (_patchFailure is not null)
+        {
+            var failure = _patchFailure;
+            _patchFailure = null;
+            throw failure;
+        }
+
         if (addMediaAssetIds is not null)
         {
             foreach (var id in addMediaAssetIds)

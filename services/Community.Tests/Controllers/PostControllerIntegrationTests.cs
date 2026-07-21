@@ -291,6 +291,50 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
+    public async Task UpdatePost_Compensates_WhenMediaPatchFails()
+    {
+        var userId = InMemoryUser.SeedUser("patch-media-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Original",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        var extraAsset = FakeMedia.SeedReadyAsset(fileName: "extra.png");
+        FakeMedia.FailNextPatch(new ArgumentException("Simulated media patch failure"));
+
+        var patchRes = await Client.PatchAsJsonAsync(
+            "/api/posts",
+            new PostPatchRequestDto
+            {
+                Id = postId,
+                Title = "Patched",
+                Content = "Body",
+                AddMediaAssetIds = [extraAsset],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, patchRes.StatusCode);
+
+        var getRes = await Client.GetAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
+        var post = await getRes.Content.ReadFromJsonAsync<PostGetResponseDto>(
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Original", post!.Title);
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+        Assert.False(FakeMedia.IsAssetLinkedToPost(extraAsset));
+    }
+
+    [Fact]
     public async Task DeletePost_RemovesLinkedMediaAndLocation()
     {
         var userId = InMemoryUser.SeedUser("delete-media");

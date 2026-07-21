@@ -103,14 +103,16 @@ namespace Group.Service
             return await ResolveInviteOutcomeAsync(groupId, request.InviteeId, inviterId);
         }
 
-        private Task CreateInvitationInTransactionAsync(long groupId, long inviterId, long inviteeId)
+        private async Task CreateInvitationInTransactionAsync(long groupId, long inviterId, long inviteeId)
         {
-            return _db.ExecuteInTransactionAsync(async () =>
+            // Cross-service HTTP must stay outside the DB transaction (CONSISTENCY.md).
+            var ignoreBecauseBlocked = await _socialClient.IsBlockedByAsync(inviteeId, inviterId);
+            await _db.ExecuteInTransactionAsync(async () =>
             {
                 if (await _repo.GetForUserAsync(groupId, inviteeId) is not null) return;
 
                 var invitation = new GroupInvitation(groupId, inviterId, inviteeId);
-                if (await _socialClient.IsBlockedByAsync(inviteeId, inviterId)) invitation.Ignore();
+                if (ignoreBecauseBlocked) invitation.Ignore();
                 await _repo.CreateInvitationAsync(invitation);
             });
         }

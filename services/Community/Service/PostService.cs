@@ -358,22 +358,39 @@ public class PostService(
             throw new AccessForbiddenException("Unauthorized access");
         ValidateLocationPatch(request);
 
+        var previousTitle = post.Title;
+        var previousContent = post.Content;
         post.Update(request.Title, request.Content);
         await _repo.UpdatePostAsync(post);
-        await _mediaClient.PatchPostMediaAsync(
-            post.Id,
-            userId,
-            request.AddMediaAssetIds,
-            request.RemoveMediaAssetIds);
-        if (request.ClearLocation)
-            await _locationClient.ClearLocationForPostAsync(post.Id, userId);
-        else if (request.Latitude.HasValue)
+
+        try
         {
-            await _locationClient.UpsertLocationForPostAsync(
+            await _mediaClient.PatchPostMediaAsync(
                 post.Id,
                 userId,
-                request.Latitude.Value,
-                request.Longitude!.Value);
+                request.AddMediaAssetIds,
+                request.RemoveMediaAssetIds);
+            if (request.ClearLocation)
+                await _locationClient.ClearLocationForPostAsync(post.Id, userId);
+            else if (request.Latitude.HasValue)
+            {
+                await _locationClient.UpsertLocationForPostAsync(
+                    post.Id,
+                    userId,
+                    request.Latitude.Value,
+                    request.Longitude!.Value);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Post update side effects failed for post {PostId}; compensating", post.Id);
+            await CompensateFailedPostUpdateSideEffectsAsync(
+                post,
+                userId,
+                previousTitle,
+                previousContent,
+                request);
+            throw;
         }
 
         return new PostPatchResponseDto(
@@ -487,6 +504,50 @@ public class PostService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Compensation: failed to delete post {PostId}", post.Id);
+        }
+    }
+
+    private async Task CompensateFailedPostUpdateSideEffectsAsync(
+        Post post,
+        long userId,
+        string previousTitle,
+        string previousContent,
+        PostPatchRequestDto request)
+    {
+        try
+        {
+            // Reverse the media patch (swap add/remove) so a failed update does not leave half-applied links.
+            await _mediaClient.PatchPostMediaAsync(
+                post.Id,
+                userId,
+                request.RemoveMediaAssetIds,
+                request.AddMediaAssetIds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Compensation: media patch reverse failed for post {PostId}", post.Id);
+        }
+
+        if (request.Latitude.HasValue)
+        {
+            try
+            {
+                await _locationClient.ClearLocationForPostAsync(post.Id, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Compensation: location clear failed for post {PostId}", post.Id);
+            }
+        }
+
+        try
+        {
+            post.Update(previousTitle, previousContent);
+            await _repo.UpdatePostAsync(post);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Compensation: failed to restore post {PostId} fields", post.Id);
         }
     }
 

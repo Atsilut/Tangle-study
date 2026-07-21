@@ -228,12 +228,7 @@ public class ChatMessageService(
                 message, userId, seenByOther.Contains(messageId), _policy, DateTime.UtcNow))
             throw new ArgumentException("This message can no longer be deleted.");
 
-        await _db.ExecuteInTransactionAsync(async () =>
-        {
-            message.MarkDeleted();
-            await _repo.SaveChatMessageAsync(message);
-        });
-
+        // Remote-first: dispose media blobs, then soft-delete locally (CONSISTENCY.md).
         try
         {
             await _mediaClient.DeleteBlobStorageForChatMessageAsync(messageId);
@@ -242,9 +237,16 @@ public class ChatMessageService(
         {
             _logger.LogError(
                 ex,
-                "Media blob cleanup failed after soft-deleting chat message {MessageId}",
+                "Remote cleanup failed before soft-deleting chat message {MessageId} (media)",
                 messageId);
+            throw;
         }
+
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            message.MarkDeleted();
+            await _repo.SaveChatMessageAsync(message);
+        });
 
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
