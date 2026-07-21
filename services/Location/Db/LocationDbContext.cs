@@ -1,5 +1,6 @@
 using Location.Entities;
 using Microsoft.EntityFrameworkCore;
+using Tangle.AspNetCore.Outbox;
 
 namespace Location.Db;
 
@@ -7,6 +8,8 @@ public class LocationDbContext(DbContextOptions<LocationDbContext> options) : Db
 {
     public DbSet<MapPin> MapPins => Set<MapPin>();
     public DbSet<LocationSession> LocationSessions => Set<LocationSession>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,5 +32,7 @@ public class LocationDbContext(DbContextOptions<LocationDbContext> options) : Db
                 .IsUnique()
                 .HasFilter("\"EndedAt\" IS NULL");
         });
+
+        modelBuilder.ConfigureOutbox();
     }
 }

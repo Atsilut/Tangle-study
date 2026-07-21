@@ -41,6 +41,9 @@ public sealed class LocationWebApplicationFactory(string connectionString, strin
         {
             ["WorkerCallback:Secret"] = TestWorkerCallbackSecret,
             ["Places:Enabled"] = "false",
+            ["Outbox:PollIntervalMilliseconds"] = "200",
+            ["Outbox:BatchSize"] = "50",
+            ["Outbox:MaxAttempts"] = "10",
         };
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "SocialClient", "http://social.test");
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "GroupClient", "http://group.test");

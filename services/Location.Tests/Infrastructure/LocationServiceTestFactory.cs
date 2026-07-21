@@ -3,6 +3,7 @@ using Location.Repository;
 using Location.Service;
 using Microsoft.EntityFrameworkCore;
 using Tangle.AspNetCore.Auth;
+using Tangle.AspNetCore.Outbox;
 
 namespace Location.Tests.Infrastructure;
 
@@ -31,13 +32,14 @@ internal static class LocationServiceTestFactory
             .Options);
         var mapPinRepository = new MapPinRepository(db);
         var distributedCache = new FakeDistributedCache();
-        var workQueue = new FakeWorkQueue();
+        var outbox = new EfOutboxWriter<LocationDbContext>(db);
 
         var locationAccessService = new LocationAccessService(users, social, community, currentUser);
         var locationClusterService = new LocationClusterService(
             mapPinRepository,
             distributedCache,
-            workQueue);
+            outbox,
+            db);
         var mapPinService = new MapPinService(
             mapPinRepository,
             users,
