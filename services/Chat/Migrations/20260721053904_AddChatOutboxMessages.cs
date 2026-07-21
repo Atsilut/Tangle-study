@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Chat.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOutboxMessages : Migration
+    public partial class AddChatOutboxMessages : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -27,7 +27,7 @@ namespace Chat.Migrations
                     ProcessedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     DeadLetteredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     Attempts = table.Column<int>(type: "integer", nullable: false),
-                    LastError = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    LastError = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true)
                 },
                 constraints: table =>
                 {

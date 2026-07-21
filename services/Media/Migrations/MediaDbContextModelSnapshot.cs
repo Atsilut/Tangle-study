@@ -23,7 +23,7 @@ namespace Media.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Media.MediaAsset", b =>
+            modelBuilder.Entity("Media.Entities.MediaAsset", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
