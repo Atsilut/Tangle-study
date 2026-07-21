@@ -64,7 +64,7 @@ public sealed class OutboxDispatcherHostedService<TContext>(
         }
     }
 
-    private async Task DispatchBatchAsync(int batchSize, int maxAttempts, CancellationToken cancellationToken)
+    internal async Task DispatchBatchAsync(int batchSize, int maxAttempts, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TContext>();
@@ -124,7 +124,7 @@ public sealed class OutboxDispatcherHostedService<TContext>(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task PruneProcessedAsync(TimeSpan retention, CancellationToken cancellationToken)
+    internal async Task PruneProcessedAsync(TimeSpan retention, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TContext>();

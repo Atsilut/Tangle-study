@@ -15,6 +15,7 @@ WORKDIR /src
 
 COPY Tangle.slnx .
 COPY services/Tangle.AspNetCore/Tangle.AspNetCore.csproj services/Tangle.AspNetCore/
+COPY services/Tangle.AspNetCore.Tests/Tangle.AspNetCore.Tests.csproj services/Tangle.AspNetCore.Tests/
 COPY services/TestSupport/TestSupport.csproj services/TestSupport/
 COPY services/TestSupport.Scenarios/TestSupport.Scenarios.csproj services/TestSupport.Scenarios/
 COPY services/Users/Users.csproj services/Users/
@@ -34,6 +35,7 @@ RUN --mount=type=cache,target=/tmp/nuget-packages \
     dotnet restore services/Chat.Tests/Chat.Tests.csproj && \
     dotnet restore services/Chat/Chat.csproj && \
     dotnet restore services/Location.Tests/Location.Tests.csproj && \
-    dotnet restore services/Location/Location.csproj
+    dotnet restore services/Location/Location.csproj && \
+    dotnet restore services/Tangle.AspNetCore.Tests/Tangle.AspNetCore.Tests.csproj
 
 ENTRYPOINT ["dotnet"]
