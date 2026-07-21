@@ -2,7 +2,7 @@
 
 Tangle is a learning project that simulates a distributed system. Local Compose runs **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure production CD still targets the removed monolith image until Bicep/parameters cutover — see [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
-Service-layer conventions: [AGENTS.md](AGENTS.md).
+Service-layer conventions: [AGENTS.md](AGENTS.md). Consistency model: [CONSISTENCY.md](CONSISTENCY.md).
 
 ---
 

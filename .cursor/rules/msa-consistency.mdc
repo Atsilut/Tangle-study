@@ -1,0 +1,18 @@
+---
+description: MSA consistency — no HTTP inside DB transactions; remote-first deletes; outbox for queues
+globs: services/**/*.cs
+alwaysApply: false
+---
+
+# Consistency (ACID / MSA)
+
+Full model: [`docs/CONSISTENCY.md`](../../docs/CONSISTENCY.md).
+
+## Hard rules
+
+- **Never** call cross-service `I*Client` HTTP inside `ExecuteInTransactionAsync`. Persist (or soft-delete) locally first; remotes after commit; create flows compensate with logged cleanup.
+- **Deletes** are remote-first (idempotent remote cleanup), then local delete.
+- **Durable side effects** (Redis Streams / pub/sub) for Media upload and Chat message create go through the **transactional outbox**, not naked post-commit enqueue.
+- Internal detach/delete endpoints must stay **idempotent**.
+
+Do not introduce distributed 2PC.
