@@ -1,14 +1,16 @@
 using Media.Client;
 using Media.Dto;
+using Media.Db;
 using Media.Repository;
 using Media.Storage;
 using Media.Config;
 using Tangle.AspNetCore.Exceptions;
 using Media.Infrastructure;
 using Media.Queue;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Tangle.AspNetCore.Auth;
-using Tangle.AspNetCore.Queue;
+using Tangle.AspNetCore.Outbox;
 using Media.Entities;
 
 namespace Media.Service;
@@ -16,24 +18,26 @@ namespace Media.Service;
 [Service]
 public sealed class MediaService(
     IMediaAssetRepository repo,
+    MediaDbContext db,
     IServiceProvider serviceProvider,
     MediaLimitPolicy limitPolicy,
     IUserClient userClient,
     ICommunityAccessClient communityAccess,
     IChatAccessClient chatAccess,
-    IWorkQueue workQueue,
+    IOutboxWriter outbox,
     IOptions<MediaOptions> mediaOptions,
     CurrentUserAccessor currentUser)
 {
     private static readonly TimeSpan PresignedUploadExpiry = TimeSpan.FromHours(1);
 
     private readonly IMediaAssetRepository _repo = repo;
+    private readonly MediaDbContext _db = db;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly MediaLimitPolicy _limitPolicy = limitPolicy;
     private readonly IUserClient _userClient = userClient;
     private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly IChatAccessClient _chatAccess = chatAccess;
-    private readonly IWorkQueue _workQueue = workQueue;
+    private readonly IOutboxWriter _outbox = outbox;
     private readonly MediaOptions _mediaOptions = mediaOptions.Value;
     private readonly CurrentUserAccessor _currentUser = currentUser;
 
@@ -105,6 +109,92 @@ public sealed class MediaService(
     internal Task DetachUploaderFromDeletedUserAsync(long uploaderId) =>
         _repo.DetachUploaderFromMediaAssetsAsync(uploaderId);
 
+    /// <summary>
+    /// Unlinks media whose post/comment FK no longer exists in Community (remote-first delete leftovers).
+    /// </summary>
+    internal async Task<int> ReconcileOrphanContentLinksAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        var assets = await _repo.GetLinkedContentMediaAssetsAsync(batchSize);
+        var unlinked = 0;
+
+        foreach (var asset in assets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (asset.PostId is long postId && !await _communityAccess.PostExistsAsync(postId, cancellationToken))
+            {
+                asset.UnlinkFromPost();
+                unlinked++;
+                continue;
+            }
+
+            if (asset.CommentId is long commentId && !await _communityAccess.CommentExistsAsync(commentId, cancellationToken))
+            {
+                asset.UnlinkFromComment();
+                unlinked++;
+            }
+        }
+
+        if (unlinked > 0) await _repo.SaveChangesAsync();
+        return unlinked;
+    }
+
+    /// <summary>
+    /// Re-enqueues stuck Processing assets, then marks them Failed after a longer timeout.
+    /// </summary>
+    internal async Task<(int Reenqueued, int Failed)> RecoverStuckProcessingAsync(
+        TimeSpan reenqueueAfter,
+        TimeSpan failAfter,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        var assets = await _repo.GetProcessingMediaAssetsAsync(batchSize);
+        var now = DateTime.UtcNow;
+        var reenqueued = 0;
+        var failed = 0;
+
+        foreach (var asset in assets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var age = now - asset.UpdatedAt;
+            if (age < reenqueueAfter) continue;
+
+            if (age >= failAfter)
+            {
+                asset.MarkFailed("processing_timeout");
+                failed++;
+                continue;
+            }
+
+            var mediaAssetId = asset.Id;
+            var hasPendingOutbox = await _db.OutboxMessages.AnyAsync(
+                m => m.ProcessedAt == null
+                    && m.DeadLetteredAt == null
+                    && m.Destination == OutboxDestination.WorkQueue
+                    && m.Target == WorkQueueStreams.MediaUploaded
+                    && m.EntityId == mediaAssetId,
+                cancellationToken);
+            if (hasPendingOutbox) continue;
+
+            var targetMaxBytes = _limitPolicy.GetStorageLimits(asset.IntendedContext, asset.Kind).PerFileBytes;
+            _outbox.EnqueueWorkQueue(
+                WorkQueueStreams.MediaUploaded,
+                new MediaUploadedJob(
+                    asset.Id,
+                    asset.IntendedContext.ToString(),
+                    asset.Kind.ToString(),
+                    asset.MimeType,
+                    asset.OriginalObjectKey,
+                    asset.OriginalSizeBytes,
+                    targetMaxBytes),
+                asset.Id);
+            reenqueued++;
+        }
+
+        if (reenqueued > 0 || failed > 0) await _repo.SaveChangesAsync();
+        return (reenqueued, failed);
+    }
+
     internal async Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds)
     {
         if (mediaAssetIds is null || mediaAssetIds.Count == 0) return;
@@ -112,11 +202,26 @@ public sealed class MediaService(
         if (mediaAssetIds.Distinct().Count() != mediaAssetIds.Count)
             throw new ArgumentException("Duplicate media asset IDs are not allowed.");
 
-        var assets = await LoadOwnedReadyAssetsAsync(mediaAssetIds, uploaderUserId, MediaIntendedContext.Post);
+        var assets = await LoadOwnedReadyAssetsAsync(
+            mediaAssetIds,
+            uploaderUserId,
+            MediaIntendedContext.Post,
+            allowLinkedPostId: postId);
         ValidatePostTotalsMedia(assets);
 
         foreach (var asset in assets)
             asset.LinkToPost(postId);
+
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task UnlinkFromPostAsync(long postId)
+    {
+        var assets = await _repo.GetMediaAssetsByPostIdAsync(postId);
+        if (assets.Count == 0) return;
+
+        foreach (var asset in assets)
+            asset.UnlinkFromPost();
 
         await _repo.SaveChangesAsync();
     }
@@ -168,8 +273,21 @@ public sealed class MediaService(
     {
         if (mediaAssetId is null) return;
 
-        var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, uploaderUserId, MediaIntendedContext.Comment);
+        var asset = await LoadSingleOwnedReadyAssetAsync(
+            mediaAssetId.Value,
+            uploaderUserId,
+            MediaIntendedContext.Comment,
+            allowLinkedCommentId: commentId);
         asset.LinkToComment(commentId);
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task UnlinkFromCommentAsync(long commentId)
+    {
+        var asset = await _repo.GetMediaAssetByCommentIdAsync(commentId);
+        if (asset is null) return;
+
+        asset.UnlinkFromComment();
         await _repo.SaveChangesAsync();
     }
 
@@ -177,8 +295,21 @@ public sealed class MediaService(
     {
         if (mediaAssetId is null) return;
 
-        var asset = await LoadSingleOwnedReadyAssetAsync(mediaAssetId.Value, senderUserId, MediaIntendedContext.ChatMessage);
+        var asset = await LoadSingleOwnedReadyAssetAsync(
+            mediaAssetId.Value,
+            senderUserId,
+            MediaIntendedContext.ChatMessage,
+            allowLinkedChatMessageId: chatMessageId);
         asset.LinkToChatMessage(chatMessageId);
+        await _repo.SaveChangesAsync();
+    }
+
+    internal async Task UnlinkFromChatMessageAsync(long chatMessageId)
+    {
+        var asset = await _repo.GetMediaAssetByChatMessageIdAsync(chatMessageId);
+        if (asset is null) return;
+
+        asset.UnlinkFromChatMessage();
         await _repo.SaveChangesAsync();
     }
 
@@ -309,10 +440,8 @@ public sealed class MediaService(
             throw new ArgumentException("Uploaded file was not found in storage.");
 
         asset.MarkProcessing();
-        await _repo.SaveChangesAsync();
-
         var targetMaxBytes = _limitPolicy.GetStorageLimits(asset.IntendedContext, asset.Kind).PerFileBytes;
-        await _workQueue.EnqueueAsync(
+        _outbox.EnqueueWorkQueue(
             WorkQueueStreams.MediaUploaded,
             new MediaUploadedJob(
                 asset.Id,
@@ -321,7 +450,9 @@ public sealed class MediaService(
                 asset.MimeType,
                 asset.OriginalObjectKey,
                 asset.OriginalSizeBytes,
-                targetMaxBytes));
+                targetMaxBytes),
+            asset.Id);
+        await _repo.SaveChangesAsync();
 
         return MapToDto(asset);
     }
@@ -424,7 +555,8 @@ public sealed class MediaService(
     private async Task<List<MediaAsset>> LoadOwnedReadyAssetsAsync(
         IReadOnlyList<long> mediaAssetIds,
         long uploaderUserId,
-        MediaIntendedContext expectedContext)
+        MediaIntendedContext expectedContext,
+        long? allowLinkedPostId = null)
     {
         var assets = await _repo.GetMediaAssetsByIdsAsync(mediaAssetIds);
         if (assets.Count != mediaAssetIds.Count)
@@ -436,7 +568,7 @@ public sealed class MediaService(
             orderedAssets.Add(assetsById[id]);
 
         foreach (var asset in orderedAssets)
-            EnsureOwnedReadyForContext(asset, uploaderUserId, expectedContext);
+            EnsureOwnedReadyForContext(asset, uploaderUserId, expectedContext, allowLinkedPostId: allowLinkedPostId);
 
         return orderedAssets;
     }
@@ -444,27 +576,51 @@ public sealed class MediaService(
     private async Task<MediaAsset> LoadSingleOwnedReadyAssetAsync(
         long mediaAssetId,
         long uploaderUserId,
-        MediaIntendedContext expectedContext)
+        MediaIntendedContext expectedContext,
+        long? allowLinkedCommentId = null,
+        long? allowLinkedChatMessageId = null)
     {
         var asset = await GetMediaAssetOrThrowAsync(mediaAssetId);
-        EnsureOwnedReadyForContext(asset, uploaderUserId, expectedContext);
+        EnsureOwnedReadyForContext(
+            asset,
+            uploaderUserId,
+            expectedContext,
+            allowLinkedCommentId: allowLinkedCommentId,
+            allowLinkedChatMessageId: allowLinkedChatMessageId);
         return asset;
     }
 
-    private void EnsureOwnedReadyForContext(MediaAsset asset, long uploaderUserId, MediaIntendedContext expectedContext)
+    private void EnsureOwnedReadyForContext(
+        MediaAsset asset,
+        long uploaderUserId,
+        MediaIntendedContext expectedContext,
+        long? allowLinkedPostId = null,
+        long? allowLinkedCommentId = null,
+        long? allowLinkedChatMessageId = null)
     {
         if (asset.UploaderId != uploaderUserId) throw new UnauthorizedAccessException("Unauthorized access");
         if (asset.IntendedContext != expectedContext)
             throw new ArgumentException($"Media asset {asset.Id} was uploaded for {asset.IntendedContext}, not {expectedContext}.");
-        if (asset.IsLinked) throw new ArgumentException($"Media asset {asset.Id} is already linked to content.");
-        if (asset.ProcessingStatus != MediaProcessingStatus.Ready)
-            throw new ArgumentException($"Media asset {asset.Id} must be ready before it can be attached.");
-        if (asset.StoredSizeBytes is not > 0)
-            throw new ArgumentException($"Media asset {asset.Id} is missing processed size metadata.");
 
-        var perFileLimit = _limitPolicy.GetStorageLimits(expectedContext, asset.Kind).PerFileBytes;
-        if (asset.StoredSizeBytes > perFileLimit)
-            throw new ArgumentException($"Media asset {asset.Id} exceeds the per-file storage limit for {expectedContext} {asset.Kind}.");
+        if (asset.IsLinked)
+        {
+            var alreadyLinkedToTarget =
+                (allowLinkedPostId is long postId && asset.PostId == postId)
+                || (allowLinkedCommentId is long commentId && asset.CommentId == commentId)
+                || (allowLinkedChatMessageId is long chatMessageId && asset.ChatMessageId == chatMessageId);
+            if (!alreadyLinkedToTarget)
+                throw new ArgumentException($"Media asset {asset.Id} is already linked to content.");
+        }
+        else if (asset.ProcessingStatus != MediaProcessingStatus.Ready)
+            throw new ArgumentException($"Media asset {asset.Id} must be ready before it can be attached.");
+        else if (asset.StoredSizeBytes is not > 0)
+            throw new ArgumentException($"Media asset {asset.Id} is missing processed size metadata.");
+        else
+        {
+            var perFileLimit = _limitPolicy.GetStorageLimits(expectedContext, asset.Kind).PerFileBytes;
+            if (asset.StoredSizeBytes > perFileLimit)
+                throw new ArgumentException($"Media asset {asset.Id} exceeds the per-file storage limit for {expectedContext} {asset.Kind}.");
+        }
     }
 
     private void ValidatePostTotalsMedia(IReadOnlyList<MediaAsset> assets)

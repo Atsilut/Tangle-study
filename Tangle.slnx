@@ -23,4 +23,5 @@
   <Project Path="services/Group.Tests/Group.Tests.csproj" />
   <Project Path="services/Social.Tests/Social.Tests.csproj" />
   <Project Path="services/Stack.Tests/Stack.Tests.csproj" />
+  <Project Path="services/Tangle.AspNetCore.Tests/Tangle.AspNetCore.Tests.csproj" />
 </Solution>

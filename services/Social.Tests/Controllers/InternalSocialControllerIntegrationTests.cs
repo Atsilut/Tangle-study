@@ -234,4 +234,25 @@ public sealed class InternalSocialControllerIntegrationTests(PostgresTestcontain
             HttpStatusCode.NoContent,
             (await Client.GetAsync($"{RequestsBase}/pending", TestContext.Current.CancellationToken)).StatusCode);
     }
+
+    [Fact]
+    public async Task DetachOnDeletion_IsIdempotent_WhenCalledTwice()
+    {
+        var a = CreateUserForTest("InternalDetachIdempotent", 1);
+        var b = CreateUserForTest("InternalDetachIdempotent", 2);
+        await AcceptFriendshipAsync(a, b);
+
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
+        var first = await Client.PostAsync(
+            $"{InternalBase}/users/{a}/detach-on-deletion",
+            null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+
+        var second = await Client.PostAsync(
+            $"{InternalBase}/users/{a}/detach-on-deletion",
+            null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+    }
 }

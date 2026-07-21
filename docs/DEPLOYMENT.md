@@ -14,7 +14,8 @@ Default `docker compose up` runs `gateway`, `users`, `media`, `chat`, `location`
 
 | Path | Routed to | Config |
 |------|-----------|--------|
-| `/api/*`, `/hubs/*`, `/internal/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/api/*`, `/hubs/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/internal/*` | Service-to-service only (direct, e.g. `http://media:8080`); not proxied at the edge, rejected by the gateway | [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md#internal-service-authentication) |
 
 Gateway YARP routes by path prefix to users, media, chat, location, community, group, and social. See [GATEWAY.md](../services/Gateway/GATEWAY.md).
 
@@ -740,3 +741,28 @@ docker build -f clients/web/Dockerfile \
 - [ARCHITECTURE.md](ARCHITECTURE.md) — gateway-centric Compose stack + Azure gaps
 - [MSA_MIGRATION.md](MSA_MIGRATION.md) — Phase 9 extraction progress and Azure follow-ups
 
+---
+
+## Partial delete recovery runbook
+
+Cross-service deletes use **remote-first** ordering (idempotent remotes, then local row). If a delete stops halfway:
+
+### User delete (`DELETE /api/users/{id}`)
+
+1. Re-run the user delete (or call each detach in order): Community → Media (`/internal/media/users/{id}/detach-on-deletion`) → Chat → Group → Social → Location, then delete the Users row.
+2. Detach endpoints are idempotent — safe to call twice.
+3. If the user row is already gone but domains still have author FKs, call the detach endpoints with the deleted user id.
+
+### Group delete
+
+1. Re-call `POST /internal/community/groups/{id}/delete-all` and `POST /internal/location/groups/{id}/end-sessions`, then delete the group locally (or retry the group delete API).
+2. Both remotes are no-ops when already cleaned.
+
+### Post / comment delete
+
+1. If media/location were cleaned but the Community row remains, retry the delete API.
+2. If the Community row is gone but media/location remain, background reconciliation unlinks orphan media (`MediaReconciliation`) and removes orphan map pins (Location safety monitor). Manual fallback: `DELETE /internal/media/for-post/{id}` and location `clear-on-delete`.
+
+### Observability
+
+Failed remote cleanup before local delete is logged with the aggregate id. Orphan reconciler warnings (`Media orphan reconciliation unlinked …`, `Location orphan pin reconciliation removed …`) indicate leftover side effects were repaired.

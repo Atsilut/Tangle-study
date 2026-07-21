@@ -39,6 +39,12 @@ Overview: [ARCHITECTURE.md](ARCHITECTURE.md). Migration order: [MSA_MIGRATION.md
 
 **Owns:** `Post` and `Comment` in Postgres `community` schema (tight delete/detach and board-visibility coupling).
 
+**Create saga (eventual consistency across services):**
+1. Persist post/comment in Community DB
+2. Link media via Media HTTP (`LinkToPost` / `LinkToComment` — idempotent for the same entity id)
+3. For posts with geo: upsert Location pin (idempotent by `postId`)
+4. On any side-effect failure: unlink media → clear location → delete local row (logged compensation; not silent)
+
 **Depends on:**
 - **users** — author nickname enrichment, user existence (via `IUserClient`)
 - **social** — mutual block filtering (via `ISocialClient`)

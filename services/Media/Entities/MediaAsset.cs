@@ -101,6 +101,7 @@ public class MediaAsset
 
     public void LinkToPost(long postId)
     {
+        if (PostId == postId) return;
         EnsureCanLink(MediaIntendedContext.Post);
         PostId = postId;
         UpdatedAt = DateTime.UtcNow;
@@ -108,6 +109,7 @@ public class MediaAsset
 
     public void LinkToComment(long commentId)
     {
+        if (CommentId == commentId) return;
         EnsureCanLink(MediaIntendedContext.Comment);
         CommentId = commentId;
         UpdatedAt = DateTime.UtcNow;
@@ -115,8 +117,30 @@ public class MediaAsset
 
     public void LinkToChatMessage(long chatMessageId)
     {
+        if (ChatMessageId == chatMessageId) return;
         EnsureCanLink(MediaIntendedContext.ChatMessage);
         ChatMessageId = chatMessageId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UnlinkFromPost()
+    {
+        if (PostId is null) return;
+        PostId = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UnlinkFromComment()
+    {
+        if (CommentId is null) return;
+        CommentId = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UnlinkFromChatMessage()
+    {
+        if (ChatMessageId is null) return;
+        ChatMessageId = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

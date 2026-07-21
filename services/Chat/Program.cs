@@ -8,6 +8,7 @@ using Tangle.AspNetCore.Config;
 using Tangle.AspNetCore.Db;
 using Tangle.AspNetCore.Hosting;
 using Tangle.AspNetCore.OpenApi;
+using Tangle.AspNetCore.Outbox;
 
 if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 {
@@ -29,6 +30,8 @@ builder.Services.Configure<RedisOptions>(builder.Configuration.GetSection(RedisO
 builder.Services.Configure<ChatMessagePolicyOptions>(
     builder.Configuration.GetSection(ChatMessagePolicyOptions.SectionName));
 builder.Services.AddTangleRedis(builder.Configuration);
+builder.Services.AddTangleOutbox<ChatDbContext>(builder.Configuration);
+builder.Services.AddSingleton<IOutboxEventPublisher, ChatOutboxEventPublisher>();
 builder.Services.AddTangleUsersAccess(builder.Configuration);
 builder.Services.AddTangleSocialClient(builder.Configuration);
 builder.Services.AddTangleGroupClient(builder.Configuration);

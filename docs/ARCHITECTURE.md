@@ -2,13 +2,13 @@
 
 Tangle is a learning project that simulates a distributed system. Local Compose runs **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure production CD still targets the removed monolith image until Bicep/parameters cutover — see [MSA_MIGRATION.md](MSA_MIGRATION.md).
 
-Service-layer conventions: [AGENTS.md](AGENTS.md).
+Service-layer conventions: [AGENTS.md](AGENTS.md). Consistency model: [CONSISTENCY.md](CONSISTENCY.md).
 
 ---
 
 ## Current state (as-built)
 
-Local Compose runs **users-service** and **gateway** plus extracted deployables (`services/Media`, `Chat`, `Location`, `Community`, `Group`, `Social`). Nginx proxies `/api/*` and `/hubs/*` to the gateway; YARP routes to each service. Services call users over HTTP (`IUserClient` → `/internal/users/*`) for identity checks.
+Local Compose runs **users-service** and **gateway** plus extracted deployables (`services/Media`, `Chat`, `Location`, `Community`, `Group`, `Social`). Nginx proxies `/api/*` and `/hubs/*` to the gateway; YARP routes to each service. Services call each other directly on the private network over `/internal/*` (e.g. `IUserClient` → `http://users:8080/internal/users/*`) with `X-Internal-Secret`; `/internal/*` is never exposed at the edge or routed by the gateway.
 
 PostgreSQL remains one instance (schema-per-service). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
 
@@ -33,7 +33,7 @@ flowchart TB
   Graf["Grafana (optional)"]
 
   Web --> Nginx
-  Nginx -->|"/api/*, /hubs/*, /internal/*"| Gateway
+  Nginx -->|"/api/*, /hubs/*"| Gateway
   Gateway --> Users
   Gateway --> Media
   Gateway --> Chat
@@ -137,7 +137,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 
 | Service | Role |
 |---------|------|
-| `gateway` | YARP reverse proxy + JWT validation; routes all `/api/*`, `/hubs/*`, `/internal/*` |
+| `gateway` | YARP reverse proxy + JWT validation; routes `/api/*`, `/hubs/*` (rejects `/internal/*` — service-to-service only) |
 | `users` | Users service (login, JWT issuance, `/api/users/*`, `/internal/users/*`, `users` schema) |
 | `media` | Media microservice (`/api/media/*`, `media` schema) |
 | `chat` | Chat microservice (`/api/chat/*`, `/hubs/chat`, `chat` schema) |

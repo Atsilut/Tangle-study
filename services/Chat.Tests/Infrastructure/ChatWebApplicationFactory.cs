@@ -30,7 +30,12 @@ public sealed class ChatWebApplicationFactory(
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var additionalSettings = new Dictionary<string, string?>();
+        var additionalSettings = new Dictionary<string, string?>
+        {
+            ["Outbox:PollIntervalMilliseconds"] = "200",
+            ["Outbox:BatchSize"] = "50",
+            ["Outbox:MaxAttempts"] = "10",
+        };
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "SocialClient", "http://social.test");
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "GroupClient", "http://group.test");
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "MediaClient", "http://media.test");

@@ -7,12 +7,13 @@ using Chat.Events;
 using Tangle.AspNetCore.Exceptions;
 using Chat.Infrastructure;
 using Chat.Queue;
-using Tangle.AspNetCore.Queue;
 using Chat.Realtime;
 using Chat.Repository;
 using Tangle.AspNetCore.Auth;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Tangle.AspNetCore.Db;
+using Tangle.AspNetCore.Outbox;
 
 namespace Chat.Service;
 
@@ -24,10 +25,10 @@ public class ChatMessageService(
     IUserClient userClient,
     IMediaClient mediaClient,
     IChatRealtimeNotifier realtime,
-    IEventPublisher eventPublisher,
-    IWorkQueue workQueue,
+    IOutboxWriter outbox,
     CurrentUserAccessor currentUser,
-    IOptions<ChatMessagePolicyOptions> chatPolicy)
+    IOptions<ChatMessagePolicyOptions> chatPolicy,
+    ILogger<ChatMessageService> logger)
 {
     public const int DefaultPageLimit = 50;
     public const int MaxPageLimit = 100;
@@ -38,10 +39,10 @@ public class ChatMessageService(
     private readonly ChatRoomService _chatRoomService = chatRoomService;
     private readonly IUserClient _userClient = userClient;
     private readonly IChatRealtimeNotifier _realtime = realtime;
-    private readonly IEventPublisher _eventPublisher = eventPublisher;
-    private readonly IWorkQueue _workQueue = workQueue;
+    private readonly IOutboxWriter _outbox = outbox;
     private readonly CurrentUserAccessor _currentUser = currentUser;
     private readonly ChatMessagePolicyOptions _policy = chatPolicy.Value;
+    private readonly ILogger<ChatMessageService> _logger = logger;
 
     private long GetUserIdFromLogin() => _currentUser.GetUserIdFromLogin();
 
@@ -95,31 +96,52 @@ public class ChatMessageService(
             throw new ArgumentException("Message body cannot be empty.");
 
         var message = new ChatMessage(roomId, senderUserId, body);
+
+        // Persist the message and its outbox intents in one commit so the event/job can never be
+        // lost after the message exists (transactional outbox). Cross-service media link and SignalR
+        // stay outside the transaction per the consistency rules.
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _repo.CreateChatMessageAsync(message);
-            await _mediaClient.LinkToChatMessageAsync(message.Id, senderUserId, request.MediaAssetId);
+            _outbox.EnqueueEvent(
+                RedisEventChannels.ChatMessageCreated,
+                new ChatMessageCreatedEvent(
+                    message.Id,
+                    message.ChatRoomId,
+                    senderUserId,
+                    message.Body,
+                    message.SentAt),
+                message.Id);
+            _outbox.EnqueueWorkQueue(
+                WorkQueueStreams.ChatMessageCreated,
+                new ChatMessageCreatedJob(
+                    message.Id,
+                    message.ChatRoomId,
+                    senderUserId,
+                    message.Body,
+                    message.SentAt),
+                message.Id);
+            await _db.SaveChangesAsync();
         });
+
+        try
+        {
+            await _mediaClient.LinkToChatMessageAsync(message.Id, senderUserId, request.MediaAssetId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Media link failed for chat message {MessageId}; compensating",
+                message.Id);
+            await CompensateFailedChatMessageSideEffectsAsync(message);
+            throw;
+        }
+
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
         var dto = await MapToDtoAsync(message, senderUserId);
         await _realtime.NotifyMessageCreatedAsync(roomId, dto);
-        await _eventPublisher.PublishAsync(
-            RedisEventChannels.ChatMessageCreated,
-            new ChatMessageCreatedEvent(
-                message.Id,
-                message.ChatRoomId,
-                senderUserId,
-                message.Body,
-                message.SentAt));
-        await _workQueue.EnqueueAsync(
-            WorkQueueStreams.ChatMessageCreated,
-            new ChatMessageCreatedJob(
-                message.Id,
-                message.ChatRoomId,
-                senderUserId,
-                message.Body,
-                message.SentAt));
         return dto;
     }
 
@@ -208,14 +230,60 @@ public class ChatMessageService(
 
         await _db.ExecuteInTransactionAsync(async () =>
         {
-            await _mediaClient.DeleteBlobStorageForChatMessageAsync(messageId);
             message.MarkDeleted();
             await _repo.SaveChatMessageAsync(message);
         });
+
+        try
+        {
+            await _mediaClient.DeleteBlobStorageForChatMessageAsync(messageId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Media blob cleanup failed after soft-deleting chat message {MessageId}",
+                messageId);
+        }
+
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
 
         var dto = await MapToDtoAsync(message, userId);
         await _realtime.NotifyMessageDeletedAsync(roomId, dto);
+    }
+
+    private async Task CompensateFailedChatMessageSideEffectsAsync(ChatMessage message)
+    {
+        try
+        {
+            await _mediaClient.UnlinkFromChatMessageAsync(message.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Compensation: media unlink failed for chat message {MessageId}",
+                message.Id);
+        }
+
+        try
+        {
+            // Drop the message together with any still-unpublished outbox rows for it, so a rolled-back
+            // create does not leak a ChatMessageCreated event/job. Rows already dispatched are left for
+            // idempotent consumers (Postgres remains the source of truth).
+            var pendingOutbox = await _db.OutboxMessages
+                .Where(m => m.EntityId == message.Id && m.ProcessedAt == null && m.DeadLetteredAt == null)
+                .ToListAsync();
+            if (pendingOutbox.Count > 0) _db.OutboxMessages.RemoveRange(pendingOutbox);
+            await _repo.DeleteChatMessageAsync(message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Compensation: failed to delete chat message {MessageId}",
+                message.Id);
+        }
     }
 
     private static int NormalizeLimit(int? limit)

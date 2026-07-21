@@ -6,6 +6,9 @@ public sealed class FakeMediaClient : IMediaClient
 {
     private long _nextId = 1;
     private readonly Dictionary<long, AssetState> _assets = [];
+    private Exception? _linkFailure;
+    private Exception? _deletePostBlobFailure;
+    private Exception? _deleteCommentBlobFailure;
 
     private sealed class AssetState
     {
@@ -16,7 +19,24 @@ public sealed class FakeMediaClient : IMediaClient
     {
         _assets.Clear();
         _nextId = 1;
+        _linkFailure = null;
+        _deletePostBlobFailure = null;
+        _deleteCommentBlobFailure = null;
     }
+
+    public void FailNextLink(Exception exception) => _linkFailure = exception;
+
+    public void FailNextDeleteBlobForPost(Exception exception) => _deletePostBlobFailure = exception;
+
+    public void FailNextDeleteBlobForComment(Exception exception) => _deleteCommentBlobFailure = exception;
+
+    public bool IsAssetLinkedToPost(long mediaAssetId) =>
+        _assets.TryGetValue(mediaAssetId, out var state) && state.Dto.PostId is not null;
+
+    public bool IsAssetLinkedToComment(long mediaAssetId) =>
+        _assets.TryGetValue(mediaAssetId, out var state) && state.Dto.CommentId is not null;
+
+    public bool HasAnyAssets => _assets.Count > 0;
 
     public long SeedReadyAsset(
         MediaIntendedContext context = MediaIntendedContext.Post,
@@ -52,9 +72,24 @@ public sealed class FakeMediaClient : IMediaClient
 
     public Task LinkToPostAsync(long postId, long uploaderUserId, IReadOnlyList<long>? mediaAssetIds)
     {
+        if (_linkFailure is not null)
+        {
+            var failure = _linkFailure;
+            _linkFailure = null;
+            throw failure;
+        }
+
         if (mediaAssetIds is null) return Task.CompletedTask;
         foreach (var id in mediaAssetIds)
-            UpdateAsset(id, dto => dto with { PostId = postId });
+        {
+            if (!_assets.TryGetValue(id, out var state))
+                throw new InvalidOperationException($"Fake media asset {id} was not seeded.");
+            if (state.Dto.PostId == postId) continue;
+            if (state.Dto.PostId is not null || state.Dto.CommentId is not null || state.Dto.ChatMessageId is not null)
+                throw new ArgumentException("Media is already linked to content.");
+            state.Dto = state.Dto with { PostId = postId };
+        }
+
         return Task.CompletedTask;
     }
 
@@ -81,8 +116,37 @@ public sealed class FakeMediaClient : IMediaClient
 
     public Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId)
     {
+        if (_linkFailure is not null)
+        {
+            var failure = _linkFailure;
+            _linkFailure = null;
+            throw failure;
+        }
+
         if (mediaAssetId is long id)
-            UpdateAsset(id, dto => dto with { CommentId = commentId });
+        {
+            if (!_assets.TryGetValue(id, out var state))
+                throw new InvalidOperationException($"Fake media asset {id} was not seeded.");
+            if (state.Dto.CommentId == commentId) return Task.CompletedTask;
+            if (state.Dto.PostId is not null || state.Dto.CommentId is not null || state.Dto.ChatMessageId is not null)
+                throw new ArgumentException("Media is already linked to content.");
+            state.Dto = state.Dto with { CommentId = commentId };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task UnlinkFromPostAsync(long postId)
+    {
+        foreach (var state in _assets.Values.Where(a => a.Dto.PostId == postId).ToList())
+            state.Dto = state.Dto with { PostId = null };
+        return Task.CompletedTask;
+    }
+
+    public Task UnlinkFromCommentAsync(long commentId)
+    {
+        foreach (var state in _assets.Values.Where(a => a.Dto.CommentId == commentId).ToList())
+            state.Dto = state.Dto with { CommentId = null };
         return Task.CompletedTask;
     }
 
@@ -115,6 +179,13 @@ public sealed class FakeMediaClient : IMediaClient
 
     public Task DeleteBlobStorageForPostAsync(long postId)
     {
+        if (_deletePostBlobFailure is not null)
+        {
+            var failure = _deletePostBlobFailure;
+            _deletePostBlobFailure = null;
+            throw failure;
+        }
+
         RemoveWhere(dto => dto.PostId == postId);
         return Task.CompletedTask;
     }
@@ -128,6 +199,13 @@ public sealed class FakeMediaClient : IMediaClient
 
     public Task DeleteBlobStorageForCommentAsync(long commentId)
     {
+        if (_deleteCommentBlobFailure is not null)
+        {
+            var failure = _deleteCommentBlobFailure;
+            _deleteCommentBlobFailure = null;
+            throw failure;
+        }
+
         RemoveWhere(dto => dto.CommentId == commentId);
         return Task.CompletedTask;
     }

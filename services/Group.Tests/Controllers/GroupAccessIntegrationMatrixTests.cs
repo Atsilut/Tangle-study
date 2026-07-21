@@ -277,8 +277,28 @@ public sealed class GroupAccessIntegrationMatrixTests(PostgresTestcontainerFixtu
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+        Assert.Contains(group.Id, FakeCommunity.DeletedGroupIds);
+        Assert.Contains(group.Id, FakeLocation.EndedSessionGroupIds);
 
         var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertProblemDetailAsync(get, HttpStatusCode.NotFound, "Group not found");
+    }
+
+    [Fact]
+    public async Task DeleteGroup_LeavesGroupIntact_WhenCommunityDeleteAllFails()
+    {
+        var scenario = GroupIntegrationScenario.Create(Client, Factory, "del-fail");
+        var group = await scenario.SetupGroupAsync(GroupVisibility.Private, includeAdmin: false, includeMember: false);
+        scenario.LoginAs(GroupActorRole.Owner);
+        FakeCommunity.DeleteAllFailure = new HttpRequestException("community delete-all failed");
+
+        var res = await Client.DeleteAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, res.StatusCode);
+        Assert.Empty(FakeCommunity.DeletedGroupIds);
+        Assert.Empty(FakeLocation.EndedSessionGroupIds);
+
+        var get = await Client.GetAsync($"{GroupIntegrationTestHelpers.GroupsBase}/{group.Id}", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(get, HttpStatusCode.OK);
     }
 }

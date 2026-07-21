@@ -12,6 +12,10 @@ public interface IMediaClient
 
     public Task LinkToCommentAsync(long commentId, long uploaderUserId, long? mediaAssetId);
 
+    public Task UnlinkFromPostAsync(long postId);
+
+    public Task UnlinkFromCommentAsync(long commentId);
+
     public Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(
         IReadOnlyCollection<long> postIds);
 

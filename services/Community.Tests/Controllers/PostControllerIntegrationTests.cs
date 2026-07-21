@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Community.Dto;
 using Community.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Tangle.TestSupport.Auth;
 
 namespace Community.Tests.Controllers;
@@ -131,6 +133,97 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.NotNull(post.Location);
         Assert.Equal(37.5m, post.Location.Latitude);
         Assert.Equal(127.0m, post.Location.Longitude);
+
+        var entity = await FindPostEntityAsync(post.Id);
+        Assert.NotNull(entity);
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+        Assert.True(FakeLocation.HasLocation(post.Id));
+    }
+
+    [Fact]
+    public async Task CreatePost_Compensates_WhenMediaLinkFails()
+    {
+        var userId = InMemoryUser.SeedUser("media-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+        FakeMedia.FailNextLink(new ArgumentException("Simulated media link failure"));
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Should fail",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, createRes.StatusCode);
+        Assert.False(FakeMedia.IsAssetLinkedToPost(assetId));
+
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Community.Db.CommunityDbContext>();
+        Assert.Empty(await db.Posts.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreatePost_Compensates_WhenLocationUpsertFailsAfterMediaLink()
+    {
+        var userId = InMemoryUser.SeedUser("location-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+        FakeLocation.FailNextUpsert(new ArgumentException("Simulated location failure"));
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Should fail",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+                Latitude = 37.5m,
+                Longitude = 127.0m,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, createRes.StatusCode);
+        Assert.False(FakeMedia.IsAssetLinkedToPost(assetId));
+        Assert.False(FakeLocation.HasLocation(1));
+        Assert.False(FakeLocation.HasLocation(2));
+
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Community.Db.CommunityDbContext>();
+        Assert.Empty(await db.Posts.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreatePost_LinkToPost_IsIdempotentForSamePost()
+    {
+        var userId = InMemoryUser.SeedUser("idempotent-link");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Once",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
+        var postId = Assert.Single(posts!).Id;
+
+        await FakeMedia.LinkToPostAsync(postId, userId, [assetId]);
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+        var media = await FakeMedia.GetMediaForPostAsync(postId);
+        Assert.Single(media);
     }
 
     [Fact]
@@ -229,6 +322,68 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             [postId],
             TestContext.Current.CancellationToken);
         Assert.False(locations.ContainsKey(postId));
+        Assert.Null(await FindPostEntityAsync(postId));
+    }
+
+    [Fact]
+    public async Task DeletePost_LeavesPostIntact_WhenMediaBlobDeleteFails()
+    {
+        var userId = InMemoryUser.SeedUser("delete-media-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Keep me",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        FakeMedia.FailNextDeleteBlobForPost(new InvalidOperationException("blob delete failed"));
+
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.InternalServerError, deleteRes.StatusCode);
+        Assert.NotNull(await FindPostEntityAsync(postId));
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+    }
+
+    [Fact]
+    public async Task DeletePost_LeavesPostIntact_WhenLocationClearFails()
+    {
+        var userId = InMemoryUser.SeedUser("delete-location-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Keep me",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+                Latitude = 1m,
+                Longitude = 2m,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        FakeLocation.FailNextClearOnDelete(new InvalidOperationException("location clear failed"));
+
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.InternalServerError, deleteRes.StatusCode);
+        Assert.NotNull(await FindPostEntityAsync(postId));
+        Assert.False(FakeMedia.HasAnyAssets); // media blob delete already ran
+        Assert.True(FakeLocation.HasLocation(postId));
     }
 
     [Fact]

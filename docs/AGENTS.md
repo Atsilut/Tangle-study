@@ -12,6 +12,10 @@ Cross-domain access follows the same rule (for example `GroupService` calls `Pos
 
 Use `AppDbContext` in a service only for **transaction boundaries** (`ExecuteInTransactionAsync`). Do not query another aggregate’s `DbSet` directly (for example `CommentService` must not use `_db.Posts`; use `PostService` instead).
 
+**Hard rule:** never call cross-service `I*Client` HTTP inside `ExecuteInTransactionAsync`. Persist local rows first (or soft-delete locally), then call remote services after commit; compensate with logged cleanup on create failure.
+
+**Delete pattern (remote-first):** for aggregates with disposable cross-service side effects (user, group, post, comment), call idempotent remote cleanup **before** the local delete transaction. Remotes must be safe to retry. If remotes succeed and local delete fails, retry the whole delete (or use the partial-delete runbook in `docs/DEPLOYMENT.md`).
+
 ## Async contracts
 
 New Redis Streams jobs require a record in [`Global/Queue/WorkQueueContracts.cs`](Global/Queue/WorkQueueContracts.cs) and a row in [`Global/Queue/QUEUE.md`](Global/Queue/QUEUE.md). New pub/sub events require a record in [`Global/Events/RedisEventContracts.cs`](Global/Events/RedisEventContracts.cs) and a row in [`Global/Events/EVENTS.md`](Global/Events/EVENTS.md). Include `SchemaVersion = 1` on new payload records.
@@ -32,7 +36,7 @@ Use these as templates for new single-aggregate features:
 |---------|-------|----------|-------|
 | CRUD + enriched GET | Default template | Tree/nested `Replies` on GET DTO | Profile + privacy |
 | Auth split | — | — | `LoginService` + `LoginController` on `api` |
-| Delete orchestration | Transaction + detach | Transaction + detach | Transaction + cross-service detach |
+| Delete orchestration | Remote-first + detach | Remote-first + detach | Remote-first + cross-service detach |
 
 **Intentional exceptions within the reference trio:**
 

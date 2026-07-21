@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Media.Entities;
+using Media.Security;
+using Tangle.AspNetCore.Security;
 using Tangle.TestSupport.Auth;
 
 namespace Media.Tests.Controllers;
@@ -51,7 +53,15 @@ public sealed class MediaIntegrationTests(
         var completed = await MediaIntegrationTestHelpers.CompleteUploadAsync(Client, init.MediaAssetId);
 
         Assert.Equal(MediaProcessingStatus.Processing, completed.ProcessingStatus);
-        var lengthAfter = await database.StreamLengthAsync(streamKey);
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        long lengthAfter;
+        do
+        {
+            lengthAfter = await database.StreamLengthAsync(streamKey);
+            if (lengthAfter >= lengthBefore + 1) break;
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+        } while (DateTime.UtcNow < deadline);
+
         Assert.Equal(lengthBefore + 1, lengthAfter);
         await database.Multiplexer.CloseAsync();
     }
@@ -238,5 +248,27 @@ public sealed class MediaIntegrationPostgresTests(
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
         var getRes = await Client.GetAsync($"/api/media/{mediaAssetId}", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(getRes, HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DetachUploaderOnDeletion_IsIdempotent_WhenCalledTwice()
+    {
+        using var first = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/internal/media/users/99/detach-on-deletion");
+        first.Headers.Add(
+            InternalAccessAuthorizationFilter.HeaderName,
+            GatewayTestAuthHelpers.TestInternalServiceSecret);
+        var firstRes = await Client.SendAsync(first, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(firstRes, HttpStatusCode.NoContent);
+
+        using var second = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/internal/media/users/99/detach-on-deletion");
+        second.Headers.Add(
+            InternalAccessAuthorizationFilter.HeaderName,
+            GatewayTestAuthHelpers.TestInternalServiceSecret);
+        var secondRes = await Client.SendAsync(second, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(secondRes, HttpStatusCode.NoContent);
     }
 }

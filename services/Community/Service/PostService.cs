@@ -20,7 +20,8 @@ public class PostService(
     CurrentUserAccessor currentUser,
     IUserClient userClient,
     ISocialClient socialClient,
-    IGroupClient groupClient)
+    IGroupClient groupClient,
+    ILogger<PostService> logger)
 {
     private readonly IPostRepository _repo = repo;
     private readonly CommunityDbContext _db = db;
@@ -31,6 +32,7 @@ public class PostService(
     private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
+    private readonly ILogger<PostService> _logger = logger;
 
     private Task<List<Post>> FilterPostsByBlockAsync(long? viewerUserId, List<Post> posts, CancellationToken cancellationToken = default) =>
         MutualBlockFilter.FilterByMutualBlockAsync(
@@ -118,6 +120,7 @@ public class PostService(
         await _repo.CreatePostAsync(post);
         try
         {
+            // Saga: persist → link media (idempotent) → upsert location (idempotent).
             await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
             if (request.Latitude.HasValue)
             {
@@ -128,8 +131,9 @@ public class PostService(
                     request.Longitude!.Value);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Post create side effects failed for post {PostId}; compensating", post.Id);
             await CompensateFailedPostSideEffectsAsync(post);
             throw;
         }
@@ -223,6 +227,7 @@ public class PostService(
         await _repo.CreatePostAsync(post);
         try
         {
+            // Saga: persist → link media (idempotent) → upsert location (idempotent).
             await _mediaClient.LinkToPostAsync(post.Id, userId, request.MediaAssetIds);
             if (request.Latitude.HasValue)
             {
@@ -233,8 +238,12 @@ public class PostService(
                     request.Longitude!.Value);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Group board post create side effects failed for post {PostId}; compensating",
+                post.Id);
             await CompensateFailedPostSideEffectsAsync(post);
             throw;
         }
@@ -376,6 +385,9 @@ public class PostService(
     public Task DetachAuthorFromDeletedUserAsync(long userId) =>
         _repo.DetachAuthorFromPostsAsync(userId);
 
+    public Task<bool> PostExistsAsync(long postId) =>
+        _repo.ExistsPostByIdAsync(postId);
+
     public async Task<(long GroupId, long GroupBoardId)?> TryGetGroupBoardContextAsync(long postId)
     {
         var post = await _repo.GetPostByIdAsync(postId);
@@ -420,43 +432,61 @@ public class PostService(
         if (post.AuthorUserId != userId)
             throw new AccessForbiddenException("Unauthorized access");
 
+        // Remote-first: dispose side effects, then local delete (idempotent remotes).
+        try
+        {
+            await _mediaClient.DeleteBlobStorageForPostAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Remote cleanup failed before deleting post {PostId} (media)", id);
+            throw;
+        }
+
+        try
+        {
+            await _locationClient.ClearLocationForPostOnDeleteAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Remote cleanup failed before deleting post {PostId} (location)", id);
+            throw;
+        }
+
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _commentService.Value.DetachCommentsFromDeletedPostAsync(id);
             await _repo.DeletePostAsync(post);
         });
-
-        await _mediaClient.DeleteBlobStorageForPostAsync(id);
-        await _locationClient.ClearLocationForPostOnDeleteAsync(id);
     }
 
     private async Task CompensateFailedPostSideEffectsAsync(Post post)
     {
         try
         {
-            await _mediaClient.DeleteBlobStorageForPostAsync(post.Id);
+            await _mediaClient.UnlinkFromPostAsync(post.Id);
         }
-        catch
+        catch (Exception ex)
         {
-            // Best-effort compensation.
+            _logger.LogError(ex, "Compensation: media unlink failed for post {PostId}", post.Id);
         }
 
         try
         {
             await _locationClient.ClearLocationForPostOnDeleteAsync(post.Id);
         }
-        catch
+        catch (Exception ex)
         {
-            // Best-effort compensation.
+            _logger.LogError(ex, "Compensation: location clear failed for post {PostId}", post.Id);
         }
 
         try
         {
             await _repo.DeletePostAsync(post);
         }
-        catch
+        catch (Exception ex)
         {
-            // Best-effort compensation.
+            _logger.LogError(ex, "Compensation: failed to delete post {PostId}", post.Id);
         }
     }
 

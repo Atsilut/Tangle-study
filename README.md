@@ -224,6 +224,7 @@ Central index: [docs/README.md](docs/README.md)
 | Doc | Topic |
 |-----|-------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Gateway-centric as-built + remaining Azure gaps |
+| [docs/CONSISTENCY.md](docs/CONSISTENCY.md) | Local ACID, create saga, remote-first delete, outbox |
 | [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md) | Domain → microservice mapping |
 | [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
 | [services/Gateway/GATEWAY.md](services/Gateway/GATEWAY.md) | YARP routing and JWT validation |
