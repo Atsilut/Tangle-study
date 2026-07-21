@@ -55,8 +55,15 @@ All other `/api/*` and `/hubs/*` requests require a valid Bearer JWT (or `?acces
 | `Gateway:Secret` | Shared secret forwarded as `X-Gateway-Secret` to downstream services |
 | `ReverseProxy` | YARP routes and cluster addresses |
 
+## Trust and secrets
+
+- **Gateway identity:** domain services trust `X-User-Id` only when `X-Gateway-Secret` matches `GatewayIdentity:Secret`. Compromising the gateway secret impersonates any user to every service that accepts gateway identity.
+- **Internal mesh:** `/internal/*` uses a **shared** `X-Internal-Secret` / `InternalAccess:Secret` across services today. One leak can call any peer's internal API. Prefer private networking (Compose / Container Apps ingress) and rotate the secret; future hardening may use per-service secrets or mTLS.
+- **Constant-time compare:** both gateway and internal secret checks use `SecretComparer` (`CryptographicOperations.FixedTimeEquals`) — do not reintroduce `string ==` / `!=` for secrets.
+
 ## Related docs
 
 - [USERS.md](../Users/USERS.md) — login, JWT issuance, user delete orchestration
-- [MSA step 7](../../docs/MSA_MIGRATION.md#step-7--users-service--gateway-develop-compose-done-azure-open)
+- [MSA step 7](../../docs/MSA_MIGRATION.md#step-7--users-service--gateway)
 - [ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
+- [CONSISTENCY.md](../../docs/CONSISTENCY.md) — identity vs ACID boundaries

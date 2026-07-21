@@ -20,7 +20,7 @@ public sealed class InternalAccessAuthorizationFilter(IOptions<InternalAccessOpt
         }
 
         if (!context.HttpContext.Request.Headers.TryGetValue(HeaderName, out var provided)
-            || provided != _options.Secret)
+            || !SecretComparer.Equals(provided.ToString(), _options.Secret))
         {
             context.Result = new UnauthorizedResult();
         }

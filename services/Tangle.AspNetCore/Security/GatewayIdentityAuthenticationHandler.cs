@@ -25,7 +25,7 @@ public sealed class GatewayIdentityAuthenticationHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
 
         if (!Request.Headers.TryGetValue(GatewaySecretHeaderName, out var secret)
-            || secret != _gatewayOptions.Secret)
+            || !SecretComparer.Equals(secret.ToString(), _gatewayOptions.Secret))
             return Task.FromResult(AuthenticateResult.NoResult());
 
         if (!Request.Headers.TryGetValue(UserIdHeaderName, out var userIdHeader)
