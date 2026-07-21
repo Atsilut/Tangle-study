@@ -13,6 +13,13 @@ public sealed class FakeMediaClient : IMediaClient
         public required MediaAssetGetResponseDto Dto { get; set; }
     }
 
+    public void Reset()
+    {
+        _assets.Clear();
+        _nextId = 1;
+        _linkFailure = null;
+    }
+
     public void FailNextLink(Exception exception) => _linkFailure = exception;
 
     public bool IsAssetLinked(long mediaAssetId) =>

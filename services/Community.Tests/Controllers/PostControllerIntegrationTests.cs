@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Community.Dto;
 using Community.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Tangle.TestSupport.Auth;
 
 namespace Community.Tests.Controllers;
@@ -131,6 +133,11 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
         Assert.NotNull(post.Location);
         Assert.Equal(37.5m, post.Location.Latitude);
         Assert.Equal(127.0m, post.Location.Longitude);
+
+        var entity = await FindPostEntityAsync(post.Id);
+        Assert.NotNull(entity);
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+        Assert.True(FakeLocation.HasLocation(post.Id));
     }
 
     [Fact]
@@ -155,6 +162,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Community.Db.CommunityDbContext>();
+        Assert.Empty(await db.Posts.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -183,6 +193,9 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
 
         var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Community.Db.CommunityDbContext>();
+        Assert.Empty(await db.Posts.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -309,6 +322,68 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
             [postId],
             TestContext.Current.CancellationToken);
         Assert.False(locations.ContainsKey(postId));
+        Assert.Null(await FindPostEntityAsync(postId));
+    }
+
+    [Fact]
+    public async Task DeletePost_LeavesPostIntact_WhenMediaBlobDeleteFails()
+    {
+        var userId = InMemoryUser.SeedUser("delete-media-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Keep me",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        FakeMedia.FailNextDeleteBlobForPost(new InvalidOperationException("blob delete failed"));
+
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.InternalServerError, deleteRes.StatusCode);
+        Assert.NotNull(await FindPostEntityAsync(postId));
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+    }
+
+    [Fact]
+    public async Task DeletePost_LeavesPostIntact_WhenLocationClearFails()
+    {
+        var userId = InMemoryUser.SeedUser("delete-location-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Keep me",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+                Latitude = 1m,
+                Longitude = 2m,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var postId = Assert.Single(
+            (await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+                .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken))!).Id;
+
+        FakeLocation.FailNextClearOnDelete(new InvalidOperationException("location clear failed"));
+
+        var deleteRes = await Client.DeleteAsync($"/api/posts/{postId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.InternalServerError, deleteRes.StatusCode);
+        Assert.NotNull(await FindPostEntityAsync(postId));
+        Assert.False(FakeMedia.HasAnyAssets); // media blob delete already ran
+        Assert.True(FakeLocation.HasLocation(postId));
     }
 
     [Fact]

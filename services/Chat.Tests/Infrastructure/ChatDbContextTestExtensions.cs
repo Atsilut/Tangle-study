@@ -10,6 +10,7 @@ internal static class ChatDbContextTestExtensions
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
+        await db.OutboxMessages.ExecuteDeleteAsync();
         await db.ChatMessageEdits.ExecuteDeleteAsync();
         await db.ChatMessageReceipts.ExecuteDeleteAsync();
         await db.ChatMessages.ExecuteDeleteAsync();

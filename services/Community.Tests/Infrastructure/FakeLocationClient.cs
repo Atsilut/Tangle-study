@@ -7,14 +7,18 @@ public sealed class FakeLocationClient : ILocationClient
 {
     private readonly Dictionary<long, PostLocationGetResponseDto> _locations = [];
     private Exception? _upsertFailure;
+    private Exception? _clearOnDeleteFailure;
 
     public void Reset()
     {
         _locations.Clear();
         _upsertFailure = null;
+        _clearOnDeleteFailure = null;
     }
 
     public void FailNextUpsert(Exception exception) => _upsertFailure = exception;
+
+    public void FailNextClearOnDelete(Exception exception) => _clearOnDeleteFailure = exception;
 
     public bool HasLocation(long postId) => _locations.ContainsKey(postId);
 
@@ -47,6 +51,13 @@ public sealed class FakeLocationClient : ILocationClient
 
     public Task ClearLocationForPostOnDeleteAsync(long postId, CancellationToken cancellationToken = default)
     {
+        if (_clearOnDeleteFailure is not null)
+        {
+            var failure = _clearOnDeleteFailure;
+            _clearOnDeleteFailure = null;
+            throw failure;
+        }
+
         _locations.Remove(postId);
         return Task.CompletedTask;
     }

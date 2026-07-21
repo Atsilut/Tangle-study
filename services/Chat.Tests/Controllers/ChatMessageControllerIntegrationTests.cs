@@ -4,6 +4,8 @@ using Chat.Entities;
 using Chat.Dto;
 using Chat.Client;
 using Chat.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Chat.Tests.Controllers;
 
@@ -239,6 +241,37 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     }
 
     [Fact]
+    public async Task CreateMessage_PersistsMessageAndOutboxRows_Atomically()
+    {
+        const string testMethodName = nameof(CreateMessage_PersistsMessageAndOutboxRows_Atomically);
+
+        var userA = CreateUserForTest(testMethodName, 1);
+        var userB = CreateUserForTest(testMethodName, 2);
+        AcceptFriendship(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+
+        var createRes = await PostMessageAsync(room.Id, "outbox atomic");
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+        var created = await createRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        var entity = await FindChatMessageEntityAsync(created.Id);
+        Assert.NotNull(entity);
+        Assert.Equal("outbox atomic", entity.Body);
+
+        var outbox = await GetOutboxMessagesByEntityIdAsync(created.Id);
+        Assert.Equal(2, outbox.Count);
+        Assert.Contains(outbox, m =>
+            m.Destination == Tangle.AspNetCore.Outbox.OutboxDestination.Event
+            && m.Target == Chat.Events.RedisEventChannels.ChatMessageCreated
+            && m.EntityId == created.Id);
+        Assert.Contains(outbox, m =>
+            m.Destination == Tangle.AspNetCore.Outbox.OutboxDestination.WorkQueue
+            && m.Target == Chat.Queue.WorkQueueStreams.ChatMessageCreated
+            && m.EntityId == created.Id);
+    }
+
+    [Fact]
     public async Task CreateMessage_Returns201_WhenMediaOnly()
     {
         const string testMethodName = nameof(CreateMessage_Returns201_WhenMediaOnly);
@@ -267,6 +300,42 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
         Assert.Equal(string.Empty, created.Body);
         Assert.NotNull(created.Media);
         Assert.Equal(mediaAssetId, created.Media.Id);
+        Assert.True(FakeMediaClient.IsLinkedToChatMessage(mediaAssetId, created.Id));
+
+        var entity = await FindChatMessageEntityAsync(created.Id);
+        Assert.NotNull(entity);
+        var outbox = await GetOutboxMessagesByEntityIdAsync(created.Id);
+        Assert.Equal(2, outbox.Count);
+    }
+
+    [Fact]
+    public async Task CreateMessage_DispatchesOutboxRows_ViaRedis()
+    {
+        const string testMethodName = nameof(CreateMessage_DispatchesOutboxRows_ViaRedis);
+
+        var userA = CreateUserForTest(testMethodName, 1);
+        var userB = CreateUserForTest(testMethodName, 2);
+        AcceptFriendship(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+
+        var createRes = await PostMessageAsync(room.Id, "dispatch me");
+        await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
+        var created = await createRes.Content.ReadFromJsonAsync<ChatMessageGetResponseDto>(TestContext.Current.CancellationToken);
+        Assert.NotNull(created);
+
+        var outbox = await IntegrationTestPolling.PollUntilAsync(
+            async ct => await GetOutboxMessagesByEntityIdAsync(created.Id),
+            rows => rows.Count == 2 && rows.All(r => r.ProcessedAt is not null),
+            timeout: TimeSpan.FromSeconds(10),
+            delay: TimeSpan.FromMilliseconds(200),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.All(outbox, row =>
+        {
+            Assert.NotNull(row.ProcessedAt);
+            Assert.Null(row.DeadLetteredAt);
+            Assert.Equal(created.Id, row.EntityId);
+        });
     }
 
     [Fact]
@@ -298,6 +367,13 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
 
         var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages", TestContext.Current.CancellationToken);
         await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.NoContent);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Chat.Db.ChatDbContext>();
+        Assert.Empty(await db.ChatMessages.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.OutboxMessages.AsNoTracking()
+            .Where(m => m.ProcessedAt == null && m.DeadLetteredAt == null)
+            .ToListAsync());
     }
 
     [Fact]
