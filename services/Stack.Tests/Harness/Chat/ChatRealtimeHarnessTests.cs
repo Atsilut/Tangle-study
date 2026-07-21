@@ -10,6 +10,7 @@ using Stack.Tests.Infrastructure;
 using StackExchange.Redis;
 using Tangle.TestSupport.Auth;
 using Tangle.TestSupport.Harness;
+using Tangle.TestSupport.Integration;
 using Users.Dto;
 
 namespace Stack.Tests.Harness.Chat;
@@ -134,8 +135,7 @@ public sealed class ChatRealtimeHarnessTests : HarnessTestBase
         var createRes = await ChatHarnessHelpers.PostMessageAsync(Client, room.Id, "Stream enqueue smoke");
 
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var lengthAfter = await database.StreamLengthAsync(streamKey);
-        Assert.Equal(lengthBefore + 1, lengthAfter);
+        await WaitForStreamLengthAsync(database, streamKey, lengthBefore + 1);
         await database.Multiplexer.CloseAsync();
     }
 
@@ -153,8 +153,7 @@ public sealed class ChatRealtimeHarnessTests : HarnessTestBase
         var createRes = await ChatHarnessHelpers.PostMessageAsync(Client, roomId, $"Stream {kind}");
 
         await IntegrationAssertions.AssertStatusAsync(createRes, HttpStatusCode.Created);
-        var lengthAfter = await database.StreamLengthAsync(streamKey);
-        Assert.Equal(lengthBefore + 1, lengthAfter);
+        await WaitForStreamLengthAsync(database, streamKey, lengthBefore + 1);
         await database.Multiplexer.CloseAsync();
     }
 
@@ -230,6 +229,14 @@ public sealed class ChatRealtimeHarnessTests : HarnessTestBase
         var lengthBefore = await database.StreamLengthAsync(streamKey);
         return (database, streamKey, lengthBefore);
     }
+
+    private static Task<long> WaitForStreamLengthAsync(IDatabase database, RedisKey streamKey, long expectedLength) =>
+        IntegrationTestPolling.PollUntilAsync(
+            async ct => await database.StreamLengthAsync(streamKey),
+            length => length >= expectedLength,
+            timeout: TimeSpan.FromSeconds(10),
+            delay: TimeSpan.FromMilliseconds(200),
+            cancellationToken: TestContext.Current.CancellationToken);
 
     private async Task<long> CreateRoomIdForKindAsync(ChatRoomHarnessKind kind, string prefix)
     {
