@@ -13,7 +13,7 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md) (as-built diagram), [SERVICE_BOUNDAR
 | **`develop`** | Full CI ladder (see below) | None — safe place for MSA work |
 | **`main`** | CI | Production CD (runtime images → GHCR) |
 
-MSA extraction lands on **`develop`** first. Azure production still serves all `/api/*` from the monolith until gateway/users + domain Container Apps and `nginx.production.conf` cutover ship on **`main`**.
+MSA extraction lands on **`develop`** first. Azure production on **`main`** deploys the MSA stack (gateway + domain Container Apps) via [`cd-v2.yml`](../.github/workflows/cd-v2.yml) and [`parameters.prod.json`](../infra/azure/parameters.prod.json); `nginx.production.conf` upstreams to `tangle-study-gateway`.
 
 ---
 
@@ -119,7 +119,7 @@ Use this loop on **`develop`** for each extraction. Step 1 (media) followed it e
 4. Remove    → delete monolith Domain/{Name}/*, drop public tables, EF migration
 5. Test again → {Service}.Tests + harness E2E through nginx → gateway
 6. Docs      → ARCHITECTURE, SERVICE_BOUNDARIES, this file
-7. Merge     → develop → main when Azure cutover is ready
+7. Merge     → develop → main when ready for production CD
 ```
 
 **Test split**
@@ -183,11 +183,12 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | `Media.Tests` + `Stack.Tests` harness | Done |
 | `Media:Enabled` toggle removed — blob storage required at startup | Done |
 
-### Still open (before `main` cutover)
+### Azure status
 
 | Item | Notes |
 |------|-------|
-| First prod CD cutover | Run `cd-v2.yml` once with `GATEWAY_SECRET` + `INTERNAL_SERVICE_SECRET` set; delete orphaned `tangle-study-api` / `tangle-study-migrate` if present |
+| MSA prod CD | Gateway + domain Container Apps + migrate jobs in [`parameters.prod.json`](../infra/azure/parameters.prod.json); Bicep on every CD run |
+| Cleanup | Delete orphaned `tangle-study-api` / `tangle-study-migrate` if they still exist in the resource group |
 
 Azure Container Apps for media, chat, location, community, group, social, users, and gateway are defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) and provisioned by Bicep on every CD run. Worker `API_BASE_URL` values point at the matching service short names. `nginx.production.conf` upstream is `tangle-study-gateway` via web env.
 
@@ -222,9 +223,9 @@ Postgres: one instance — `public` schema (monolith), `media` schema (media-ser
 | Monolith cleanup (`Domain/Chat`, public chat tables) | Done |
 | `Chat.Tests` + monolith boundary tests (historical) | Done |
 
-### Azure cutover
+### Azure
 
-Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Azure status](#azure-status).
 
 **Dev data:** chat rows live in `chat` schema. Legacy `public."Chat*"` tables are dropped by `RemoveMonolithChatTables` — reset the Compose DB volume if you need a clean slate.
 
@@ -274,9 +275,9 @@ Postgres: one instance — `public` schema (monolith), `media`, `chat`, and `loc
 | Monolith cleanup (`Domain/Location`, public location tables) | Done |
 | `Location.Tests` + monolith boundary tests (historical) | Done |
 
-### Azure cutover
+### Azure
 
-Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Azure status](#azure-status).
 
 **Dev data:** pins and sessions live in `location` schema. Legacy `public."MapPins"` / `public."LocationSessions"` are dropped by `RemoveMonolithLocationTables` — reset the Compose DB volume if you need a clean slate.
 
@@ -314,9 +315,9 @@ community ──ILocationClient──► location
 
 Postgres: `community` schema (`Posts`, `Comments`). Legacy `public."Posts"` / `public."Comments"` dropped by `RemoveMonolithCommunityTables`.
 
-### Azure cutover
+### Azure
 
-Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Azure status](#azure-status).
 
 ## Step 5 — group-service (`develop`: done)
 
@@ -337,9 +338,9 @@ group ──ILocationClient──► location (end-sessions)
 
 Postgres: `group` schema. Legacy `public` group tables dropped by `RemoveMonolithGroupTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [GROUP.md](../services/Group/GROUP.md).
 
-### Azure cutover
+### Azure
 
-Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Azure status](#azure-status).
 
 ## Step 6 — social-service (friendships + user-blocks) (`develop`: done)
 
@@ -356,13 +357,13 @@ social ──IUserClient──► users (users, nicknames, friends-list visibili
 
 Postgres: `social` schema (`Friendships`, `FriendRequests`, `UserBlocks`). Legacy `public` social tables dropped by `RemoveMonolithSocialTables` **without copying rows**. Local Compose stacks must wipe the Postgres volume (`docker compose down -v`) when upgrading an existing DB; see [SOCIAL.md](../services/Social/SOCIAL.md).
 
-### Azure cutover
+### Azure
 
-Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Step 1 — Still open](#still-open-before-main-cutover).
+Defined in [`parameters.prod.json`](../infra/azure/parameters.prod.json) (Container App + migrate job). See [Azure status](#azure-status).
 
-## Step 7 — users-service + gateway (`develop`: Compose done; Azure in parameters)
+## Step 7 — users-service + gateway
 
-Users and gateway are **separate deployables** (not combined). Users owns identity; gateway owns routing and JWT validation. **Compose dev stack is complete**; Azure/CD and `nginx.production.conf` remain open.
+Users and gateway are **separate deployables** (not combined). Users owns identity; gateway owns routing and JWT validation. **Compose and Azure production both run this stack.**
 
 ### users-service
 
@@ -409,10 +410,9 @@ users ──I*Client──► community, media, chat, group, social, location (u
 | Local Prometheus/Grafana scrape targets | Done (users, media, chat, location, community, group, social) |
 | Stack harness through gateway | Done (`run-stack-harness.sh` starts full module-filtered stack) |
 
-### Azure cutover
+### Azure
 
-Users + gateway Container Apps, YARP cluster addresses, and web → `tangle-study-gateway` upstream are in [`parameters.prod.json`](../infra/azure/parameters.prod.json). Domain services and workers are co-deployed by the same Bicep pass. See [Step 1 — Still open](#still-open-before-main-cutover).
-
+Users + gateway Container Apps, YARP cluster addresses, and web → `tangle-study-gateway` upstream are in [`parameters.prod.json`](../infra/azure/parameters.prod.json). Domain services and workers are co-deployed by the same Bicep pass. See [Azure status](#azure-status).
 ---
 
 ## Strangler edge

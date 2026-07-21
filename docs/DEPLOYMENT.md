@@ -25,7 +25,7 @@ Gateway YARP routes by path prefix to users, media, chat, location, community, g
 
 **Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-stack-harness.sh` (module-filtered full stack).
 
-**Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Users/Media/Chat/Location/Community/Group/Social unit and integration suites.
+**Integration tests** (Testcontainers) run the real in-process HTTP pipeline + Postgres (+ Redis/outbox where used); cross-service peers are faked. **Harness E2E** exercises the real Compose HTTP mesh. See [CONSISTENCY.md — Testing split](CONSISTENCY.md#testing-split).
 
 ---
 

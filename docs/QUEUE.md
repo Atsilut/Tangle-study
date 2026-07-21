@@ -6,19 +6,20 @@ Pub/sub event contracts (separate mechanism): [EVENTS.md](EVENTS.md).
 
 ## Durability (transactional outbox)
 
-Media and Chat persist queue/event intents in an **outbox table** in the same Postgres transaction as the domain write (Media: `CompleteUploadAsync`; Chat: message create after media link). A background dispatcher XADDs / publishes and marks rows processed; failed publishes retry then dead-letter.
+Media, Chat, and Location persist queue/event intents in an **outbox table** (Media: same transaction as `CompleteUploadAsync`; Chat: same transaction as message create; Location: durable write before Streams for cluster jobs). A background dispatcher XADDs / publishes and marks rows processed; failed publishes retry then dead-letter.
 
 | Guarantee | Meaning |
 |-----------|---------|
 | At-least-once to Redis | After DB commit, the job/event is eventually delivered unless permanently dead-lettered |
 | Not exactly-once | Workers/consumers must stay idempotent (`ReportProcessedAsync`, message handlers) |
 | SignalR | Still best-effort after commit (not outboxed) |
+| Users nickname events | Best-effort post-commit pub/sub (not outboxed yet) |
 
 Until a service adopts the outbox, post-commit `EnqueueAsync` / `PublishAsync` can still be lost on crash between commit and Redis.
 
 ### Dispatcher, retention, and dead-letters
 
-- **Atomicity:** the outbox row and the domain write share **one** transaction/commit (Media `CompleteUploadAsync`; Chat message create persists the message + outbox rows in a single `ExecuteInTransactionAsync`). Cross-service HTTP (media link) and SignalR stay outside the transaction; a failed create compensates by deleting the message *and* its still-unpublished outbox rows.
+- **Atomicity:** the outbox row and the domain write share **one** transaction/commit where both exist (Media `CompleteUploadAsync`; Chat message create). Location cluster enqueue writes the outbox row then `SaveChanges` (no paired domain mutation). Cross-service HTTP (media link) and SignalR stay outside the transaction; a failed Chat create compensates by deleting the message *and* its still-unpublished outbox rows.
 - **Correlation:** each row carries an optional `EntityId` (indexed) so dedup / cleanup use an exact lookup instead of substring-matching `PayloadJson`.
 - **Retention:** the dispatcher prunes processed rows older than `Outbox:RetentionHours` (default 72; `0` keeps forever) every `Outbox:PruneIntervalMinutes` (default 30). Dead-lettered rows are **never** auto-deleted — inspect them in the service's `OutboxMessages` table (`DeadLetteredAt IS NOT NULL`, `LastError`) and re-drive by clearing `DeadLetteredAt` + `Attempts` after fixing the cause.
 - **Metrics:** `tangle_outbox_dispatched_total{destination}`, `tangle_outbox_dead_lettered_total{destination}`, `tangle_outbox_pruned_total`.

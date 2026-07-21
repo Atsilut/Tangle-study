@@ -32,7 +32,7 @@ This project combines multiple technologies and languages to simulate a modern s
 
 ## Architecture
 
-**Today:** Nginx edge proxies all `/api/*` and `/hubs/*` to the **gateway** (YARP), which routes to users, media, chat, location, community, group, and social. Optional Rust workers and monitoring. **Azure production** still targets the legacy monolith until Bicep/CD cutover. Full diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Today:** Nginx edge proxies all `/api/*` and `/hubs/*` to the **gateway** (YARP), which routes to users, media, chat, location, community, group, and social. Optional Rust workers and monitoring. **Azure production** deploys the same MSA stack (gateway + domain Container Apps) via [`cd-v2.yml`](.github/workflows/cd-v2.yml) and [`parameters.prod.json`](infra/azure/parameters.prod.json). Full diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### High-Level Structure
 
@@ -223,7 +223,7 @@ Central index: [docs/README.md](docs/README.md)
 
 | Doc | Topic |
 |-----|-------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Gateway-centric as-built + remaining Azure gaps |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Gateway-centric as-built (Compose + Azure MSA) |
 | [docs/CONSISTENCY.md](docs/CONSISTENCY.md) | Local ACID, create saga, remote-first delete, outbox |
 | [docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md) | Domain → microservice mapping |
 | [docs/MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | Extraction order and checklist |
@@ -253,9 +253,9 @@ Central index: [docs/README.md](docs/README.md)
 | 6 | Web client (React) in [clients/web](clients/web/README.md) — backend parity through media | Done |
 | 7 | Location / Memory Map — [LOCATION.md](services/Location/LOCATION.md) | Done (extracted to location-service) |
 | 8 | MSA prep — cross-service contracts — [GROUP.md](services/Group/GROUP.md), [EVENTS.md](docs/EVENTS.md), [QUEUE.md](docs/QUEUE.md) | Done |
-| 9 | MSA migration — all domains + gateway/users cutover in Compose; follow [MSA_MIGRATION.md](docs/MSA_MIGRATION.md) | In progress (Compose complete; Azure cutover pending) |
+| 9 | MSA migration — all domains + gateway/users in Compose and Azure | Done (Compose + Azure MSA; physical DB-per-service deferred) |
 
-Phase 9 steps 1–7 (media, chat, location, community, group, social, users + gateway) are **complete in local Compose**. Azure Container Apps + `nginx.production.conf` cutover is the remaining milestone. MAUI remains optional after the React path works.
+Phase 9 steps 1–7 (media, chat, location, community, group, social, users + gateway) are **complete** in local Compose and Azure production. Remaining MSA hardening (physical database-per-service, optional shared contract package) is documented in [ARCHITECTURE.md](docs/ARCHITECTURE.md). MAUI remains optional after the React path works.
 
 ---
 
@@ -540,7 +540,7 @@ HARNESS_MODULES=all ./scripts/ci/run-stack-harness.sh
 
 - The compose `db` service is **not** required for integration tests (Testcontainers provides Postgres).
 - Harness E2E (`Category=Harness` in `Stack.Tests`) runs only through `run-stack-harness.sh`; filter with `HARNESS_MODULES` (`users`, `social`, `group`, `community`, `media`, `chat`, `location`, `all`).
-- **Matrix vs harness:** TheoryData matrices and internal-API tests stay in `{Service}.Tests`; gateway JWT, SignalR via nginx, rust-workers, and real cross-service HTTP belong in `Stack.Tests`. See [docs/MSA_MIGRATION.md — Matrix vs harness](docs/MSA_MIGRATION.md#matrix-vs-harness-where-tests-belong).
+- **Matrix vs harness:** TheoryData matrices and peer-failure integration tests stay in `{Service}.Tests` (real pipeline + Postgres; faked peer HTTP). Gateway JWT, SignalR via nginx, rust-workers, and real cross-service HTTP belong in `Stack.Tests`. See [docs/CONSISTENCY.md — Testing split](docs/CONSISTENCY.md#testing-split) and [docs/MSA_MIGRATION.md — Matrix vs harness](docs/MSA_MIGRATION.md#matrix-vs-harness-where-tests-belong).
 - Service integration tests disable Redis in-process by default; realtime tests use a Testcontainers Redis — see [REDIS.md](docs/REDIS.md).
 
 ### Rust workers (optional, `workers` profile)

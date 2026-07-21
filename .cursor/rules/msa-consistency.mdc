@@ -10,9 +10,12 @@ Full model: [`docs/CONSISTENCY.md`](../../docs/CONSISTENCY.md).
 
 ## Hard rules
 
-- **Never** call cross-service `I*Client` HTTP inside `ExecuteInTransactionAsync`. Persist (or soft-delete) locally first; remotes after commit; create flows compensate with logged cleanup.
-- **Deletes** are remote-first (idempotent remote cleanup), then local delete.
-- **Durable side effects** (Redis Streams / pub/sub) for Media upload and Chat message create go through the **transactional outbox**, not naked post-commit enqueue.
+- **Never** call cross-service `I*Client` HTTP inside `ExecuteInTransactionAsync`. Persist (or soft-delete) locally first; remotes after commit; create/update flows compensate with logged cleanup. Compute remote decisions (e.g. block checks) **before** opening the transaction.
+- **DbContext** is for transaction scope (and outbox `SaveChanges`) only — query/mutate aggregates through repositories ([AGENTS.md](../../docs/AGENTS.md)).
+- **Deletes** are remote-first (idempotent remote cleanup), then local delete/soft-delete.
+- **Durable side effects** (Redis Streams / pub/sub) go through the **transactional outbox** for every producer that needs durability (Media, Chat, Location already). Document intentionally best-effort paths (e.g. Users nickname events, SignalR).
 - Internal detach/delete endpoints must stay **idempotent**.
+- State transitions that gate side effects must use a **conditional claim** (`UPDATE … WHERE status = expected`), not check-then-act alone under READ COMMITTED.
+- Compare gateway / internal secrets with **constant-time** equality (`SecretComparer` / `CryptographicOperations.FixedTimeEquals`).
 
 Do not introduce distributed 2PC.
