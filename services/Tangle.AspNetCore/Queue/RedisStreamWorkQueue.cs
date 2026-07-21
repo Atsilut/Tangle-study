@@ -14,12 +14,22 @@ public sealed class RedisStreamWorkQueue(
     private readonly IRedisWorkQueueOptions _options = options;
     private readonly ILogger<RedisStreamWorkQueue> _logger = logger;
 
-    public async Task EnqueueAsync<TPayload>(
+    public Task EnqueueAsync<TPayload>(
         string streamKey,
         TPayload payload,
         CancellationToken cancellationToken = default)
     {
+        var serializedPayload = JsonSerializer.Serialize(payload, SerializerOptions);
+        return EnqueueRawJsonAsync(streamKey, serializedPayload, cancellationToken);
+    }
+
+    public async Task EnqueueRawJsonAsync(
+        string streamKey,
+        string payloadJson,
+        CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(streamKey)) throw new ArgumentException("Stream key must not be empty.", nameof(streamKey));
+        if (string.IsNullOrWhiteSpace(payloadJson)) throw new ArgumentException("Payload JSON must not be empty.", nameof(payloadJson));
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -27,12 +37,11 @@ public sealed class RedisStreamWorkQueue(
         {
             var database = _connectionMultiplexer.GetDatabase();
             var redisStreamKey = BuildStreamKey(streamKey);
-            var serializedPayload = JsonSerializer.Serialize(payload, SerializerOptions);
             await database.StreamAddAsync(
                 redisStreamKey,
                 [
                     new NameValueEntry("type", streamKey),
-                    new NameValueEntry("payload", serializedPayload),
+                    new NameValueEntry("payload", payloadJson),
                 ]);
             WorkQueueMetrics.EnqueueTotal.WithLabels(streamKey).Inc();
             _logger.LogDebug("Enqueued job on stream {Stream}", redisStreamKey);

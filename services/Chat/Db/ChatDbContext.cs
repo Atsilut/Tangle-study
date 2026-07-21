@@ -1,5 +1,6 @@
 using Chat.Entities;
 using Microsoft.EntityFrameworkCore;
+using Tangle.AspNetCore.Outbox;
 
 namespace Chat.Db;
 
@@ -10,6 +11,7 @@ public class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbContext(
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<ChatMessageReceipt> ChatMessageReceipts => Set<ChatMessageReceipt>();
     public DbSet<ChatMessageEdit> ChatMessageEdits => Set<ChatMessageEdit>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,5 +71,7 @@ public class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbContext(
                 .HasForeignKey(e => e.ChatMessageId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.ConfigureOutbox();
     }
 }

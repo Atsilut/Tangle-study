@@ -32,6 +32,9 @@ public sealed class MediaWebApplicationFactory(
             ["Media:ContainerName"] = "tangle-media",
             ["Media:WorkerCallbackSecret"] = IntegrationTestConstants.TestWorkerCallbackSecret,
             ["CommunityClient:BaseUrl"] = "http://community.test",
+            ["Outbox:PollIntervalMilliseconds"] = "200",
+            ["Outbox:BatchSize"] = "50",
+            ["Outbox:MaxAttempts"] = "10",
         };
         IntegrationTestConfiguration.AddDownstreamClient(additionalSettings, "ChatClient", "http://chat.test");
 

@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Media.Entities;
+using System.Text.Json;
+using Tangle.AspNetCore.Outbox;
 
 namespace Media.Tests.Services;
 
@@ -37,20 +39,23 @@ public sealed class MediaServiceUnitTests
     }
 
     [Fact]
-    public async Task CompleteUploadAsync_EnqueuesMediaUploadedJob_WithTargetMaxFromLimits()
+    public async Task CompleteUploadAsync_WritesOutboxMediaUploadedJob_WithTargetMaxFromLimits()
     {
         var db = CreateInMemoryDb();
         var storage = new FakeMediaStorage();
-        var workQueue = new FakeWorkQueue();
-        var service = CreateMediaService(db, storage, workQueue);
+        var service = CreateMediaService(db, storage);
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/video.mp4");
 
         var result = await service.CompleteUploadAsync(asset.Id);
 
         Assert.Equal(MediaProcessingStatus.Processing, result.ProcessingStatus);
-        var job = Assert.Single(workQueue.GetEnqueuedJobs());
-        Assert.Equal(WorkQueueStreams.MediaUploaded, job.StreamKey);
-        var payload = Assert.IsType<MediaUploadedJob>(job.Payload);
+        var outbox = Assert.Single(db.OutboxMessages);
+        Assert.Equal(OutboxDestination.WorkQueue, outbox.Destination);
+        Assert.Equal(WorkQueueStreams.MediaUploaded, outbox.Target);
+        var payload = JsonSerializer.Deserialize<MediaUploadedJob>(
+            outbox.PayloadJson,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(payload);
         Assert.Equal(asset.Id, payload.MediaAssetId);
         Assert.Equal(nameof(MediaIntendedContext.Post), payload.IntendedContext);
         Assert.Equal(nameof(MediaKind.Video), payload.Kind);
@@ -129,13 +134,43 @@ public sealed class MediaServiceUnitTests
     {
         var db = CreateInMemoryDb();
         var storage = new FakeMediaStorage();
-        var workQueue = new FakeWorkQueue();
-        var service = CreateMediaService(db, storage, workQueue);
+        var service = CreateMediaService(db, storage);
         var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/missing.mp4", seedBlob: false);
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => service.CompleteUploadAsync(asset.Id));
         Assert.Contains("not found in storage", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Empty(workQueue.GetEnqueuedJobs());
+        Assert.Empty(db.OutboxMessages);
+    }
+
+    [Fact]
+    public async Task RecoverStuckProcessingAsync_ReenqueuesThenFailsByAge()
+    {
+        var db = CreateInMemoryDb();
+        var storage = new FakeMediaStorage();
+        var service = CreateMediaService(db, storage);
+        var asset = await SeedPendingUploadAsync(db, storage, userId: 1, objectKey: "raw/1/stuck.mp4");
+        asset.MarkProcessing();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var (reenqueued, failed) = await service.RecoverStuckProcessingAsync(
+            reenqueueAfter: TimeSpan.Zero,
+            failAfter: TimeSpan.FromHours(1),
+            batchSize: 10);
+
+        Assert.Equal(1, reenqueued);
+        Assert.Equal(0, failed);
+        Assert.Single(db.OutboxMessages);
+
+        var (reenqueued2, failed2) = await service.RecoverStuckProcessingAsync(
+            reenqueueAfter: TimeSpan.Zero,
+            failAfter: TimeSpan.Zero,
+            batchSize: 10);
+
+        Assert.Equal(0, reenqueued2);
+        Assert.Equal(1, failed2);
+        var updated = await db.MediaAssets.FindAsync([asset.Id], TestContext.Current.CancellationToken);
+        Assert.Equal(MediaProcessingStatus.Failed, updated!.ProcessingStatus);
+        Assert.Equal("processing_timeout", updated.FailureReason);
     }
 
     [Fact]
@@ -228,10 +263,8 @@ public sealed class MediaServiceUnitTests
     private static MediaService CreateMediaService(
         MediaDbContext db,
         FakeMediaStorage storage,
-        FakeWorkQueue? workQueue = null,
         string userId = "1")
     {
-        workQueue ??= new FakeWorkQueue();
         var mediaOptions = Options.Create(CreateTestMediaOptions());
         var http = new FakeHttpContextAccessor(userId);
         var currentUser = new Tangle.AspNetCore.Auth.CurrentUserAccessor(http);
@@ -241,12 +274,13 @@ public sealed class MediaServiceUnitTests
 
         return new MediaService(
             new MediaAssetRepository(db),
+            db,
             serviceProvider,
             new MediaLimitPolicy(mediaOptions),
             new AllowAllUserClient(),
             new AllowAllCommunityAccessClient(),
             new AllowAllChatAccessClient(),
-            workQueue,
+            new EfOutboxWriter<MediaDbContext>(db),
             mediaOptions,
             currentUser);
     }

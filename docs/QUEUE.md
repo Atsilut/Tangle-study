@@ -4,9 +4,17 @@ Producer-only foundation for phase 4 Rust workers. Chat and domain services work
 
 Pub/sub event contracts (separate mechanism): [EVENTS.md](EVENTS.md).
 
-## Schema versioning
+## Durability (transactional outbox)
 
-Every job payload includes `schemaVersion` (starting at `1`). Serialized as camelCase JSON inside the stream entry `payload` field.
+Media and Chat persist queue/event intents in an **outbox table** in the same Postgres transaction as the domain write (Media: `CompleteUploadAsync`; Chat: message create after media link). A background dispatcher XADDs / publishes and marks rows processed; failed publishes retry then dead-letter.
+
+| Guarantee | Meaning |
+|-----------|---------|
+| At-least-once to Redis | After DB commit, the job/event is eventually delivered unless permanently dead-lettered |
+| Not exactly-once | Workers/consumers must stay idempotent (`ReportProcessedAsync`, message handlers) |
+| SignalR | Still best-effort after commit (not outboxed) |
+
+Until a service adopts the outbox, post-commit `EnqueueAsync` / `PublishAsync` can still be lost on crash between commit and Redis.
 
 - **Producers** set `SchemaVersion = 1` on contract records in each service's `Queue/WorkQueueContracts.cs`.
 - **Consumers** (Rust workers) should ignore unknown JSON fields; reject unsupported major versions when breaking changes land.
@@ -55,6 +63,7 @@ Workers should:
 - Use a consumer group per stream (e.g. `tangle-study-workers`)
 - `XACK` after successful processing
 - Treat Postgres as source of truth; stream jobs are notifications / async work, not chat delivery
+- Assume **at-least-once** delivery (outbox + PEL retry); handlers must be idempotent (e.g. Media `ReportProcessedAsync`)
 
 The Rust workers implement `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dispatch, `XACK`, PEL retry via `XPENDING`/`XCLAIM` with exponential backoff and jitter, and DLQ publish. Replay: `worker-chat replay`, `worker-media replay`, or `worker-location replay`.
 
