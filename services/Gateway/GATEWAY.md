@@ -15,14 +15,19 @@ YARP reverse proxy and JWT validation at the Compose edge. The gateway routes tr
 
 ```text
 Browser → nginx:8080
-  └─ /api/*, /hubs/*, /internal/* → gateway:8080
-       ├─ GatewayAuthMiddleware (JWT or anonymous allow-list)
+  └─ /api/*, /hubs/* → gateway:8080
+       ├─ GatewayAuthMiddleware (JWT or anonymous allow-list; rejects /internal/*)
        ├─ Sets X-User-Id + X-Gateway-Secret on authenticated requests
        └─ YARP forwards to target cluster (users, media, chat, …)
 
 Domain service → GatewayIdentityAuthenticationHandler
   └─ Trusts X-Gateway-Secret; builds ClaimsPrincipal from X-User-Id
 ```
+
+`/internal/*` is **not** routed through the gateway: services call each other directly on the private
+network (e.g. `http://media:8080/internal/media/*`) authenticated with `X-Internal-Secret`. The edge
+(nginx) does not proxy `/internal/*`, and `GatewayAuthMiddleware` returns `404` for any `/internal/*`
+that reaches it. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
 
 ## YARP routes
 

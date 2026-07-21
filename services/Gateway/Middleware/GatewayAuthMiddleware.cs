@@ -43,6 +43,15 @@ public sealed class GatewayAuthMiddleware(
         context.Request.Headers.Remove("X-User-Id");
         context.Request.Headers.Remove("X-Gateway-Secret");
 
+        // Internal service-to-service routes (`/internal/*`) are called directly between services on the
+        // private network with `X-Internal-Secret`; they must never be reachable through the public edge.
+        var path = context.Request.Path.Value ?? string.Empty;
+        if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
         var token = ExtractBearerToken(context.Request);
         if (string.IsNullOrWhiteSpace(token))
         {

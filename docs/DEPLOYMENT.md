@@ -14,7 +14,8 @@ Default `docker compose up` runs `gateway`, `users`, `media`, `chat`, `location`
 
 | Path | Routed to | Config |
 |------|-----------|--------|
-| `/api/*`, `/hubs/*`, `/internal/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/api/*`, `/hubs/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/internal/*` | Service-to-service only (direct, e.g. `http://media:8080`); not proxied at the edge, rejected by the gateway | [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md#internal-service-authentication) |
 
 Gateway YARP routes by path prefix to users, media, chat, location, community, group, and social. See [GATEWAY.md](../services/Gateway/GATEWAY.md).
 

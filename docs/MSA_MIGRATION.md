@@ -382,12 +382,13 @@ Users and gateway are **separate deployables** (not combined). Users owns identi
 
 ```text
 Browser → nginx:8080
-  └─ /api/*, /hubs/*, /internal/* → gateway:8080
+  └─ /api/*, /hubs/* → gateway:8080
        ├─ /api/login, /api/join, /api/users/* → users:8080
        ├─ /api/media/* → media:8080
        ├─ … (chat, location, community, group, social)
        └─ JWT validated at gateway; services trust X-User-Id
 
+# /internal/* is service-to-service only (direct, X-Internal-Secret); not via nginx/gateway
 extracted services ──IUserClient──► users (/internal/users/*)
 users ──I*Client──► community, media, chat, group, social, location (user delete detach)
 ```
@@ -418,7 +419,7 @@ Users + gateway Container Apps, YARP cluster addresses, and web → `tangle-stud
 
 | Environment | Edge | Routing |
 |-------------|------|---------|
-| **Compose (`develop`)** | `infra/nginx/nginx.conf` | All `/api/*`, `/hubs/*`, `/internal/*` → `gateway:8080`; gateway YARP routes to users, media, chat, location, community, group, social |
+| **Compose (`develop`)** | `infra/nginx/nginx.conf` | `/api/*`, `/hubs/*` → `gateway:8080`; gateway YARP routes to users, media, chat, location, community, group, social. `/internal/*` is service-to-service only (direct, not via edge/gateway) |
 | **Azure (`main`)** | `infra/nginx/nginx.production.conf` | All `/api/*`, `/hubs/*`, `/health` → `tangle-study-gateway` (via `TANGLE_API_UPSTREAM`) |
 
 Gateway validates JWT once; services receive identity via `X-User-Id` (trusted gateway secret). Login/JWT issuance stays on users-service.
