@@ -6,11 +6,20 @@ public sealed class FakeMediaClient : IMediaClient
 {
     private long _nextId = 1;
     private readonly Dictionary<long, AssetState> _assets = [];
+    private Exception? _linkFailure;
 
     private sealed class AssetState
     {
         public required MediaAssetGetResponseDto Dto { get; set; }
     }
+
+    public void FailNextLink(Exception exception) => _linkFailure = exception;
+
+    public bool IsAssetLinked(long mediaAssetId) =>
+        _assets.TryGetValue(mediaAssetId, out var state) && state.Dto.ChatMessageId is not null;
+
+    public bool IsLinkedToChatMessage(long mediaAssetId, long chatMessageId) =>
+        _assets.TryGetValue(mediaAssetId, out var state) && state.Dto.ChatMessageId == chatMessageId;
 
     public long SeedReadyAsset(
         MediaIntendedContext context,
@@ -47,8 +56,22 @@ public sealed class FakeMediaClient : IMediaClient
 
     public Task LinkToChatMessageAsync(long chatMessageId, long senderUserId, long? mediaAssetId)
     {
+        if (_linkFailure is not null)
+        {
+            var failure = _linkFailure;
+            _linkFailure = null;
+            throw failure;
+        }
+
         if (mediaAssetId is long id)
             UpdateAsset(id, dto => dto with { ChatMessageId = chatMessageId });
+        return Task.CompletedTask;
+    }
+
+    public Task UnlinkFromChatMessageAsync(long chatMessageId)
+    {
+        foreach (var state in _assets.Values.Where(a => a.Dto.ChatMessageId == chatMessageId).ToList())
+            state.Dto = state.Dto with { ChatMessageId = null };
         return Task.CompletedTask;
     }
 
@@ -68,7 +91,12 @@ public sealed class FakeMediaClient : IMediaClient
             .Select(a => a.Dto)
             .FirstOrDefault(d => d.ChatMessageId == chatMessageId));
 
-    public Task DeleteBlobStorageForChatMessageAsync(long chatMessageId) => Task.CompletedTask;
+    public Task DeleteBlobStorageForChatMessageAsync(long chatMessageId)
+    {
+        foreach (var state in _assets.Values.Where(a => a.Dto.ChatMessageId == chatMessageId).ToList())
+            state.Dto = state.Dto with { ChatMessageId = null };
+        return Task.CompletedTask;
+    }
 
     private void UpdateAsset(long id, Func<MediaAssetGetResponseDto, MediaAssetGetResponseDto> update)
     {

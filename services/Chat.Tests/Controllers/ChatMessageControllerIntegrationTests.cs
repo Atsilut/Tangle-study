@@ -270,6 +270,37 @@ public sealed class ChatMessageControllerIntegrationTests(PostgresTestcontainerF
     }
 
     [Fact]
+    public async Task CreateMessage_Compensates_WhenMediaLinkFails()
+    {
+        const string testMethodName = nameof(CreateMessage_Compensates_WhenMediaLinkFails);
+
+        var userA = CreateUserForTest(testMethodName, 1);
+        var userB = CreateUserForTest(testMethodName, 2);
+        AcceptFriendship(userA, userB);
+        var room = await GetOrCreateDirectRoomAsync(userA, userB.Id);
+        LoginAs(userA);
+
+        var mediaAssetId = FakeMediaClientTestHelpers.SeedReadyAsset(
+            FakeMediaClient,
+            MediaIntendedContext.ChatMessage,
+            "image/png",
+            "chat-fail.png",
+            storedSizeBytes: 67);
+        FakeMediaClient.FailNextLink(new ArgumentException("Simulated media link failure"));
+
+        var res = await Client.PostAsJsonAsync(
+            $"{ChatRoomsBase}/{room.Id}/messages",
+            new ChatMessageCreateRequestDto { Body = "should roll back", MediaAssetId = mediaAssetId },
+            TestContext.Current.CancellationToken);
+
+        await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.BadRequest);
+        Assert.False(FakeMediaClient.IsAssetLinked(mediaAssetId));
+
+        var listRes = await Client.GetAsync($"{ChatRoomsBase}/{room.Id}/messages", TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(listRes, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
     public async Task ListMessages_Returns400_WhenBeforeMessageIdNotFound()
     {
         const string testMethodName = nameof(ListMessages_Returns400_WhenBeforeMessageIdNotFound);
