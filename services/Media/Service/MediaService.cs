@@ -439,7 +439,18 @@ public sealed class MediaService(
         if (!await RequireMediaStorage().ObjectExistsAsync(asset.OriginalObjectKey))
             throw new ArgumentException("Uploaded file was not found in storage.");
 
-        asset.MarkProcessing();
+        // Conditional claim under READ COMMITTED so concurrent CompleteUpload cannot double-enqueue.
+        var claimed = await _repo.TryMarkProcessingFromPendingUploadAsync(id);
+        if (!claimed)
+        {
+            var current = await GetMediaAssetOrThrowAsync(id);
+            throw new ArgumentException(
+                $"Upload cannot be completed while status is {current.ProcessingStatus}.");
+        }
+
+        // ExecuteUpdate bypasses the change tracker on relational providers; reload so outbox + DTO see Processing.
+        if (_db.Database.IsRelational())
+            await _db.Entry(asset).ReloadAsync();
         var targetMaxBytes = _limitPolicy.GetStorageLimits(asset.IntendedContext, asset.Kind).PerFileBytes;
         _outbox.EnqueueWorkQueue(
             WorkQueueStreams.MediaUploaded,

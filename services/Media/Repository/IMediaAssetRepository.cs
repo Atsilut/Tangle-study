@@ -31,4 +31,6 @@ public interface IMediaAssetRepository
     public Task DeleteMediaAssetAsync(MediaAsset mediaAsset);
 
     public Task SaveChangesAsync();
+
+    public Task<bool> TryMarkProcessingFromPendingUploadAsync(long id);
 }
