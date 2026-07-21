@@ -14,6 +14,7 @@ public static class OutboxModelBuilderExtensions
             entity.Property(m => m.PayloadJson).IsRequired();
             entity.Property(m => m.LastError).HasMaxLength(2000);
             entity.HasIndex(m => new { m.ProcessedAt, m.DeadLetteredAt, m.Id });
+            entity.HasIndex(m => m.EntityId);
         });
     }
 }

@@ -16,6 +16,14 @@ Media and Chat persist queue/event intents in an **outbox table** in the same Po
 
 Until a service adopts the outbox, post-commit `EnqueueAsync` / `PublishAsync` can still be lost on crash between commit and Redis.
 
+### Dispatcher, retention, and dead-letters
+
+- **Atomicity:** the outbox row and the domain write share **one** transaction/commit (Media `CompleteUploadAsync`; Chat message create persists the message + outbox rows in a single `ExecuteInTransactionAsync`). Cross-service HTTP (media link) and SignalR stay outside the transaction; a failed create compensates by deleting the message *and* its still-unpublished outbox rows.
+- **Correlation:** each row carries an optional `EntityId` (indexed) so dedup / cleanup use an exact lookup instead of substring-matching `PayloadJson`.
+- **Retention:** the dispatcher prunes processed rows older than `Outbox:RetentionHours` (default 72; `0` keeps forever) every `Outbox:PruneIntervalMinutes` (default 30). Dead-lettered rows are **never** auto-deleted — inspect them in the service's `OutboxMessages` table (`DeadLetteredAt IS NOT NULL`, `LastError`) and re-drive by clearing `DeadLetteredAt` + `Attempts` after fixing the cause.
+- **Metrics:** `tangle_outbox_dispatched_total{destination}`, `tangle_outbox_dead_lettered_total{destination}`, `tangle_outbox_pruned_total`.
+- **Scale-out:** the dispatcher reads pending rows without row-claiming (`FOR UPDATE SKIP LOCKED`), so running **more than one replica per service** would double-publish. This is safe today because delivery is at-least-once and consumers are idempotent; add row-claiming before relying on the outbox for exactly-once-ish semantics under multi-replica.
+
 - **Producers** set `SchemaVersion = 1` on contract records in each service's `Queue/WorkQueueContracts.cs`.
 - **Consumers** (Rust workers) should ignore unknown JSON fields; reject unsupported major versions when breaking changes land.
 - **Bump** `schemaVersion` when removing or renaming fields; optional new fields may omit a bump if old consumers ignore them.
@@ -71,7 +79,7 @@ The Rust workers implement `XGROUP CREATE` (mkstream), `XREADGROUP`, handler dis
 
 | Component | Endpoint | Metrics |
 |-----------|----------|---------|
-| Domain services | `GET /metrics` | `http_requests_*` (prometheus-net); `tangle_workqueue_enqueue_total{stream}` and `tangle_workqueue_enqueue_failed_total{stream}` when Redis is enabled |
+| Domain services | `GET /metrics` | `http_requests_*` (prometheus-net); `tangle_workqueue_enqueue_total{stream}` and `tangle_workqueue_enqueue_failed_total{stream}` when Redis is enabled; outbox: `tangle_outbox_dispatched_total{destination}`, `tangle_outbox_dead_lettered_total{destination}`, `tangle_outbox_pruned_total` |
 | rust-worker | `GET /metrics` on `WORKER_METRICS_PORT` (default `9090`) | `tangle_worker_jobs_processed_total`, `tangle_worker_pending_messages`, `tangle_worker_dlq_length`, `tangle_worker_callback_requests_total` |
 
 Prometheus scrape config: [`infra/prometheus/prometheus.yml`](../infra/prometheus/prometheus.yml). Grafana dashboard: [infra/README.md](../infra/README.md).

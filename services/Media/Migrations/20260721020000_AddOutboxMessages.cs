@@ -21,6 +21,7 @@ namespace Media.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Destination = table.Column<int>(type: "integer", nullable: false),
                     Target = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    EntityId = table.Column<long>(type: "bigint", nullable: true),
                     PayloadJson = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ProcessedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -32,6 +33,12 @@ namespace Media.Migrations
                 {
                     table.PrimaryKey("PK_OutboxMessages", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OutboxMessages_EntityId",
+                schema: "media",
+                table: "OutboxMessages",
+                column: "EntityId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OutboxMessages_ProcessedAt_DeadLetteredAt_Id",

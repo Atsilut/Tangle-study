@@ -219,6 +219,9 @@ namespace Chat.Migrations
                     b.Property<int>("Destination")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("EntityId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -236,6 +239,8 @@ namespace Chat.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EntityId");
 
                     b.HasIndex("ProcessedAt", "DeadLetteredAt", "Id");
 

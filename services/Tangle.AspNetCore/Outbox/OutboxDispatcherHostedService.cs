@@ -34,6 +34,11 @@ public sealed class OutboxDispatcherHostedService<TContext>(
         var interval = TimeSpan.FromMilliseconds(Math.Max(200, _options.PollIntervalMilliseconds));
         var batchSize = Math.Clamp(_options.BatchSize, 1, 500);
         var maxAttempts = Math.Max(1, _options.MaxAttempts);
+        var retention = _options.RetentionHours <= 0
+            ? (TimeSpan?)null
+            : TimeSpan.FromHours(_options.RetentionHours);
+        var pruneInterval = TimeSpan.FromMinutes(Math.Max(1, _options.PruneIntervalMinutes));
+        var nextPruneAt = DateTimeOffset.UtcNow + pruneInterval;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -41,6 +46,12 @@ public sealed class OutboxDispatcherHostedService<TContext>(
             {
                 await Task.Delay(interval, stoppingToken);
                 await DispatchBatchAsync(batchSize, maxAttempts, stoppingToken);
+
+                if (retention is not null && DateTimeOffset.UtcNow >= nextPruneAt)
+                {
+                    await PruneProcessedAsync(retention.Value, stoppingToken);
+                    nextPruneAt = DateTimeOffset.UtcNow + pruneInterval;
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -81,6 +92,7 @@ public sealed class OutboxDispatcherHostedService<TContext>(
 
                 message.ProcessedAt = DateTimeOffset.UtcNow;
                 message.LastError = null;
+                OutboxMetrics.DispatchedTotal.WithLabels(message.Destination.ToString()).Inc();
             }
             catch (Exception ex)
             {
@@ -89,6 +101,7 @@ public sealed class OutboxDispatcherHostedService<TContext>(
                 if (message.Attempts >= maxAttempts)
                 {
                     message.DeadLetteredAt = DateTimeOffset.UtcNow;
+                    OutboxMetrics.DeadLetteredTotal.WithLabels(message.Destination.ToString()).Inc();
                     _logger.LogError(
                         ex,
                         "Outbox message {OutboxId} dead-lettered after {Attempts} attempts ({Target})",
@@ -109,5 +122,28 @@ public sealed class OutboxDispatcherHostedService<TContext>(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task PruneProcessedAsync(TimeSpan retention, CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
+
+        // ExecuteDeleteAsync is only supported on relational providers (in-memory test contexts skip pruning).
+        if (!db.Database.IsRelational()) return;
+
+        var cutoff = DateTimeOffset.UtcNow - retention;
+        var deleted = await db.Set<OutboxMessage>()
+            .Where(m => m.ProcessedAt != null && m.ProcessedAt < cutoff)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        if (deleted > 0)
+        {
+            OutboxMetrics.PrunedTotal.Inc(deleted);
+            _logger.LogInformation(
+                "Outbox pruned {Count} processed rows for {DbContext}",
+                deleted,
+                typeof(TContext).Name);
+        }
     }
 }

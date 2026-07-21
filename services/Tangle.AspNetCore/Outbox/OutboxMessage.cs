@@ -15,6 +15,12 @@ public sealed class OutboxMessage
     /// <summary>Stream key (work queue) or pub/sub channel (event).</summary>
     public string Target { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional domain entity id this row corresponds to (e.g. chat message id, media asset id).
+    /// Enables exact lookups (dedup, compensation cleanup) without substring-matching the payload JSON.
+    /// </summary>
+    public long? EntityId { get; set; }
+
     public string PayloadJson { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }

@@ -10,6 +10,7 @@ using Chat.Queue;
 using Chat.Realtime;
 using Chat.Repository;
 using Tangle.AspNetCore.Auth;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Tangle.AspNetCore.Db;
 using Tangle.AspNetCore.Outbox;
@@ -95,7 +96,33 @@ public class ChatMessageService(
             throw new ArgumentException("Message body cannot be empty.");
 
         var message = new ChatMessage(roomId, senderUserId, body);
-        await _repo.CreateChatMessageAsync(message);
+
+        // Persist the message and its outbox intents in one commit so the event/job can never be
+        // lost after the message exists (transactional outbox). Cross-service media link and SignalR
+        // stay outside the transaction per the consistency rules.
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            await _repo.CreateChatMessageAsync(message);
+            _outbox.EnqueueEvent(
+                RedisEventChannels.ChatMessageCreated,
+                new ChatMessageCreatedEvent(
+                    message.Id,
+                    message.ChatRoomId,
+                    senderUserId,
+                    message.Body,
+                    message.SentAt),
+                message.Id);
+            _outbox.EnqueueWorkQueue(
+                WorkQueueStreams.ChatMessageCreated,
+                new ChatMessageCreatedJob(
+                    message.Id,
+                    message.ChatRoomId,
+                    senderUserId,
+                    message.Body,
+                    message.SentAt),
+                message.Id);
+            await _db.SaveChangesAsync();
+        });
 
         try
         {
@@ -112,27 +139,6 @@ public class ChatMessageService(
         }
 
         await _chatRoomService.TouchRoomUpdatedAtAsync(roomId);
-
-        await _db.ExecuteInTransactionAsync(async () =>
-        {
-            _outbox.EnqueueEvent(
-                RedisEventChannels.ChatMessageCreated,
-                new ChatMessageCreatedEvent(
-                    message.Id,
-                    message.ChatRoomId,
-                    senderUserId,
-                    message.Body,
-                    message.SentAt));
-            _outbox.EnqueueWorkQueue(
-                WorkQueueStreams.ChatMessageCreated,
-                new ChatMessageCreatedJob(
-                    message.Id,
-                    message.ChatRoomId,
-                    senderUserId,
-                    message.Body,
-                    message.SentAt));
-            await _db.SaveChangesAsync();
-        });
 
         var dto = await MapToDtoAsync(message, senderUserId);
         await _realtime.NotifyMessageCreatedAsync(roomId, dto);
@@ -262,6 +268,13 @@ public class ChatMessageService(
 
         try
         {
+            // Drop the message together with any still-unpublished outbox rows for it, so a rolled-back
+            // create does not leak a ChatMessageCreated event/job. Rows already dispatched are left for
+            // idempotent consumers (Postgres remains the source of truth).
+            var pendingOutbox = await _db.OutboxMessages
+                .Where(m => m.EntityId == message.Id && m.ProcessedAt == null && m.DeadLetteredAt == null)
+                .ToListAsync();
+            if (pendingOutbox.Count > 0) _db.OutboxMessages.RemoveRange(pendingOutbox);
             await _repo.DeleteChatMessageAsync(message);
         }
         catch (Exception ex)

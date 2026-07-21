@@ -12,4 +12,10 @@ public class OutboxOptions
 
     /// <summary>Attempts before dead-lettering a row.</summary>
     public int MaxAttempts { get; set; } = 10;
+
+    /// <summary>How long to keep processed rows before pruning. <c>0</c> keeps them forever.</summary>
+    public int RetentionHours { get; set; } = 72;
+
+    /// <summary>How often the dispatcher prunes processed rows past the retention window.</summary>
+    public int PruneIntervalMinutes { get; set; } = 30;
 }

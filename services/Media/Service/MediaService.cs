@@ -172,7 +172,7 @@ public sealed class MediaService(
                     && m.DeadLetteredAt == null
                     && m.Destination == OutboxDestination.WorkQueue
                     && m.Target == WorkQueueStreams.MediaUploaded
-                    && m.PayloadJson.Contains($"\"mediaAssetId\":{mediaAssetId}"),
+                    && m.EntityId == mediaAssetId,
                 cancellationToken);
             if (hasPendingOutbox) continue;
 
@@ -186,7 +186,8 @@ public sealed class MediaService(
                     asset.MimeType,
                     asset.OriginalObjectKey,
                     asset.OriginalSizeBytes,
-                    targetMaxBytes));
+                    targetMaxBytes),
+                asset.Id);
             reenqueued++;
         }
 
@@ -449,7 +450,8 @@ public sealed class MediaService(
                 asset.MimeType,
                 asset.OriginalObjectKey,
                 asset.OriginalSizeBytes,
-                targetMaxBytes));
+                targetMaxBytes),
+            asset.Id);
         await _repo.SaveChangesAsync();
 
         return MapToDto(asset);
