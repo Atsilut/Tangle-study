@@ -19,7 +19,7 @@ Default `docker compose up` runs `gateway`, `users`, `media`, `chat`, `location`
 
 Gateway YARP routes by path prefix to users, media, chat, location, community, group, and social. See [GATEWAY.md](../services/Gateway/GATEWAY.md).
 
-**Domain services (Docker):** each service's `appsettings.Docker.json` — Redis where needed, `Users:BaseUrl=http://users:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`. Services trust gateway identity via `GatewayIdentityOptions`.
+**Domain services (Docker):** each service's `appsettings.Docker.json` — Redis where needed, `Users:BaseUrl=http://users:8080`, and a **per-callee** `X-Internal-Secret` (`InternalAccess:Secret` unique per service; callers set `*Client:InternalSecret` / `Users:InternalSecret` to the callee's value). Services trust gateway identity via `GatewayIdentityOptions`.
 
 **Workers:** `API_BASE_URL=http://media:8080` on `rust-worker-media`, `http://chat:8080` on `rust-worker-chat`, `http://location:8080` on `rust-worker-location`.
 
@@ -206,11 +206,19 @@ The `services/Api/` project and `tangle-study-api` image were removed from the r
 | `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes` (users)                                                  | No       | Default `15` from `[parameters.prod.json](../infra/azure/parameters.prod.json)` when unset |
 | `WORKER_CALLBACK_SECRET`                   | `Media__WorkerCallbackSecret`, `WorkerCallback__Secret`, `WORKER_CALLBACK_SECRET` | Yes | Shared with media/location workers for internal callbacks                                                       |
 | `GATEWAY_SECRET`                           | `Gateway__Secret` (gateway), `GatewayIdentity__Secret` (services)             | Yes      | Trusted `X-Gateway-Secret` between gateway and services                                                               |
-| `INTERNAL_SERVICE_SECRET`                  | `InternalAccess__Secret` + `*Client__InternalSecret` / `Users__InternalSecret` | Yes | Shared `X-Internal-Secret` for `/internal/*` service-to-service calls                                              |
+| `USERS_INTERNAL_SECRET`                    | `InternalAccess__Secret` (users); callers' `Users__InternalSecret`            | Yes      | Users receive secret for `/internal/*`                                                                                |
+| `MEDIA_INTERNAL_SECRET`                    | `InternalAccess__Secret` (media); callers' `MediaClient__InternalSecret`      | Yes      | Media receive secret                                                                                                  |
+| `CHAT_INTERNAL_SECRET`                     | `InternalAccess__Secret` (chat); callers' `ChatClient__InternalSecret`        | Yes      | Chat receive secret                                                                                                   |
+| `LOCATION_INTERNAL_SECRET`                 | `InternalAccess__Secret` (location); callers' `LocationClient__InternalSecret` | Yes     | Location receive secret                                                                                               |
+| `COMMUNITY_INTERNAL_SECRET`                | `InternalAccess__Secret` (community); callers' `CommunityClient__InternalSecret` | Yes   | Community receive secret                                                                                              |
+| `GROUP_INTERNAL_SECRET`                    | `InternalAccess__Secret` (group); callers' `GroupClient__InternalSecret`      | Yes      | Group receive secret                                                                                                  |
+| `SOCIAL_INTERNAL_SECRET`                   | `InternalAccess__Secret` (social); callers' `SocialClient__InternalSecret`    | Yes      | Social receive secret                                                                                                 |
 | `METRICS_SCRAPE_SECRET`                    | `Metrics__ScrapeSecret` / `METRICS_SCRAPE_SECRET`                             | Yes      | Required when `Metrics:RequireScrapeSecret` is true                                                                   |
 | `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (DB services + migrate jobs)           | Yes      | Neon Npgsql connection string from console                                                                            |
 | `GRAFANA_ADMIN_PASSWORD`                   | `GF_SECURITY_ADMIN_PASSWORD` (Grafana)                                        | Yes      | External Grafana Container App admin password                                                                         |
 | `PLACES_API_KEY`                           | `Places__ApiKey` (location)                                                   | No       | Google Places / Geocoding; leave empty to disable search                                                              |
+
+**Per-callee internal secrets:** each service has its own receive value (`InternalAccess__Secret`). Callers send that callee's secret as `X-Internal-Secret` via `*Client__InternalSecret` / `Users__InternalSecret`. Do not reuse one value across services. After cutover, set the seven `*_INTERNAL_SECRET` Environment secrets in GitHub `prod` and remove obsolete `INTERNAL_SERVICE_SECRET`.
 
 ### Media (`services/Media`)
 
@@ -530,7 +538,13 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
    METRICS_SCRAPE_SECRET='...' \
    GRAFANA_ADMIN_PASSWORD='...' \
    GATEWAY_SECRET='...' \
-   INTERNAL_SERVICE_SECRET='...' \
+   USERS_INTERNAL_SECRET='...' \
+   MEDIA_INTERNAL_SECRET='...' \
+   CHAT_INTERNAL_SECRET='...' \
+   LOCATION_INTERNAL_SECRET='...' \
+   COMMUNITY_INTERNAL_SECRET='...' \
+   GROUP_INTERNAL_SECRET='...' \
+   SOCIAL_INTERNAL_SECRET='...' \
      bash scripts/cd/azure-cd-deploy-bicep.sh
 
    AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-migrate.sh

@@ -17,5 +17,6 @@ Full model: [`docs/CONSISTENCY.md`](../../docs/CONSISTENCY.md).
 - Internal detach/delete endpoints must stay **idempotent**.
 - State transitions that gate side effects must use a **conditional claim** (`UPDATE … WHERE status = expected`), not check-then-act alone under READ COMMITTED.
 - Compare gateway / internal secrets with **constant-time** equality (`SecretComparer` / `CryptographicOperations.FixedTimeEquals`).
+- Do **not** share `InternalAccess:Secret` across services — one unique receive secret per service; callers send the callee's secret.
 
 Do not introduce distributed 2PC.

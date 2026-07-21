@@ -29,7 +29,7 @@ Room kinds: `Direct`, `Multi`, `PlatformGroup`. See Swagger under `api/chat` and
 | `POST` | `/internal/chat/users/{userId}/detach-on-deletion` | Users-service | User deletion cleanup |
 | `POST` | `/internal/chat/messages/{chatMessageId}/media-view` | Media-service | Chat attachment ACL check (also requires caller JWT) |
 
-Shared secret: `InternalAccess:Secret` on chat-service; `Users:InternalSecret` / `ChatClient:InternalSecret` on callers. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
+Per-callee receive secret: `InternalAccess:Secret` on chat-service; callers set `Users:InternalSecret` / `ChatClient:InternalSecret` to the **callee's** secret. See [SERVICE_BOUNDARIES.md](../../docs/SERVICE_BOUNDARIES.md#internal-service-authentication).
 
 ---
 

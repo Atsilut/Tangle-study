@@ -58,7 +58,7 @@ All other `/api/*` and `/hubs/*` requests require a valid Bearer JWT (or `?acces
 ## Trust and secrets
 
 - **Gateway identity:** domain services trust `X-User-Id` only when `X-Gateway-Secret` matches `GatewayIdentity:Secret`. Compromising the gateway secret impersonates any user to every service that accepts gateway identity.
-- **Internal mesh:** `/internal/*` uses a **shared** `X-Internal-Secret` / `InternalAccess:Secret` across services today. One leak can call any peer's internal API. Prefer private networking (Compose / Container Apps ingress) and rotate the secret; future hardening may use per-service secrets or mTLS.
+- **Internal mesh:** `/internal/*` uses **per-callee** secrets — each service's `InternalAccess:Secret` is unique; callers send that callee's value as `X-Internal-Secret`. A leak of one process only exposes peers that process is configured to call. Prefer private networking (Compose / Container Apps ingress) and rotate secrets independently. Optional later hardening: mTLS / SPIFFE (not implemented).
 - **Constant-time compare:** both gateway and internal secret checks use `SecretComparer` (`CryptographicOperations.FixedTimeEquals`) — do not reintroduce `string ==` / `!=` for secrets.
 
 ## Related docs

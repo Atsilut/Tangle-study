@@ -60,6 +60,7 @@ Users nickname/delete Redis pub/sub events remain **best-effort** post-commit (n
 6. Deletes: remote-first, then local.
 7. State transitions that gate side effects (e.g. media upload complete) must use a conditional update / claim, not check-then-act under READ COMMITTED alone.
 8. Compare gateway / internal secrets in constant time (`SecretComparer` / `CryptographicOperations.FixedTimeEquals`).
+9. Do not share `InternalAccess:Secret` across services — each service has its own receive secret; callers hold the callee's secret.
 
 ---
 

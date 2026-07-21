@@ -53,7 +53,13 @@ WORKER_CALLBACK_SECRET='...' \
 METRICS_SCRAPE_SECRET='...' \
 GRAFANA_ADMIN_PASSWORD='...' \
 GATEWAY_SECRET='...' \
-INTERNAL_SERVICE_SECRET='...' \
+USERS_INTERNAL_SECRET='...' \
+MEDIA_INTERNAL_SECRET='...' \
+CHAT_INTERNAL_SECRET='...' \
+LOCATION_INTERNAL_SECRET='...' \
+COMMUNITY_INTERNAL_SECRET='...' \
+GROUP_INTERNAL_SECRET='...' \
+SOCIAL_INTERNAL_SECRET='...' \
 ./scripts/azure-deploy-infra.sh prod
 ```
 
@@ -172,7 +178,7 @@ Grafana bundles dashboards and alerts from [`infra/grafana/provisioning/`](../gr
 
 1. Create a Neon project and database; copy the Npgsql connection string.
 2. Copy storage account connection string → GitHub secret `BLOB_CONNECTION_STRING`.
-3. Set GitHub Environment **`prod`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_CONNECTION_STRING`, `GATEWAY_SECRET`, `INTERNAL_SERVICE_SECRET`, and `GRAFANA_ADMIN_PASSWORD`.
+3. Set GitHub Environment **`prod`** secrets (see [DEPLOYMENT.md](../../docs/DEPLOYMENT.md)), including `POSTGRES_CONNECTION_STRING`, `GATEWAY_SECRET`, the seven `*_INTERNAL_SECRET` values (`USERS_INTERNAL_SECRET`, …, `SOCIAL_INTERNAL_SECRET`), and `GRAFANA_ADMIN_PASSWORD`. Remove obsolete `INTERNAL_SERVICE_SECRET` after cutover.
 4. Merge to **`main`** (or run **Deploy** workflow) — CD pushes GHCR images and runs Bicep.
 5. Migrate runs automatically via `scripts/cd/azure-cd-migrate.sh` (one job per DB-owning service).
 6. Smoke tests run via `scripts/cd/azure-cd-smoke.sh` (`/health` via web → gateway + SPA shell).
