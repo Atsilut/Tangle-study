@@ -65,6 +65,20 @@ public sealed class MediaAssetRepository(MediaDbContext context) : IMediaAssetRe
         return ToSingleLinkedAssetMap(assets, asset => asset.ChatMessageId!.Value);
     }
 
+    public Task<List<MediaAsset>> GetLinkedContentMediaAssetsAsync(int take) =>
+        _context.MediaAssets
+            .Where(m => m.PostId != null || m.CommentId != null)
+            .OrderBy(m => m.Id)
+            .Take(Math.Clamp(take, 1, 500))
+            .ToListAsync();
+
+    public Task<List<MediaAsset>> GetProcessingMediaAssetsAsync(int take) =>
+        _context.MediaAssets
+            .Where(m => m.ProcessingStatus == MediaProcessingStatus.Processing)
+            .OrderBy(m => m.UpdatedAt)
+            .Take(Math.Clamp(take, 1, 500))
+            .ToListAsync();
+
     public async Task DetachUploaderFromMediaAssetsAsync(long uploaderId)
     {
         var assets = await _context.MediaAssets.Where(m => m.UploaderId == uploaderId).ToListAsync();

@@ -24,6 +24,10 @@ public sealed class LocationSafetyMonitorHostedService(
                 using var scope = _scopeFactory.CreateScope();
                 var sessionService = scope.ServiceProvider.GetRequiredService<LocationSessionService>();
                 await sessionService.ReconcileGhostSessionsAsync();
+                var mapPinService = scope.ServiceProvider.GetRequiredService<MapPinService>();
+                var orphanPins = await mapPinService.ReconcileOrphanPostPinsAsync(batchSize: 100, stoppingToken);
+                if (orphanPins > 0)
+                    _logger.LogWarning("Location orphan pin reconciliation removed {Count} pins", orphanPins);
                 var safetyService = scope.ServiceProvider.GetRequiredService<LocationSafetyAlertService>();
                 await safetyService.EvaluateStaleSessionsAsync();
             }

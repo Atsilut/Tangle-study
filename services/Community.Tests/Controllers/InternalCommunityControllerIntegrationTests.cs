@@ -79,6 +79,51 @@ public sealed class InternalCommunityControllerIntegrationTests(PostgresTestcont
     }
 
     [Fact]
+    public async Task DetachOnDeletion_IsIdempotent_WhenCalledTwice()
+    {
+        var userId = InMemoryUser.SeedUser("idempotent-detach");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+
+        var createPostRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto { Title = "Post", Content = "Body" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createPostRes.StatusCode);
+
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
+        var first = await Client.PostAsync(
+            $"/internal/community/users/{userId}/detach-on-deletion",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+
+        var second = await Client.PostAsync(
+            $"/internal/community/users/{userId}/detach-on-deletion",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteAllByGroup_IsIdempotent_WhenCalledTwice()
+    {
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
+        const long groupId = 424242;
+
+        var first = await Client.PostAsync(
+            $"/internal/community/groups/{groupId}/delete-all",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+
+        var second = await Client.PostAsync(
+            $"/internal/community/groups/{groupId}/delete-all",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+    }
+
+    [Fact]
     public async Task DeleteAllByGroup_RemovesGroupPostsAndLocations()
     {
         var userId = InMemoryUser.SeedUser("grace");

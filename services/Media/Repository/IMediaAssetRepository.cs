@@ -20,6 +20,10 @@ public interface IMediaAssetRepository
 
     public Task<IReadOnlyDictionary<long, MediaAsset?>> GetMediaAssetByChatMessageIdsAsync(IReadOnlyCollection<long> chatMessageIds);
 
+    public Task<List<MediaAsset>> GetLinkedContentMediaAssetsAsync(int take);
+
+    public Task<List<MediaAsset>> GetProcessingMediaAssetsAsync(int take);
+
     public Task DetachUploaderFromMediaAssetsAsync(long uploaderId);
 
     public Task CreateMediaAssetAsync(MediaAsset mediaAsset);

@@ -41,6 +41,7 @@ internal static class LocationServiceTestFactory
         var mapPinService = new MapPinService(
             mapPinRepository,
             users,
+            community,
             locationAccessService,
             new Lazy<LocationClusterService>(() => locationClusterService),
             currentUser);

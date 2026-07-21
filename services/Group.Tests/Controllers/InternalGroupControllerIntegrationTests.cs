@@ -133,4 +133,24 @@ public sealed class InternalGroupControllerIntegrationTests(PostgresTestcontaine
         Assert.Contains(group.Id, FakeCommunity.DeletedGroupIds);
         Assert.Contains(group.Id, FakeLocation.EndedSessionGroupIds);
     }
+
+    [Fact]
+    public async Task DetachOnDeletion_IsIdempotent_WhenCalledTwice()
+    {
+        var owner = GroupIntegrationTestHelpers.CreateUser(Factory, "owner-idempotent");
+        await GroupIntegrationTestHelpers.CreateGroupAsAsync(Client, owner);
+
+        GatewayTestAuthHelpers.LoginAsInternal(Client);
+        var first = await Client.PostAsync(
+            $"/internal/group/users/{owner.Id}/detach-on-deletion",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+
+        var second = await Client.PostAsync(
+            $"/internal/group/users/{owner.Id}/detach-on-deletion",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+    }
 }
