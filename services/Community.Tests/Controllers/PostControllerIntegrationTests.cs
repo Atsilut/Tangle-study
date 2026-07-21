@@ -134,6 +134,86 @@ public sealed class PostControllerIntegrationTests(PostgresTestcontainerFixture 
     }
 
     [Fact]
+    public async Task CreatePost_Compensates_WhenMediaLinkFails()
+    {
+        var userId = InMemoryUser.SeedUser("media-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+        FakeMedia.FailNextLink(new ArgumentException("Simulated media link failure"));
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Should fail",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, createRes.StatusCode);
+        Assert.False(FakeMedia.IsAssetLinkedToPost(assetId));
+
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePost_Compensates_WhenLocationUpsertFailsAfterMediaLink()
+    {
+        var userId = InMemoryUser.SeedUser("location-fail");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+        FakeLocation.FailNextUpsert(new ArgumentException("Simulated location failure"));
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Should fail",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+                Latitude = 37.5m,
+                Longitude = 127.0m,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, createRes.StatusCode);
+        Assert.False(FakeMedia.IsAssetLinkedToPost(assetId));
+        Assert.False(FakeLocation.HasLocation(1));
+        Assert.False(FakeLocation.HasLocation(2));
+
+        var listRes = await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, listRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreatePost_LinkToPost_IsIdempotentForSamePost()
+    {
+        var userId = InMemoryUser.SeedUser("idempotent-link");
+        GatewayTestAuthHelpers.LoginAs(Client, userId);
+        var assetId = FakeMedia.SeedReadyAsset();
+
+        var createRes = await Client.PostAsJsonAsync(
+            "/api/posts",
+            new PostCreateRequestDto
+            {
+                Title = "Once",
+                Content = "Body",
+                MediaAssetIds = [assetId],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+
+        var posts = await (await Client.GetAsync("/api/posts", TestContext.Current.CancellationToken))
+            .Content.ReadFromJsonAsync<List<PostGetResponseDto>>(TestContext.Current.CancellationToken);
+        var postId = Assert.Single(posts!).Id;
+
+        await FakeMedia.LinkToPostAsync(postId, userId, [assetId]);
+        Assert.True(FakeMedia.IsAssetLinkedToPost(assetId));
+        var media = await FakeMedia.GetMediaForPostAsync(postId);
+        Assert.Single(media);
+    }
+
+    [Fact]
     public async Task UpdatePost_PatchesMediaAndLocation_ThenClearsLocation()
     {
         var userId = InMemoryUser.SeedUser("patch-media");

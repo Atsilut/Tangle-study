@@ -19,7 +19,8 @@ public class CommentService(
     IUserClient userClient,
     ISocialClient socialClient,
     IGroupClient groupClient,
-    IMediaClient mediaClient)
+    IMediaClient mediaClient,
+    ILogger<CommentService> logger)
 {
     private readonly ICommentRepository _repo = repo;
     private readonly CommunityDbContext _db = db;
@@ -29,6 +30,7 @@ public class CommentService(
     private readonly IUserClient _userClient = userClient;
     private readonly ISocialClient _socialClient = socialClient;
     private readonly IGroupClient _groupClient = groupClient;
+    private readonly ILogger<CommentService> _logger = logger;
 
     private Task<bool> IsAuthorBlockedByViewerAsync(long authorUserId, CancellationToken cancellationToken = default) =>
         MutualBlockFilter.IsAuthorBlockedByViewerAsync(
@@ -88,29 +90,38 @@ public class CommentService(
         await _repo.CreateCommentAsync(comment);
         try
         {
+            // Saga: persist → link media (idempotent).
             await _mediaClient.LinkToCommentAsync(comment.Id, userId, request.MediaAssetId);
         }
-        catch
+        catch (Exception ex)
         {
-            try
-            {
-                await _mediaClient.DeleteBlobStorageForCommentAsync(comment.Id);
-            }
-            catch
-            {
-                // Best-effort compensation.
-            }
-
-            try
-            {
-                await _repo.DeleteCommentAsync(comment);
-            }
-            catch
-            {
-                // Best-effort compensation.
-            }
-
+            _logger.LogError(
+                ex,
+                "Comment create side effects failed for comment {CommentId}; compensating",
+                comment.Id);
+            await CompensateFailedCommentSideEffectsAsync(comment);
             throw;
+        }
+    }
+
+    private async Task CompensateFailedCommentSideEffectsAsync(Comment comment)
+    {
+        try
+        {
+            await _mediaClient.UnlinkFromCommentAsync(comment.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Compensation: media unlink failed for comment {CommentId}", comment.Id);
+        }
+
+        try
+        {
+            await _repo.DeleteCommentAsync(comment);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Compensation: failed to delete comment {CommentId}", comment.Id);
         }
     }
 
@@ -261,6 +272,9 @@ public class CommentService(
     public Task DetachAuthorFromDeletedUserAsync(long userId) =>
         _repo.DetachAuthorFromCommentsAsync(userId);
 
+    public async Task<bool> CommentExistsAsync(long commentId) =>
+        await _repo.GetCommentByIdAsync(commentId) is not null;
+
     public async Task DeleteCommentAsync(long id)
     {
         var userId = GetUserIdFromLogin();
@@ -270,11 +284,21 @@ public class CommentService(
         if (comment.AuthorUserId != userId)
             throw new AccessForbiddenException("Unauthorized access");
 
+        // Remote-first: dispose media, then local delete.
+        try
+        {
+            await _mediaClient.DeleteBlobStorageForCommentAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Remote cleanup failed before deleting comment {CommentId} (media)", id);
+            throw;
+        }
+
         await _db.ExecuteInTransactionAsync(async () =>
         {
             await _repo.DetachParentFromRepliesAsync(id);
             await _repo.DeleteCommentAsync(comment);
         });
-        await _mediaClient.DeleteBlobStorageForCommentAsync(id);
     }
 }

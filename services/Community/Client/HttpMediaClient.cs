@@ -31,6 +31,12 @@ internal sealed class HttpMediaClient(
             content: new { commentId, uploaderUserId, mediaAssetId });
     }
 
+    public Task UnlinkFromPostAsync(long postId) =>
+        PostNoContentAsync($"internal/media/unlink/post/{postId}");
+
+    public Task UnlinkFromCommentAsync(long commentId) =>
+        PostNoContentAsync($"internal/media/unlink/comment/{commentId}");
+
     public async Task<IReadOnlyDictionary<long, IReadOnlyList<MediaAssetGetResponseDto>>> GetMediaByPostIdsAsync(
         IReadOnlyCollection<long> postIds)
     {

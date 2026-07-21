@@ -6,8 +6,17 @@ namespace Community.Tests.Infrastructure;
 public sealed class FakeLocationClient : ILocationClient
 {
     private readonly Dictionary<long, PostLocationGetResponseDto> _locations = [];
+    private Exception? _upsertFailure;
 
-    public void Reset() => _locations.Clear();
+    public void Reset()
+    {
+        _locations.Clear();
+        _upsertFailure = null;
+    }
+
+    public void FailNextUpsert(Exception exception) => _upsertFailure = exception;
+
+    public bool HasLocation(long postId) => _locations.ContainsKey(postId);
 
     public Task UpsertLocationForPostAsync(
         long postId,
@@ -16,6 +25,13 @@ public sealed class FakeLocationClient : ILocationClient
         decimal longitude,
         CancellationToken cancellationToken = default)
     {
+        if (_upsertFailure is not null)
+        {
+            var failure = _upsertFailure;
+            _upsertFailure = null;
+            throw failure;
+        }
+
         _locations[postId] = new PostLocationGetResponseDto(latitude, longitude);
         return Task.CompletedTask;
     }
