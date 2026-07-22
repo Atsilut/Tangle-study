@@ -41,6 +41,22 @@ USE_PLACEHOLDER_IMAGES="${USE_PLACEHOLDER_IMAGES:-false}"
 [[ -f "$TEMPLATE_FILE" ]] || fail "missing template file: $TEMPLATE_FILE"
 
 ############################################
+log_step "VALIDATE SECRETS"
+
+# Reject malformed values before they reach Bicep. JWT must clear the signing-key floor;
+# header secrets must be whitespace-free; gateway + per-service secrets must be unique.
+require_min_length JWT_SECRET 64
+
+require_no_whitespace \
+  JWT_SECRET WORKER_CALLBACK_SECRET METRICS_SCRAPE_SECRET \
+  GATEWAY_SECRET USERS_INTERNAL_SECRET MEDIA_INTERNAL_SECRET CHAT_INTERNAL_SECRET \
+  LOCATION_INTERNAL_SECRET COMMUNITY_INTERNAL_SECRET GROUP_INTERNAL_SECRET SOCIAL_INTERNAL_SECRET
+
+require_distinct \
+  GATEWAY_SECRET USERS_INTERNAL_SECRET MEDIA_INTERNAL_SECRET CHAT_INTERNAL_SECRET \
+  LOCATION_INTERNAL_SECRET COMMUNITY_INTERNAL_SECRET GROUP_INTERNAL_SECRET SOCIAL_INTERNAL_SECRET
+
+############################################
 log_step "RESOLVE DERIVED SECRETS"
 
 POSTGRES_EXPORTER_DSN="$(python3 "$ROOT/scripts/cd/libs/parse_postgres_conn.py" <<< "$POSTGRES_CONNECTION_STRING")"
