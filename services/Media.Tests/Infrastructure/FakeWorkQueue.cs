@@ -12,6 +12,12 @@ public sealed class FakeWorkQueue : IWorkQueue
         return Task.CompletedTask;
     }
 
+    public Task EnqueueRawJsonAsync(string streamKey, string payloadJson, CancellationToken cancellationToken = default)
+    {
+        _jobs.Add(new EnqueuedJob(streamKey, payloadJson));
+        return Task.CompletedTask;
+    }
+
     public IReadOnlyList<EnqueuedJob> GetEnqueuedJobs() => _jobs;
 
     public sealed record EnqueuedJob(string StreamKey, object Payload);

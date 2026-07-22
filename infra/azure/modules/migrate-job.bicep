@@ -34,9 +34,11 @@ var envVars = [for item in items(env): {
 var allSecretNames = [for item in secretEnvVars: item.name]
 var uniqueSecretNames = empty(allSecretNames) ? [] : union(allSecretNames, allSecretNames)
 
+// Empty string is a valid Bicep default for @secure() params; treat it like missing
+// so local bootstrap without secrets can still create jobs (CD overwrites later).
 var appSecretDefinitions = [for secretName in uniqueSecretNames: {
   name: secretName
-  value: secretValues[?secretName] ?? 'pending-deploy'
+  value: empty(secretValues[?secretName] ?? '') ? 'pending-deploy' : secretValues[secretName]
 }]
 
 var secretEnvMappings = [for item in secretEnvVars: {

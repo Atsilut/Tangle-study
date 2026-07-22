@@ -2,7 +2,7 @@
 
 Fire-and-forget cross-service notifications via `IEventPublisher`. Payload types live in each service (e.g. [`services/Chat/Events/RedisEventContracts.cs`](../services/Chat/Events/RedisEventContracts.cs), [`services/Users/Infrastructure/RedisEventContracts.cs`](../services/Users/Infrastructure/RedisEventContracts.cs)); channel names in each service's `RedisEventChannels`.
 
-Unlike [Redis Streams](QUEUE.md), pub/sub is **not durable** — subscribers must tolerate missed messages if offline. Client realtime delivery uses **SignalR**, not pub/sub.
+Unlike [Redis Streams](QUEUE.md), raw pub/sub is **not durable** by itself — subscribers must tolerate missed messages if offline. **Chat** `ChatMessageCreated` is written through the **transactional outbox** (same DB commit as the message side effects) before the dispatcher publishes — see [QUEUE.md](QUEUE.md#durability-transactional-outbox). **Users** nickname/delete events remain **best-effort** post-commit publish (intentionally not outboxed yet — see [CONSISTENCY.md](CONSISTENCY.md)). Client realtime delivery uses **SignalR**, not pub/sub.
 
 ## Events
 

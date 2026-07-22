@@ -63,6 +63,30 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
         return NoContent();
     }
 
+    [HttpPost("unlink/post/{postId:long}")]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
+    public async Task<IActionResult> UnlinkPost([FromRoute] long postId)
+    {
+        await _service.UnlinkFromPostAsync(postId);
+        return NoContent();
+    }
+
+    [HttpPost("unlink/comment/{commentId:long}")]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
+    public async Task<IActionResult> UnlinkComment([FromRoute] long commentId)
+    {
+        await _service.UnlinkFromCommentAsync(commentId);
+        return NoContent();
+    }
+
+    [HttpPost("unlink/chat-message/{chatMessageId:long}")]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
+    public async Task<IActionResult> UnlinkChatMessage([FromRoute] long chatMessageId)
+    {
+        await _service.UnlinkFromChatMessageAsync(chatMessageId);
+        return NoContent();
+    }
+
     [HttpPost("batch/by-post-ids")]
     [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<ActionResult<Dictionary<long, List<MediaAssetGetResponseDto>>>> GetByPostIds(
@@ -124,6 +148,14 @@ public sealed class InternalMediaController(MediaService service) : ControllerBa
     [HttpPost("detach-uploader/{userId:long}")]
     [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
     public async Task<IActionResult> DetachUploader([FromRoute] long userId)
+    {
+        await _service.DetachUploaderFromDeletedUserAsync(userId);
+        return NoContent();
+    }
+
+    [HttpPost("users/{userId:long}/detach-on-deletion")]
+    [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
+    public async Task<IActionResult> DetachUploaderOnDeletion([FromRoute] long userId)
     {
         await _service.DetachUploaderFromDeletedUserAsync(userId);
         return NoContent();

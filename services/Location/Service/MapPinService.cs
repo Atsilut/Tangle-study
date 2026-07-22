@@ -12,12 +12,14 @@ namespace Location.Service;
 public class MapPinService(
     IMapPinRepository repo,
     IUserClient userClient,
+    ICommunityAccessClient communityAccess,
     LocationAccessService access,
     Lazy<LocationClusterService> clusterService,
     CurrentUserAccessor currentUser)
 {
     private readonly IMapPinRepository _repo = repo;
     private readonly IUserClient _userClient = userClient;
+    private readonly ICommunityAccessClient _communityAccess = communityAccess;
     private readonly LocationAccessService _access = access;
     private readonly Lazy<LocationClusterService> _clusterService = clusterService;
     private readonly CurrentUserAccessor _currentUser = currentUser;
@@ -111,6 +113,28 @@ public class MapPinService(
         if (pin is null) return;
         await _repo.DeleteMapPinAsync(pin);
         await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
+    }
+
+    /// <summary>
+    /// Deletes map pins whose post FK no longer exists in Community.
+    /// </summary>
+    public async Task<int> ReconcileOrphanPostPinsAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        var pins = await _repo.GetPostLinkedMapPinsAsync(batchSize);
+        var removed = 0;
+
+        foreach (var pin in pins)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (pin.PostId is not long postId) continue;
+            if (await _communityAccess.PostExistsAsync(postId, cancellationToken)) continue;
+
+            await _repo.DeleteMapPinAsync(pin);
+            await _clusterService.Value.RefreshClustersNearPinAsync(pin.Latitude, pin.Longitude);
+            removed++;
+        }
+
+        return removed;
     }
 
     public async Task<IReadOnlyDictionary<long, PostLocationGetResponseDto>> GetLocationsByPostIdsAsync(

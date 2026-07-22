@@ -1,6 +1,8 @@
 using Media.Storage;
 using Media.Config;
+using Media.Db;
 using Media.Security;
+using Tangle.AspNetCore.Outbox;
 
 namespace Media.Infrastructure;
 
@@ -9,6 +11,13 @@ public static class MediaServiceCollectionExtensions
     public static IServiceCollection AddTangleMedia(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<MediaOptions>(configuration.GetSection(MediaOptions.SectionName));
+        services.Configure<MediaReconciliationOptions>(
+            configuration.GetSection(MediaReconciliationOptions.SectionName));
+        services.Configure<MediaProcessingRecoveryOptions>(
+            configuration.GetSection(MediaProcessingRecoveryOptions.SectionName));
+        services.AddHostedService<MediaOrphanReconciliationHostedService>();
+        services.AddHostedService<MediaProcessingRecoveryHostedService>();
+        services.AddTangleOutbox<MediaDbContext>(configuration);
         services.AddSingleton<MediaLimitPolicy>();
         services.AddScoped<WorkerCallbackAuthorizationFilter>();
 

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Location.Dto;
 using Location.Tests.Infrastructure;
+using Tangle.AspNetCore.Security;
+using Tangle.TestSupport.Auth;
 
 namespace Location.Tests.Controllers;
 
@@ -132,6 +134,28 @@ public sealed class InternalLocationControllerIntegrationTests(
 
         // Assert
         await IntegrationAssertions.AssertStatusAsync(res, HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task EndSessionsForGroup_IsIdempotent_WhenCalledTwice()
+    {
+        using var first = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{LocationIntegrationTestHelpers.InternalLocationBase}/groups/999/end-sessions");
+        first.Headers.Add(
+            InternalAccessAuthorizationFilter.HeaderName,
+            GatewayTestAuthHelpers.TestInternalServiceSecret);
+        var firstRes = await Client.SendAsync(first, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(firstRes, HttpStatusCode.NoContent);
+
+        using var second = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{LocationIntegrationTestHelpers.InternalLocationBase}/groups/999/end-sessions");
+        second.Headers.Add(
+            InternalAccessAuthorizationFilter.HeaderName,
+            GatewayTestAuthHelpers.TestInternalServiceSecret);
+        var secondRes = await Client.SendAsync(second, TestContext.Current.CancellationToken);
+        await IntegrationAssertions.AssertStatusAsync(secondRes, HttpStatusCode.NoContent);
     }
 
     private static MapPinBoundsQueryDto BuildBoundsQuery() =>

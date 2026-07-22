@@ -92,5 +92,5 @@ internal sealed class HttpMediaClient(
         DeleteNoContentAsync($"internal/media/for-chat-message/{chatMessageId}");
 
     public Task DetachUploaderFromDeletedUserAsync(long uploaderId) =>
-        PostNoContentAsync($"internal/media/detach-uploader/{uploaderId}", content: new { });
+        PostNoContentAsync($"internal/media/users/{uploaderId}/detach-on-deletion", content: new { });
 }

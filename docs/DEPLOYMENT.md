@@ -14,17 +14,18 @@ Default `docker compose up` runs `gateway`, `users`, `media`, `chat`, `location`
 
 | Path | Routed to | Config |
 |------|-----------|--------|
-| `/api/*`, `/hubs/*`, `/internal/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/api/*`, `/hubs/*` | `gateway:8080` → YARP → target service | [`infra/nginx/nginx.conf`](../infra/nginx/nginx.conf) |
+| `/internal/*` | Service-to-service only (direct, e.g. `http://media:8080`); not proxied at the edge, rejected by the gateway | [SERVICE_BOUNDARIES.md](SERVICE_BOUNDARIES.md#internal-service-authentication) |
 
 Gateway YARP routes by path prefix to users, media, chat, location, community, group, and social. See [GATEWAY.md](../services/Gateway/GATEWAY.md).
 
-**Domain services (Docker):** each service's `appsettings.Docker.json` — Redis where needed, `Users:BaseUrl=http://users:8080`, shared `dev-internal-service-secret` for `X-Internal-Secret`. Services trust gateway identity via `GatewayIdentityOptions`.
+**Domain services (Docker):** each service's `appsettings.Docker.json` — Redis where needed, `Users:BaseUrl=http://users:8080`, and a **per-callee** `X-Internal-Secret` (`InternalAccess:Secret` unique per service; callers set `*Client:InternalSecret` / `Users:InternalSecret` to the callee's value). Services trust gateway identity via `GatewayIdentityOptions`.
 
 **Workers:** `API_BASE_URL=http://media:8080` on `rust-worker-media`, `http://chat:8080` on `rust-worker-chat`, `http://location:8080` on `rust-worker-location`.
 
 **Harness E2E:** `TANGLE_HARNESS_API_BASE_URL=http://nginx` — `./scripts/ci/run-stack-harness.sh` (module-filtered full stack).
 
-**Integration tests** (Testcontainers) use in-process fakes / service hosts — no running Compose stack required for Users/Media/Chat/Location/Community/Group/Social unit and integration suites.
+**Integration tests** (Testcontainers) run the real in-process HTTP pipeline + Postgres (+ Redis/outbox where used); cross-service peers are faked. **Harness E2E** exercises the real Compose HTTP mesh. See [CONSISTENCY.md — Testing split](CONSISTENCY.md#testing-split).
 
 ---
 
@@ -205,11 +206,19 @@ The `services/Api/` project and `tangle-study-api` image were removed from the r
 | `JWT_EXPIRY_MINUTES` (GitHub **variable**) | `Jwt__ExpiryMinutes` (users)                                                  | No       | Default `15` from `[parameters.prod.json](../infra/azure/parameters.prod.json)` when unset |
 | `WORKER_CALLBACK_SECRET`                   | `Media__WorkerCallbackSecret`, `WorkerCallback__Secret`, `WORKER_CALLBACK_SECRET` | Yes | Shared with media/location workers for internal callbacks                                                       |
 | `GATEWAY_SECRET`                           | `Gateway__Secret` (gateway), `GatewayIdentity__Secret` (services)             | Yes      | Trusted `X-Gateway-Secret` between gateway and services                                                               |
-| `INTERNAL_SERVICE_SECRET`                  | `InternalAccess__Secret` + `*Client__InternalSecret` / `Users__InternalSecret` | Yes | Shared `X-Internal-Secret` for `/internal/*` service-to-service calls                                              |
+| `USERS_INTERNAL_SECRET`                    | `InternalAccess__Secret` (users); callers' `Users__InternalSecret`            | Yes      | Users receive secret for `/internal/*`                                                                                |
+| `MEDIA_INTERNAL_SECRET`                    | `InternalAccess__Secret` (media); callers' `MediaClient__InternalSecret`      | Yes      | Media receive secret                                                                                                  |
+| `CHAT_INTERNAL_SECRET`                     | `InternalAccess__Secret` (chat); callers' `ChatClient__InternalSecret`        | Yes      | Chat receive secret                                                                                                   |
+| `LOCATION_INTERNAL_SECRET`                 | `InternalAccess__Secret` (location); callers' `LocationClient__InternalSecret` | Yes     | Location receive secret                                                                                               |
+| `COMMUNITY_INTERNAL_SECRET`                | `InternalAccess__Secret` (community); callers' `CommunityClient__InternalSecret` | Yes   | Community receive secret                                                                                              |
+| `GROUP_INTERNAL_SECRET`                    | `InternalAccess__Secret` (group); callers' `GroupClient__InternalSecret`      | Yes      | Group receive secret                                                                                                  |
+| `SOCIAL_INTERNAL_SECRET`                   | `InternalAccess__Secret` (social); callers' `SocialClient__InternalSecret`    | Yes      | Social receive secret                                                                                                 |
 | `METRICS_SCRAPE_SECRET`                    | `Metrics__ScrapeSecret` / `METRICS_SCRAPE_SECRET`                             | Yes      | Required when `Metrics:RequireScrapeSecret` is true                                                                   |
 | `POSTGRES_CONNECTION_STRING`               | `ConnectionStrings__DefaultConnection` (DB services + migrate jobs)           | Yes      | Neon Npgsql connection string from console                                                                            |
 | `GRAFANA_ADMIN_PASSWORD`                   | `GF_SECURITY_ADMIN_PASSWORD` (Grafana)                                        | Yes      | External Grafana Container App admin password                                                                         |
 | `PLACES_API_KEY`                           | `Places__ApiKey` (location)                                                   | No       | Google Places / Geocoding; leave empty to disable search                                                              |
+
+**Per-callee internal secrets:** each service has its own receive value (`InternalAccess__Secret`). Callers send that callee's secret as `X-Internal-Secret` via `*Client__InternalSecret` / `Users__InternalSecret`. Do not reuse one value across services. After cutover, set the seven `*_INTERNAL_SECRET` Environment secrets in GitHub `prod` and remove obsolete `INTERNAL_SERVICE_SECRET`.
 
 ### Media (`services/Media`)
 
@@ -529,7 +538,13 @@ Only then proceed to [MSA extraction](MSA_MIGRATION.md#extraction-order).
    METRICS_SCRAPE_SECRET='...' \
    GRAFANA_ADMIN_PASSWORD='...' \
    GATEWAY_SECRET='...' \
-   INTERNAL_SERVICE_SECRET='...' \
+   USERS_INTERNAL_SECRET='...' \
+   MEDIA_INTERNAL_SECRET='...' \
+   CHAT_INTERNAL_SECRET='...' \
+   LOCATION_INTERNAL_SECRET='...' \
+   COMMUNITY_INTERNAL_SECRET='...' \
+   GROUP_INTERNAL_SECRET='...' \
+   SOCIAL_INTERNAL_SECRET='...' \
      bash scripts/cd/azure-cd-deploy-bicep.sh
 
    AZURE_RESOURCE_GROUP=tangle-study-prod bash scripts/cd/azure-cd-migrate.sh
@@ -740,3 +755,28 @@ docker build -f clients/web/Dockerfile \
 - [ARCHITECTURE.md](ARCHITECTURE.md) — gateway-centric Compose stack + Azure gaps
 - [MSA_MIGRATION.md](MSA_MIGRATION.md) — Phase 9 extraction progress and Azure follow-ups
 
+---
+
+## Partial delete recovery runbook
+
+Cross-service deletes use **remote-first** ordering (idempotent remotes, then local row). If a delete stops halfway:
+
+### User delete (`DELETE /api/users/{id}`)
+
+1. Re-run the user delete (or call each detach in order): Community → Media (`/internal/media/users/{id}/detach-on-deletion`) → Chat → Group → Social → Location, then delete the Users row.
+2. Detach endpoints are idempotent — safe to call twice.
+3. If the user row is already gone but domains still have author FKs, call the detach endpoints with the deleted user id.
+
+### Group delete
+
+1. Re-call `POST /internal/community/groups/{id}/delete-all` and `POST /internal/location/groups/{id}/end-sessions`, then delete the group locally (or retry the group delete API).
+2. Both remotes are no-ops when already cleaned.
+
+### Post / comment delete
+
+1. If media/location were cleaned but the Community row remains, retry the delete API.
+2. If the Community row is gone but media/location remain, background reconciliation unlinks orphan media (`MediaReconciliation`) and removes orphan map pins (Location safety monitor). Manual fallback: `DELETE /internal/media/for-post/{id}` and location `clear-on-delete`.
+
+### Observability
+
+Failed remote cleanup before local delete is logged with the aggregate id. Orphan reconciler warnings (`Media orphan reconciliation unlinked …`, `Location orphan pin reconciliation removed …`) indicate leftover side effects were repaired.

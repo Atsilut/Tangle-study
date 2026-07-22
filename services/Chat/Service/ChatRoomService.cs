@@ -6,7 +6,6 @@ using Tangle.AspNetCore.Exceptions;
 using Chat.Infrastructure;
 using Chat.Repository;
 using Tangle.AspNetCore.Auth;
-using Microsoft.EntityFrameworkCore;
 using Tangle.AspNetCore.Db;
 
 namespace Chat.Service;
@@ -135,27 +134,32 @@ public class ChatRoomService(
     {
         var userId = GetUserIdFromLogin();
 
+        // Cross-service HTTP and local authz checks stay outside the DB transaction (CONSISTENCY.md).
+        var room = await GetRoomWithParticipantsOrThrowAsync(roomId);
+        List<ChatRoomParticipant> participants = [.. room.Participants];
+        _access.EnsureCanAddParticipant(room, participants, userId);
+
+        if (participants.Any(p => p.UserId == request.UserId))
+            throw new EntityAlreadyExistsException("User is already a participant in this chat room.");
+
+        await _access.EnsureInviteeCanBeAddedAsync(room, request.UserId, participants);
+
         var newParticipant = await _db.ExecuteInTransactionAsync(async () =>
         {
-            var room = await _db.ChatRooms
-                .Include(r => r.Participants)
-                .FirstOrDefaultAsync(r => r.Id == roomId)
+            var fresh = await _repo.GetChatRoomByIdAsync(roomId, includeParticipants: true)
                 ?? throw new EntityNotFoundException("Chat room not found");
 
-            List<ChatRoomParticipant> participants = [.. room.Participants];
-            _access.EnsureCanAddParticipant(room, participants, userId);
+            List<ChatRoomParticipant> freshParticipants = [.. fresh.Participants];
+            _access.EnsureCanAddParticipant(fresh, freshParticipants, userId);
 
-            if (participants.Any(p => p.UserId == request.UserId))
+            if (freshParticipants.Any(p => p.UserId == request.UserId))
                 throw new EntityAlreadyExistsException("User is already a participant in this chat room.");
 
-            await _access.EnsureInviteeCanBeAddedAsync(room, request.UserId, participants);
-
-            if (room.Kind == ChatRoomKind.Direct) room.PromoteDirectToMulti();
+            if (fresh.Kind == ChatRoomKind.Direct) fresh.PromoteDirectToMulti();
 
             var participant = new ChatRoomParticipant(roomId, request.UserId, ChatRoomParticipantRole.Member);
-            _db.ChatRoomParticipants.Add(participant);
-            room.TouchUpdatedAt();
-            await _db.SaveChangesAsync();
+            fresh.TouchUpdatedAt();
+            await _repo.AddChatRoomParticipantAsync(participant);
             return participant;
         });
 
@@ -189,13 +193,11 @@ public class ChatRoomService(
     {
         return _db.ExecuteInTransactionAsync(async () =>
         {
-            _db.ChatRooms.Add(room);
-            await _db.SaveChangesAsync();
+            await _repo.CreateChatRoomAsync(room);
 
             foreach (var (participantUserId, role) in participants)
-                _db.ChatRoomParticipants.Add(new ChatRoomParticipant(room.Id, participantUserId, role));
-
-            await _db.SaveChangesAsync();
+                await _repo.AddChatRoomParticipantAsync(
+                    new ChatRoomParticipant(room.Id, participantUserId, role));
         });
     }
 

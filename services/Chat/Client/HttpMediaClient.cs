@@ -19,6 +19,9 @@ internal sealed class HttpMediaClient(
             content: new { chatMessageId, senderUserId, mediaAssetId });
     }
 
+    public Task UnlinkFromChatMessageAsync(long chatMessageId) =>
+        PostNoContentAsync($"internal/media/unlink/chat-message/{chatMessageId}");
+
     public async Task<IReadOnlyDictionary<long, MediaAssetGetResponseDto?>> GetMediaByChatMessageIdsAsync(
         IReadOnlyCollection<long> chatMessageIds) =>
         await PostJsonAsync<Dictionary<long, MediaAssetGetResponseDto?>>(

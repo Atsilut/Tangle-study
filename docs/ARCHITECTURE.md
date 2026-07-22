@@ -1,14 +1,14 @@
 # Architecture
 
-Tangle is a learning project that simulates a distributed system. Local Compose runs **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure production CD still targets the removed monolith image until Bicep/parameters cutover — see [MSA_MIGRATION.md](MSA_MIGRATION.md).
+Tangle is a learning project that simulates a distributed system. Local Compose and Azure production both run **users-service**, **gateway**, and extracted domain services (media, chat, location, community, group, social) behind an Nginx edge, optional Rust workers, optional React web client, and optional Prometheus/Grafana. Azure CD deploys this MSA stack from [`parameters.prod.json`](../infra/azure/parameters.prod.json) via [`cd-v2.yml`](../.github/workflows/cd-v2.yml) — see [MSA_MIGRATION.md](MSA_MIGRATION.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Service-layer conventions: [AGENTS.md](AGENTS.md).
+Service-layer conventions: [AGENTS.md](AGENTS.md). Consistency model: [CONSISTENCY.md](CONSISTENCY.md).
 
 ---
 
 ## Current state (as-built)
 
-Local Compose runs **users-service** and **gateway** plus extracted deployables (`services/Media`, `Chat`, `Location`, `Community`, `Group`, `Social`). Nginx proxies `/api/*` and `/hubs/*` to the gateway; YARP routes to each service. Services call users over HTTP (`IUserClient` → `/internal/users/*`) for identity checks.
+Local Compose runs **users-service** and **gateway** plus extracted deployables (`services/Media`, `Chat`, `Location`, `Community`, `Group`, `Social`). Nginx proxies `/api/*` and `/hubs/*` to the gateway; YARP routes to each service. Services call each other directly on the private network over `/internal/*` (e.g. `IUserClient` → `http://users:8080/internal/users/*`) with `X-Internal-Secret`; `/internal/*` is never exposed at the edge or routed by the gateway.
 
 PostgreSQL remains one instance (schema-per-service). Redis is optional (cache, SignalR backplane, pub/sub, Streams producer).
 
@@ -33,7 +33,7 @@ flowchart TB
   Graf["Grafana (optional)"]
 
   Web --> Nginx
-  Nginx -->|"/api/*, /hubs/*, /internal/*"| Gateway
+  Nginx -->|"/api/*, /hubs/*"| Gateway
   Gateway --> Users
   Gateway --> Media
   Gateway --> Chat
@@ -137,7 +137,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 
 | Service | Role |
 |---------|------|
-| `gateway` | YARP reverse proxy + JWT validation; routes all `/api/*`, `/hubs/*`, `/internal/*` |
+| `gateway` | YARP reverse proxy + JWT validation; routes `/api/*`, `/hubs/*` (rejects `/internal/*` — service-to-service only) |
 | `users` | Users service (login, JWT issuance, `/api/users/*`, `/internal/users/*`, `users` schema) |
 | `media` | Media microservice (`/api/media/*`, `media` schema) |
 | `chat` | Chat microservice (`/api/chat/*`, `/hubs/chat`, `chat` schema) |
@@ -162,7 +162,7 @@ Start with `docker compose --profile monitoring up` (add `--profile workers` for
 
 ## Remaining gaps (beyond local Compose)
 
-Local Compose already matches the Phase 9 runtime shape: gateway + domain microservices. What remains is **operational cutover** and optional hardening — not a different architecture.
+Local Compose and Azure production already match the Phase 9 runtime shape: gateway + domain microservices. Remaining work is optional hardening (physical database-per-service, shared contracts package, observability) — not a different architecture.
 
 ```mermaid
 flowchart TB
@@ -247,7 +247,7 @@ Do **not** use Streams as the client realtime channel. SignalR (or WebSocket) de
 /libs           ← planned shared contracts
 /tools          ← planned Go CLI / load testing
 /infra          ← Prometheus / Grafana, Nginx edge ([infra/README.md](../infra/README.md))
-  /nginx        ← edge reverse proxy (local: gateway upstream; prod: monolith-only until Azure cutover)
+  /nginx        ← edge reverse proxy (Compose + Azure: gateway upstream)
 /docs           ← architecture and migration docs (this folder)
 ```
 
@@ -257,9 +257,8 @@ Solution file (`Tangle.slnx`) includes `Gateway`, `Users`, extracted services, t
 
 ## What is not MSA today
 
-- **Azure (`main`)** — CD still references removed `tangle-study-api`; gateway/users + domain Container Apps cutover pending ([MSA_MIGRATION.md](MSA_MIGRATION.md)).
-- **Database-per-service** — local Compose uses one Postgres instance with schema-per-service; physical DB split is deferred.
+- **Database-per-service** — Compose and Azure still use one Postgres instance with schema-per-service; physical DB split is deferred.
 - No distributed tracing or log aggregation (Grafana Alloy + Loki + Tempo planned in Future Considerations).
 - No service mesh.
 
-Phase 9 steps 1–7 (all domain extractions + gateway/users cutover) are **done in local Compose**. Azure CD cutover follows [MSA_MIGRATION.md](MSA_MIGRATION.md). See [README.md](../README.md#development-phases).
+Phase 9 steps 1–7 (all domain extractions + gateway/users) are **done** in local Compose and Azure. See [README.md](../README.md#development-phases) and [DEPLOYMENT.md](DEPLOYMENT.md).

@@ -1,11 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
+using Location.Db;
 using Location.Dto;
 using Location.Repository;
 using Location.Infrastructure;
 using Location.Queue;
 using Microsoft.Extensions.Caching.Distributed;
-using Tangle.AspNetCore.Queue;
+using Tangle.AspNetCore.Outbox;
 
 namespace Location.Service;
 
@@ -13,7 +14,8 @@ namespace Location.Service;
 public class LocationClusterService(
     IMapPinRepository repo,
     IDistributedCache cache,
-    IWorkQueue workQueue)
+    IOutboxWriter outbox,
+    LocationDbContext db)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan ClusterCacheTtl = TimeSpan.FromMinutes(5);
@@ -21,7 +23,8 @@ public class LocationClusterService(
 
     private readonly IMapPinRepository _repo = repo;
     private readonly IDistributedCache _cache = cache;
-    private readonly IWorkQueue _workQueue = workQueue;
+    private readonly IOutboxWriter _outbox = outbox;
+    private readonly LocationDbContext _db = db;
 
     public async Task<List<MapClusterGetResponseDto>?> GetClustersAsync(MapClusterBoundsQueryDto query)
     {
@@ -97,7 +100,8 @@ public class LocationClusterService(
             "1",
             new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = EnqueueDebounceTtl });
 
-        await _workQueue.EnqueueAsync(
+        // Durable enqueue via transactional outbox (dispatcher XADDs to Redis Streams).
+        _outbox.EnqueueWorkQueue(
             WorkQueueStreams.LocationCluster,
             new LocationClusterJob(
                 query.MinLatitude,
@@ -105,6 +109,7 @@ public class LocationClusterService(
                 query.MinLongitude,
                 query.MaxLongitude,
                 query.Zoom));
+        await _db.SaveChangesAsync();
     }
 
     private static string PendingKey(string cacheKey) => $"{cacheKey}:pending";

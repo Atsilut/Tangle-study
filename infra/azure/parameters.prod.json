@@ -32,7 +32,7 @@
           "image": "grafana/grafana:13.0.2"
         },
         "postgresExporter": {
-          "image": "prometheuscommunity/postgres-exporter:v0.19.1"
+          "image": "prometheuscommunity/postgres-exporter:v0.20.1"
         },
         "redisExporter": {
           "image": "oliver006/redis_exporter:v1.86.0"
@@ -54,37 +54,65 @@
         {
           "name": "tangle-study-migrate-users",
           "image": "tangle-study-users",
-          "command": ["dotnet", "Users.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Users.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-media",
           "image": "tangle-study-media",
-          "command": ["dotnet", "Media.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Media.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-chat",
           "image": "tangle-study-chat",
-          "command": ["dotnet", "Chat.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Chat.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-location",
           "image": "tangle-study-location",
-          "command": ["dotnet", "Location.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Location.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-community",
           "image": "tangle-study-community",
-          "command": ["dotnet", "Community.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Community.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-group",
           "image": "tangle-study-group",
-          "command": ["dotnet", "Group.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Group.dll",
+            "--migrate"
+          ]
         },
         {
           "name": "tangle-study-migrate-social",
           "image": "tangle-study-social",
-          "command": ["dotnet", "Social.dll", "--migrate"]
+          "command": [
+            "dotnet",
+            "Social.dll",
+            "--migrate"
+          ]
         }
       ]
     },
@@ -99,10 +127,22 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "jwt-secret", "envName": "Jwt__Secret" },
-            { "name": "gateway-secret", "envName": "Gateway__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" }
+            {
+              "name": "jwt-secret",
+              "envName": "Jwt__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "Gateway__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -126,18 +166,54 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "jwt-secret", "envName": "Jwt__Secret" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "ChatClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "jwt-secret",
+              "envName": "Jwt__Secret"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "media-internal-secret",
+              "envName": "MediaClient__InternalSecret"
+            },
+            {
+              "name": "chat-internal-secret",
+              "envName": "ChatClient__InternalSecret"
+            },
+            {
+              "name": "location-internal-secret",
+              "envName": "LocationClient__InternalSecret"
+            },
+            {
+              "name": "community-internal-secret",
+              "envName": "CommunityClient__InternalSecret"
+            },
+            {
+              "name": "group-internal-secret",
+              "envName": "GroupClient__InternalSecret"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "SocialClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -163,16 +239,46 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "blob-conn", "envName": "Media__ConnectionString" },
-            { "name": "worker-callback", "envName": "Media__WorkerCallbackSecret" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "ChatClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "blob-conn",
+              "envName": "Media__ConnectionString"
+            },
+            {
+              "name": "worker-callback",
+              "envName": "Media__WorkerCallbackSecret"
+            },
+            {
+              "name": "media-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            },
+            {
+              "name": "chat-internal-secret",
+              "envName": "ChatClient__InternalSecret"
+            },
+            {
+              "name": "community-internal-secret",
+              "envName": "CommunityClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -194,15 +300,42 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "chat-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "SocialClient__InternalSecret"
+            },
+            {
+              "name": "group-internal-secret",
+              "envName": "GroupClient__InternalSecret"
+            },
+            {
+              "name": "media-internal-secret",
+              "envName": "MediaClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -225,17 +358,50 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "worker-callback", "envName": "WorkerCallback__Secret" },
-            { "name": "places-api-key", "envName": "Places__ApiKey" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "worker-callback",
+              "envName": "WorkerCallback__Secret"
+            },
+            {
+              "name": "places-api-key",
+              "envName": "Places__ApiKey"
+            },
+            {
+              "name": "location-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "SocialClient__InternalSecret"
+            },
+            {
+              "name": "group-internal-secret",
+              "envName": "GroupClient__InternalSecret"
+            },
+            {
+              "name": "community-internal-secret",
+              "envName": "CommunityClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -258,16 +424,46 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "GroupClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "MediaClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "community-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "SocialClient__InternalSecret"
+            },
+            {
+              "name": "group-internal-secret",
+              "envName": "GroupClient__InternalSecret"
+            },
+            {
+              "name": "media-internal-secret",
+              "envName": "MediaClient__InternalSecret"
+            },
+            {
+              "name": "location-internal-secret",
+              "envName": "LocationClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -289,15 +485,42 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "SocialClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "CommunityClient__InternalSecret" },
-            { "name": "internal-service-secret", "envName": "LocationClient__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "group-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "SocialClient__InternalSecret"
+            },
+            {
+              "name": "community-internal-secret",
+              "envName": "CommunityClient__InternalSecret"
+            },
+            {
+              "name": "location-internal-secret",
+              "envName": "LocationClient__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -318,12 +541,30 @@
           "minReplicas": 1,
           "maxReplicas": 3,
           "secretEnvVars": [
-            { "name": "postgres-conn", "envName": "ConnectionStrings__DefaultConnection" },
-            { "name": "internal-service-secret", "envName": "InternalAccess__Secret" },
-            { "name": "gateway-secret", "envName": "GatewayIdentity__Secret" },
-            { "name": "metrics-secret", "envName": "Metrics__ScrapeSecret" },
-            { "name": "appinsights-conn", "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING" },
-            { "name": "internal-service-secret", "envName": "Users__InternalSecret" }
+            {
+              "name": "postgres-conn",
+              "envName": "ConnectionStrings__DefaultConnection"
+            },
+            {
+              "name": "social-internal-secret",
+              "envName": "InternalAccess__Secret"
+            },
+            {
+              "name": "gateway-secret",
+              "envName": "GatewayIdentity__Secret"
+            },
+            {
+              "name": "metrics-secret",
+              "envName": "Metrics__ScrapeSecret"
+            },
+            {
+              "name": "appinsights-conn",
+              "envName": "APPLICATIONINSIGHTS_CONNECTION_STRING"
+            },
+            {
+              "name": "users-internal-secret",
+              "envName": "Users__InternalSecret"
+            }
           ],
           "env": {
             "ASPNETCORE_ENVIRONMENT": "Production",
@@ -357,8 +598,14 @@
           "minReplicas": 0,
           "maxReplicas": 2,
           "secretEnvVars": [
-            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
-            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" }
+            {
+              "name": "metrics-secret",
+              "envName": "METRICS_SCRAPE_SECRET"
+            },
+            {
+              "name": "worker-callback",
+              "envName": "WORKER_CALLBACK_SECRET"
+            }
           ],
           "env": {
             "WORKER_TYPE": "chat",
@@ -381,8 +628,14 @@
           "minReplicas": 0,
           "maxReplicas": 2,
           "secretEnvVars": [
-            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
-            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" }
+            {
+              "name": "metrics-secret",
+              "envName": "METRICS_SCRAPE_SECRET"
+            },
+            {
+              "name": "worker-callback",
+              "envName": "WORKER_CALLBACK_SECRET"
+            }
           ],
           "env": {
             "WORKER_TYPE": "location",
@@ -405,9 +658,18 @@
           "minReplicas": 0,
           "maxReplicas": 2,
           "secretEnvVars": [
-            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" },
-            { "name": "worker-callback", "envName": "WORKER_CALLBACK_SECRET" },
-            { "name": "blob-conn", "envName": "AZURE_STORAGE_CONNECTION_STRING" }
+            {
+              "name": "metrics-secret",
+              "envName": "METRICS_SCRAPE_SECRET"
+            },
+            {
+              "name": "worker-callback",
+              "envName": "WORKER_CALLBACK_SECRET"
+            },
+            {
+              "name": "blob-conn",
+              "envName": "AZURE_STORAGE_CONNECTION_STRING"
+            }
           ],
           "env": {
             "WORKER_TYPE": "media",
@@ -430,7 +692,10 @@
           "minReplicas": 1,
           "maxReplicas": 1,
           "secretEnvVars": [
-            { "name": "metrics-secret", "envName": "METRICS_SCRAPE_SECRET" }
+            {
+              "name": "metrics-secret",
+              "envName": "METRICS_SCRAPE_SECRET"
+            }
           ],
           "env": {}
         },
@@ -443,7 +708,10 @@
           "minReplicas": 1,
           "maxReplicas": 1,
           "secretEnvVars": [
-            { "name": "grafana-admin-password", "envName": "GF_SECURITY_ADMIN_PASSWORD" }
+            {
+              "name": "grafana-admin-password",
+              "envName": "GF_SECURITY_ADMIN_PASSWORD"
+            }
           ],
           "env": {
             "GF_SECURITY_ADMIN_USER": "admin",
@@ -481,7 +749,10 @@
           "minReplicas": 1,
           "maxReplicas": 1,
           "secretEnvVars": [
-            { "name": "postgres-dsn", "envName": "DATA_SOURCE_NAME" }
+            {
+              "name": "postgres-dsn",
+              "envName": "DATA_SOURCE_NAME"
+            }
           ],
           "env": {}
         }

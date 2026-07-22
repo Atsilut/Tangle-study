@@ -39,7 +39,7 @@ var hasVolume = !empty(environmentStorageName) && !empty(volumeMountPath)
 
 var secretDefinitions = [for item in secretEnvVars: {
   name: item.name
-  value: item.?value ?? 'pending-deploy'
+  value: empty(item.?value ?? '') ? 'pending-deploy' : item.value
 }]
 
 var secretEnvMappings = [for item in secretEnvVars: {

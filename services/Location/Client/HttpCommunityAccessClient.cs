@@ -1,5 +1,6 @@
 using Location.Config;
 using Microsoft.Extensions.Options;
+using Tangle.AspNetCore.Exceptions;
 using Tangle.AspNetCore.Http;
 
 namespace Location.Client;
@@ -13,6 +14,19 @@ internal sealed class HttpCommunityAccessClient(
 {
     public Task EnsurePostOwnerAsync(long postId, CancellationToken cancellationToken = default) =>
         PostNoContentAsync($"internal/community/{postId}/validate-owner", cancellationToken);
+
+    public async Task<bool> PostExistsAsync(long postId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await PostNoContentAsync($"internal/community/posts/{postId}/exists", cancellationToken);
+            return true;
+        }
+        catch (EntityNotFoundException)
+        {
+            return false;
+        }
+    }
 
     public async Task<HashSet<long>> GetViewablePostIdsAsync(
         IReadOnlyCollection<long> postIds,

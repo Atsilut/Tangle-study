@@ -9,6 +9,20 @@ namespace Community.Api;
 [ServiceFilter(typeof(InternalAccessAuthorizationFilter))]
 public sealed class InternalCommunityController(PostService postService, CommentService commentService) : ControllerBase
 {
+    [HttpPost("posts/{postId:long}/exists")]
+    public async Task<IActionResult> PostExists([FromRoute] long postId)
+    {
+        if (!await postService.PostExistsAsync(postId)) return NotFound();
+        return NoContent();
+    }
+
+    [HttpPost("comments/{commentId:long}/exists")]
+    public async Task<IActionResult> CommentExists([FromRoute] long commentId)
+    {
+        if (!await commentService.CommentExistsAsync(commentId)) return NotFound();
+        return NoContent();
+    }
+
     [HttpPost("{postId:long}/media-view")]
     public async Task<IActionResult> EnsureCanViewPostMedia([FromRoute] long postId)
     {

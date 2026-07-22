@@ -25,7 +25,13 @@ require_env WORKER_CALLBACK_SECRET
 require_env METRICS_SCRAPE_SECRET
 require_env GRAFANA_ADMIN_PASSWORD
 require_env GATEWAY_SECRET
-require_env INTERNAL_SERVICE_SECRET
+require_env USERS_INTERNAL_SECRET
+require_env MEDIA_INTERNAL_SECRET
+require_env CHAT_INTERNAL_SECRET
+require_env LOCATION_INTERNAL_SECRET
+require_env COMMUNITY_INTERNAL_SECRET
+require_env GROUP_INTERNAL_SECRET
+require_env SOCIAL_INTERNAL_SECRET
 
 PARAM_FILE="${PARAM_FILE:-infra/azure/parameters.prod.json}"
 TEMPLATE_FILE="${TEMPLATE_FILE:-infra/azure/main.bicep}"
@@ -68,7 +74,13 @@ extra_params=(
   --parameters "applicationInsightsConnectionString=${APPLICATIONINSIGHTS_CONNECTION_STRING}"
   --parameters "grafanaAdminPassword=${GRAFANA_ADMIN_PASSWORD}"
   --parameters "gatewaySecret=${GATEWAY_SECRET}"
-  --parameters "internalServiceSecret=${INTERNAL_SERVICE_SECRET}"
+  --parameters "usersInternalSecret=${USERS_INTERNAL_SECRET}"
+  --parameters "mediaInternalSecret=${MEDIA_INTERNAL_SECRET}"
+  --parameters "chatInternalSecret=${CHAT_INTERNAL_SECRET}"
+  --parameters "locationInternalSecret=${LOCATION_INTERNAL_SECRET}"
+  --parameters "communityInternalSecret=${COMMUNITY_INTERNAL_SECRET}"
+  --parameters "groupInternalSecret=${GROUP_INTERNAL_SECRET}"
+  --parameters "socialInternalSecret=${SOCIAL_INTERNAL_SECRET}"
 )
 
 if [[ -n "${GHCR_REGISTRY_USERNAME:-}" && -n "${GHCR_REGISTRY_PASSWORD:-}" ]]; then

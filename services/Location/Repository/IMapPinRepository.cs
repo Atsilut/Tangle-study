@@ -14,6 +14,9 @@ public interface IMapPinRepository
         decimal maxLongitude);
     public Task<MapPin?> GetMapPinByPostIdAsync(long postId);
     public Task<List<MapPin>> GetMapPinsByPostIdsAsync(IEnumerable<long> postIds);
+
+    public Task<List<MapPin>> GetPostLinkedMapPinsAsync(int take);
+
     public Task UpdateMapPinAsync(MapPin pin);
     public Task DeleteMapPinAsync(MapPin pin);
     public Task DeleteAllByUserIdAsync(long userId);

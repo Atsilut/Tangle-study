@@ -10,6 +10,7 @@ using Prometheus;
 using System.Threading.RateLimiting;
 using Tangle.AspNetCore.Db;
 using Tangle.AspNetCore.Hosting;
+using Tangle.AspNetCore.Outbox;
 using Location.Security;
 
 if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
@@ -36,6 +37,7 @@ builder.Services.Configure<WorkerCallbackOptions>(builder.Configuration.GetSecti
 builder.Services.AddScoped<WorkerCallbackAuthorizationFilter>();
 builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
 builder.Services.AddTangleRedis(builder.Configuration);
+builder.Services.AddTangleOutbox<LocationDbContext>(builder.Configuration);
 builder.Services.AddTangleUsersAccess(builder.Configuration);
 builder.Services.AddTangleSocialClient(builder.Configuration);
 builder.Services.AddTangleGroupClient(builder.Configuration);

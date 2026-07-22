@@ -44,6 +44,13 @@ public class MapPinRepository(LocationDbContext context) : IMapPinRepository
             .Where(p => p.PostId != null && postIds.Contains(p.PostId.Value))
             .ToListAsync();
 
+    public Task<List<MapPin>> GetPostLinkedMapPinsAsync(int take) =>
+        _context.MapPins
+            .Where(p => p.PostId != null)
+            .OrderBy(p => p.Id)
+            .Take(Math.Clamp(take, 1, 500))
+            .ToListAsync();
+
     public Task UpdateMapPinAsync(MapPin pin) => _context.SaveChangesAsync();
 
     public Task DeleteMapPinAsync(MapPin pin)

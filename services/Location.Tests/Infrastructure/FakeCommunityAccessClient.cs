@@ -40,6 +40,9 @@ public sealed class FakeCommunityAccessClient(IHttpContextAccessor httpContextAc
         return Task.CompletedTask;
     }
 
+    public Task<bool> PostExistsAsync(long postId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(PostOwners.ContainsKey(postId));
+
     public Task<HashSet<long>> GetViewablePostIdsAsync(
         IReadOnlyCollection<long> postIds,
         long? viewerUserId,

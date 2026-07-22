@@ -65,6 +65,20 @@ public sealed class MediaAssetRepository(MediaDbContext context) : IMediaAssetRe
         return ToSingleLinkedAssetMap(assets, asset => asset.ChatMessageId!.Value);
     }
 
+    public Task<List<MediaAsset>> GetLinkedContentMediaAssetsAsync(int take) =>
+        _context.MediaAssets
+            .Where(m => m.PostId != null || m.CommentId != null)
+            .OrderBy(m => m.Id)
+            .Take(Math.Clamp(take, 1, 500))
+            .ToListAsync();
+
+    public Task<List<MediaAsset>> GetProcessingMediaAssetsAsync(int take) =>
+        _context.MediaAssets
+            .Where(m => m.ProcessingStatus == MediaProcessingStatus.Processing)
+            .OrderBy(m => m.UpdatedAt)
+            .Take(Math.Clamp(take, 1, 500))
+            .ToListAsync();
+
     public async Task DetachUploaderFromMediaAssetsAsync(long uploaderId)
     {
         var assets = await _context.MediaAssets.Where(m => m.UploaderId == uploaderId).ToListAsync();
@@ -86,6 +100,32 @@ public sealed class MediaAssetRepository(MediaDbContext context) : IMediaAssetRe
     }
 
     public Task SaveChangesAsync() => _context.SaveChangesAsync();
+
+    /// <summary>
+    /// Atomically claims a PendingUpload asset for processing. Returns false if another
+    /// concurrent CompleteUpload already transitioned it (READ COMMITTED race guard).
+    /// </summary>
+    public async Task<bool> TryMarkProcessingFromPendingUploadAsync(long id)
+    {
+        // InMemory provider (unit tests) does not support ExecuteUpdateAsync.
+        if (!_context.Database.IsRelational())
+        {
+            var asset = await _context.MediaAssets.FindAsync(id);
+            if (asset is null || asset.ProcessingStatus != MediaProcessingStatus.PendingUpload)
+                return false;
+            asset.MarkProcessing();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        var now = DateTime.UtcNow;
+        var rows = await _context.MediaAssets
+            .Where(m => m.Id == id && m.ProcessingStatus == MediaProcessingStatus.PendingUpload)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(m => m.ProcessingStatus, MediaProcessingStatus.Processing)
+                .SetProperty(m => m.UpdatedAt, now));
+        return rows == 1;
+    }
 
     private static MediaAsset? ToSingleLinkedAsset(IReadOnlyList<MediaAsset> assets, string context)
     {
