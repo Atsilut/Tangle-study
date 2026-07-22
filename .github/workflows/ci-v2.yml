@@ -230,6 +230,61 @@ jobs:
           mkdir -p .ci-cache/nuget .ci-cache/publish
           bash scripts/ci/dotnet-publish.sh
 
+      ############################################
+      # 6. UPLOAD BUILD OUTPUTS
+      ############################################
+      - name: Upload .NET build outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotnet-build-outputs
+          path: |
+            .ci-cache/publish
+            services/Gateway/bin
+            services/Gateway/obj
+            services/Gateway.Tests/bin
+            services/Gateway.Tests/obj
+            services/Tangle.AspNetCore/bin
+            services/Tangle.AspNetCore/obj
+            services/Tangle.AspNetCore.Tests/bin
+            services/Tangle.AspNetCore.Tests/obj
+            services/TestSupport/bin
+            services/TestSupport/obj
+            services/TestSupport.Scenarios/bin
+            services/TestSupport.Scenarios/obj
+            services/Users/bin
+            services/Users/obj
+            services/Users.Tests/bin
+            services/Users.Tests/obj
+            services/Stack.Tests/bin
+            services/Stack.Tests/obj
+            services/Media/bin
+            services/Media/obj
+            services/Media.Tests/bin
+            services/Media.Tests/obj
+            services/Chat/bin
+            services/Chat/obj
+            services/Chat.Tests/bin
+            services/Chat.Tests/obj
+            services/Location/bin
+            services/Location/obj
+            services/Location.Tests/bin
+            services/Location.Tests/obj
+            services/Community/bin
+            services/Community/obj
+            services/Community.Tests/bin
+            services/Community.Tests/obj
+            services/Group/bin
+            services/Group/obj
+            services/Group.Tests/bin
+            services/Group.Tests/obj
+            services/Social/bin
+            services/Social/obj
+            services/Social.Tests/bin
+            services/Social.Tests/obj
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 1
+
   users-tests:
     name: Users integration tests
     needs: [changes, dotnet-build]
@@ -319,6 +374,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX
@@ -424,6 +487,14 @@ jobs:
             ${{ runner.os }}-dotnet-
 
       ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
+
+      ############################################
       # 4. DOCKER BUILDX
       ############################################
       - name: Set up Docker Buildx
@@ -526,6 +597,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX
@@ -633,6 +712,14 @@ jobs:
             ${{ runner.os }}-dotnet-
 
       ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
+
+      ############################################
       # 4. DOCKER BUILDX
       ############################################
       - name: Set up Docker Buildx
@@ -736,6 +823,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX
@@ -843,6 +938,14 @@ jobs:
             ${{ runner.os }}-dotnet-
 
       ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
+
+      ############################################
       # 4. DOCKER BUILDX
       ############################################
       - name: Set up Docker Buildx
@@ -946,6 +1049,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX
@@ -1052,6 +1163,14 @@ jobs:
             ${{ runner.os }}-dotnet-
 
       ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
+
+      ############################################
       # 4. DOCKER BUILDX
       ############################################
       - name: Set up Docker Buildx
@@ -1114,6 +1233,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX
@@ -1344,6 +1471,14 @@ jobs:
             ${{ runner.os }}-dotnet-
 
       ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
+
+      ############################################
       # 4. CACHE CARGO
       ############################################
       - name: Cache Cargo build artifacts
@@ -1430,6 +1565,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.DOTNET_SDK_IMAGE }}-
             ${{ runner.os }}-dotnet-
+
+      ############################################
+      # 3b. DOWNLOAD BUILD OUTPUTS
+      ############################################
+      - name: Download .NET build outputs
+        uses: actions/download-artifact@v8
+        with:
+          name: dotnet-build-outputs
 
       ############################################
       # 4. DOCKER BUILDX

@@ -37,7 +37,7 @@ ci_fix_cache_ownership() {
 
   for proj in \
     Gateway Gateway.Tests \
-    Tangle.AspNetCore \
+    Tangle.AspNetCore Tangle.AspNetCore.Tests \
     TestSupport TestSupport.Scenarios \
     Users Users.Tests \
     Stack.Tests \
